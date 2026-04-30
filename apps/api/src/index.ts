@@ -358,6 +358,177 @@ app.post('/api/managers/login', (req, res) => {
   res.json({ code: 0, message: '登录成功', data: { token, manager: safeManager } })
 })
 
+// ============ 用户接口（普通用户，非经理） ============
+
+const USER_FILE = join(DATA_DIR, 'users.json')
+
+if (!existsSync(USER_FILE)) {
+  writeFileSync(USER_FILE, JSON.stringify([], null, 2), 'utf-8')
+}
+
+function readUsers() {
+  return JSON.parse(readFileSync(USER_FILE, 'utf-8'))
+}
+
+function writeUsers(data: unknown[]) {
+  writeFileSync(USER_FILE, JSON.stringify(data, null, 2), 'utf-8')
+}
+
+// 用户注册
+app.post('/api/users/register', (req, res) => {
+  const { phone, password, nickname } = req.body
+
+  if (!phone || !password) {
+    res.json({ code: 400, message: '手机号和密码不能为空', data: null })
+    return
+  }
+  if (!/^1[3-9]\d{9}$/.test(phone)) {
+    res.json({ code: 400, message: '手机号格式不正确', data: null })
+    return
+  }
+  if (password.length < 6) {
+    res.json({ code: 400, message: '密码长度不能少于6位', data: null })
+    return
+  }
+
+  const users = readUsers()
+  if (users.find((u: any) => u.phone === phone)) {
+    res.json({ code: 409, message: '该手机号已注册', data: null })
+    return
+  }
+
+  const now = new Date().toISOString()
+  const user = {
+    id: `u_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+    phone,
+    password,
+    nickname: nickname || `用户${phone.slice(-4)}`,
+    role: 'user',
+    status: 'active',
+    createdAt: now,
+    updatedAt: now,
+  }
+  users.push(user)
+  writeUsers(users)
+
+  const { password: _, ...safeUser } = user
+  const token = `usr_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+  res.json({ code: 0, message: '注册成功', data: { token, user: safeUser } })
+})
+
+// 用户登录
+app.post('/api/users/login', (req, res) => {
+  const { phone, password } = req.body
+  if (!phone || !password) {
+    res.json({ code: 400, message: '手机号和密码不能为空', data: null })
+    return
+  }
+  const users = readUsers()
+  const user = users.find(
+    (u: any) => u.phone === phone && u.password === password && u.status === 'active'
+  )
+  if (!user) {
+    res.json({ code: 401, message: '手机号或密码错误，或账号已被禁用', data: null })
+    return
+  }
+  const { password: _, ...safeUser } = user
+  const token = `usr_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+  res.json({ code: 0, message: '登录成功', data: { token, user: safeUser } })
+})
+
+// 管理后台：获取所有用户列表（推广经理 + 普通用户）
+app.get('/api/users', (req, res) => {
+  const { page = '1', pageSize = '10', role, status, keyword } = req.query
+  const managers = readManagers()
+  const users = readUsers()
+
+  // 合并推广经理和普通用户
+  const allUsers = [
+    ...managers.map((m: any) => ({
+      id: m.id,
+      name: m.name,
+      phone: m.phone,
+      role: 'manager',
+      status: m.status === 'active' ? 1 : 0,
+      createdAt: m.createdAt,
+    })),
+    ...users.map((u: any) => ({
+      id: u.id,
+      name: u.nickname,
+      phone: u.phone,
+      role: u.role,
+      status: u.status === 'active' ? 1 : 0,
+      createdAt: u.createdAt,
+    })),
+  ]
+
+  // 按角色筛选
+  let filtered = allUsers
+  if (role) {
+    filtered = filtered.filter((u: any) => u.role === role)
+  }
+  if (status !== undefined && status !== '') {
+    const s = Number(status)
+    filtered = filtered.filter((u: any) => u.status === s)
+  }
+  if (keyword) {
+    const kw = String(keyword).toLowerCase()
+    filtered = filtered.filter(
+      (u: any) => (u.name || '').toLowerCase().includes(kw) || (u.phone || '').includes(kw)
+    )
+  }
+
+  filtered.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+
+  const total = filtered.length
+  const pageNum = parseInt(page as string, 10)
+  const pageSizeNum = parseInt(pageSize as string, 10)
+  const start = (pageNum - 1) * pageSizeNum
+  const list = filtered.slice(start, start + pageSizeNum)
+
+  res.json({ code: 0, message: 'success', data: { list, total, page: pageNum, pageSize: pageSizeNum } })
+})
+
+// 管理后台：切换用户状态
+app.put('/api/users/:id/status', (req, res) => {
+  const { status } = req.body
+  const userId = req.params.id
+
+  // 先查经理表
+  let managers = readManagers()
+  const mgrIdx = managers.findIndex((m: any) => m.id === userId)
+  if (mgrIdx !== -1) {
+    managers[mgrIdx].status = status ? 'active' : 'disabled'
+    managers[mgrIdx].updatedAt = new Date().toISOString()
+    writeManagers(managers)
+    // 联动下架产品
+    if (!status) {
+      let products = readProducts()
+      products = products.map((p: any) =>
+        p.managerId === userId && p.status === 'published'
+          ? { ...p, status: 'offline', updatedAt: new Date().toISOString() }
+          : p
+      )
+      writeProducts(products)
+    }
+    res.json({ code: 0, message: '更新成功', data: null })
+    return
+  }
+
+  // 再查用户表
+  let users = readUsers()
+  const usrIdx = users.findIndex((u: any) => u.id === userId)
+  if (usrIdx !== -1) {
+    users[usrIdx].status = status ? 'active' : 'disabled'
+    users[usrIdx].updatedAt = new Date().toISOString()
+    writeUsers(users)
+    res.json({ code: 0, message: '更新成功', data: null })
+    return
+  }
+
+  res.json({ code: 404, message: '用户不存在', data: null })
+})
+
 // ============ 佣金接口 ============
 
 const COMMISSION_FILE = join(DATA_DIR, 'commissions.json')

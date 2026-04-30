@@ -9,7 +9,7 @@
       <p class="app-desc">分享好物，赚取佣金</p>
     </div>
 
-    <!-- 登录表单 -->
+    <!-- 登录/注册表单 -->
     <div class="login-form">
       <van-cell-group inset>
         <!-- 手机号输入 -->
@@ -20,24 +20,37 @@
           placeholder="请输入手机号"
           maxlength="11"
           clearable
-          :rules="[
-            { required: true, message: '请输入手机号' },
-            { pattern: /^1[3-9]\d{9}$/, message: '手机号格式不正确' }
-          ]"
+        />
+        <!-- 昵称（仅注册时显示） -->
+        <van-field
+          v-if="isRegister"
+          v-model="form.nickname"
+          label="昵称"
+          placeholder="请输入昵称（选填）"
+          clearable
         />
         <!-- 密码输入 -->
         <van-field
           v-model="form.password"
           :type="showPassword ? 'text' : 'password'"
           label="密码"
-          placeholder="请输入密码"
+          :placeholder="isRegister ? '请设置密码（至少6位）' : '请输入密码'"
           clearable
           :right-icon="showPassword ? 'eye-o' : 'closed-eye'"
           @click-right-icon="showPassword = !showPassword"
         />
+        <!-- 确认密码（仅注册时显示） -->
+        <van-field
+          v-if="isRegister"
+          v-model="form.confirmPassword"
+          :type="showPassword ? 'text' : 'password'"
+          label="确认密码"
+          placeholder="请再次输入密码"
+          clearable
+        />
       </van-cell-group>
 
-      <!-- 登录按钮 -->
+      <!-- 登录/注册按钮 -->
       <div class="login-btn-wrap">
         <van-button
           type="primary"
@@ -45,17 +58,21 @@
           round
           size="large"
           :loading="loading"
-          loading-text="登录中..."
-          @click="handleLogin"
+          :loading-text="isRegister ? '注册中...' : '登录中...'"
+          @click="handleSubmit"
         >
-          登录
+          {{ isRegister ? '注册' : '登录' }}
         </van-button>
       </div>
 
-      <!-- 其他操作 -->
+      <!-- 切换登录/注册 -->
       <div class="login-footer">
-        <span class="link-text">忘记密码？</span>
-        <span class="link-text">注册账号</span>
+        <span v-if="!isRegister" class="link-text" @click="isRegister = true">
+          没有账号？去注册
+        </span>
+        <span v-else class="link-text" @click="isRegister = false">
+          已有账号？去登录
+        </span>
       </div>
     </div>
   </div>
@@ -65,10 +82,14 @@
 import { reactive, ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { showToast } from 'vant'
+import { post } from '@promo/shared/utils/request'
 
 // 路由实例
 const router = useRouter()
 const route = useRoute()
+
+// 是否注册模式
+const isRegister = ref(false)
 
 // 是否显示密码
 const showPassword = ref(false)
@@ -79,42 +100,73 @@ const loading = ref(false)
 // 表单数据
 const form = reactive({
   phone: '',
-  password: ''
+  password: '',
+  confirmPassword: '',
+  nickname: ''
 })
 
-// 处理登录
-const handleLogin = async () => {
-  // 表单验证
+// 表单校验
+const validate = () => {
   if (!form.phone) {
     showToast('请输入手机号')
-    return
+    return false
   }
   if (!/^1[3-9]\d{9}$/.test(form.phone)) {
     showToast('手机号格式不正确')
-    return
+    return false
   }
   if (!form.password) {
     showToast('请输入密码')
-    return
+    return false
   }
+  if (isRegister.value && form.password.length < 6) {
+    showToast('密码长度不能少于6位')
+    return false
+  }
+  if (isRegister.value && form.password !== form.confirmPassword) {
+    showToast('两次密码输入不一致')
+    return false
+  }
+  return true
+}
+
+// 提交（登录或注册）
+const handleSubmit = async () => {
+  if (!validate()) return
 
   loading.value = true
 
   try {
-    // TODO: 调用登录接口
-    // 模拟登录成功
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-
-    // 存储用户 Token
-    localStorage.setItem('user_token', 'mock_token_' + Date.now())
-
-    showToast('登录成功')
-
-    // 跳转到之前的页面或首页
-    const redirect = (route.query.redirect as string) || '/home'
-    router.replace(redirect)
-  } catch (error) {
-    showToast('登录失败，请重试')
+    if (isRegister.value) {
+      // 注册
+      const res = await post<any>('/users/register', {
+        phone: form.phone,
+        password: form.password,
+        nickname: form.nickname || undefined,
+      })
+      if (res.data && res.data.token) {
+        localStorage.setItem('user_token', res.data.token)
+        localStorage.setItem('user_info', JSON.stringify(res.data.user))
+        showToast('注册成功')
+        const redirect = (route.query.redirect as string) || '/home'
+        router.replace(redirect)
+      }
+    } else {
+      // 登录
+      const res = await post<any>('/users/login', {
+        phone: form.phone,
+        password: form.password,
+      })
+      if (res.data && res.data.token) {
+        localStorage.setItem('user_token', res.data.token)
+        localStorage.setItem('user_info', JSON.stringify(res.data.user))
+        showToast('登录成功')
+        const redirect = (route.query.redirect as string) || '/home'
+        router.replace(redirect)
+      }
+    }
+  } catch (error: any) {
+    showToast(error.message || (isRegister.value ? '注册失败' : '登录失败'))
   } finally {
     loading.value = false
   }
@@ -164,7 +216,7 @@ const handleLogin = async () => {
   }
 
   :deep(.van-field__label) {
-    width: 60px;
+    width: 72px;
   }
 }
 
@@ -175,7 +227,7 @@ const handleLogin = async () => {
 
 .login-footer {
   display: flex;
-  justify-content: space-between;
+  justify-content: center;
   padding: 16px 16px 0;
 
   .link-text {

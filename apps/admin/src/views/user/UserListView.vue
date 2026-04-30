@@ -3,7 +3,7 @@
     <!-- 搜索栏 -->
     <el-card shadow="never" class="search-card">
       <el-row :gutter="20" align="middle">
-        <el-col :span="8">
+        <el-col :span="6">
           <el-input
             v-model="searchKeyword"
             placeholder="搜索姓名或手机号"
@@ -13,7 +13,19 @@
             @keyup.enter="handleSearch"
           />
         </el-col>
-        <el-col :span="6">
+        <el-col :span="4">
+          <el-select
+            v-model="searchRole"
+            placeholder="角色筛选"
+            clearable
+            @change="handleSearch"
+          >
+            <el-option label="全部" value="" />
+            <el-option label="推广经理" value="manager" />
+            <el-option label="普通用户" value="user" />
+          </el-select>
+        </el-col>
+        <el-col :span="4">
           <el-select
             v-model="searchStatus"
             placeholder="状态筛选"
@@ -121,9 +133,11 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { get, put } from '@promo/shared/utils/request'
 
 // 搜索条件
 const searchKeyword = ref('')
+const searchRole = ref('')
 const searchStatus = ref<number | ''>('')
 // 加载状态
 const loading = ref(false)
@@ -137,7 +151,7 @@ const pagination = reactive({
 
 // 用户数据类型
 interface UserItem {
-  id: number
+  id: string
   name: string
   phone: string
   role: string
@@ -151,7 +165,7 @@ const tableData = ref<UserItem[]>([])
 // 详情弹窗
 const detailDialogVisible = ref(false)
 const detailData = reactive<UserItem>({
-  id: 0,
+  id: '',
   name: '',
   phone: '',
   role: '',
@@ -179,40 +193,25 @@ const getRoleLabel = (role: string) => {
   return map[role] || role
 }
 
-// 模拟数据加载
-const loadData = () => {
+// 加载数据
+const loadData = async () => {
   loading.value = true
-  setTimeout(() => {
-    // 模拟数据
-    const mockData: UserItem[] = [
-      { id: 1, name: '张三', phone: '13900139001', role: 'admin', status: 1, createdAt: '2025-01-15 10:30:00' },
-      { id: 2, name: '李四', phone: '13900139002', role: 'manager', status: 1, createdAt: '2025-02-20 14:20:00' },
-      { id: 3, name: '王五', phone: '13900139003', role: 'user', status: 1, createdAt: '2025-03-10 09:15:00' },
-      { id: 4, name: '赵六', phone: '13900139004', role: 'user', status: 0, createdAt: '2025-03-18 16:45:00' },
-      { id: 5, name: '孙七', phone: '13900139005', role: 'manager', status: 1, createdAt: '2025-04-01 11:00:00' },
-      { id: 6, name: '周八', phone: '13900139006', role: 'user', status: 1, createdAt: '2025-04-12 08:30:00' },
-      { id: 7, name: '吴九', phone: '13900139007', role: 'user', status: 0, createdAt: '2025-04-20 13:10:00' },
-      { id: 8, name: '郑十', phone: '13900139008', role: 'user', status: 1, createdAt: '2025-04-25 17:50:00' },
-      { id: 9, name: '钱十一', phone: '13900139009', role: 'manager', status: 1, createdAt: '2025-05-03 10:00:00' },
-      { id: 10, name: '陈十二', phone: '13900139010', role: 'user', status: 1, createdAt: '2025-05-15 15:30:00' }
-    ]
-
-    // 根据搜索条件过滤
-    let filtered = mockData
-    if (searchKeyword.value) {
-      const keyword = searchKeyword.value.toLowerCase()
-      filtered = filtered.filter(
-        (item) => item.name.includes(keyword) || item.phone.includes(keyword)
-      )
-    }
-    if (searchStatus.value !== '') {
-      filtered = filtered.filter((item) => item.status === searchStatus.value)
-    }
-
-    tableData.value = filtered
-    pagination.total = filtered.length
+  try {
+    const res = await get<any>('/users', {
+      page: pagination.page,
+      pageSize: pagination.pageSize,
+      role: searchRole.value || undefined,
+      status: searchStatus.value !== '' ? searchStatus.value : undefined,
+      keyword: searchKeyword.value || undefined,
+    })
+    const { list, total } = res.data
+    tableData.value = list || []
+    pagination.total = total || 0
+  } catch (error: any) {
+    ElMessage.error(error.message || '获取数据失败')
+  } finally {
     loading.value = false
-  }, 300)
+  }
 }
 
 // 搜索处理
@@ -236,10 +235,14 @@ const handleToggleStatus = async (row: UserItem) => {
       cancelButtonText: '取消',
       type: 'warning'
     })
-    row.status = row.status === 1 ? 0 : 1
+    const newStatus = row.status === 1 ? 0 : 1
+    await put(`/users/${row.id}/status`, { status: newStatus })
     ElMessage.success(`${action}成功`)
-  } catch {
-    // 用户取消操作
+    loadData()
+  } catch (error: any) {
+    if (error !== 'cancel') {
+      ElMessage.error(error.message || '操作失败')
+    }
   }
 }
 
