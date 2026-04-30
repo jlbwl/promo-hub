@@ -128,6 +128,7 @@ import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Picture } from '@element-plus/icons-vue'
+import { get, put, del } from '@promo/shared/utils/request'
 
 const router = useRouter()
 
@@ -150,13 +151,15 @@ type ProductStatus = 'draft' | 'published' | 'offline'
 
 // 产品数据接口
 interface Product {
-  id: number
+  id: string
   title: string
   cover: string
+  coverImage: string
   price: number
   commission: number
   status: ProductStatus
   createdAt: string
+  publishedAt: string
 }
 
 // 表格数据
@@ -186,75 +189,22 @@ const statusText = (status: ProductStatus) => {
 const fetchData = async () => {
   loading.value = true
   try {
-    // 模拟接口请求
-    await new Promise(resolve => setTimeout(resolve, 500))
-
-    // 模拟数据
-    const mockData: Product[] = [
-      {
-        id: 1,
-        title: '高端护肤品套装 - 补水保湿系列',
-        cover: 'https://via.placeholder.com/120',
-        price: 299.00,
-        commission: 45.00,
-        status: 'published',
-        createdAt: '2026-04-28 10:30:00'
-      },
-      {
-        id: 2,
-        title: '智能蓝牙耳机 降噪版',
-        cover: 'https://via.placeholder.com/120',
-        price: 199.00,
-        commission: 30.00,
-        status: 'published',
-        createdAt: '2026-04-27 14:20:00'
-      },
-      {
-        id: 3,
-        title: '有机绿茶礼盒装',
-        cover: 'https://via.placeholder.com/120',
-        price: 158.00,
-        commission: 20.00,
-        status: 'draft',
-        createdAt: '2026-04-26 09:15:00'
-      },
-      {
-        id: 4,
-        title: '运动健身器材套装',
-        cover: 'https://via.placeholder.com/120',
-        price: 399.00,
-        commission: 60.00,
-        status: 'offline',
-        createdAt: '2026-04-25 16:45:00'
-      },
-      {
-        id: 5,
-        title: '儿童益智玩具积木',
-        cover: 'https://via.placeholder.com/120',
-        price: 89.00,
-        commission: 12.00,
-        status: 'published',
-        createdAt: '2026-04-24 11:00:00'
-      }
-    ]
-
-    // 根据搜索条件过滤
-    let filtered = [...mockData]
-    if (searchKeyword.value) {
-      filtered = filtered.filter(item =>
-        item.title.includes(searchKeyword.value)
-      )
-    }
-    if (searchStatus.value) {
-      filtered = filtered.filter(item => item.status === searchStatus.value)
-    }
-
-    // 更新分页信息
-    pagination.total = filtered.length
-    tableData.value = filtered
-  } catch (error) {
+    const res = await get<any>('/products', {
+      page: pagination.page,
+      pageSize: pagination.pageSize,
+      status: searchStatus.value || undefined,
+    })
+    const { list, total } = res.data
+    // 映射字段：coverImage -> cover
+    tableData.value = list.map((p: any) => ({
+      ...p,
+      cover: p.coverImage || p.cover || '',
+      commission: p.commission || 0,
+    }))
+    pagination.total = total
+  } catch (error: any) {
     console.error('获取产品列表失败:', error)
-    ElMessage.error('获取产品列表失败')
+    ElMessage.error(error.message || '获取产品列表失败')
   } finally {
     loading.value = false
   }
@@ -292,12 +242,13 @@ const handleToggleStatus = async (row: Product, newStatus: ProductStatus) => {
         type: 'warning'
       }
     )
-    // 模拟接口请求
-    await new Promise(resolve => setTimeout(resolve, 300))
-    row.status = newStatus
+    await put(`/products/${row.id}`, { status: newStatus })
     ElMessage.success(`${statusLabel}成功`)
-  } catch {
-    // 用户取消操作
+    fetchData()
+  } catch (error: any) {
+    if (error !== 'cancel') {
+      ElMessage.error(error.message || '操作失败')
+    }
   }
 }
 
@@ -313,13 +264,13 @@ const handleDelete = async (row: Product) => {
         type: 'error'
       }
     )
-    // 模拟接口请求
-    await new Promise(resolve => setTimeout(resolve, 300))
-    tableData.value = tableData.value.filter(item => item.id !== row.id)
-    pagination.total--
+    await del(`/products/${row.id}`)
     ElMessage.success('删除成功')
-  } catch {
-    // 用户取消操作
+    fetchData()
+  } catch (error: any) {
+    if (error !== 'cancel') {
+      ElMessage.error(error.message || '删除失败')
+    }
   }
 }
 

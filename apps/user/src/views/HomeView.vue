@@ -78,6 +78,7 @@
 <script setup lang="ts">
 import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
+import { get } from '@promo/shared/utils/request'
 
 // 路由实例
 const router = useRouter()
@@ -95,46 +96,48 @@ const products = ref<any[]>([])
 const loading = ref(false)
 const finished = ref(false)
 
-// 分类数据
-const categories = reactive([
-  { id: 0, name: '全部' },
-  { id: 1, name: '综合-立返' },
-  { id: 2, name: '综合-数据' },
-  { id: 3, name: '个养和加挂' },
-  { id: 4, name: '限三-立返' },
-  { id: 5, name: '限三-数据' },
-  { id: 6, name: '不限三-立返' },
-  { id: 7, name: '不限三-数据' },
-  { id: 8, name: '三方-立返' },
-  { id: 9, name: '三方-数据' },
-  { id: 10, name: '其它' }
-])
+// 分页
+const page = ref(1)
+const pageSize = 10
 
-// 模拟产品数据
-const mockProducts = [
-  { id: 1, title: '无线蓝牙耳机 降噪运动防水', cover: '', price: '199.00', commission: '30.00', sales: '2.3万' },
-  { id: 2, title: '保湿面膜套装 补水修护', cover: '', price: '89.00', commission: '15.00', sales: '5.1万' },
-  { id: 3, title: '智能手表 多功能运动健康监测', cover: '', price: '399.00', commission: '60.00', sales: '1.2万' },
-  { id: 4, title: '有机坚果礼盒 每日坚果混合装', cover: '', price: '69.00', commission: '10.00', sales: '8.6万' },
-  { id: 5, title: '便携式充电宝 20000mAh大容量', cover: '', price: '129.00', commission: '20.00', sales: '3.4万' },
-  { id: 6, title: '真丝睡衣套装 丝绸家居服', cover: '', price: '259.00', commission: '40.00', sales: '6800' },
-  { id: 7, title: '儿童益智积木 拼装玩具', cover: '', price: '149.00', commission: '25.00', sales: '1.5万' },
-  { id: 8, title: '空气炸锅 家用多功能', cover: '', price: '299.00', commission: '45.00', sales: '4.2万' }
-]
+// 分类数据（id 对应 API 的 category value）
+const categories = reactive([
+  { id: 0, name: '全部', value: '' },
+  { id: 1, name: '综合-立返', value: 'comprehensive-instant' },
+  { id: 2, name: '综合-数据', value: 'comprehensive-data' },
+  { id: 3, name: '个养和加挂', value: 'personal-insurance' },
+  { id: 4, name: '限三-立返', value: 'limit3-instant' },
+  { id: 5, name: '限三-数据', value: 'limit3-data' },
+  { id: 6, name: '不限三-立返', value: 'no-limit3-instant' },
+  { id: 7, name: '不限三-数据', value: 'no-limit3-data' },
+  { id: 8, name: '三方-立返', value: 'third-party-instant' },
+  { id: 9, name: '三方-数据', value: 'third-party-data' },
+  { id: 10, name: '其它', value: 'other' }
+])
 
 // 加载产品列表
 const loadProducts = async () => {
   try {
-    // TODO: 替换为实际 API 调用
-    // 模拟网络延迟
-    await new Promise((resolve) => setTimeout(resolve, 800))
-
-    // 模拟分页加载
-    if (products.value.length >= mockProducts.length) {
+    const categoryValue = categories.find(c => c.id === activeCategory.value)?.value
+    const res = await get<any>('/products', {
+      page: page.value,
+      pageSize,
+      category: categoryValue || undefined,
+    })
+    const { list, total } = res.data
+    if (list.length === 0 || products.value.length >= total) {
       finished.value = true
     } else {
-      products.value.push(...mockProducts)
+      products.value.push(...list.map((p: any) => ({
+        ...p,
+        cover: p.coverImage || '',
+        sales: '0',
+      })))
+      page.value++
     }
+  } catch (error) {
+    console.error('加载产品失败:', error)
+    finished.value = true
   } finally {
     loading.value = false
   }
@@ -145,18 +148,18 @@ const selectCategory = (categoryId: number) => {
   activeCategory.value = categoryId
   products.value = []
   finished.value = false
-  // TODO: 根据分类重新加载产品
+  page.value = 1
 }
 
 // 搜索产品
 const handleSearch = () => {
   products.value = []
   finished.value = false
-  // TODO: 根据搜索关键词重新加载产品
+  page.value = 1
 }
 
 // 跳转产品详情
-const goToDetail = (productId: number) => {
+const goToDetail = (productId: string) => {
   router.push(`/product/${productId}`)
 }
 </script>

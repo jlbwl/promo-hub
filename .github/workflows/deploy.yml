@@ -40,6 +40,9 @@ jobs:
       - name: Build User
         run: pnpm --filter @promo/user build
 
+      - name: Build API
+        run: pnpm --filter @promo/api build
+
       - name: Upload Admin artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -57,6 +60,15 @@ jobs:
         with:
           name: user-dist
           path: apps/user/dist
+
+      - name: Upload API artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-dist
+          path: |
+            apps/api/dist
+            apps/api/package.json
+            apps/api/node_modules
 
   deploy:
     name: Deploy to Server
@@ -81,6 +93,12 @@ jobs:
         with:
           name: user-dist
           path: user-dist
+
+      - name: Download API artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: api-dist
+          path: api-dist
 
       - name: Upload Admin to server
         uses: appleboy/scp-action@v0.1.7
@@ -118,7 +136,19 @@ jobs:
           strip_components: 1
           rm: true
 
-      - name: Reload Nginx
+      - name: Upload API to server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          port: ${{ secrets.SERVER_PORT || 22 }}
+          source: "api-dist/*"
+          target: "${{ env.DEPLOY_DIR }}/api"
+          strip_components: 1
+          rm: true
+
+      - name: Restart API and Nginx
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.SERVER_HOST }}
@@ -126,8 +156,13 @@ jobs:
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: ${{ secrets.SERVER_PORT || 22 }}
           script: |
-            echo "Admin files: $(ls /var/www/promo-hub/admin/ | wc -l)"
-            echo "Manager files: $(ls /var/www/promo-hub/manager/ | wc -l)"
-            echo "User files: $(ls /var/www/promo-hub/user/ | wc -l)"
-            nginx -s reload 2>/dev/null || systemctl reload nginx 2>/dev/null || true
+            cd ${{ env.DEPLOY_DIR }}/api
+            npm install --production 2>/dev/null
+            pm2 delete promo-api 2>/dev/null || true
+            pm2 start dist/index.js --name promo-api
+            pm2 save
+            echo "Admin files: $(ls ${{ env.DEPLOY_DIR }}/admin/ | wc -l)"
+            echo "Manager files: $(ls ${{ env.DEPLOY_DIR }}/manager/ | wc -l)"
+            echo "User files: $(ls ${{ env.DEPLOY_DIR }}/user/ | wc -l)"
+            nginx -s reload 2>/dev/null || true
             echo "Deploy done!"

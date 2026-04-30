@@ -191,6 +191,7 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import { ArrowLeft, Plus } from '@element-plus/icons-vue'
+import { get, post, put } from '@promo/shared/utils/request'
 
 const route = useRoute()
 const router = useRouter()
@@ -272,13 +273,31 @@ const handleSave = async () => {
 
     saving.value = true
 
-    // 模拟接口请求
-    await new Promise(resolve => setTimeout(resolve, 1000))
+    const payload = {
+      title: form.title,
+      description: form.description,
+      category: form.category,
+      price: form.price,
+      originalPrice: form.originalPrice,
+      commission: form.commissionAmount,
+      commissionRate: form.commissionRate,
+      tags: form.tags,
+      coverImage: form.cover,
+      status: 'published',
+      publishedBy: localStorage.getItem('manager_token') || 'manager',
+    }
 
-    ElMessage.success(isEdit.value ? '产品更新成功' : '产品创建成功')
+    if (isEdit.value) {
+      await put(`/products/${route.params.id}`, payload)
+      ElMessage.success('产品更新成功')
+    } else {
+      await post('/products', payload)
+      ElMessage.success('产品创建成功')
+    }
     router.push('/products')
-  } catch (error) {
+  } catch (error: any) {
     console.error('保存失败:', error)
+    ElMessage.error(error.message || '保存失败')
   } finally {
     saving.value = false
   }
@@ -289,24 +308,24 @@ const fetchProductDetail = async () => {
   if (!isEdit.value) return
 
   try {
-    // 模拟接口请求
-    await new Promise(resolve => setTimeout(resolve, 500))
-
-    // 模拟数据
-    Object.assign(form, {
-      title: '高端护肤品套装 - 补水保湿系列',
-      description: '这是一款高端补水保湿护肤品套装，包含洁面乳、爽肤水、精华液、面霜四件套，适合干性及混合性肌肤使用。',
-      category: 'comprehensive-instant',
-      price: 299.00,
-      originalPrice: 599.00,
-      commissionAmount: 45.00,
-      commissionRate: 15.0,
-      tags: ['热销', '补水', '护肤', '套装'],
-      cover: 'https://via.placeholder.com/800x800'
-    })
-  } catch (error) {
+    const res = await get<any>(`/products/${route.params.id}`)
+    if (res.data) {
+      const p = res.data
+      Object.assign(form, {
+        title: p.title || '',
+        description: p.description || '',
+        category: p.category || '',
+        price: p.price || 0,
+        originalPrice: p.originalPrice || 0,
+        commissionAmount: p.commission || 0,
+        commissionRate: p.commissionRate || 0,
+        tags: p.tags || [],
+        cover: p.coverImage || '',
+      })
+    }
+  } catch (error: any) {
     console.error('获取产品详情失败:', error)
-    ElMessage.error('获取产品详情失败')
+    ElMessage.error(error.message || '获取产品详情失败')
   }
 }
 

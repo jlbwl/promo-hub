@@ -87,42 +87,56 @@
 </template>
 
 <script setup lang="ts">
-import { reactive } from 'vue'
+import { reactive, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { showToast, showDialog } from 'vant'
+import { get } from '@promo/shared/utils/request'
 
 // 路由实例
 const router = useRouter()
 const route = useRoute()
 
 // 获取产品 ID
-const productId = Number(route.params.id)
+const productId = route.params.id as string
 
-// 模拟产品数据
+// 产品数据
 const product = reactive({
   id: productId,
-  title: '无线蓝牙耳机 主动降噪 运动防水 高品质音效 长续航',
-  price: '199.00',
-  commission: '30.00',
-  commissionRate: '15%',
-  sales: '2.3万',
-  rate: '98%',
+  title: '',
+  price: '0',
+  commission: '0',
+  commissionRate: '0%',
+  sales: '0',
+  rate: '-',
   settlementPeriod: '确认收货后7天',
-  images: ['', '', ''],
-  description: `
-    <p>产品特点：</p>
-    <ul>
-      <li>主动降噪技术，沉浸式音质体验</li>
-      <li>IPX5防水等级，运动无忧</li>
-      <li>蓝牙5.0，稳定连接不断开</li>
-      <li>30小时超长续航，满足全天使用</li>
-      <li>轻量化设计，佩戴舒适无感</li>
-    </ul>
-    <p>适合人群：运动爱好者、通勤族、音乐发烧友</p>
-  `
+  images: [] as string[],
+  description: ''
 })
 
-// TODO: 根据 productId 调用接口获取真实产品数据
+// 加载产品详情
+const fetchProductDetail = async () => {
+  try {
+    const res = await get<any>(`/products/${productId}`)
+    if (res.data) {
+      const p = res.data
+      product.id = p.id
+      product.title = p.title || ''
+      product.price = String(p.price || 0)
+      product.commission = String(p.commission || 0)
+      product.commissionRate = p.commissionRate ? `${p.commissionRate}%` : '-'
+      product.sales = '0'
+      product.images = p.images && p.images.length > 0 ? p.images : (p.coverImage ? [p.coverImage] : [])
+      product.description = p.description || ''
+    }
+  } catch (error) {
+    console.error('获取产品详情失败:', error)
+    showToast('获取产品详情失败')
+  }
+}
+
+onMounted(() => {
+  fetchProductDetail()
+})
 
 // 分享产品
 const handleShare = () => {
