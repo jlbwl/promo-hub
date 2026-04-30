@@ -5,8 +5,8 @@
       <router-view />
     </div>
 
-    <!-- 底部 Tab 导航 -->
-    <van-tabbar v-model="activeTab" route fixed placeholder>
+    <!-- 底部 Tab 导航（产品详情页隐藏） -->
+    <van-tabbar v-model="activeTab" route fixed placeholder v-show="!isProductDetail">
       <van-tabbar-item
         to="/home"
         icon="home-o"
@@ -33,11 +33,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
 
 // 当前激活的 Tab
 const activeTab = ref('home')
+
+// 是否为产品详情页
+const isProductDetail = computed(() => route.path.startsWith('/product'))
 
 // 获取当前路由
 const route = useRoute()
