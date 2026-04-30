@@ -86,8 +86,17 @@
 <script setup lang="ts">
 import { reactive, onMounted } from 'vue'
 import { Goods, CircleCheck, Clock, Money, Plus } from '@element-plus/icons-vue'
+import { get } from '@promo/shared/utils/request'
 
-// 统计数据（模拟数据，实际从接口获取）
+// 获取当前经理 ID
+const getManagerId = () => {
+  try {
+    const info = JSON.parse(localStorage.getItem('manager_info') || '{}')
+    return info.id || ''
+  } catch { return '' }
+}
+
+// 统计数据
 const stats = reactive({
   totalProducts: 0,
   publishedProducts: 0,
@@ -98,14 +107,15 @@ const stats = reactive({
 // 获取统计数据
 const fetchStats = async () => {
   try {
-    // 模拟接口请求
-    await new Promise(resolve => setTimeout(resolve, 500))
-
-    // 模拟数据
-    stats.totalProducts = 128
-    stats.publishedProducts = 96
-    stats.pendingCommissions = 3580.5
-    stats.totalCommissions = 28650.0
+    const res = await get<any>('/stats/dashboard', {
+      managerId: getManagerId() || undefined,
+    })
+    if (res.data) {
+      stats.totalProducts = res.data.totalProducts || 0
+      stats.publishedProducts = res.data.publishedProducts || 0
+      stats.pendingCommissions = res.data.pendingCommissions || 0
+      stats.totalCommissions = res.data.totalCommissions || 0
+    }
   } catch (error) {
     console.error('获取统计数据失败:', error)
   }

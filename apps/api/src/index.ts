@@ -73,6 +73,46 @@ app.get('/api/products', (req, res) => {
   })
 })
 
+// 经理仪表盘统计
+app.get('/api/stats/dashboard', (req, res) => {
+  const managerId = req.query.managerId as string
+  const products = readProducts()
+  const commissions = readCommissions()
+
+  // 按经理过滤产品
+  const myProducts = managerId
+    ? products.filter((p: any) => p.managerId === managerId)
+    : products
+
+  const totalProducts = myProducts.length
+  const publishedProducts = myProducts.filter((p: any) => p.status === 'published').length
+
+  // 按经理过滤佣金（通过产品的 managerId 关联）
+  const myProductIds = new Set(myProducts.map((p: any) => p.id))
+  const myCommissions = managerId
+    ? commissions.filter((c: any) => myProductIds.has(c.productId))
+    : commissions
+
+  const pendingCommissions = myCommissions
+    .filter((c: any) => c.status === 'pending')
+    .reduce((sum: number, c: any) => sum + (c.amount || 0), 0)
+
+  const totalCommissions = myCommissions
+    .filter((c: any) => c.status === 'paid')
+    .reduce((sum: number, c: any) => sum + (c.amount || 0), 0)
+
+  res.json({
+    code: 0,
+    message: 'success',
+    data: {
+      totalProducts,
+      publishedProducts,
+      pendingCommissions: Math.round(pendingCommissions * 100) / 100,
+      totalCommissions: Math.round(totalCommissions * 100) / 100,
+    },
+  })
+})
+
 // 获取单个产品详情
 app.get('/api/products/:id', (req, res) => {
   const products = readProducts()

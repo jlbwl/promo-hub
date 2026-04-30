@@ -66,7 +66,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessageBox, ElMessage } from 'element-plus'
 import {
@@ -85,8 +85,18 @@ const router = useRouter()
 // 侧边栏折叠状态
 const isCollapse = ref(false)
 
-// 经理姓名（模拟数据，实际从接口获取）
-const managerName = ref('张经理')
+// 经理姓名（从登录信息获取）
+const managerName = ref('')
+
+// 页面加载时读取经理信息
+onMounted(() => {
+  try {
+    const info = JSON.parse(localStorage.getItem('manager_info') || '{}')
+    managerName.value = info.name || info.username || '经理'
+  } catch {
+    managerName.value = '经理'
+  }
+})
 
 // 当前激活菜单
 const activeMenu = computed(() => route.path)
