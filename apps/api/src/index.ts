@@ -35,10 +35,19 @@ app.use(express.json())
 
 // ============ 产品接口 ============
 
-// 获取产品列表（用户端只看已发布的，经理端看自己的）
+// 获取产品列表（用户端只看已发布的且经理在白名单中的，经理端看自己的）
 app.get('/api/products', (req, res) => {
   const { page = '1', pageSize = '10', category, status, managerId } = req.query
   let products = readProducts()
+
+  // 用户端：过滤掉经理不在白名单或已被禁用的产品
+  if (!managerId) {
+    const managers = readManagers()
+    const activeManagerIds = new Set(
+      managers.filter((m: any) => m.status === 'active').map((m: any) => m.id)
+    )
+    products = products.filter((p: any) => activeManagerIds.has(p.managerId))
+  }
 
   // 经理端：只看自己的产品
   if (managerId) {
