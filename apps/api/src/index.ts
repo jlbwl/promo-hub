@@ -271,7 +271,7 @@ app.post('/api/managers', (req, res) => {
   res.json({ code: 0, message: '添加成功', data: safeManager })
 })
 
-// 删除经理
+// 删除经理（同时下架其所有产品）
 app.delete('/api/managers/:id', (req, res) => {
   let managers = readManagers()
   const index = managers.findIndex((m: any) => m.id === req.params.id)
@@ -279,12 +279,26 @@ app.delete('/api/managers/:id', (req, res) => {
     res.json({ code: 404, message: '经理不存在', data: null })
     return
   }
+  const managerId = managers[index].id
   managers.splice(index, 1)
   writeManagers(managers)
-  res.json({ code: 0, message: '删除成功', data: null })
+
+  // 下架该经理的所有已发布产品
+  let products = readProducts()
+  let offlineCount = 0
+  products = products.map((p: any) => {
+    if (p.managerId === managerId && p.status === 'published') {
+      offlineCount++
+      return { ...p, status: 'offline', updatedAt: new Date().toISOString() }
+    }
+    return p
+  })
+  writeProducts(products)
+
+  res.json({ code: 0, message: `删除成功，已下架 ${offlineCount} 个产品`, data: null })
 })
 
-// 更新经理（启用/禁用、编辑佣金比例等）
+// 更新经理（启用/禁用时联动产品状态）
 app.put('/api/managers/:id', (req, res) => {
   const managers = readManagers()
   const index = managers.findIndex((m: any) => m.id === req.params.id)
@@ -293,8 +307,24 @@ app.put('/api/managers/:id', (req, res) => {
     return
   }
   const now = new Date().toISOString()
+  const newStatus = req.body.status
   managers[index] = { ...managers[index], ...req.body, id: managers[index].id, updatedAt: now }
   writeManagers(managers)
+
+  // 禁用时下架产品，启用时不自动恢复（需经理手动操作）
+  if (newStatus === 'disabled') {
+    let products = readProducts()
+    let offlineCount = 0
+    products = products.map((p: any) => {
+      if (p.managerId === req.params.id && p.status === 'published') {
+        offlineCount++
+        return { ...p, status: 'offline', updatedAt: now }
+      }
+      return p
+    })
+    writeProducts(products)
+  }
+
   const { password: _, ...safeManager } = managers[index]
   res.json({ code: 0, message: '更新成功', data: safeManager })
 })

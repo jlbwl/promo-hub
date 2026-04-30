@@ -12,7 +12,7 @@
         icon="home-o"
         name="home"
       >
-        首页
+        抢单大厅
       </van-tabbar-item>
       <van-tabbar-item
         to="/commissions"

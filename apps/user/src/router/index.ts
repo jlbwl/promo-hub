@@ -19,7 +19,7 @@ const routes: RouteRecordRaw[] = [
         path: 'home',
         name: 'Home',
         component: () => import('../views/HomeView.vue'),
-        meta: { title: '首页', requiresAuth: true }
+        meta: { title: '抢单大厅', requiresAuth: true }
       },
       {
         path: 'product/:id',
