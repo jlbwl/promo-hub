@@ -98,12 +98,16 @@ const finished = ref(false)
 // 分类数据
 const categories = reactive([
   { id: 0, name: '全部' },
-  { id: 1, name: '数码电子' },
-  { id: 2, name: '美妆护肤' },
-  { id: 3, name: '食品饮料' },
-  { id: 4, name: '家居生活' },
-  { id: 5, name: '服饰鞋包' },
-  { id: 6, name: '母婴用品' }
+  { id: 1, name: '综合-立返' },
+  { id: 2, name: '综合-数据' },
+  { id: 3, name: '个养和加挂' },
+  { id: 4, name: '限三-立返' },
+  { id: 5, name: '限三-数据' },
+  { id: 6, name: '不限三-立返' },
+  { id: 7, name: '不限三-数据' },
+  { id: 8, name: '三方-立返' },
+  { id: 9, name: '三方-数据' },
+  { id: 10, name: '其它' }
 ])
 
 // 模拟产品数据

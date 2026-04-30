@@ -43,14 +43,16 @@
         <!-- 产品分类 -->
         <el-form-item label="产品分类" prop="category">
           <el-select v-model="form.category" placeholder="请选择分类" style="width: 100%;">
-            <el-option label="美妆护肤" value="beauty" />
-            <el-option label="数码电子" value="digital" />
-            <el-option label="食品饮料" value="food" />
-            <el-option label="运动户外" value="sports" />
-            <el-option label="母婴用品" value="baby" />
-            <el-option label="家居生活" value="home" />
-            <el-option label="服饰鞋包" value="fashion" />
-            <el-option label="其他" value="other" />
+            <el-option label="综合-立返" value="comprehensive-instant" />
+            <el-option label="综合-数据" value="comprehensive-data" />
+            <el-option label="个养和加挂" value="personal-insurance" />
+            <el-option label="限三-立返" value="limit3-instant" />
+            <el-option label="限三-数据" value="limit3-data" />
+            <el-option label="不限三-立返" value="no-limit3-instant" />
+            <el-option label="不限三-数据" value="no-limit3-data" />
+            <el-option label="三方-立返" value="third-party-instant" />
+            <el-option label="三方-数据" value="third-party-data" />
+            <el-option label="其它" value="other" />
           </el-select>
         </el-form-item>
 
@@ -294,7 +296,7 @@ const fetchProductDetail = async () => {
     Object.assign(form, {
       title: '高端护肤品套装 - 补水保湿系列',
       description: '这是一款高端补水保湿护肤品套装，包含洁面乳、爽肤水、精华液、面霜四件套，适合干性及混合性肌肤使用。',
-      category: 'beauty',
+      category: 'comprehensive-instant',
       price: 299.00,
       originalPrice: 599.00,
       commissionAmount: 45.00,
