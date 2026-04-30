@@ -5,6 +5,7 @@ import { VantResolver } from '@vant/auto-import-resolver'
 import { resolve } from 'path'
 
 export default defineConfig({
+  base: '/user/',
   plugins: [
     vue(),
     Components({
