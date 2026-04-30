@@ -5,7 +5,8 @@ import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
-const DATA_DIR = join(__dirname, 'data')
+// 数据目录放在项目根目录下（不在 dist 内），避免部署时被覆盖
+const DATA_DIR = process.env.DATA_DIR || join(__dirname, '..', 'data')
 const DATA_FILE = join(DATA_DIR, 'products.json')
 
 // 确保数据目录存在

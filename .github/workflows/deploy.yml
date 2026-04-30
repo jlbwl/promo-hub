@@ -136,16 +136,16 @@ jobs:
           strip_components: 1
           rm: true
 
-      - name: Upload API to server
+      - name: Upload API dist to server
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: ${{ secrets.SERVER_PORT || 22 }}
-          source: "api-dist/*"
-          target: "${{ env.DEPLOY_DIR }}/api"
-          strip_components: 1
+          source: "api-dist/dist/*"
+          target: "${{ env.DEPLOY_DIR }}/api/dist"
+          strip_components: 2
           rm: true
 
       - name: Restart API and Nginx
@@ -156,6 +156,7 @@ jobs:
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: ${{ secrets.SERVER_PORT || 22 }}
           script: |
+            mkdir -p ${{ env.DEPLOY_DIR }}/api/data/uploads
             cd ${{ env.DEPLOY_DIR }}/api
             npm install --production 2>/dev/null
             pm2 delete promo-api 2>/dev/null || true
