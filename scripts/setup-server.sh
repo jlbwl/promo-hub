@@ -6,7 +6,7 @@
 
 set -e
 
-DEPLOY_DIR="/var/www/promo-hub"
+DEPLOY_DIR="/www/wwwroot/promo-hub"
 NGINX_CONF="/etc/nginx/conf.d/promo-hub.conf"
 
 echo "🚀 开始初始化服务器环境..."
@@ -42,21 +42,21 @@ server {
 
     # 管理员后台
     location / {
-        root /var/www/promo-hub/admin;
+        root /www/wwwroot/promo-hub/admin;
         index index.html;
         try_files $uri $uri/ /index.html;
     }
 
     # 推广经理后台
     location /manager {
-        alias /var/www/promo-hub/manager;
+        alias /www/wwwroot/promo-hub/manager;
         index index.html;
         try_files $uri $uri/ /manager/index.html;
     }
 
     # 用户端
     location /user {
-        alias /var/www/promo-hub/user;
+        alias /www/wwwroot/promo-hub/user;
         index index.html;
         try_files $uri $uri/ /user/index.html;
     }

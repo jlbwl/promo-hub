@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 env:
-  DEPLOY_DIR: /var/www/promo-hub
+  DEPLOY_DIR: /www/wwwroot/promo-hub
 
 jobs:
   build:

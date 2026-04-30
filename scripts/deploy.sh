@@ -6,7 +6,7 @@
 
 set -e
 
-DEPLOY_DIR="/var/www/promo-hub"
+DEPLOY_DIR="/www/wwwroot/promo-hub"
 TARGET="${1:-all}"
 
 echo "🚀 开始部署..."
