@@ -19,7 +19,7 @@
         </el-menu-item>
         <el-menu-item index="/managers">
           <el-icon><User /></el-icon>
-          <span>推广经理管理</span>
+          <span>系统管理后台</span>
         </el-menu-item>
         <el-menu-item index="/users">
           <el-icon><UserFilled /></el-icon>

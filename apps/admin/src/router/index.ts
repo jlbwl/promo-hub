@@ -26,7 +26,7 @@ const routes: RouteRecordRaw[] = [
         path: 'managers',
         name: 'ManagerList',
         component: () => import('../views/manager/ManagerListView.vue'),
-        meta: { title: '推广经理管理' }
+        meta: { title: '系统管理后台' }
       },
       {
         path: 'users',

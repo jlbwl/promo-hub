@@ -34,10 +34,12 @@ function createRequest(): AxiosInstance {
       if (code === 0) {
         return response
       }
-      // 401 未授权 — 跳转登录
-      if (code === 401) {
+      // 401 未授权 — 仅在非登录页时跳转
+      if (code === 401 && !window.location.pathname.includes('/login')) {
         localStorage.removeItem('token')
-        window.location.href = '/login'
+        localStorage.removeItem('manager_token')
+        localStorage.removeItem('admin_token')
+        window.location.reload()
       }
       return Promise.reject(new Error(message || '请求失败'))
     },

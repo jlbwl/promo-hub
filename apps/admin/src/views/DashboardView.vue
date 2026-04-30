@@ -50,7 +50,7 @@
           <el-row :gutter="20">
             <el-col :span="6">
               <el-button type="primary" @click="$router.push('/managers')">
-                推广经理管理
+                系统管理后台
               </el-button>
             </el-col>
             <el-col :span="6">
