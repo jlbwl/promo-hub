@@ -155,6 +155,110 @@ app.delete('/api/products/:id', (req, res) => {
   res.json({ code: 0, message: '删除成功', data: null })
 })
 
+// ============ 经理白名单接口 ============
+
+const MANAGER_FILE = join(DATA_DIR, 'managers.json')
+
+if (!existsSync(MANAGER_FILE)) {
+  writeFileSync(MANAGER_FILE, JSON.stringify([], null, 2), 'utf-8')
+}
+
+function readManagers() {
+  return JSON.parse(readFileSync(MANAGER_FILE, 'utf-8'))
+}
+
+function writeManagers(data: unknown[]) {
+  writeFileSync(MANAGER_FILE, JSON.stringify(data, null, 2), 'utf-8')
+}
+
+// 获取经理列表
+app.get('/api/managers', (_req, res) => {
+  const managers = readManagers()
+  res.json({ code: 0, message: 'success', data: managers })
+})
+
+// 添加经理
+app.post('/api/managers', (req, res) => {
+  const managers = readManagers()
+  const { username, password, name, phone } = req.body
+
+  if (!username || !password) {
+    res.json({ code: 400, message: '用户名和密码不能为空', data: null })
+    return
+  }
+
+  // 用户名重复校验
+  if (managers.find((m: any) => m.username === username)) {
+    res.json({ code: 409, message: '用户名已存在', data: null })
+    return
+  }
+
+  const now = new Date().toISOString()
+  const manager = {
+    id: `m_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+    username,
+    password,
+    name: name || username,
+    phone: phone || '',
+    status: 'active',
+    createdAt: now,
+    updatedAt: now,
+  }
+  managers.push(manager)
+  writeManagers(managers)
+  // 返回时隐藏密码
+  const { password: _, ...safeManager } = manager
+  res.json({ code: 0, message: '添加成功', data: safeManager })
+})
+
+// 删除经理
+app.delete('/api/managers/:id', (req, res) => {
+  let managers = readManagers()
+  const index = managers.findIndex((m: any) => m.id === req.params.id)
+  if (index === -1) {
+    res.json({ code: 404, message: '经理不存在', data: null })
+    return
+  }
+  managers.splice(index, 1)
+  writeManagers(managers)
+  res.json({ code: 0, message: '删除成功', data: null })
+})
+
+// 更新经理（启用/禁用、编辑佣金比例等）
+app.put('/api/managers/:id', (req, res) => {
+  const managers = readManagers()
+  const index = managers.findIndex((m: any) => m.id === req.params.id)
+  if (index === -1) {
+    res.json({ code: 404, message: '经理不存在', data: null })
+    return
+  }
+  const now = new Date().toISOString()
+  managers[index] = { ...managers[index], ...req.body, id: managers[index].id, updatedAt: now }
+  writeManagers(managers)
+  const { password: _, ...safeManager } = managers[index]
+  res.json({ code: 0, message: '更新成功', data: safeManager })
+})
+
+// 经理登录校验
+app.post('/api/managers/login', (req, res) => {
+  const { username, password } = req.body
+  if (!username || !password) {
+    res.json({ code: 400, message: '用户名和密码不能为空', data: null })
+    return
+  }
+  const managers = readManagers()
+  const manager = managers.find(
+    (m: any) => m.username === username && m.password === password && m.status === 'active'
+  )
+  if (!manager) {
+    res.json({ code: 401, message: '用户名或密码错误，或账号已被禁用', data: null })
+    return
+  }
+  const { password: _, ...safeManager } = manager
+  const token = `mgr_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+  res.json({ code: 0, message: '登录成功', data: { token, manager: safeManager } })
+})
+
 // ============ 佣金接口 ============
 
 const COMMISSION_FILE = join(DATA_DIR, 'commissions.json')

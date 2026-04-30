@@ -50,6 +50,7 @@
 import { ref, reactive } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
+import { post } from '@promo/shared/utils/request'
 
 const router = useRouter()
 const route = useRoute()
@@ -88,26 +89,26 @@ const handleLogin = async () => {
 
     loading.value = true
 
-    // 模拟登录请求（实际项目中替换为真实接口调用）
-    await new Promise(resolve => setTimeout(resolve, 1000))
-
-    // 模拟登录成功，保存 token
-    localStorage.setItem('manager_token', 'mock_manager_token_' + Date.now())
-    localStorage.setItem('manager_info', JSON.stringify({
-      id: 1,
+    // 调用登录接口校验白名单
+    const res = await post<any>('/managers/login', {
       username: loginForm.username,
-      name: '张经理',
-      phone: '13800138000'
-    }))
+      password: loginForm.password,
+    })
 
-    ElMessage.success('登录成功')
+    if (res.data && res.data.token) {
+      // 登录成功，保存 token 和经理信息
+      localStorage.setItem('manager_token', res.data.token)
+      localStorage.setItem('manager_info', JSON.stringify(res.data.manager))
 
-    // 跳转到重定向地址或仪表盘
-    const redirect = (route.query.redirect as string) || '/dashboard'
-    router.push(redirect)
-  } catch (error) {
-    // 校验失败或登录失败
-    console.error('登录失败:', error)
+      ElMessage.success('登录成功')
+
+      // 跳转到重定向地址或仪表盘
+      const redirect = (route.query.redirect as string) || '/dashboard'
+      router.push(redirect)
+    }
+  } catch (error: any) {
+    // 登录失败（非白名单用户或密码错误）
+    ElMessage.error(error.message || '登录失败，请检查用户名和密码')
   } finally {
     loading.value = false
   }
