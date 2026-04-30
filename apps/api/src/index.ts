@@ -34,10 +34,15 @@ app.use(express.json())
 
 // ============ 产品接口 ============
 
-// 获取产品列表（用户端只看已发布的）
+// 获取产品列表（用户端只看已发布的，经理端看自己的）
 app.get('/api/products', (req, res) => {
-  const { page = '1', pageSize = '10', category, status } = req.query
+  const { page = '1', pageSize = '10', category, status, managerId } = req.query
   let products = readProducts()
+
+  // 经理端：只看自己的产品
+  if (managerId) {
+    products = products.filter((p: any) => p.managerId === managerId)
+  }
 
   // 按分类筛选
   if (category && category !== '0') {
@@ -47,8 +52,8 @@ app.get('/api/products', (req, res) => {
   // 按状态筛选（manager 端可传 status 参数）
   if (status) {
     products = products.filter((p: any) => p.status === status)
-  } else {
-    // 默认只返回已发布的产品
+  } else if (!managerId) {
+    // 用户端默认只返回已发布的产品
     products = products.filter((p: any) => p.status === 'published')
   }
 
@@ -119,6 +124,12 @@ app.put('/api/products/:id', (req, res) => {
     return
   }
 
+  // 校验产品归属
+  if (req.body.managerId && products[index].managerId !== req.body.managerId) {
+    res.json({ code: 403, message: '无权操作此产品', data: null })
+    return
+  }
+
   const title = (req.body.title || '').trim()
   if (title) {
     // 标题重复校验（排除自身）
@@ -150,6 +161,14 @@ app.delete('/api/products/:id', (req, res) => {
     res.json({ code: 404, message: '产品不存在', data: null })
     return
   }
+
+  // 校验产品归属
+  const managerId = req.query.managerId as string
+  if (managerId && products[index].managerId !== managerId) {
+    res.json({ code: 403, message: '无权操作此产品', data: null })
+    return
+  }
+
   products.splice(index, 1)
   writeProducts(products)
   res.json({ code: 0, message: '删除成功', data: null })

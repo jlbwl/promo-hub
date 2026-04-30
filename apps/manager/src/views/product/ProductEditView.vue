@@ -273,6 +273,14 @@ const handleSave = async () => {
 
     saving.value = true
 
+    // 获取当前经理 ID
+    const managerId = (() => {
+      try {
+        const info = JSON.parse(localStorage.getItem('manager_info') || '{}')
+        return info.id || ''
+      } catch { return '' }
+    })()
+
     const payload = {
       title: form.title,
       description: form.description,
@@ -284,6 +292,7 @@ const handleSave = async () => {
       tags: form.tags,
       coverImage: form.cover,
       status: 'published',
+      managerId,
       publishedBy: localStorage.getItem('manager_token') || 'manager',
     }
 

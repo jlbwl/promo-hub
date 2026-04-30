@@ -185,6 +185,16 @@ const statusText = (status: ProductStatus) => {
   return map[status]
 }
 
+// 获取当前经理 ID
+const getManagerId = () => {
+  try {
+    const info = JSON.parse(localStorage.getItem('manager_info') || '{}')
+    return info.id || ''
+  } catch {
+    return ''
+  }
+}
+
 // 获取产品列表数据
 const fetchData = async () => {
   loading.value = true
@@ -193,6 +203,7 @@ const fetchData = async () => {
       page: pagination.page,
       pageSize: pagination.pageSize,
       status: searchStatus.value || undefined,
+      managerId: getManagerId() || undefined,
     })
     const { list, total } = res.data
     // 映射字段：coverImage -> cover
@@ -242,7 +253,7 @@ const handleToggleStatus = async (row: Product, newStatus: ProductStatus) => {
         type: 'warning'
       }
     )
-    await put(`/products/${row.id}`, { status: newStatus })
+    await put(`/products/${row.id}`, { status: newStatus, managerId: getManagerId() })
     ElMessage.success(`${statusLabel}成功`)
     fetchData()
   } catch (error: any) {
@@ -264,7 +275,7 @@ const handleDelete = async (row: Product) => {
         type: 'error'
       }
     )
-    await del(`/products/${row.id}`)
+    await del(`/products/${row.id}?managerId=${getManagerId()}`)
     ElMessage.success('删除成功')
     fetchData()
   } catch (error: any) {
