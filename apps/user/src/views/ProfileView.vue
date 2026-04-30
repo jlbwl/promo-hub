@@ -177,9 +177,11 @@ const handleLogout = () => {
     title: '提示',
     message: '确定要退出登录吗？',
     showCancelButton: true,
-    confirmButtonText: '确定',
+    confirmButtonText: '确定退出',
     cancelButtonText: '取消',
-    confirmButtonColor: '#ee0a24'
+    confirmButtonColor: '#ee0a24',
+    cancelButtonColor: '#323233',
+    className: 'logout-dialog',
   }).then(async () => {
     logoutLoading.value = true
     try {

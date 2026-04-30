@@ -37,3 +37,20 @@ img {
   width: 0;
   height: 0;
 }
+
+// 确保对话框按钮可见
+.van-dialog__footer {
+  .van-button {
+    flex: 1;
+    height: 48px;
+    font-size: 16px;
+  }
+  .van-dialog__confirm {
+    color: #ee0a24 !important;
+    font-weight: 500;
+  }
+  .van-dialog__cancel {
+    color: #323233 !important;
+    border-right: 1px solid #ebedf0;
+  }
+}
