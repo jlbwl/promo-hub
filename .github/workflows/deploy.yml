@@ -3,13 +3,12 @@ name: Deploy to Aliyun Server
 on:
   push:
     branches: [main]
-  workflow_dispatch: # 允许手动触发
+  workflow_dispatch:
 
 env:
   DEPLOY_DIR: /var/www/promo-hub
 
 jobs:
-  # ============ 构建三个前端应用 ============
   build:
     name: Build Applications
     runs-on: ubuntu-latest
@@ -59,7 +58,6 @@ jobs:
           name: user-dist
           path: apps/user/dist
 
-  # ============ 部署到阿里云服务器 ============
   deploy:
     name: Deploy to Server
     needs: build
@@ -70,32 +68,57 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: admin-dist
-          path: dist/admin
+          path: admin-dist
 
       - name: Download Manager artifacts
         uses: actions/download-artifact@v4
         with:
           name: manager-dist
-          path: dist/manager
+          path: manager-dist
 
       - name: Download User artifacts
         uses: actions/download-artifact@v4
         with:
           name: user-dist
-          path: dist/user
+          path: user-dist
 
-      - name: Upload to server via SSH
+      - name: Upload Admin to server
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: ${{ secrets.SERVER_PORT || 22 }}
-          source: "dist/*"
-          target: ${{ env.DEPLOY_DIR }}
+          source: "admin-dist/*"
+          target: "${{ env.DEPLOY_DIR }}/admin"
           strip_components: 1
+          rm: true
 
-      - name: Restart services via SSH
+      - name: Upload Manager to server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          port: ${{ secrets.SERVER_PORT || 22 }}
+          source: "manager-dist/*"
+          target: "${{ env.DEPLOY_DIR }}/manager"
+          strip_components: 1
+          rm: true
+
+      - name: Upload User to server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          port: ${{ secrets.SERVER_PORT || 22 }}
+          source: "user-dist/*"
+          target: "${{ env.DEPLOY_DIR }}/user"
+          strip_components: 1
+          rm: true
+
+      - name: Reload Nginx
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.SERVER_HOST }}
@@ -103,32 +126,8 @@ jobs:
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: ${{ secrets.SERVER_PORT || 22 }}
           script: |
-            cd ${{ env.DEPLOY_DIR }}
-            
-            # 确保目录结构正确
-            mkdir -p admin manager user
-            
-            # 移动构建产物到对应目录
-            if [ -d "admin" ]; then
-              rm -rf admin/*
-              mv dist-admin/* admin/ 2>/dev/null || true
-            fi
-            if [ -d "manager" ]; then
-              rm -rf manager/*
-              mv dist-manager/* manager/ 2>/dev/null || true
-            fi
-            if [ -d "user" ]; then
-              rm -rf user/*
-              mv dist-user/* user/ 2>/dev/null || true
-            fi
-            
-            # 清理临时目录
-            rm -rf dist-admin dist-manager dist-user
-            
-            # 重启 Nginx
+            echo "Admin files: $(ls /var/www/promo-hub/admin/ | wc -l)"
+            echo "Manager files: $(ls /var/www/promo-hub/manager/ | wc -l)"
+            echo "User files: $(ls /var/www/promo-hub/user/ | wc -l)"
             nginx -s reload 2>/dev/null || systemctl reload nginx 2>/dev/null || true
-            
-            echo "✅ 部署完成！"
-            echo "Admin:   http://${{ secrets.SERVER_HOST }}"
-            echo "Manager: http://${{ secrets.SERVER_HOST }}/manager/"
-            echo "User:    http://${{ secrets.SERVER_HOST }}/user/"
+            echo "Deploy done!"
