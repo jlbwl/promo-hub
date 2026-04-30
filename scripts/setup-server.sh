@@ -48,15 +48,15 @@ server {
     }
 
     # 推广经理后台
-    location /manager {
-        alias /www/wwwroot/promo-hub/manager;
+    location /manager/ {
+        alias /www/wwwroot/promo-hub/manager/;
         index index.html;
         try_files $uri $uri/ /manager/index.html;
     }
 
     # 用户端
-    location /user {
-        alias /www/wwwroot/promo-hub/user;
+    location /user/ {
+        alias /www/wwwroot/promo-hub/user/;
         index index.html;
         try_files $uri $uri/ /user/index.html;
     }
@@ -68,12 +68,6 @@ server {
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
-    }
-
-    # 静态资源缓存
-    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ {
-        expires 30d;
-        add_header Cache-Control "public, immutable";
     }
 }
 EOF
