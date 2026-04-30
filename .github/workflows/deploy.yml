@@ -1,0 +1,134 @@
+name: Deploy to Aliyun Server
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: # 允许手动触发
+
+env:
+  DEPLOY_DIR: /var/www/promo-hub
+
+jobs:
+  # ============ 构建三个前端应用 ============
+  build:
+    name: Build Applications
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Admin
+        run: pnpm --filter @promo/admin build
+
+      - name: Build Manager
+        run: pnpm --filter @promo/manager build
+
+      - name: Build User
+        run: pnpm --filter @promo/user build
+
+      - name: Upload Admin artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: admin-dist
+          path: apps/admin/dist
+
+      - name: Upload Manager artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: manager-dist
+          path: apps/manager/dist
+
+      - name: Upload User artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: user-dist
+          path: apps/user/dist
+
+  # ============ 部署到阿里云服务器 ============
+  deploy:
+    name: Deploy to Server
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download Admin artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: admin-dist
+          path: dist/admin
+
+      - name: Download Manager artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: manager-dist
+          path: dist/manager
+
+      - name: Download User artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: user-dist
+          path: dist/user
+
+      - name: Upload to server via SSH
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          port: ${{ secrets.SERVER_PORT || 22 }}
+          source: "dist/*"
+          target: ${{ env.DEPLOY_DIR }}
+          strip_components: 1
+
+      - name: Restart services via SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          port: ${{ secrets.SERVER_PORT || 22 }}
+          script: |
+            cd ${{ env.DEPLOY_DIR }}
+            
+            # 确保目录结构正确
+            mkdir -p admin manager user
+            
+            # 移动构建产物到对应目录
+            if [ -d "admin" ]; then
+              rm -rf admin/*
+              mv dist-admin/* admin/ 2>/dev/null || true
+            fi
+            if [ -d "manager" ]; then
+              rm -rf manager/*
+              mv dist-manager/* manager/ 2>/dev/null || true
+            fi
+            if [ -d "user" ]; then
+              rm -rf user/*
+              mv dist-user/* user/ 2>/dev/null || true
+            fi
+            
+            # 清理临时目录
+            rm -rf dist-admin dist-manager dist-user
+            
+            # 重启 Nginx
+            nginx -s reload 2>/dev/null || systemctl reload nginx 2>/dev/null || true
+            
+            echo "✅ 部署完成！"
+            echo "Admin:   http://${{ secrets.SERVER_HOST }}"
+            echo "Manager: http://${{ secrets.SERVER_HOST }}/manager/"
+            echo "User:    http://${{ secrets.SERVER_HOST }}/user/"

@@ -1,0 +1,24 @@
+{
+  "name": "promo-hub",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Self-promotion mini-program for business development",
+  "scripts": {
+    "dev:admin": "pnpm --filter @promo/admin dev",
+    "dev:manager": "pnpm --filter @promo/manager dev",
+    "dev:user": "pnpm --filter @promo/user dev",
+    "build:admin": "pnpm --filter @promo/admin build",
+    "build:manager": "pnpm --filter @promo/manager build",
+    "build:user": "pnpm --filter @promo/user build",
+    "build:shared": "pnpm --filter @promo/shared build",
+    "lint": "eslint . --ext .vue,.js,.ts,.tsx",
+    "type-check": "vue-tsc --noEmit"
+  },
+  "engines": {
+    "node": ">=18",
+    "pnpm": ">=9"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": ["esbuild", "vue-demi"]
+  }
+}
