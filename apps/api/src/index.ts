@@ -82,6 +82,20 @@ app.get('/api/products/:id', (req, res) => {
 // 创建产品
 app.post('/api/products', (req, res) => {
   const products = readProducts()
+  const title = (req.body.title || '').trim()
+
+  if (!title) {
+    res.json({ code: 400, message: '产品标题不能为空', data: null })
+    return
+  }
+
+  // 标题重复校验
+  const duplicate = products.find((p: any) => p.title === title)
+  if (duplicate) {
+    res.json({ code: 409, message: '产品标题已存在，请修改后重新发布', data: null })
+    return
+  }
+
   const now = new Date().toISOString()
   const product = {
     id: `p_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
@@ -104,6 +118,17 @@ app.put('/api/products/:id', (req, res) => {
     res.json({ code: 404, message: '产品不存在', data: null })
     return
   }
+
+  const title = (req.body.title || '').trim()
+  if (title) {
+    // 标题重复校验（排除自身）
+    const duplicate = products.find((p: any) => p.title === title && p.id !== req.params.id)
+    if (duplicate) {
+      res.json({ code: 409, message: '产品标题已存在，请修改后重新发布', data: null })
+      return
+    }
+  }
+
   const now = new Date().toISOString()
   const updated = {
     ...products[index],
