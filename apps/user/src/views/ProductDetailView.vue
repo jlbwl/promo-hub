@@ -79,6 +79,11 @@
       <van-action-bar-icon icon="share-o" text="分享" @click="handleShare" />
       <van-action-bar-button
         type="primary"
+        text="去做单"
+        @click="handleGoOrder"
+      />
+      <van-action-bar-button
+        color="#ff976a"
         text="推广赚钱"
         @click="handlePromote"
       />
@@ -146,6 +151,12 @@ const handleShare = () => {
     message: '分享链接已复制到剪贴板，快去分享给好友吧！',
     confirmButtonText: '知道了'
   })
+}
+
+// 去做单
+const handleGoOrder = () => {
+  // TODO: 跳转到做单页面，链接待定义
+  showToast('做单链接暂未配置')
 }
 
 // 推广产品
