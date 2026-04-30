@@ -153,14 +153,36 @@ const handleShare = () => {
   })
 }
 
+// 检查是否已登录
+const isLoggedIn = () => !!localStorage.getItem('user_token')
+
+// 需要登录的操作
+const requireLogin = (action: string) => {
+  if (!isLoggedIn()) {
+    showDialog({
+      title: '提示',
+      message: `${action}需要先登录，是否前往登录？`,
+      showCancelButton: true,
+      confirmButtonText: '去登录',
+      cancelButtonText: '再看看',
+    }).then(() => {
+      router.push({ name: 'Login', query: { redirect: route.fullPath } })
+    }).catch(() => {})
+    return false
+  }
+  return true
+}
+
 // 去做单
 const handleGoOrder = () => {
+  if (!requireLogin('去做单')) return
   // TODO: 跳转到做单页面，链接待定义
   showToast('做单链接暂未配置')
 }
 
 // 推广产品
 const handlePromote = () => {
+  if (!requireLogin('推广赚钱')) return
   // TODO: 生成推广链接或海报
   showToast('推广链接已生成，快去分享吧！')
 }

@@ -12,20 +12,19 @@ const routes: RouteRecordRaw[] = [
     path: '/',
     name: 'TabbarLayout',
     component: () => import('../layouts/TabbarLayout.vue'),
-    meta: { requiresAuth: true },
     redirect: '/home',
     children: [
       {
         path: 'home',
         name: 'Home',
         component: () => import('../views/HomeView.vue'),
-        meta: { title: '抢单大厅', requiresAuth: true }
+        meta: { title: '抢单大厅', requiresAuth: false }
       },
       {
         path: 'product/:id',
         name: 'ProductDetail',
         component: () => import('../views/ProductDetailView.vue'),
-        meta: { title: '产品详情', requiresAuth: true }
+        meta: { title: '产品详情', requiresAuth: false }
       },
       {
         path: 'commissions',
@@ -54,18 +53,17 @@ const router = createRouter({
   routes
 })
 
-// 全局前置守卫 - 检查用户登录状态
+// 全局前置守卫
 router.beforeEach((to, _from, next) => {
   // 设置页面标题
   if (to.meta.title) {
     document.title = to.meta.title as string
   }
 
-  // 检查是否需要认证
-  if (to.meta.requiresAuth !== false) {
+  // 检查是否需要登录
+  if (to.meta.requiresAuth === true) {
     const token = localStorage.getItem('user_token')
     if (!token) {
-      // 未登录，跳转到登录页
       next({ name: 'Login', query: { redirect: to.fullPath } })
       return
     }

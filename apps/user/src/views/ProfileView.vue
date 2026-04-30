@@ -93,6 +93,7 @@
         plain
         type="danger"
         size="large"
+        :loading="logoutLoading"
         @click="handleLogout"
       >
         退出登录
@@ -102,28 +103,41 @@
 </template>
 
 <script setup lang="ts">
-import { reactive } from 'vue'
+import { reactive, ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { showDialog, showToast } from 'vant'
 
 // 路由实例
 const router = useRouter()
 
-// 用户信息
+// 退出登录加载状态
+const logoutLoading = ref(false)
+
+// 用户信息（从 localStorage 读取真实数据）
 const userInfo = reactive({
-  id: '100001',
-  nickname: '推广达人',
+  id: '',
+  nickname: '加载中...',
   avatar: ''
 })
 
 // 统计数据
 const stats = reactive({
-  totalCommission: '¥1,280.50',
-  promotionCount: '156',
-  withdrawCount: '12'
+  totalCommission: '¥0.00',
+  promotionCount: '0',
+  withdrawCount: '0'
 })
 
-// TODO: 调用接口获取用户真实信息和统计数据
+// 加载用户信息
+onMounted(() => {
+  try {
+    const info = JSON.parse(localStorage.getItem('user_info') || '{}')
+    userInfo.id = info.id || ''
+    userInfo.nickname = info.nickname || info.phone || '用户'
+    userInfo.avatar = info.avatar || ''
+  } catch {
+    userInfo.nickname = '用户'
+  }
+})
 
 // 页面跳转
 const goTo = (path: string) => {
@@ -166,12 +180,20 @@ const handleLogout = () => {
     confirmButtonText: '确定',
     cancelButtonText: '取消',
     confirmButtonColor: '#ee0a24'
-  }).then(() => {
-    // 清除登录状态
-    localStorage.removeItem('user_token')
-    showToast('已退出登录')
-    // 跳转到登录页
-    router.replace('/login')
+  }).then(async () => {
+    logoutLoading.value = true
+    try {
+      // 清除所有用户端登录状态
+      localStorage.removeItem('user_token')
+      localStorage.removeItem('user_info')
+      showToast('已退出登录')
+      // 跳转到登录页
+      router.replace('/login')
+    } catch {
+      showToast('退出失败，请重试')
+    } finally {
+      logoutLoading.value = false
+    }
   }).catch(() => {
     // 取消操作
   })
