@@ -35,6 +35,12 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '用户管理' }
       },
       {
+        path: 'commissions',
+        name: 'CommissionAdmin',
+        component: () => import('../views/commission/CommissionAdminView.vue'),
+        meta: { title: '佣金管理' }
+      },
+      {
         path: 'settings',
         name: 'Settings',
         component: () => import('../views/SettingsView.vue'),

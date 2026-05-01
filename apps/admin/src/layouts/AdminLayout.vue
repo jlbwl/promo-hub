@@ -25,6 +25,10 @@
           <el-icon><UserFilled /></el-icon>
           <span>用户管理</span>
         </el-menu-item>
+        <el-menu-item index="/commissions">
+          <el-icon><Wallet /></el-icon>
+          <span>佣金管理</span>
+        </el-menu-item>
         <el-menu-item index="/settings">
           <el-icon><Setting /></el-icon>
           <span>系统设置</span>
@@ -57,7 +61,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Odometer, User, UserFilled, Setting } from '@element-plus/icons-vue'
+import { Odometer, User, UserFilled, Setting, Wallet } from '@element-plus/icons-vue'
 import { ElMessageBox } from 'element-plus'
 
 const route = useRoute()

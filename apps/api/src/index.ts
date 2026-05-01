@@ -280,7 +280,7 @@ app.post('/api/managers', (req, res) => {
   res.json({ code: 0, message: '添加成功', data: safeManager })
 })
 
-// 删除经理（同时下架其所有产品）
+// 删除经理（同时下架其所有产品，转移佣金数据给管理后台）
 app.delete('/api/managers/:id', (req, res) => {
   let managers = readManagers()
   const index = managers.findIndex((m: any) => m.id === req.params.id)
@@ -289,6 +289,7 @@ app.delete('/api/managers/:id', (req, res) => {
     return
   }
   const managerId = managers[index].id
+  const managerName = managers[index].name || ''
   managers.splice(index, 1)
   writeManagers(managers)
 
@@ -304,7 +305,29 @@ app.delete('/api/managers/:id', (req, res) => {
   })
   writeProducts(products)
 
-  res.json({ code: 0, message: `删除成功，已下架 ${offlineCount} 个产品`, data: null })
+  // 转移该经理的待处理订单：标记为管理后台接管
+  let orders = readOrders()
+  const now = new Date().toISOString()
+  let transferredOrders = 0
+  orders = orders.map((o: any) => {
+    if (o.managerId === managerId && (o.status === 'pending' || o.status === 'approved' || o.status === 'pending_payment')) {
+      transferredOrders++
+      return {
+        ...o,
+        transferredFromManager: managerName,
+        transferredAt: now,
+        managedBy: 'admin', // 标记为管理后台接管
+      }
+    }
+    return o
+  })
+  writeOrders(orders)
+
+  res.json({
+    code: 0,
+    message: `删除成功，已下架 ${offlineCount} 个产品，转移 ${transferredOrders} 笔订单至管理后台`,
+    data: null
+  })
 })
 
 // 更新经理（启用/禁用时联动产品状态）
@@ -599,6 +622,10 @@ app.get('/api/orders', (req, res) => {
   // 按状态过滤
   if (status) {
     orders = orders.filter((o: any) => o.status === status)
+  }
+  // 按管理后台接管过滤
+  if (req.query.managedBy) {
+    orders = orders.filter((o: any) => o.managedBy === req.query.managedBy)
   }
 
   orders.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
