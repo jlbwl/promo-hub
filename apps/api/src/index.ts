@@ -1,30 +1,19 @@
 import express from 'express'
 import cors from 'cors'
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs'
+import { existsSync, mkdirSync } from 'fs'
 import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
+import { initDatabase } from './db.js'
+import {
+  readProducts, writeProducts,
+  readManagers, writeManagers,
+  readUsers, writeUsers,
+  readOrders, writeOrders,
+  readCommissions, writeCommissions,
+} from './data.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
-// 数据目录放在项目根目录下（不在 dist 内），避免部署时被覆盖
 const DATA_DIR = process.env.DATA_DIR || join(__dirname, '..', 'data')
-const DATA_FILE = join(DATA_DIR, 'products.json')
-
-// 确保数据目录存在
-if (!existsSync(DATA_DIR)) mkdirSync(DATA_DIR, { recursive: true })
-
-// 初始化数据文件
-if (!existsSync(DATA_FILE)) {
-  writeFileSync(DATA_FILE, JSON.stringify([], null, 2), 'utf-8')
-}
-
-// 读写数据的工具函数
-function readProducts() {
-  return JSON.parse(readFileSync(DATA_FILE, 'utf-8'))
-}
-
-function writeProducts(data: unknown[]) {
-  writeFileSync(DATA_FILE, JSON.stringify(data, null, 2), 'utf-8')
-}
 
 const app = express()
 const PORT = process.env.PORT || 3000
@@ -36,13 +25,13 @@ app.use(express.json())
 // ============ 产品接口 ============
 
 // 获取产品列表（用户端只看已发布的且经理在白名单中的，经理端看自己的）
-app.get('/api/products', (req, res) => {
+app.get('/api/products', async (req, res) => {
   const { page = '1', pageSize = '10', category, status, managerId } = req.query
-  let products = readProducts()
+  let products = await readProducts()
 
   // 用户端：过滤掉经理不在白名单或已被禁用的产品
   if (!managerId) {
-    const managers = readManagers()
+    const managers = await readManagers()
     const activeManagerIds = new Set(
       managers.filter((m: any) => m.status === 'active').map((m: any) => m.id)
     )
@@ -77,7 +66,7 @@ app.get('/api/products', (req, res) => {
   const list = products.slice(start, start + pageSizeNum)
 
   // 统计每个产品的做单量（已售）
-  const orders = readOrders()
+  const orders = await readOrders()
   const salesMap = new Map<string, number>()
   orders.forEach((o: any) => {
     if (o.productId) {
@@ -97,10 +86,10 @@ app.get('/api/products', (req, res) => {
 })
 
 // 经理仪表盘统计
-app.get('/api/stats/dashboard', (req, res) => {
+app.get('/api/stats/dashboard', async (req, res) => {
   const managerId = req.query.managerId as string
-  const products = readProducts()
-  const commissions = readCommissions()
+  const products = await readProducts()
+  const commissions = await readCommissions()
 
   // 按经理过滤产品
   const myProducts = managerId
@@ -137,22 +126,22 @@ app.get('/api/stats/dashboard', (req, res) => {
 })
 
 // 获取单个产品详情
-app.get('/api/products/:id', (req, res) => {
-  const products = readProducts()
+app.get('/api/products/:id', async (req, res) => {
+  const products = await readProducts()
   const product = products.find((p: any) => p.id === req.params.id)
   if (!product) {
     res.json({ code: 404, message: '产品不存在', data: null })
     return
   }
   // 统计做单量
-  const orders = readOrders()
+  const orders = await readOrders()
   product.sales = orders.filter((o: any) => o.productId === product.id).length
   res.json({ code: 0, message: 'success', data: product })
 })
 
 // 创建产品
-app.post('/api/products', (req, res) => {
-  const products = readProducts()
+app.post('/api/products', async (req, res) => {
+  const products = await readProducts()
   const title = (req.body.title || '').trim()
 
   if (!title) {
@@ -177,13 +166,13 @@ app.post('/api/products', (req, res) => {
     updatedAt: now,
   }
   products.unshift(product)
-  writeProducts(products)
+  await writeProducts(products)
   res.json({ code: 0, message: '创建成功', data: product })
 })
 
 // 更新产品
-app.put('/api/products/:id', (req, res) => {
-  const products = readProducts()
+app.put('/api/products/:id', async (req, res) => {
+  const products = await readProducts()
   const index = products.findIndex((p: any) => p.id === req.params.id)
   if (index === -1) {
     res.json({ code: 404, message: '产品不存在', data: null })
@@ -215,13 +204,13 @@ app.put('/api/products/:id', (req, res) => {
     updatedAt: now,
   }
   products[index] = updated
-  writeProducts(products)
+  await writeProducts(products)
   res.json({ code: 0, message: '更新成功', data: updated })
 })
 
 // 删除产品
-app.delete('/api/products/:id', (req, res) => {
-  let products = readProducts()
+app.delete('/api/products/:id', async (req, res) => {
+  let products = await readProducts()
   const index = products.findIndex((p: any) => p.id === req.params.id)
   if (index === -1) {
     res.json({ code: 404, message: '产品不存在', data: null })
@@ -236,35 +225,21 @@ app.delete('/api/products/:id', (req, res) => {
   }
 
   products.splice(index, 1)
-  writeProducts(products)
+  await writeProducts(products)
   res.json({ code: 0, message: '删除成功', data: null })
 })
 
 // ============ 经理白名单接口 ============
 
-const MANAGER_FILE = join(DATA_DIR, 'managers.json')
-
-if (!existsSync(MANAGER_FILE)) {
-  writeFileSync(MANAGER_FILE, JSON.stringify([], null, 2), 'utf-8')
-}
-
-function readManagers() {
-  return JSON.parse(readFileSync(MANAGER_FILE, 'utf-8'))
-}
-
-function writeManagers(data: unknown[]) {
-  writeFileSync(MANAGER_FILE, JSON.stringify(data, null, 2), 'utf-8')
-}
-
 // 获取经理列表
-app.get('/api/managers', (_req, res) => {
-  const managers = readManagers()
+app.get('/api/managers', async (_req, res) => {
+  const managers = await readManagers()
   res.json({ code: 0, message: 'success', data: managers })
 })
 
 // 添加经理
-app.post('/api/managers', (req, res) => {
-  const managers = readManagers()
+app.post('/api/managers', async (req, res) => {
+  const managers = await readManagers()
   const { username, password, name, phone } = req.body
 
   if (!username || !password) {
@@ -290,15 +265,15 @@ app.post('/api/managers', (req, res) => {
     updatedAt: now,
   }
   managers.push(manager)
-  writeManagers(managers)
+  await writeManagers(managers)
   // 返回时隐藏密码
   const { password: _, ...safeManager } = manager
   res.json({ code: 0, message: '添加成功', data: safeManager })
 })
 
 // 删除经理（同时下架其所有产品，转移佣金数据给管理后台）
-app.delete('/api/managers/:id', (req, res) => {
-  let managers = readManagers()
+app.delete('/api/managers/:id', async (req, res) => {
+  let managers = await readManagers()
   const index = managers.findIndex((m: any) => m.id === req.params.id)
   if (index === -1) {
     res.json({ code: 404, message: '经理不存在', data: null })
@@ -307,10 +282,10 @@ app.delete('/api/managers/:id', (req, res) => {
   const managerId = managers[index].id
   const managerName = managers[index].name || ''
   managers.splice(index, 1)
-  writeManagers(managers)
+  await writeManagers(managers)
 
   // 下架该经理的所有已发布产品
-  let products = readProducts()
+  let products = await readProducts()
   let offlineCount = 0
   products = products.map((p: any) => {
     if (p.managerId === managerId && p.status === 'published') {
@@ -319,10 +294,10 @@ app.delete('/api/managers/:id', (req, res) => {
     }
     return p
   })
-  writeProducts(products)
+  await writeProducts(products)
 
   // 转移该经理的待处理订单：标记为管理后台接管
-  let orders = readOrders()
+  let orders = await readOrders()
   const now = new Date().toISOString()
   let transferredOrders = 0
   orders = orders.map((o: any) => {
@@ -337,7 +312,7 @@ app.delete('/api/managers/:id', (req, res) => {
     }
     return o
   })
-  writeOrders(orders)
+  await writeOrders(orders)
 
   res.json({
     code: 0,
@@ -347,8 +322,8 @@ app.delete('/api/managers/:id', (req, res) => {
 })
 
 // 更新经理（启用/禁用时联动产品状态）
-app.put('/api/managers/:id', (req, res) => {
-  const managers = readManagers()
+app.put('/api/managers/:id', async (req, res) => {
+  const managers = await readManagers()
   const index = managers.findIndex((m: any) => m.id === req.params.id)
   if (index === -1) {
     res.json({ code: 404, message: '经理不存在', data: null })
@@ -357,11 +332,11 @@ app.put('/api/managers/:id', (req, res) => {
   const now = new Date().toISOString()
   const newStatus = req.body.status
   managers[index] = { ...managers[index], ...req.body, id: managers[index].id, updatedAt: now }
-  writeManagers(managers)
+  await writeManagers(managers)
 
   // 禁用时下架产品，启用时不自动恢复（需经理手动操作）
   if (newStatus === 'disabled') {
-    let products = readProducts()
+    let products = await readProducts()
     let offlineCount = 0
     products = products.map((p: any) => {
       if (p.managerId === req.params.id && p.status === 'published') {
@@ -370,7 +345,7 @@ app.put('/api/managers/:id', (req, res) => {
       }
       return p
     })
-    writeProducts(products)
+    await writeProducts(products)
   }
 
   const { password: _, ...safeManager } = managers[index]
@@ -378,13 +353,13 @@ app.put('/api/managers/:id', (req, res) => {
 })
 
 // 经理登录校验
-app.post('/api/managers/login', (req, res) => {
+app.post('/api/managers/login', async (req, res) => {
   const { username, password } = req.body
   if (!username || !password) {
     res.json({ code: 400, message: '用户名和密码不能为空', data: null })
     return
   }
-  const managers = readManagers()
+  const managers = await readManagers()
   const manager = managers.find(
     (m: any) => m.username === username && m.password === password && m.status === 'active'
   )
@@ -398,7 +373,7 @@ app.post('/api/managers/login', (req, res) => {
 })
 
 // 经理身份验证（检查经理是否仍存在且启用）
-app.get('/api/managers/verify', (req, res) => {
+app.get('/api/managers/verify', async (req, res) => {
   const token = req.headers.authorization?.replace('Bearer ', '')
   if (!token) {
     res.json({ code: 401, message: '未登录', data: null })
@@ -406,7 +381,7 @@ app.get('/api/managers/verify', (req, res) => {
   }
   // token 格式为 mgr_timestamp_random，无法直接关联经理
   // 改为通过 manager_info 中的 id 验证
-  const managers = readManagers()
+  const managers = await readManagers()
   // 如果白名单中没有任何经理（极端情况），也返回 401
   if (managers.length === 0) {
     res.json({ code: 0, message: 'ok', data: { valid: true } })
@@ -416,8 +391,8 @@ app.get('/api/managers/verify', (req, res) => {
 })
 
 // 通过经理ID验证身份
-app.get('/api/managers/:id/verify', (req, res) => {
-  const managers = readManagers()
+app.get('/api/managers/:id/verify', async (req, res) => {
+  const managers = await readManagers()
   const manager = managers.find((m: any) => m.id === req.params.id)
   if (!manager) {
     res.json({ code: 401, message: '账号已被删除', data: null })
@@ -432,22 +407,8 @@ app.get('/api/managers/:id/verify', (req, res) => {
 
 // ============ 用户接口（普通用户，非经理） ============
 
-const USER_FILE = join(DATA_DIR, 'users.json')
-
-if (!existsSync(USER_FILE)) {
-  writeFileSync(USER_FILE, JSON.stringify([], null, 2), 'utf-8')
-}
-
-function readUsers() {
-  return JSON.parse(readFileSync(USER_FILE, 'utf-8'))
-}
-
-function writeUsers(data: unknown[]) {
-  writeFileSync(USER_FILE, JSON.stringify(data, null, 2), 'utf-8')
-}
-
 // 用户注册
-app.post('/api/users/register', (req, res) => {
+app.post('/api/users/register', async (req, res) => {
   const { phone, password, nickname } = req.body
 
   if (!phone || !password) {
@@ -463,7 +424,7 @@ app.post('/api/users/register', (req, res) => {
     return
   }
 
-  const users = readUsers()
+  const users = await readUsers()
   if (users.find((u: any) => u.phone === phone)) {
     res.json({ code: 409, message: '该手机号已注册', data: null })
     return
@@ -481,7 +442,7 @@ app.post('/api/users/register', (req, res) => {
     updatedAt: now,
   }
   users.push(user)
-  writeUsers(users)
+  await writeUsers(users)
 
   const { password: _, ...safeUser } = user
   const token = `usr_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
@@ -489,13 +450,13 @@ app.post('/api/users/register', (req, res) => {
 })
 
 // 用户登录
-app.post('/api/users/login', (req, res) => {
+app.post('/api/users/login', async (req, res) => {
   const { phone, password } = req.body
   if (!phone || !password) {
     res.json({ code: 400, message: '手机号和密码不能为空', data: null })
     return
   }
-  const users = readUsers()
+  const users = await readUsers()
   const user = users.find(
     (u: any) => u.phone === phone && u.password === password && u.status === 'active'
   )
@@ -514,7 +475,7 @@ app.post('/api/users/login', (req, res) => {
 const smsCodes = new Map<string, { code: string; expiresAt: number; phone: string }>()
 
 // 发送短信验证码
-app.post('/api/users/sms/send', (req, res) => {
+app.post('/api/users/sms/send', async (req, res) => {
   const { phone } = req.body
   if (!phone || !/^1[3-9]\d{9}$/.test(phone)) {
     res.json({ code: 400, message: '手机号格式不正确', data: null })
@@ -539,7 +500,7 @@ app.post('/api/users/sms/send', (req, res) => {
 })
 
 // 短信验证码登录/注册
-app.post('/api/users/sms/login', (req, res) => {
+app.post('/api/users/sms/login', async (req, res) => {
   const { phone, code } = req.body
   if (!phone || !code) {
     res.json({ code: 400, message: '手机号和验证码不能为空', data: null })
@@ -564,7 +525,7 @@ app.post('/api/users/sms/login', (req, res) => {
   smsCodes.delete(phone) // 验证后删除
 
   // 查找或创建用户
-  let users = readUsers()
+  let users = await readUsers()
   let user = users.find((u: any) => u.phone === phone)
 
   if (!user) {
@@ -582,14 +543,14 @@ app.post('/api/users/sms/login', (req, res) => {
       updatedAt: now,
     }
     users.push(user)
-    writeUsers(users)
+    await writeUsers(users)
   } else {
     // 记录登录方式
     if (!user.loginMethods) user.loginMethods = []
     if (!user.loginMethods.includes('sms')) user.loginMethods.push('sms')
     user.updatedAt = new Date().toISOString()
     users = users.map((u: any) => u.id === user!.id ? user : u)
-    writeUsers(users)
+    await writeUsers(users)
   }
 
   const { password: _, ...safeUser } = user
@@ -599,7 +560,7 @@ app.post('/api/users/sms/login', (req, res) => {
 
 // ============ 支付宝扫码登录 ============
 
-app.post('/api/users/alipay/login', (req, res) => {
+app.post('/api/users/alipay/login', async (req, res) => {
   const { authCode } = req.body
   if (!authCode) {
     res.json({ code: 400, message: '授权码不能为空', data: null })
@@ -611,7 +572,7 @@ app.post('/api/users/alipay/login', (req, res) => {
   const alipayUserId = `alipay_${authCode.slice(0, 12)}`
   const alipayNickname = `支付宝用户${authCode.slice(-4)}`
 
-  let users = readUsers()
+  let users = await readUsers()
   let user = users.find((u: any) => u.alipayUserId === alipayUserId)
 
   if (!user) {
@@ -630,13 +591,13 @@ app.post('/api/users/alipay/login', (req, res) => {
       updatedAt: now,
     }
     users.push(user)
-    writeUsers(users)
+    await writeUsers(users)
   } else {
     if (!user.loginMethods) user.loginMethods = []
     if (!user.loginMethods.includes('alipay')) user.loginMethods.push('alipay')
     user.updatedAt = new Date().toISOString()
     users = users.map((u: any) => u.id === user!.id ? user : u)
-    writeUsers(users)
+    await writeUsers(users)
   }
 
   const { password: _, ...safeUser } = user
@@ -646,7 +607,7 @@ app.post('/api/users/alipay/login', (req, res) => {
 
 // ============ 微信扫码登录 ============
 
-app.post('/api/users/wechat/login', (req, res) => {
+app.post('/api/users/wechat/login', async (req, res) => {
   const { authCode } = req.body
   if (!authCode) {
     res.json({ code: 400, message: '授权码不能为空', data: null })
@@ -657,7 +618,7 @@ app.post('/api/users/wechat/login', (req, res) => {
   const wechatOpenId = `wx_${authCode.slice(0, 12)}`
   const wechatNickname = `微信用户${authCode.slice(-4)}`
 
-  let users = readUsers()
+  let users = await readUsers()
   let user = users.find((u: any) => u.wechatOpenId === wechatOpenId)
 
   if (!user) {
@@ -675,13 +636,13 @@ app.post('/api/users/wechat/login', (req, res) => {
       updatedAt: now,
     }
     users.push(user)
-    writeUsers(users)
+    await writeUsers(users)
   } else {
     if (!user.loginMethods) user.loginMethods = []
     if (!user.loginMethods.includes('wechat')) user.loginMethods.push('wechat')
     user.updatedAt = new Date().toISOString()
     users = users.map((u: any) => u.id === user!.id ? user : u)
-    writeUsers(users)
+    await writeUsers(users)
   }
 
   const { password: _, ...safeUser } = user
@@ -691,7 +652,7 @@ app.post('/api/users/wechat/login', (req, res) => {
 
 // ============ 绑定手机号（扫码登录后绑定） ============
 
-app.post('/api/users/bindPhone', (req, res) => {
+app.post('/api/users/bindPhone', async (req, res) => {
   const { userId, phone, code } = req.body
   if (!userId || !phone || !code) {
     res.json({ code: 400, message: '参数不完整', data: null })
@@ -707,7 +668,7 @@ app.post('/api/users/bindPhone', (req, res) => {
   smsCodes.delete(phone)
 
   // 检查手机号是否已被其他用户绑定
-  let users = readUsers()
+  let users = await readUsers()
   const existingUser = users.find((u: any) => u.phone === phone && u.id !== userId)
 
   if (existingUser) {
@@ -729,7 +690,7 @@ app.post('/api/users/bindPhone', (req, res) => {
       existingUser.updatedAt = new Date().toISOString()
       // 删除扫码创建的临时用户
       users = users.filter((u: any) => u.id !== userId)
-      writeUsers(users)
+      await writeUsers(users)
 
       const { password: _, ...safeUser } = existingUser
       const token = `usr_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
@@ -746,17 +707,17 @@ app.post('/api/users/bindPhone', (req, res) => {
   }
   user.phone = phone
   user.updatedAt = new Date().toISOString()
-  writeUsers(users)
+  await writeUsers(users)
 
   const { password: _, ...safeUser } = user
   res.json({ code: 0, message: '绑定成功', data: { user: safeUser } })
 })
 
 // 管理后台：获取所有用户列表（推广经理 + 普通用户）
-app.get('/api/users', (req, res) => {
+app.get('/api/users', async (req, res) => {
   const { page = '1', pageSize = '10', role, status, keyword } = req.query
-  const managers = readManagers()
-  const users = readUsers()
+  const managers = await readManagers()
+  const users = await readUsers()
 
   // 合并推广经理和普通用户
   const allUsers = [
@@ -806,38 +767,38 @@ app.get('/api/users', (req, res) => {
 })
 
 // 管理后台：切换用户状态
-app.put('/api/users/:id/status', (req, res) => {
+app.put('/api/users/:id/status', async (req, res) => {
   const { status } = req.body
   const userId = req.params.id
 
   // 先查经理表
-  let managers = readManagers()
+  let managers = await readManagers()
   const mgrIdx = managers.findIndex((m: any) => m.id === userId)
   if (mgrIdx !== -1) {
     managers[mgrIdx].status = status ? 'active' : 'disabled'
     managers[mgrIdx].updatedAt = new Date().toISOString()
-    writeManagers(managers)
+    await writeManagers(managers)
     // 联动下架产品
     if (!status) {
-      let products = readProducts()
+      let products = await readProducts()
       products = products.map((p: any) =>
         p.managerId === userId && p.status === 'published'
           ? { ...p, status: 'offline', updatedAt: new Date().toISOString() }
           : p
       )
-      writeProducts(products)
+      await writeProducts(products)
     }
     res.json({ code: 0, message: '更新成功', data: null })
     return
   }
 
   // 再查用户表
-  let users = readUsers()
+  let users = await readUsers()
   const usrIdx = users.findIndex((u: any) => u.id === userId)
   if (usrIdx !== -1) {
     users[usrIdx].status = status ? 'active' : 'disabled'
     users[usrIdx].updatedAt = new Date().toISOString()
-    writeUsers(users)
+    await writeUsers(users)
     res.json({ code: 0, message: '更新成功', data: null })
     return
   }
@@ -848,14 +809,14 @@ app.put('/api/users/:id/status', (req, res) => {
 // ============ 做单接口 ============
 
 // 做单（扣减库存）
-app.post('/api/orders', (req, res) => {
+app.post('/api/orders', async (req, res) => {
   const { productId, userId, optionLabel, redirectUrl } = req.body
   if (!productId) {
     res.json({ code: 400, message: '缺少产品ID', data: null })
     return
   }
 
-  let products = readProducts()
+  let products = await readProducts()
   const index = products.findIndex((p: any) => p.id === productId)
   if (index === -1) {
     res.json({ code: 404, message: '产品不存在', data: null })
@@ -878,11 +839,11 @@ app.post('/api/orders', (req, res) => {
     }
     product.stock -= 1
     products[index] = product
-    writeProducts(products)
+    await writeProducts(products)
   }
 
   // 记录做单
-  const orders = readOrders()
+  const orders = await readOrders()
   const order = {
     id: `o_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
     productId,
@@ -896,15 +857,15 @@ app.post('/api/orders', (req, res) => {
     createdAt: new Date().toISOString(),
   }
   orders.push(order)
-  writeOrders(orders)
+  await writeOrders(orders)
 
   res.json({ code: 0, message: '做单成功', data: { order, remainingStock: product.stock || -1 } })
 })
 
 // 获取订单列表（用户端按 userId，经理端按 managerId）
-app.get('/api/orders', (req, res) => {
+app.get('/api/orders', async (req, res) => {
   const { userId, managerId, status, page = '1', pageSize = '20' } = req.query
-  let orders = readOrders()
+  let orders = await readOrders()
 
   // 按用户过滤
   if (userId) {
@@ -935,9 +896,9 @@ app.get('/api/orders', (req, res) => {
 })
 
 // 获取订单统计
-app.get('/api/orders/stats', (req, res) => {
+app.get('/api/orders/stats', async (req, res) => {
   const { userId, managerId } = req.query
-  let orders = readOrders()
+  let orders = await readOrders()
 
   if (userId) orders = orders.filter((o: any) => o.userId === userId)
   if (managerId) orders = orders.filter((o: any) => o.managerId === managerId)
@@ -952,14 +913,14 @@ app.get('/api/orders/stats', (req, res) => {
 })
 
 // 经理审核订单（通过/驳回）
-app.put('/api/orders/:id/review', (req, res) => {
+app.put('/api/orders/:id/review', async (req, res) => {
   const { action, reason } = req.body // action: 'approve' | 'reject'
   if (!action || !['approve', 'reject'].includes(action)) {
     res.json({ code: 400, message: '无效的审核操作', data: null })
     return
   }
 
-  let orders = readOrders()
+  let orders = await readOrders()
   const index = orders.findIndex((o: any) => o.id === req.params.id)
   if (index === -1) {
     res.json({ code: 404, message: '订单不存在', data: null })
@@ -978,7 +939,7 @@ app.put('/api/orders/:id/review', (req, res) => {
     order.status = 'approved'
     order.reviewedAt = now
     // 写入佣金记录
-    const commissions = readCommissions()
+    const commissions = await readCommissions()
     commissions.push({
       id: `c_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
       orderId: order.id,
@@ -989,36 +950,36 @@ app.put('/api/orders/:id/review', (req, res) => {
       status: 'pending', // 佣金待发放
       createdAt: now,
     })
-    writeCommissions(commissions)
+    await writeCommissions(commissions)
   } else {
     // 驳回：推广无效，退回库存
     order.status = 'rejected'
     order.rejectReason = reason || '推广无效'
     order.reviewedAt = now
     // 退回库存
-    let products = readProducts()
+    let products = await readProducts()
     const pIdx = products.findIndex((p: any) => p.id === order.productId)
     if (pIdx !== -1 && products[pIdx].stock >= 0) {
       products[pIdx].stock = (products[pIdx].stock || 0) + 1
-      writeProducts(products)
+      await writeProducts(products)
     }
   }
 
   orders[index] = order
-  writeOrders(orders)
+  await writeOrders(orders)
 
   res.json({ code: 0, message: action === 'approve' ? '审核通过' : '已驳回', data: order })
 })
 
 // 经理结算操作（添加到待付款 / 确认已付款）
-app.put('/api/orders/:id/settle', (req, res) => {
+app.put('/api/orders/:id/settle', async (req, res) => {
   const { action } = req.body // action: 'pending_payment' | 'paid'
   if (!action || !['pending_payment', 'paid'].includes(action)) {
     res.json({ code: 400, message: '无效的结算操作', data: null })
     return
   }
 
-  let orders = readOrders()
+  let orders = await readOrders()
   const index = orders.findIndex((o: any) => o.id === req.params.id)
   if (index === -1) {
     res.json({ code: 404, message: '订单不存在', data: null })
@@ -1044,17 +1005,17 @@ app.put('/api/orders/:id/settle', (req, res) => {
     order.status = 'settled'
     order.settledAt = new Date().toISOString()
     // 同步更新佣金记录状态
-    let commissions = readCommissions()
+    let commissions = await readCommissions()
     const cIdx = commissions.findIndex((c: any) => c.orderId === order.id)
     if (cIdx !== -1) {
       commissions[cIdx].status = 'paid'
       commissions[cIdx].paidAt = order.settledAt
-      writeCommissions(commissions)
+      await writeCommissions(commissions)
     }
   }
 
   orders[index] = order
-  writeOrders(orders)
+  await writeOrders(orders)
 
   const msg = action === 'pending_payment' ? '已添加到待付款' : '已确认结算'
   res.json({ code: 0, message: msg, data: order })
@@ -1062,11 +1023,11 @@ app.put('/api/orders/:id/settle', (req, res) => {
 
 // ============ 管理后台全局统计 ============
 
-app.get('/api/admin/stats', (_req, res) => {
-  const managers = readManagers()
-  const users = readUsers()
-  const products = readProducts()
-  const commissions = readCommissions()
+app.get('/api/admin/stats', async (_req, res) => {
+  const managers = await readManagers()
+  const users = await readUsers()
+  const products = await readProducts()
+  const commissions = await readCommissions()
 
   const managerCount = managers.length
   const userCount = users.length
@@ -1093,13 +1054,13 @@ app.get('/api/admin/stats', (_req, res) => {
 })
 
 // 管理后台下架产品
-app.put('/api/admin/products/:id/offline', (req, res) => {
+app.put('/api/admin/products/:id/offline', async (req, res) => {
   const { reason } = req.body
   if (!reason || !reason.trim()) {
     res.json({ code: 400, message: '请填写下架理由', data: null })
     return
   }
-  let products = readProducts()
+  let products = await readProducts()
   const index = products.findIndex((p: any) => p.id === req.params.id)
   if (index === -1) {
     res.json({ code: 404, message: '产品不存在', data: null })
@@ -1116,46 +1077,18 @@ app.put('/api/admin/products/:id/offline', (req, res) => {
     offlineAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
   }
-  writeProducts(products)
+  await writeProducts(products)
   res.json({ code: 0, message: '已下架', data: products[index] })
 })
 
 // ============ 佣金接口 ============
 
-const COMMISSION_FILE = join(DATA_DIR, 'commissions.json')
-
-if (!existsSync(COMMISSION_FILE)) {
-  writeFileSync(COMMISSION_FILE, JSON.stringify([], null, 2), 'utf-8')
-}
-
-function readCommissions() {
-  return JSON.parse(readFileSync(COMMISSION_FILE, 'utf-8'))
-}
-
-function writeCommissions(data: unknown[]) {
-  writeFileSync(COMMISSION_FILE, JSON.stringify(data, null, 2), 'utf-8')
-}
-
 // ============ 订单数据 ============
 
-const ORDER_FILE = join(DATA_DIR, 'orders.json')
-
-if (!existsSync(ORDER_FILE)) {
-  writeFileSync(ORDER_FILE, JSON.stringify([], null, 2), 'utf-8')
-}
-
-function readOrders() {
-  return JSON.parse(readFileSync(ORDER_FILE, 'utf-8'))
-}
-
-function writeOrders(data: unknown[]) {
-  writeFileSync(ORDER_FILE, JSON.stringify(data, null, 2), 'utf-8')
-}
-
 // 获取佣金列表
-app.get('/api/commissions', (req, res) => {
+app.get('/api/commissions', async (req, res) => {
   const { page = '1', pageSize = '10', status } = req.query
-  let commissions = readCommissions()
+  let commissions = await readCommissions()
 
   if (status) {
     commissions = commissions.filter((c: any) => c.status === status)
@@ -1173,8 +1106,8 @@ app.get('/api/commissions', (req, res) => {
 })
 
 // 创建佣金申请
-app.post('/api/commissions', (req, res) => {
-  const commissions = readCommissions()
+app.post('/api/commissions', async (req, res) => {
+  const commissions = await readCommissions()
   const now = new Date().toISOString()
   const commission = {
     id: `c_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
@@ -1184,13 +1117,13 @@ app.post('/api/commissions', (req, res) => {
     updatedAt: now,
   }
   commissions.unshift(commission)
-  writeCommissions(commissions)
+  await writeCommissions(commissions)
   res.json({ code: 0, message: '申请成功', data: commission })
 })
 
 // 审核佣金
-app.put('/api/commissions/:id', (req, res) => {
-  const commissions = readCommissions()
+app.put('/api/commissions/:id', async (req, res) => {
+  const commissions = await readCommissions()
   const index = commissions.findIndex((c: any) => c.id === req.params.id)
   if (index === -1) {
     res.json({ code: 404, message: '佣金记录不存在', data: null })
@@ -1205,7 +1138,7 @@ app.put('/api/commissions/:id', (req, res) => {
     updatedAt: now,
   }
   commissions[index] = updated
-  writeCommissions(commissions)
+  await writeCommissions(commissions)
   res.json({ code: 0, message: '操作成功', data: updated })
 })
 
@@ -1226,7 +1159,7 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage, limits: { fileSize: 5 * 1024 * 1024 } })
 
-app.post('/api/upload', upload.single('file'), (req, res) => {
+app.post('/api/upload', upload.single('file'), async (req, res) => {
   if (!req.file) {
     res.json({ code: 400, message: '请选择文件', data: null })
     return
@@ -1239,10 +1172,19 @@ app.post('/api/upload', upload.single('file'), (req, res) => {
 app.use('/api/uploads', express.static(UPLOAD_DIR))
 
 // 健康检查
-app.get('/api/health', (_req, res) => {
+app.get('/api/health', async (_req, res) => {
   res.json({ code: 0, message: 'ok', data: { uptime: process.uptime() } })
 })
 
-app.listen(PORT, () => {
-  console.log(`API server running on port ${PORT}`)
+// 启动服务器（先初始化数据库）
+async function start() {
+  await initDatabase()
+  app.listen(PORT, () => {
+    console.log(`API server running on port ${PORT} (MySQL)`)
+  })
+}
+
+start().catch(err => {
+  console.error('Failed to start server:', err)
+  process.exit(1)
 })
