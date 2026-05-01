@@ -117,6 +117,58 @@
           </div>
         </el-form-item>
 
+        <!-- 单选框组 -->
+        <el-form-item label="单选框组">
+          <div class="option-group-config">
+            <div class="option-group-header">
+              <span style="font-size: 13px; color: #606266;">用户做单时需选择的选项（如套餐、规格等）</span>
+              <div>
+                <el-button type="primary" size="small" @click="handleBatchAddOptions">批量添加</el-button>
+                <el-button size="small" @click="handleClearOptions">清空</el-button>
+              </div>
+            </div>
+
+            <!-- 选项表格 -->
+            <div v-if="form.options.length > 0" class="option-table-wrapper">
+              <table class="option-table">
+                <thead>
+                  <tr>
+                    <th style="width: 160px;">选项</th>
+                    <th style="width: 120px;">限制做单量</th>
+                    <th style="min-width: 200px;">提交后跳转</th>
+                    <th style="width: 100px;">操作</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="(opt, idx) in form.options" :key="idx">
+                    <td>
+                      <el-input v-model="opt.label" placeholder="请输入" size="small" />
+                    </td>
+                    <td>
+                      <el-input v-model="opt.limit" placeholder="请输入" size="small" />
+                    </td>
+                    <td>
+                      <el-input v-model="opt.redirectUrl" placeholder="输入跳转链接（不填则不跳转）" size="small" />
+                    </td>
+                    <td>
+                      <div class="option-actions">
+                        <el-button type="primary" text size="small" @click="handleCopyOption(idx)">复制</el-button>
+                        <el-button type="danger" text size="small" @click="handleDeleteOption(idx)">删除</el-button>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- 添加一行 -->
+            <div class="add-option-area" @click="handleAddOption">
+              <el-icon><Plus /></el-icon>
+              <span>添加一行数据</span>
+            </div>
+          </div>
+        </el-form-item>
+
         <!-- 封面图片 -->
         <el-form-item label="封面图片" prop="cover">
           <div class="upload-area">
@@ -159,7 +211,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
+import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
 import { ArrowLeft, Plus } from '@element-plus/icons-vue'
 import { get, post, put } from '@promo/shared/utils/request'
 
@@ -188,7 +240,8 @@ const form = reactive({
   price: 0,
   stock: 0,
   tags: [] as string[],
-  cover: ''
+  cover: '',
+  options: [] as { label: string; limit: string; redirectUrl: string }[]
 })
 
 // 表单校验规则
@@ -220,6 +273,46 @@ const handleAddTag = () => {
 // 移除标签
 const handleRemoveTag = (tag: string) => {
   form.tags = form.tags.filter(t => t !== tag)
+}
+
+// ====== 单选框组操作 ======
+const handleAddOption = () => {
+  form.options.push({ label: '', limit: '', redirectUrl: '' })
+}
+
+const handleCopyOption = (idx: number) => {
+  const copy = { ...form.options[idx] }
+  form.options.splice(idx + 1, 0, copy)
+}
+
+const handleDeleteOption = (idx: number) => {
+  form.options.splice(idx, 1)
+}
+
+const handleClearOptions = () => {
+  if (form.options.length === 0) return
+  ElMessageBox.confirm('确定清空所有选项？', '提示', { confirmButtonText: '确定', cancelButtonText: '取消', type: 'warning' })
+    .then(() => { form.options = [] })
+    .catch(() => {})
+}
+
+const handleBatchAddOptions = () => {
+  ElMessageBox.prompt('每行一个选项名称，例如：\n套餐A\n套餐B\n套餐C', '批量添加选项', {
+    confirmButtonText: '添加',
+    cancelButtonText: '取消',
+    inputType: 'textarea',
+    inputPlaceholder: '每行一个选项',
+    inputValidator: (val: string) => {
+      if (!val || !val.trim()) return '请输入至少一个选项'
+      return true
+    }
+  }).then(({ value }) => {
+    const lines = value.split('\n').map(l => l.trim()).filter(l => l)
+    lines.forEach(label => {
+      form.options.push({ label, limit: '', redirectUrl: '' })
+    })
+    ElMessage.success(`已添加 ${lines.length} 个选项`)
+  }).catch(() => {})
 }
 
 // 模拟图片上传
@@ -254,6 +347,7 @@ const handleSave = async () => {
       stock: form.stock || 0,
       tags: form.tags,
       coverImage: form.cover,
+      options: form.options.filter(o => o.label.trim()), // 只保存有名称的选项
       status: 'published',
       managerId,
       publishedBy: localStorage.getItem('manager_token') || 'manager',
@@ -291,6 +385,7 @@ const fetchProductDetail = async () => {
         stock: p.stock || 0,
         tags: p.tags || [],
         cover: p.coverImage || '',
+        options: p.options || [],
       })
     }
   } catch (error: any) {
@@ -347,6 +442,74 @@ onMounted(() => {
         font-size: 12px;
         margin-top: 4px;
         color: #c0c4cc;
+      }
+    }
+  }
+
+  // 单选框组配置
+  .option-group-config {
+    width: 100%;
+
+    .option-group-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    .option-table-wrapper {
+      border: 1px solid #ebeef5;
+      border-radius: 4px;
+      overflow: hidden;
+      margin-bottom: 12px;
+    }
+
+    .option-table {
+      width: 100%;
+      border-collapse: collapse;
+
+      th {
+        background: #f5f7fa;
+        padding: 8px 12px;
+        font-size: 13px;
+        font-weight: 500;
+        color: #606266;
+        text-align: left;
+        border-bottom: 1px solid #ebeef5;
+      }
+
+      td {
+        padding: 6px 12px;
+        border-bottom: 1px solid #f0f2f5;
+
+        .option-actions {
+          display: flex;
+          gap: 4px;
+        }
+      }
+
+      tbody tr:last-child td {
+        border-bottom: none;
+      }
+    }
+
+    .add-option-area {
+      border: 1px dashed #dcdfe6;
+      border-radius: 4px;
+      padding: 10px;
+      text-align: center;
+      color: #909399;
+      cursor: pointer;
+      transition: all 0.3s;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+
+      &:hover {
+        border-color: #409eff;
+        color: #409eff;
       }
     }
   }

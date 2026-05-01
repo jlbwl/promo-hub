@@ -808,7 +808,12 @@ app.get('/api/admin/stats', (_req, res) => {
 
   const managerCount = managers.length
   const userCount = users.length
-  const publishedProductCount = products.filter((p: any) => p.status === 'published').length
+
+  // 上架产品：排除 admin_offline，且所属经理必须活跃
+  const activeManagerIds = new Set(managers.filter((m: any) => m.status === 'active').map((m: any) => m.id))
+  const publishedProductCount = products.filter((p: any) =>
+    p.status === 'published' && activeManagerIds.has(p.managerId)
+  ).length
   const totalCommission = commissions
     .filter((c: any) => c.status === 'paid')
     .reduce((sum: number, c: any) => sum + (Number(c.amount) || 0), 0)
