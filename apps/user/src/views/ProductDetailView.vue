@@ -167,7 +167,7 @@ const handleGoOrder = () => {
   post('/orders', { productId: product.id, userId }).then(() => {
     showDialog({
       title: '做单成功',
-      message: '您的订单已提交，请按照产品要求完成操作。',
+      message: '订单已提交，请按照产品要求完成推广。推广结果将由经理审核。',
       confirmButtonText: '好的',
     })
     // 刷新产品信息（更新库存）

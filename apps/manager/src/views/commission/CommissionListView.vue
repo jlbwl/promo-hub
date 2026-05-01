@@ -243,7 +243,7 @@ const handleReset = () => {
 const handleApprove = async (row: any) => {
   try {
     await ElMessageBox.confirm(
-      `确定要通过「${row.productName}」的做单申请吗？`,
+      `确认「${row.productName}」推广有效，发放佣金 ¥${row.productPrice}？`,
       '审核确认',
       {
         confirmButtonText: '通过',
@@ -252,7 +252,7 @@ const handleApprove = async (row: any) => {
       }
     )
     await put(`/orders/${row.id}/review`, { action: 'approve' })
-    ElMessage.success('审核通过')
+    ElMessage.success('已确认推广有效，佣金待发放')
     fetchStats()
     fetchData()
   } catch (error: any) {
@@ -281,7 +281,7 @@ const handleReject = async (row: any) => {
     )
 
     await put(`/orders/${row.id}/review`, { action: 'reject', reason })
-    ElMessage.success('已驳回该申请')
+    ElMessage.success('已驳回，库存已退回')
     fetchStats()
     fetchData()
   } catch (error: any) {

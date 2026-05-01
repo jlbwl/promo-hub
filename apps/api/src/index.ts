@@ -650,12 +650,34 @@ app.put('/api/orders/:id/review', (req, res) => {
 
   const now = new Date().toISOString()
   if (action === 'approve') {
+    // 通过：推广有效，记录佣金
     order.status = 'approved'
     order.reviewedAt = now
+    // 写入佣金记录
+    const commissions = readCommissions()
+    commissions.push({
+      id: `c_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+      orderId: order.id,
+      userId: order.userId,
+      managerId: order.managerId,
+      productName: order.productName,
+      amount: order.productPrice,
+      status: 'pending', // 佣金待发放
+      createdAt: now,
+    })
+    writeCommissions(commissions)
   } else {
+    // 驳回：推广无效，退回库存
     order.status = 'rejected'
-    order.rejectReason = reason || '审核未通过'
+    order.rejectReason = reason || '推广无效'
     order.reviewedAt = now
+    // 退回库存
+    let products = readProducts()
+    const pIdx = products.findIndex((p: any) => p.id === order.productId)
+    if (pIdx !== -1 && products[pIdx].stock >= 0) {
+      products[pIdx].stock = (products[pIdx].stock || 0) + 1
+      writeProducts(products)
+    }
   }
 
   orders[index] = order
