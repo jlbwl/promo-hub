@@ -11,8 +11,8 @@
     <div class="commission-overview">
       <div class="overview-card">
         <div class="total-commission">
-          <span class="label">总佣金（元）</span>
-          <span class="amount">{{ overview.totalCommission }}</span>
+          <span class="label">做单记录</span>
+          <span class="amount">{{ overview.total }}</span>
         </div>
         <div class="commission-details">
           <div class="detail-item">
@@ -20,26 +20,26 @@
             <span class="label">待审核</span>
           </div>
           <div class="detail-item">
-            <span class="value">{{ overview.received }}</span>
-            <span class="label">已到账</span>
+            <span class="value">{{ overview.approved }}</span>
+            <span class="label">已通过</span>
           </div>
           <div class="detail-item">
-            <span class="value">{{ overview.withdrawn }}</span>
-            <span class="label">已提现</span>
+            <span class="value">{{ overview.rejected }}</span>
+            <span class="label">已驳回</span>
           </div>
         </div>
       </div>
     </div>
 
     <!-- Tab 切换 -->
-    <van-tabs v-model:active="activeTab" sticky>
+    <van-tabs v-model:active="activeTab" sticky @change="onTabChange">
       <van-tab title="全部" name="all" />
       <van-tab title="待审核" name="pending" />
-      <van-tab title="已到账" name="received" />
-      <van-tab title="已提现" name="withdrawn" />
+      <van-tab title="已通过" name="approved" />
+      <van-tab title="已驳回" name="rejected" />
     </van-tabs>
 
-    <!-- 佣金记录列表 -->
+    <!-- 订单记录列表 -->
     <van-list
       v-model:loading="loading"
       :finished="finished"
@@ -48,52 +48,40 @@
     >
       <div class="record-list">
         <div
-          v-for="record in filteredRecords"
+          v-for="record in records"
           :key="record.id"
           class="record-card"
         >
           <div class="record-left">
             <h4 class="record-title">{{ record.productName }}</h4>
-            <span class="record-time">{{ record.time }}</span>
+            <span class="record-time">{{ formatTime(record.createdAt) }}</span>
+            <span v-if="record.rejectReason" class="reject-reason">驳回原因：{{ record.rejectReason }}</span>
           </div>
           <div class="record-right">
-            <span class="record-amount" :class="record.amountClass">
-              {{ record.amountPrefix }}¥{{ record.amount }}
-            </span>
+            <span class="record-price">¥{{ record.productPrice }}</span>
             <van-tag
-              :type="record.statusType"
+              :type="(statusType(record.status) as any)"
               size="medium"
               round
             >
-              {{ record.statusText }}
+              {{ statusLabel(record.status) }}
             </van-tag>
-            <!-- 可领取的佣金显示领取按钮 -->
-            <van-button
-              v-if="record.showClaimBtn"
-              type="primary"
-              size="mini"
-              round
-              class="claim-btn"
-              @click="handleClaim(record)"
-            >
-              领取
-            </van-button>
           </div>
         </div>
       </div>
 
       <!-- 空状态 -->
       <van-empty
-        v-if="!loading && filteredRecords.length === 0"
-        description="暂无佣金记录"
+        v-if="!loading && records.length === 0"
+        description="暂无做单记录"
       />
     </van-list>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed } from 'vue'
-import { showToast } from 'vant'
+import { ref, reactive } from 'vue'
+import { get } from '@promo/shared/utils/request'
 
 // 当前激活的 Tab
 const activeTab = ref('all')
@@ -102,136 +90,114 @@ const activeTab = ref('all')
 const loading = ref(false)
 const finished = ref(false)
 
+// 分页
+const page = ref(1)
+const pageSize = 20
+
 // 佣金概览数据
 const overview = reactive({
-  totalCommission: '1,280.50',
-  pending: '320.00',
-  received: '680.50',
-  withdrawn: '280.00'
+  total: 0,
+  pending: 0,
+  approved: 0,
+  rejected: 0
 })
 
-// 佣金记录数据
+// 订单记录
 const records = ref<any[]>([])
 
-// 模拟佣金记录
-const mockRecords = [
-  {
-    id: 1,
-    productName: '无线蓝牙耳机 降噪运动防水',
-    amount: '30.00',
-    amountPrefix: '+',
-    amountClass: 'income',
-    status: 'received',
-    statusType: 'success',
-    statusText: '已到账',
-    time: '2025-04-28 14:30',
-    showClaimBtn: false
-  },
-  {
-    id: 2,
-    productName: '保湿面膜套装 补水修护',
-    amount: '15.00',
-    amountPrefix: '+',
-    amountClass: 'income',
-    status: 'pending',
-    statusType: 'warning',
-    statusText: '待审核',
-    time: '2025-04-27 09:15',
-    showClaimBtn: false
-  },
-  {
-    id: 3,
-    productName: '智能手表 多功能运动健康监测',
-    amount: '60.00',
-    amountPrefix: '+',
-    amountClass: 'income',
-    status: 'received',
-    statusType: 'success',
-    statusText: '已到账',
-    time: '2025-04-26 16:45',
-    showClaimBtn: false
-  },
-  {
-    id: 4,
-    productName: '有机坚果礼盒 每日坚果混合装',
-    amount: '10.00',
-    amountPrefix: '+',
-    amountClass: 'income',
-    status: 'claimable',
-    statusType: 'primary',
-    statusText: '可领取',
-    time: '2025-04-25 11:20',
-    showClaimBtn: true
-  },
-  {
-    id: 5,
-    productName: '便携式充电宝 20000mAh大容量',
-    amount: '20.00',
-    amountPrefix: '+',
-    amountClass: 'income',
-    status: 'withdrawn',
-    statusType: 'default',
-    statusText: '已提现',
-    time: '2025-04-24 08:50',
-    showClaimBtn: false
-  },
-  {
-    id: 6,
-    productName: '真丝睡衣套装 丝绸家居服',
-    amount: '40.00',
-    amountPrefix: '+',
-    amountClass: 'income',
-    status: 'received',
-    statusType: 'success',
-    statusText: '已到账',
-    time: '2025-04-23 15:30',
-    showClaimBtn: false
-  },
-  {
-    id: 7,
-    productName: '空气炸锅 家用多功能',
-    amount: '45.00',
-    amountPrefix: '+',
-    amountClass: 'income',
-    status: 'pending',
-    statusType: 'warning',
-    statusText: '待审核',
-    time: '2025-04-22 10:10',
-    showClaimBtn: false
+// 获取当前用户 ID
+const getUserId = () => {
+  try {
+    const info = JSON.parse(localStorage.getItem('user_info') || '{}')
+    return info.id || ''
+  } catch { return '' }
+}
+
+// 状态映射
+const statusType = (status: string) => {
+  const map: Record<string, string> = {
+    pending: 'warning',
+    approved: 'success',
+    rejected: 'danger',
   }
-]
+  return map[status] || 'default'
+}
 
-// 根据 Tab 过滤记录
-const filteredRecords = computed(() => {
-  if (activeTab.value === 'all') return records.value
-  return records.value.filter((record) => record.status === activeTab.value)
-})
+const statusLabel = (status: string) => {
+  const map: Record<string, string> = {
+    pending: '待审核',
+    approved: '已通过',
+    rejected: '已驳回',
+  }
+  return map[status] || status
+}
 
-// 加载佣金记录
+// 格式化时间
+const formatTime = (iso: string) => {
+  if (!iso) return ''
+  const d = new Date(iso)
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
+// 加载统计数据
+const loadStats = async () => {
+  try {
+    const res = await get<any>('/orders/stats', { userId: getUserId() || undefined })
+    if (res.data) {
+      overview.total = res.data.total || 0
+      overview.pending = res.data.pending || 0
+      overview.approved = res.data.approved || 0
+      overview.rejected = res.data.rejected || 0
+    }
+  } catch (error) {
+    console.error('获取统计失败:', error)
+  }
+}
+
+// 加载订单记录
 const loadRecords = async () => {
   try {
-    // TODO: 替换为实际 API 调用
-    await new Promise((resolve) => setTimeout(resolve, 800))
-
-    if (records.value.length >= mockRecords.length) {
-      finished.value = true
-    } else {
-      records.value.push(...mockRecords)
+    const params: any = {
+      page: page.value,
+      pageSize,
+      userId: getUserId() || undefined,
     }
+    if (activeTab.value !== 'all') {
+      params.status = activeTab.value
+    }
+
+    const res = await get<any>('/orders', params)
+    if (res.data) {
+      const { list, total } = res.data
+      if (page.value === 1) {
+        records.value = list || []
+      } else {
+        records.value.push(...(list || []))
+      }
+      if (records.value.length >= total) {
+        finished.value = true
+      }
+      page.value++
+    }
+  } catch (error) {
+    console.error('获取订单失败:', error)
+    finished.value = true
   } finally {
     loading.value = false
   }
 }
 
-// 领取佣金
-const handleClaim = (record: any) => {
-  showToast(`成功领取 ¥${record.amount} 佣金`)
-  record.status = 'received'
-  record.statusType = 'success'
-  record.statusText = '已到账'
-  record.showClaimBtn = false
-  // TODO: 调用领取接口
+// Tab 切换
+const onTabChange = () => {
+  page.value = 1
+  records.value = []
+  finished.value = false
+  loadRecords()
 }
+
+// 初始化加载
+loadStats()
 </script>
 
 <style scoped lang="scss">
@@ -326,6 +292,15 @@ const handleClaim = (record: any) => {
 .record-time {
   font-size: 12px;
   color: #969799;
+  display: block;
+  margin-bottom: 2px;
+}
+
+.reject-reason {
+  font-size: 12px;
+  color: #ee0a24;
+  display: block;
+  margin-top: 4px;
 }
 
 .record-right {
@@ -337,20 +312,9 @@ const handleClaim = (record: any) => {
   margin-left: 12px;
 }
 
-.record-amount {
+.record-price {
   font-size: 16px;
   font-weight: 600;
-
-  &.income {
-    color: #ee0a24;
-  }
-
-  &.expense {
-    color: #323233;
-  }
-}
-
-.claim-btn {
-  min-width: 56px;
+  color: #323233;
 }
 </style>

@@ -55,9 +55,9 @@
                   </div>
                 </template>
               </van-image>
-              <!-- 佣金标签 -->
-              <div class="commission-tag">
-                佣金 ¥{{ product.commission }}
+              <!-- 分类标签 -->
+              <div v-if="getCategoryName(product.category)" class="category-tag">
+                {{ getCategoryName(product.category) }}
               </div>
             </div>
             <!-- 产品信息 -->
@@ -114,6 +114,11 @@ const categories = reactive([
   { id: 9, name: '三方-数据', value: 'third-party-data' },
   { id: 10, name: '其它', value: 'other' }
 ])
+
+// 根据 category value 获取分类名称
+const getCategoryName = (categoryValue: string) => {
+  return categories.find(c => c.value === categoryValue)?.name || ''
+}
 
 // 加载产品列表
 const loadProducts = async () => {
@@ -256,7 +261,7 @@ const goToDetail = (productId: string) => {
   }
 }
 
-.commission-tag {
+.category-tag {
   position: absolute;
   top: 8px;
   right: 8px;
@@ -264,7 +269,7 @@ const goToDetail = (productId: string) => {
   border-radius: 4px;
   font-size: 11px;
   color: #ffffff;
-  background: linear-gradient(135deg, #ff6034, #ee0a24);
+  background: linear-gradient(135deg, #1989fa, #4fc3f7);
 }
 
 .product-info {

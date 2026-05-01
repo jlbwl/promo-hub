@@ -6,11 +6,11 @@
         <el-card shadow="hover" class="stat-card">
           <div class="stat-content">
             <div class="stat-info">
-              <span class="stat-label">总佣金</span>
-              <el-statistic :value="stats.total" prefix="¥" />
+              <span class="stat-label">总订单</span>
+              <el-statistic :value="stats.total" />
             </div>
             <el-icon class="stat-icon" style="color: #409eff; background: #ecf5ff;">
-              <Money />
+              <Document />
             </el-icon>
           </div>
         </el-card>
@@ -20,7 +20,7 @@
           <div class="stat-content">
             <div class="stat-info">
               <span class="stat-label">待审核</span>
-              <el-statistic :value="stats.pending" prefix="¥" />
+              <el-statistic :value="stats.pending" />
             </div>
             <el-icon class="stat-icon" style="color: #e6a23c; background: #fdf6ec;">
               <Clock />
@@ -33,7 +33,7 @@
           <div class="stat-content">
             <div class="stat-info">
               <span class="stat-label">已通过</span>
-              <el-statistic :value="stats.approved" prefix="¥" />
+              <el-statistic :value="stats.approved" />
             </div>
             <el-icon class="stat-icon" style="color: #67c23a; background: #f0f9eb;">
               <CircleCheck />
@@ -45,11 +45,11 @@
         <el-card shadow="hover" class="stat-card">
           <div class="stat-content">
             <div class="stat-info">
-              <span class="stat-label">已发放</span>
-              <el-statistic :value="stats.paid" prefix="¥" />
+              <span class="stat-label">已驳回</span>
+              <el-statistic :value="stats.rejected" />
             </div>
             <el-icon class="stat-icon" style="color: #f56c6c; background: #fef0f0;">
-              <Wallet />
+              <CircleClose />
             </el-icon>
           </div>
         </el-card>
@@ -60,7 +60,7 @@
     <div class="search-bar">
       <el-select
         v-model="filterStatus"
-        placeholder="佣金状态"
+        placeholder="订单状态"
         clearable
         style="width: 140px;"
         @change="fetchData"
@@ -69,7 +69,6 @@
         <el-option label="待审核" value="pending" />
         <el-option label="已通过" value="approved" />
         <el-option label="已驳回" value="rejected" />
-        <el-option label="已发放" value="paid" />
       </el-select>
       <el-button icon="Refresh" @click="handleReset">重置</el-button>
     </div>
@@ -82,11 +81,11 @@
       stripe
       style="width: 100%;"
     >
-      <el-table-column prop="userName" label="用户姓名" width="120" />
-      <el-table-column prop="productName" label="产品名称" min-width="200" show-overflow-tooltip />
-      <el-table-column prop="amount" label="佣金金额" width="120" align="right">
+      <el-table-column prop="productName" label="产品名称" min-width="180" show-overflow-tooltip />
+      <el-table-column prop="userId" label="用户ID" width="180" show-overflow-tooltip />
+      <el-table-column prop="productPrice" label="产品售价" width="100" align="right">
         <template #default="{ row }">
-          <span style="color: #67c23a; font-weight: 500;">¥{{ row.amount.toFixed(2) }}</span>
+          <span style="font-weight: 500;">¥{{ row.productPrice }}</span>
         </template>
       </el-table-column>
       <el-table-column prop="status" label="状态" width="100" align="center">
@@ -96,11 +95,15 @@
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="appliedAt" label="申请时间" width="170" align="center" />
+      <el-table-column prop="createdAt" label="做单时间" width="170" align="center" />
+      <el-table-column prop="rejectReason" label="驳回原因" width="140" show-overflow-tooltip>
+        <template #default="{ row }">
+          <span style="color: #f56c6c;">{{ row.rejectReason || '--' }}</span>
+        </template>
+      </el-table-column>
       <el-table-column label="操作" width="180" align="center" fixed="right">
         <template #default="{ row }">
           <div class="table-actions">
-            <!-- 仅待审核状态显示审核操作 -->
             <template v-if="row.status === 'pending'">
               <el-button type="success" text size="small" @click="handleApprove(row)">
                 审核通过
@@ -136,7 +139,8 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Money, Clock, CircleCheck, Wallet } from '@element-plus/icons-vue'
+import { Document, Clock, CircleCheck, CircleClose } from '@element-plus/icons-vue'
+import { get, put } from '@promo/shared/utils/request'
 
 // 加载状态
 const loading = ref(false)
@@ -151,136 +155,78 @@ const pagination = reactive({
   total: 0
 })
 
-// 佣金状态类型
-type CommissionStatus = 'pending' | 'approved' | 'rejected' | 'paid'
-
-// 佣金数据接口
-interface Commission {
-  id: number
-  userName: string
-  productName: string
-  amount: number
-  status: CommissionStatus
-  appliedAt: string
-}
-
 // 统计数据
 const stats = reactive({
   total: 0,
   pending: 0,
   approved: 0,
-  paid: 0
+  rejected: 0
 })
 
 // 表格数据
-const tableData = ref<Commission[]>([])
+const tableData = ref<any[]>([])
 
-// 获取状态标签类型
-const statusTagType = (status: CommissionStatus) => {
-  const map: Record<CommissionStatus, string> = {
+// 获取当前经理 ID
+const getManagerId = () => {
+  try {
+    const info = JSON.parse(localStorage.getItem('manager_info') || '{}')
+    return info.id || ''
+  } catch { return '' }
+}
+
+// 状态映射
+const statusTagType = (status: string) => {
+  const map: Record<string, string> = {
     pending: 'warning',
     approved: 'success',
     rejected: 'danger',
-    paid: 'info'
   }
-  return map[status]
+  return map[status] || 'info'
 }
 
-// 获取状态文本
-const statusText = (status: CommissionStatus) => {
-  const map: Record<CommissionStatus, string> = {
+const statusText = (status: string) => {
+  const map: Record<string, string> = {
     pending: '待审核',
     approved: '已通过',
     rejected: '已驳回',
-    paid: '已发放'
   }
-  return map[status]
+  return map[status] || status
 }
 
 // 获取统计数据
 const fetchStats = async () => {
   try {
-    await new Promise(resolve => setTimeout(resolve, 300))
-    // 模拟数据
-    stats.total = 28650.00
-    stats.pending = 3580.50
-    stats.approved = 8200.00
-    stats.paid = 16869.50
+    const res = await get<any>('/orders/stats', {
+      managerId: getManagerId() || undefined,
+    })
+    if (res.data) {
+      stats.total = res.data.total || 0
+      stats.pending = res.data.pending || 0
+      stats.approved = res.data.approved || 0
+      stats.rejected = res.data.rejected || 0
+    }
   } catch (error) {
     console.error('获取统计数据失败:', error)
   }
 }
 
-// 获取佣金列表数据
+// 获取订单列表
 const fetchData = async () => {
   loading.value = true
   try {
-    // 模拟接口请求
-    await new Promise(resolve => setTimeout(resolve, 500))
-
-    // 模拟数据
-    const mockData: Commission[] = [
-      {
-        id: 1,
-        userName: '李明',
-        productName: '高端护肤品套装 - 补水保湿系列',
-        amount: 45.00,
-        status: 'pending',
-        appliedAt: '2026-04-29 14:30:00'
-      },
-      {
-        id: 2,
-        userName: '王芳',
-        productName: '智能蓝牙耳机 降噪版',
-        amount: 30.00,
-        status: 'pending',
-        appliedAt: '2026-04-29 10:15:00'
-      },
-      {
-        id: 3,
-        userName: '赵强',
-        productName: '有机绿茶礼盒装',
-        amount: 20.00,
-        status: 'approved',
-        appliedAt: '2026-04-28 16:20:00'
-      },
-      {
-        id: 4,
-        userName: '孙丽',
-        productName: '运动健身器材套装',
-        amount: 60.00,
-        status: 'paid',
-        appliedAt: '2026-04-27 09:45:00'
-      },
-      {
-        id: 5,
-        userName: '周伟',
-        productName: '儿童益智玩具积木',
-        amount: 12.00,
-        status: 'rejected',
-        appliedAt: '2026-04-26 11:30:00'
-      },
-      {
-        id: 6,
-        userName: '吴敏',
-        productName: '高端护肤品套装 - 补水保湿系列',
-        amount: 45.00,
-        status: 'paid',
-        appliedAt: '2026-04-25 15:00:00'
-      }
-    ]
-
-    // 根据筛选条件过滤
-    let filtered = [...mockData]
-    if (filterStatus.value) {
-      filtered = filtered.filter(item => item.status === filterStatus.value)
+    const res = await get<any>('/orders', {
+      page: pagination.page,
+      pageSize: pagination.pageSize,
+      managerId: getManagerId() || undefined,
+      status: filterStatus.value || undefined,
+    })
+    if (res.data) {
+      const { list, total } = res.data
+      tableData.value = list || []
+      pagination.total = total || 0
     }
-
-    pagination.total = filtered.length
-    tableData.value = filtered
-  } catch (error) {
-    console.error('获取佣金列表失败:', error)
-    ElMessage.error('获取佣金列表失败')
+  } catch (error: any) {
+    ElMessage.error(error.message || '获取订单列表失败')
   } finally {
     loading.value = false
   }
@@ -294,10 +240,10 @@ const handleReset = () => {
 }
 
 // 审核通过
-const handleApprove = async (row: Commission) => {
+const handleApprove = async (row: any) => {
   try {
     await ElMessageBox.confirm(
-      `确定要通过「${row.userName}」的佣金申请（¥${row.amount.toFixed(2)}）吗？`,
+      `确定要通过「${row.productName}」的做单申请吗？`,
       '审核确认',
       {
         confirmButtonText: '通过',
@@ -305,20 +251,21 @@ const handleApprove = async (row: Commission) => {
         type: 'success'
       }
     )
-    // 模拟接口请求
-    await new Promise(resolve => setTimeout(resolve, 300))
-    row.status = 'approved'
+    await put(`/orders/${row.id}/review`, { action: 'approve' })
     ElMessage.success('审核通过')
     fetchStats()
-  } catch {
-    // 用户取消操作
+    fetchData()
+  } catch (error: any) {
+    if (error !== 'cancel' && error?.message) {
+      ElMessage.error(error.message || '操作失败')
+    }
   }
 }
 
 // 驳回申请
-const handleReject = async (row: Commission) => {
+const handleReject = async (row: any) => {
   try {
-    const { value: _reason } = await ElMessageBox.prompt(
+    const { value: reason } = await ElMessageBox.prompt(
       '请输入驳回原因',
       '驳回确认',
       {
@@ -333,13 +280,14 @@ const handleReject = async (row: Commission) => {
       }
     )
 
-    // 模拟接口请求
-    await new Promise(resolve => setTimeout(resolve, 300))
-    row.status = 'rejected'
+    await put(`/orders/${row.id}/review`, { action: 'reject', reason })
     ElMessage.success('已驳回该申请')
     fetchStats()
-  } catch {
-    // 用户取消操作
+    fetchData()
+  } catch (error: any) {
+    if (error !== 'cancel' && error?.message) {
+      ElMessage.error(error.message || '操作失败')
+    }
   }
 }
 

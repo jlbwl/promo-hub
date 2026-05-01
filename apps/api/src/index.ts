@@ -583,6 +583,87 @@ app.post('/api/orders', (req, res) => {
   res.json({ code: 0, message: '做单成功', data: { order, remainingStock: product.stock || -1 } })
 })
 
+// 获取订单列表（用户端按 userId，经理端按 managerId）
+app.get('/api/orders', (req, res) => {
+  const { userId, managerId, status, page = '1', pageSize = '20' } = req.query
+  let orders = readOrders()
+
+  // 按用户过滤
+  if (userId) {
+    orders = orders.filter((o: any) => o.userId === userId)
+  }
+  // 按经理过滤
+  if (managerId) {
+    orders = orders.filter((o: any) => o.managerId === managerId)
+  }
+  // 按状态过滤
+  if (status) {
+    orders = orders.filter((o: any) => o.status === status)
+  }
+
+  orders.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+
+  const total = orders.length
+  const pageNum = parseInt(page as string, 10)
+  const pageSizeNum = parseInt(pageSize as string, 10)
+  const start = (pageNum - 1) * pageSizeNum
+  const list = orders.slice(start, start + pageSizeNum)
+
+  res.json({ code: 0, message: 'success', data: { list, total, page: pageNum, pageSize: pageSizeNum } })
+})
+
+// 获取订单统计
+app.get('/api/orders/stats', (req, res) => {
+  const { userId, managerId } = req.query
+  let orders = readOrders()
+
+  if (userId) orders = orders.filter((o: any) => o.userId === userId)
+  if (managerId) orders = orders.filter((o: any) => o.managerId === managerId)
+
+  const pending = orders.filter((o: any) => o.status === 'pending').length
+  const approved = orders.filter((o: any) => o.status === 'approved').length
+  const rejected = orders.filter((o: any) => o.status === 'rejected').length
+
+  res.json({ code: 0, message: 'success', data: { total: orders.length, pending, approved, rejected } })
+})
+
+// 经理审核订单（通过/驳回）
+app.put('/api/orders/:id/review', (req, res) => {
+  const { action, reason } = req.body // action: 'approve' | 'reject'
+  if (!action || !['approve', 'reject'].includes(action)) {
+    res.json({ code: 400, message: '无效的审核操作', data: null })
+    return
+  }
+
+  let orders = readOrders()
+  const index = orders.findIndex((o: any) => o.id === req.params.id)
+  if (index === -1) {
+    res.json({ code: 404, message: '订单不存在', data: null })
+    return
+  }
+
+  const order = orders[index]
+  if (order.status !== 'pending') {
+    res.json({ code: 400, message: '该订单已审核', data: null })
+    return
+  }
+
+  const now = new Date().toISOString()
+  if (action === 'approve') {
+    order.status = 'approved'
+    order.reviewedAt = now
+  } else {
+    order.status = 'rejected'
+    order.rejectReason = reason || '审核未通过'
+    order.reviewedAt = now
+  }
+
+  orders[index] = order
+  writeOrders(orders)
+
+  res.json({ code: 0, message: action === 'approve' ? '审核通过' : '已驳回', data: order })
+})
+
 // ============ 佣金接口 ============
 
 const COMMISSION_FILE = join(DATA_DIR, 'commissions.json')
