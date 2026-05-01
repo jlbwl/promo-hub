@@ -147,6 +147,7 @@
           <p><strong>下架产品：</strong>{{ offlineProduct.title }}</p>
           <p><strong>所属经理：</strong>{{ getManagerName(offlineProduct.managerId) }}</p>
           <p><strong>下架时间：</strong>{{ formatTime(new Date().toISOString()) }}</p>
+          <p><strong>下架理由：</strong><span style="color: #f56c6c;">{{ offlineProduct.offlineReason }}</span></p>
         </div>
       </div>
       <template #footer>
@@ -250,18 +251,28 @@ const openProductDialog = async () => {
 // 下架产品
 const handleOffline = async (row: any) => {
   try {
-    await ElMessageBox.confirm(
-      `确定要下架「${row.title}」吗？下架后用户端将不再显示该产品。`,
+    const { value: reason } = await ElMessageBox.prompt(
+      `请输入下架「${row.title}」的理由（将同步通知所属经理）：`,
       '下架确认',
-      { confirmButtonText: '确认下架', cancelButtonText: '取消', type: 'warning' }
+      {
+        confirmButtonText: '确认下架',
+        cancelButtonText: '取消',
+        type: 'warning',
+        inputPlaceholder: '请输入下架理由，例如：产品信息不完整、涉嫌违规内容等',
+        inputType: 'textarea',
+        inputValidator: (val: string) => {
+          if (!val || !val.trim()) return '请输入下架理由'
+          return true
+        }
+      }
     )
-    await put(`/admin/products/${row.id}/offline`)
+    await put(`/admin/products/${row.id}/offline`, { reason })
     ElMessage.success('已下架')
     // 刷新列表和统计
     publishedProducts.value = publishedProducts.value.filter((p: any) => p.id !== row.id)
     stats.publishedProductCount = publishedProducts.value.length
     // 显示整改建议
-    offlineProduct.value = row
+    offlineProduct.value = { ...row, offlineReason: reason }
     offlineResultVisible.value = true
   } catch (e: any) {
     if (e !== 'cancel' && e?.message) ElMessage.error(e.message)

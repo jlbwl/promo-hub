@@ -67,11 +67,21 @@
           <span style="color: #67c23a; font-weight: 500;">¥{{ row.commission.toFixed(2) }}</span>
         </template>
       </el-table-column>
-      <el-table-column prop="status" label="状态" width="100" align="center">
+      <el-table-column prop="status" label="状态" width="130" align="center">
         <template #default="{ row }">
           <el-tag :type="statusTagType(row.status)">
             {{ statusText(row.status) }}
           </el-tag>
+          <el-button
+            v-if="row.status === 'admin_offline' && row.offlineReason"
+            type="info"
+            text
+            size="small"
+            style="margin-left: 4px;"
+            @click="showOfflineReason(row)"
+          >
+            查看理由
+          </el-button>
         </template>
       </el-table-column>
       <el-table-column prop="createdAt" label="发布时间" width="170" align="center" />
@@ -82,7 +92,7 @@
               编辑
             </el-button>
             <el-button
-              v-if="row.status === 'draft' || row.status === 'offline'"
+              v-if="(row.status === 'draft' || row.status === 'offline') && row.status !== 'admin_offline'"
               type="success"
               text
               size="small"
@@ -147,7 +157,7 @@ const pagination = reactive({
 })
 
 // 产品状态类型
-type ProductStatus = 'draft' | 'published' | 'offline'
+type ProductStatus = 'draft' | 'published' | 'offline' | 'admin_offline'
 
 // 产品数据接口
 interface Product {
@@ -160,6 +170,7 @@ interface Product {
   status: ProductStatus
   createdAt: string
   publishedAt: string
+  offlineReason?: string
 }
 
 // 表格数据
@@ -170,7 +181,8 @@ const statusTagType = (status: ProductStatus) => {
   const map: Record<ProductStatus, string> = {
     draft: 'info',
     published: 'success',
-    offline: 'danger'
+    offline: 'danger',
+    admin_offline: 'danger'
   }
   return map[status]
 }
@@ -180,7 +192,8 @@ const statusText = (status: ProductStatus) => {
   const map: Record<ProductStatus, string> = {
     draft: '草稿',
     published: '已发布',
-    offline: '已下架'
+    offline: '已下架',
+    admin_offline: '被管理员下架'
   }
   return map[status]
 }
@@ -261,6 +274,14 @@ const handleToggleStatus = async (row: Product, newStatus: ProductStatus) => {
       ElMessage.error(error.message || '操作失败')
     }
   }
+}
+
+// 查看管理员下架理由
+const showOfflineReason = (row: Product) => {
+  ElMessageBox.alert(row.offlineReason || '未提供理由', '管理员下架理由', {
+    confirmButtonText: '知道了',
+    type: 'warning',
+  })
 }
 
 // 删除产品
