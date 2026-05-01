@@ -85,6 +85,18 @@
       />
     </van-cell-group>
 
+    <!-- 退出登录确认弹窗 -->
+    <van-dialog
+      v-model:show="logoutDialogVisible"
+      title="提示"
+      message="确定要退出登录吗？"
+      show-cancel-button
+      confirm-button-text="确定退出"
+      cancel-button-text="取消"
+      confirm-button-color="#ee0a24"
+      @confirm="doLogout"
+    />
+
     <!-- 退出登录按钮 -->
     <div class="logout-wrap">
       <van-button
@@ -93,8 +105,7 @@
         plain
         type="danger"
         size="large"
-        :loading="logoutLoading"
-        @click="handleLogout"
+        @click="logoutDialogVisible = true"
       >
         退出登录
       </van-button>
@@ -110,8 +121,8 @@ import { showDialog, showToast } from 'vant'
 // 路由实例
 const router = useRouter()
 
-// 退出登录加载状态
-const logoutLoading = ref(false)
+// 退出登录弹窗
+const logoutDialogVisible = ref(false)
 
 // 用户信息（从 localStorage 读取真实数据）
 const userInfo = reactive({
@@ -171,34 +182,12 @@ const handleContactService = () => {
   })
 }
 
-// 退出登录
-const handleLogout = () => {
-  showDialog({
-    title: '提示',
-    message: '确定要退出登录吗？',
-    showCancelButton: true,
-    confirmButtonText: '确定退出',
-    cancelButtonText: '取消',
-    confirmButtonColor: '#ee0a24',
-    cancelButtonColor: '#323233',
-    className: 'logout-dialog',
-  }).then(async () => {
-    logoutLoading.value = true
-    try {
-      // 清除所有用户端登录状态
-      localStorage.removeItem('user_token')
-      localStorage.removeItem('user_info')
-      showToast('已退出登录')
-      // 跳转到登录页
-      router.replace('/login')
-    } catch {
-      showToast('退出失败，请重试')
-    } finally {
-      logoutLoading.value = false
-    }
-  }).catch(() => {
-    // 取消操作
-  })
+// 执行退出登录
+const doLogout = () => {
+  localStorage.removeItem('user_token')
+  localStorage.removeItem('user_info')
+  showToast('已退出登录')
+  router.replace('/login')
 }
 </script>
 

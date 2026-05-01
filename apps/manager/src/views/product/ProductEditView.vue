@@ -56,7 +56,7 @@
           </el-select>
         </el-form-item>
 
-        <!-- 价格信息 -->
+        <!-- 价格与库存 -->
         <el-row :gutter="20">
           <el-col :span="12">
             <el-form-item label="售价" prop="price">
@@ -71,45 +71,15 @@
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="原价" prop="originalPrice">
+            <el-form-item label="库存" prop="stock">
               <el-input-number
-                v-model="form.originalPrice"
+                v-model="form.stock"
                 :min="0"
-                :precision="2"
-                :step="0.01"
+                :step="1"
                 controls-position="right"
                 style="width: 100%;"
+                placeholder="不限则留空"
               />
-            </el-form-item>
-          </el-col>
-        </el-row>
-
-        <!-- 佣金信息 -->
-        <el-row :gutter="20">
-          <el-col :span="12">
-            <el-form-item label="佣金金额" prop="commissionAmount">
-              <el-input-number
-                v-model="form.commissionAmount"
-                :min="0"
-                :precision="2"
-                :step="0.01"
-                controls-position="right"
-                style="width: 100%;"
-              />
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="佣金比例" prop="commissionRate">
-              <el-input-number
-                v-model="form.commissionRate"
-                :min="0"
-                :max="100"
-                :precision="1"
-                :step="0.1"
-                controls-position="right"
-                style="width: 100%;"
-              />
-              <div class="form-tip">百分比，例如 15 表示 15%</div>
             </el-form-item>
           </el-col>
         </el-row>
@@ -216,9 +186,7 @@ const form = reactive({
   description: '',
   category: '',
   price: 0,
-  originalPrice: 0,
-  commissionAmount: 0,
-  commissionRate: 0,
+  stock: 0,
   tags: [] as string[],
   cover: ''
 })
@@ -237,9 +205,6 @@ const formRules: FormRules = {
   ],
   price: [
     { required: true, message: '请输入售价', trigger: 'blur' }
-  ],
-  commissionAmount: [
-    { required: true, message: '请输入佣金金额', trigger: 'blur' }
   ]
 }
 
@@ -286,9 +251,7 @@ const handleSave = async () => {
       description: form.description,
       category: form.category,
       price: form.price,
-      originalPrice: form.originalPrice,
-      commission: form.commissionAmount,
-      commissionRate: form.commissionRate,
+      stock: form.stock || 0,
       tags: form.tags,
       coverImage: form.cover,
       status: 'published',
@@ -325,9 +288,7 @@ const fetchProductDetail = async () => {
         description: p.description || '',
         category: p.category || '',
         price: p.price || 0,
-        originalPrice: p.originalPrice || 0,
-        commissionAmount: p.commission || 0,
-        commissionRate: p.commissionRate || 0,
+        stock: p.stock || 0,
         tags: p.tags || [],
         cover: p.coverImage || '',
       })

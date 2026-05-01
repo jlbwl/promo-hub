@@ -529,6 +529,60 @@ app.put('/api/users/:id/status', (req, res) => {
   res.json({ code: 404, message: '用户不存在', data: null })
 })
 
+// ============ 做单接口 ============
+
+// 做单（扣减库存）
+app.post('/api/orders', (req, res) => {
+  const { productId, userId } = req.body
+  if (!productId) {
+    res.json({ code: 400, message: '缺少产品ID', data: null })
+    return
+  }
+
+  let products = readProducts()
+  const index = products.findIndex((p: any) => p.id === productId)
+  if (index === -1) {
+    res.json({ code: 404, message: '产品不存在', data: null })
+    return
+  }
+
+  const product = products[index]
+
+  // 检查产品状态
+  if (product.status !== 'published') {
+    res.json({ code: 400, message: '该产品已下架', data: null })
+    return
+  }
+
+  // 检查库存（stock 为 0 或未设置表示不限库存）
+  if (product.stock && product.stock > 0) {
+    if (product.stock < 1) {
+      res.json({ code: 400, message: '库存不足', data: null })
+      return
+    }
+    product.stock -= 1
+    products[index] = product
+    writeProducts(products)
+  }
+
+  // 记录做单
+  const orders = readOrders()
+  const order = {
+    id: `o_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+    productId,
+    userId: userId || 'guest',
+    managerId: product.managerId,
+    productName: product.title,
+    productPrice: product.price,
+    status: 'pending',
+    createdAt: new Date().toISOString(),
+  }
+  orders.push(order)
+  writeOrders(orders)
+
+  res.json({ code: 0, message: '做单成功', data: { order, remainingStock: product.stock || -1 } })
+})
+
 // ============ 佣金接口 ============
 
 const COMMISSION_FILE = join(DATA_DIR, 'commissions.json')
@@ -543,6 +597,22 @@ function readCommissions() {
 
 function writeCommissions(data: unknown[]) {
   writeFileSync(COMMISSION_FILE, JSON.stringify(data, null, 2), 'utf-8')
+}
+
+// ============ 订单数据 ============
+
+const ORDER_FILE = join(DATA_DIR, 'orders.json')
+
+if (!existsSync(ORDER_FILE)) {
+  writeFileSync(ORDER_FILE, JSON.stringify([], null, 2), 'utf-8')
+}
+
+function readOrders() {
+  return JSON.parse(readFileSync(ORDER_FILE, 'utf-8'))
+}
+
+function writeOrders(data: unknown[]) {
+  writeFileSync(ORDER_FILE, JSON.stringify(data, null, 2), 'utf-8')
 }
 
 // 获取佣金列表

@@ -31,40 +31,19 @@
     <div class="product-info">
       <div class="price-row">
         <span class="price">¥{{ product.price }}</span>
-        <span class="commission-badge">
-          <van-icon name="gold-coin-o" />
-          推广赚 ¥{{ product.commission }}
+        <span v-if="product.stock > 0" class="stock-badge">
+          库存 {{ product.stock }} 件
+        </span>
+        <span v-else class="stock-badge unlimited">
+          库存充足
         </span>
       </div>
       <h2 class="title">{{ product.title }}</h2>
       <div class="meta-row">
-        <span class="sales">已售 {{ product.sales }} 件</span>
-        <span class="rate">好评率 {{ product.rate }}</span>
+        <span class="sales">已售 {{ product.sales || 0 }} 件</span>
+        <span class="rate">好评率 {{ product.rate || '100%' }}</span>
       </div>
     </div>
-
-    <!-- 佣金说明 -->
-    <van-cell-group inset class="commission-card">
-      <van-cell title="佣金说明" icon="gold-coin-o" is-link />
-      <van-cell>
-        <template #title>
-          <div class="commission-detail">
-            <div class="commission-item">
-              <span class="label">佣金比例</span>
-              <span class="value">{{ product.commissionRate }}</span>
-            </div>
-            <div class="commission-item">
-              <span class="label">预计佣金</span>
-              <span class="value highlight">¥{{ product.commission }}</span>
-            </div>
-            <div class="commission-item">
-              <span class="label">结算周期</span>
-              <span class="value">{{ product.settlementPeriod }}</span>
-            </div>
-          </div>
-        </template>
-      </van-cell>
-    </van-cell-group>
 
     <!-- 产品描述 -->
     <div class="product-desc">
@@ -95,7 +74,7 @@
 import { reactive, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { showToast, showDialog } from 'vant'
-import { get } from '@promo/shared/utils/request'
+import { get, post } from '@promo/shared/utils/request'
 
 // 路由实例
 const router = useRouter()
@@ -109,11 +88,9 @@ const product = reactive({
   id: productId,
   title: '',
   price: '0',
-  commission: '0',
-  commissionRate: '0%',
+  stock: 0,
   sales: '0',
   rate: '-',
-  settlementPeriod: '确认收货后7天',
   images: [] as string[],
   description: ''
 })
@@ -127,8 +104,7 @@ const fetchProductDetail = async () => {
       product.id = p.id
       product.title = p.title || ''
       product.price = String(p.price || 0)
-      product.commission = String(p.commission || 0)
-      product.commissionRate = p.commissionRate ? `${p.commissionRate}%` : '-'
+      product.stock = p.stock || 0
       product.sales = '0'
       product.images = p.images && p.images.length > 0 ? p.images : (p.coverImage ? [p.coverImage] : [])
       product.description = p.description || ''
@@ -176,8 +152,29 @@ const requireLogin = (action: string) => {
 // 去做单
 const handleGoOrder = () => {
   if (!requireLogin('去做单')) return
-  // TODO: 跳转到做单页面，链接待定义
-  showToast('做单链接暂未配置')
+
+  // 检查库存
+  if (product.stock > 0 && product.stock < 1) {
+    showToast('库存不足')
+    return
+  }
+
+  // 调用做单接口
+  const userId = (() => {
+    try { return JSON.parse(localStorage.getItem('user_info') || '{}').id || '' } catch { return '' }
+  })()
+
+  post('/orders', { productId: product.id, userId }).then(() => {
+    showDialog({
+      title: '做单成功',
+      message: '您的订单已提交，请按照产品要求完成操作。',
+      confirmButtonText: '好的',
+    })
+    // 刷新产品信息（更新库存）
+    fetchProductDetail()
+  }).catch((error: any) => {
+    showToast(error.message || '做单失败')
+  })
 }
 
 // 推广产品
@@ -225,7 +222,7 @@ const handlePromote = () => {
   color: #ee0a24;
 }
 
-.commission-badge {
+.stock-badge {
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -235,6 +232,10 @@ const handlePromote = () => {
   font-size: 12px;
   color: #ffffff;
   background: linear-gradient(135deg, #ff6034, #ee0a24);
+
+  &.unlimited {
+    background: linear-gradient(135deg, #07c160, #06ad56);
+  }
 }
 
 .title {

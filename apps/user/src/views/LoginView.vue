@@ -65,6 +65,20 @@
         </van-button>
       </div>
 
+      <!-- 访客登录 -->
+      <div class="guest-btn-wrap">
+        <van-button
+          block
+          round
+          size="large"
+          color="rgba(255,255,255,0.25)"
+          text-color="#ffffff"
+          @click="handleGuestLogin"
+        >
+          访客登录
+        </van-button>
+      </div>
+
       <!-- 切换登录/注册 -->
       <div class="login-footer">
         <span v-if="!isRegister" class="link-text" @click="isRegister = true">
@@ -104,6 +118,12 @@ const form = reactive({
   confirmPassword: '',
   nickname: ''
 })
+
+// 访客登录
+const handleGuestLogin = () => {
+  showToast('已进入访客模式')
+  router.replace('/home')
+}
 
 // 表单校验
 const validate = () => {
@@ -222,6 +242,11 @@ const handleSubmit = async () => {
 
 .login-btn-wrap {
   margin-top: 32px;
+  padding: 0 16px;
+}
+
+.guest-btn-wrap {
+  margin-top: 12px;
   padding: 0 16px;
 }
 
