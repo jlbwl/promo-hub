@@ -136,7 +136,6 @@ const loadProducts = async () => {
       products.value.push(...list.map((p: any) => ({
         ...p,
         cover: p.coverImage || '',
-        sales: '0',
       })))
       page.value++
     }

@@ -139,7 +139,7 @@ const fetchProductDetail = async () => {
       product.title = p.title || ''
       product.price = String(p.price || 0)
       product.stock = p.stock || 0
-      product.sales = '0'
+      product.sales = String(p.sales || 0)
       product.images = p.images && p.images.length > 0 ? p.images : (p.coverImage ? [p.coverImage] : [])
       product.description = p.description || ''
       product.options = p.options || []
