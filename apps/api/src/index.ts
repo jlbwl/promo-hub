@@ -808,7 +808,7 @@ app.get('/api/admin/stats', (_req, res) => {
 
   const managerCount = managers.length
   const userCount = users.length
-  const productCount = products.length
+  const publishedProductCount = products.filter((p: any) => p.status === 'published').length
   const totalCommission = commissions
     .filter((c: any) => c.status === 'paid')
     .reduce((sum: number, c: any) => sum + (Number(c.amount) || 0), 0)
@@ -819,10 +819,27 @@ app.get('/api/admin/stats', (_req, res) => {
     data: {
       managerCount,
       userCount,
-      productCount,
+      publishedProductCount,
       totalCommission: Math.round(totalCommission * 100) / 100,
     }
   })
+})
+
+// 管理后台下架产品
+app.put('/api/admin/products/:id/offline', (req, res) => {
+  let products = readProducts()
+  const index = products.findIndex((p: any) => p.id === req.params.id)
+  if (index === -1) {
+    res.json({ code: 404, message: '产品不存在', data: null })
+    return
+  }
+  if (products[index].status !== 'published') {
+    res.json({ code: 400, message: '该产品未上架', data: null })
+    return
+  }
+  products[index] = { ...products[index], status: 'offline', updatedAt: new Date().toISOString() }
+  writeProducts(products)
+  res.json({ code: 0, message: '已下架', data: products[index] })
 })
 
 // ============ 佣金接口 ============
