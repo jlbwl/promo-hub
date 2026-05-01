@@ -59,7 +59,7 @@
           class="record-card"
         >
           <div class="record-left">
-            <h4 class="record-title">{{ record.productName }}</h4>
+            <h4 class="record-title">{{ record.productName }} <van-tag v-if="record.optionLabel" type="primary" plain size="medium" style="vertical-align: middle; margin-left: 4px;">{{ record.optionLabel }}</van-tag></h4>
             <span class="record-time">{{ formatTime(record.createdAt) }}</span>
             <span v-if="record.rejectReason" class="reject-reason">驳回原因：{{ record.rejectReason }}</span>
           </div>

@@ -104,7 +104,12 @@
       stripe
       style="width: 100%;"
     >
-      <el-table-column prop="productName" label="产品名称" min-width="180" show-overflow-tooltip />
+      <el-table-column prop="productName" label="产品名称" min-width="180" show-overflow-tooltip>
+        <template #default="{ row }">
+          <span>{{ row.productName }}</span>
+          <el-tag v-if="row.optionLabel" size="small" type="info" style="margin-left: 6px;">{{ row.optionLabel }}</el-tag>
+        </template>
+      </el-table-column>
       <el-table-column prop="userId" label="用户ID" width="180" show-overflow-tooltip />
       <el-table-column prop="productPrice" label="产品售价" width="100" align="right">
         <template #default="{ row }">
@@ -185,7 +190,12 @@
 
         <el-table :data="paymentOrders" border size="small" max-height="400">
           <el-table-column type="index" label="#" width="40" />
-          <el-table-column prop="productName" label="产品名称" min-width="140" show-overflow-tooltip />
+          <el-table-column prop="productName" label="产品名称" min-width="140" show-overflow-tooltip>
+            <template #default="{ row }">
+              <span>{{ row.productName }}</span>
+              <el-tag v-if="row.optionLabel" size="small" type="info" style="margin-left: 4px;">{{ row.optionLabel }}</el-tag>
+            </template>
+          </el-table-column>
           <el-table-column prop="userId" label="用户ID" width="160" show-overflow-tooltip />
           <el-table-column prop="productPrice" label="金额" width="90" align="right">
             <template #default="{ row }">
@@ -285,7 +295,12 @@
 
         <el-table :data="statDialogOrders" border size="small" max-height="450">
           <el-table-column type="index" label="#" width="40" />
-          <el-table-column prop="productName" label="产品名称" min-width="140" show-overflow-tooltip />
+          <el-table-column prop="productName" label="产品名称" min-width="140" show-overflow-tooltip>
+            <template #default="{ row }">
+              <span>{{ row.productName }}</span>
+              <el-tag v-if="row.optionLabel" size="small" type="info" style="margin-left: 4px;">{{ row.optionLabel }}</el-tag>
+            </template>
+          </el-table-column>
           <el-table-column prop="userId" label="用户ID" width="160" show-overflow-tooltip />
           <el-table-column prop="productPrice" label="金额" width="90" align="right">
             <template #default="{ row }">
