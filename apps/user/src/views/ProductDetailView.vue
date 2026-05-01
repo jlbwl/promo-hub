@@ -51,6 +51,36 @@
       <div class="desc-content" v-html="product.description"></div>
     </div>
 
+    <!-- 单选框组（推广经理设置的选项） -->
+    <div v-if="product.options && product.options.length > 0" class="option-section">
+      <h3 class="section-title">选择推广选项</h3>
+      <van-radio-group v-model="selectedOption" class="option-radio-group">
+        <van-cell-group inset>
+          <van-cell
+            v-for="(opt, idx) in product.options"
+            :key="idx"
+            :title="opt.label"
+            clickable
+            @click="selectedOption = idx"
+          >
+            <template #right-icon>
+              <van-radio :name="idx" />
+            </template>
+            <template #label>
+              <div class="option-meta">
+                <span v-if="opt.limit" class="option-limit">
+                  限量 {{ opt.limit }} 单
+                </span>
+                <span v-if="opt.redirectUrl" class="option-redirect">
+                  做单后跳转
+                </span>
+              </div>
+            </template>
+          </van-cell>
+        </van-cell-group>
+      </van-radio-group>
+    </div>
+
     <!-- 底部操作栏 -->
     <van-action-bar>
       <van-action-bar-icon icon="chat-o" text="客服" />
@@ -71,7 +101,7 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, onMounted } from 'vue'
+import { reactive, ref, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { showToast, showDialog } from 'vant'
 import { get, post } from '@promo/shared/utils/request'
@@ -83,6 +113,9 @@ const route = useRoute()
 // 获取产品 ID
 const productId = route.params.id as string
 
+// 选中的选项
+const selectedOption = ref<number>(-1)
+
 // 产品数据
 const product = reactive({
   id: productId,
@@ -92,7 +125,8 @@ const product = reactive({
   sales: '0',
   rate: '-',
   images: [] as string[],
-  description: ''
+  description: '',
+  options: [] as { label: string; limit: string; redirectUrl: string }[]
 })
 
 // 加载产品详情
@@ -108,6 +142,7 @@ const fetchProductDetail = async () => {
       product.sales = '0'
       product.images = p.images && p.images.length > 0 ? p.images : (p.coverImage ? [p.coverImage] : [])
       product.description = p.description || ''
+      product.options = p.options || []
     }
   } catch (error) {
     console.error('获取产品详情失败:', error)
@@ -153,23 +188,49 @@ const requireLogin = (action: string) => {
 const handleGoOrder = () => {
   if (!requireLogin('去做单')) return
 
+  // 如果有单选框组，必须先选择
+  if (product.options.length > 0 && selectedOption.value < 0) {
+    showToast('请先选择推广选项')
+    return
+  }
+
   // 检查库存
   if (product.stock > 0 && product.stock < 1) {
     showToast('库存不足')
     return
   }
 
+  // 获取选中的选项
+  const chosenOption = product.options.length > 0 ? product.options[selectedOption.value] : null
+
   // 调用做单接口
   const userId = (() => {
     try { return JSON.parse(localStorage.getItem('user_info') || '{}').id || '' } catch { return '' }
   })()
 
-  post('/orders', { productId: product.id, userId }).then(() => {
-    showDialog({
-      title: '做单成功',
-      message: '订单已提交，请按照产品要求完成推广。推广结果将由经理审核。',
-      confirmButtonText: '好的',
-    })
+  const payload: any = { productId: product.id, userId }
+  if (chosenOption) {
+    payload.optionLabel = chosenOption.label
+    payload.redirectUrl = chosenOption.redirectUrl || ''
+  }
+
+  post('/orders', payload).then(() => {
+    // 如果有跳转链接，做单成功后跳转
+    if (chosenOption?.redirectUrl) {
+      showDialog({
+        title: '做单成功',
+        message: `已选择「${chosenOption.label}」，即将跳转完成推广任务`,
+        confirmButtonText: '立即跳转',
+      }).then(() => {
+        window.open(chosenOption.redirectUrl, '_blank')
+      }).catch(() => {})
+    } else {
+      showDialog({
+        title: '做单成功',
+        message: '订单已提交，请按照产品要求完成推广。推广结果将由经理审核。',
+        confirmButtonText: '好的',
+      })
+    }
     // 刷新产品信息（更新库存）
     fetchProductDetail()
   }).catch((error: any) => {
@@ -289,6 +350,34 @@ const handlePromote = () => {
 .product-desc {
   background-color: #ffffff;
   padding: 16px;
+  margin-bottom: 12px;
+}
+
+// 单选框组
+.option-section {
+  background-color: #ffffff;
+  padding: 16px;
+  margin-bottom: 12px;
+
+  .option-radio-group {
+    margin-top: 8px;
+  }
+
+  .option-meta {
+    display: flex;
+    gap: 12px;
+    margin-top: 4px;
+
+    .option-limit {
+      font-size: 12px;
+      color: #e6a23c;
+    }
+
+    .option-redirect {
+      font-size: 12px;
+      color: #1989fa;
+    }
+  }
 }
 
 .section-title {
