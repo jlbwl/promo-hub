@@ -24,8 +24,12 @@
             <span class="label">已通过</span>
           </div>
           <div class="detail-item">
-            <span class="value">{{ overview.rejected }}</span>
-            <span class="label">已驳回</span>
+            <span class="value">{{ overview.pendingPayment }}</span>
+            <span class="label">待付款</span>
+          </div>
+          <div class="detail-item">
+            <span class="value">{{ overview.settled }}</span>
+            <span class="label">已结算</span>
           </div>
         </div>
       </div>
@@ -36,6 +40,8 @@
       <van-tab title="全部" name="all" />
       <van-tab title="待审核" name="pending" />
       <van-tab title="已通过" name="approved" />
+      <van-tab title="待付款" name="pending_payment" />
+      <van-tab title="已结算" name="settled" />
       <van-tab title="已驳回" name="rejected" />
     </van-tabs>
 
@@ -99,6 +105,8 @@ const overview = reactive({
   total: 0,
   pending: 0,
   approved: 0,
+  pendingPayment: 0,
+  settled: 0,
   rejected: 0
 })
 
@@ -118,6 +126,8 @@ const statusType = (status: string) => {
   const map: Record<string, string> = {
     pending: 'warning',
     approved: 'success',
+    pending_payment: 'primary',
+    settled: 'success',
     rejected: 'danger',
   }
   return map[status] || 'default'
@@ -127,6 +137,8 @@ const statusLabel = (status: string) => {
   const map: Record<string, string> = {
     pending: '待审核',
     approved: '已通过',
+    pending_payment: '待付款',
+    settled: '已结算',
     rejected: '已驳回',
   }
   return map[status] || status
@@ -148,6 +160,8 @@ const loadStats = async () => {
       overview.total = res.data.total || 0
       overview.pending = res.data.pending || 0
       overview.approved = res.data.approved || 0
+      overview.pendingPayment = res.data.pendingPayment || 0
+      overview.settled = res.data.settled || 0
       overview.rejected = res.data.rejected || 0
     }
   } catch (error) {

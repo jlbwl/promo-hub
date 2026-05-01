@@ -2,7 +2,7 @@
   <div class="commission-list-page">
     <!-- 统计卡片 -->
     <el-row :gutter="20" class="stat-cards">
-      <el-col :xs="24" :sm="12" :md="6">
+      <el-col :xs="24" :sm="12" :md="4">
         <el-card shadow="hover" class="stat-card">
           <div class="stat-content">
             <div class="stat-info">
@@ -15,7 +15,7 @@
           </div>
         </el-card>
       </el-col>
-      <el-col :xs="24" :sm="12" :md="6">
+      <el-col :xs="24" :sm="12" :md="4">
         <el-card shadow="hover" class="stat-card">
           <div class="stat-content">
             <div class="stat-info">
@@ -28,7 +28,7 @@
           </div>
         </el-card>
       </el-col>
-      <el-col :xs="24" :sm="12" :md="6">
+      <el-col :xs="24" :sm="12" :md="4">
         <el-card shadow="hover" class="stat-card">
           <div class="stat-content">
             <div class="stat-info">
@@ -41,7 +41,33 @@
           </div>
         </el-card>
       </el-col>
-      <el-col :xs="24" :sm="12" :md="6">
+      <el-col :xs="24" :sm="12" :md="4">
+        <el-card shadow="hover" class="stat-card">
+          <div class="stat-content">
+            <div class="stat-info">
+              <span class="stat-label">待付款</span>
+              <el-statistic :value="stats.pendingPayment" />
+            </div>
+            <el-icon class="stat-icon" style="color: #409eff; background: #ecf5ff;">
+              <Wallet />
+            </el-icon>
+          </div>
+        </el-card>
+      </el-col>
+      <el-col :xs="24" :sm="12" :md="4">
+        <el-card shadow="hover" class="stat-card">
+          <div class="stat-content">
+            <div class="stat-info">
+              <span class="stat-label">已结算</span>
+              <el-statistic :value="stats.settled" />
+            </div>
+            <el-icon class="stat-icon" style="color: #67c23a; background: #f0f9eb;">
+              <SuccessFilled />
+            </el-icon>
+          </div>
+        </el-card>
+      </el-col>
+      <el-col :xs="24" :sm="12" :md="4">
         <el-card shadow="hover" class="stat-card">
           <div class="stat-content">
             <div class="stat-info">
@@ -68,6 +94,8 @@
         <el-option label="全部" value="" />
         <el-option label="待审核" value="pending" />
         <el-option label="已通过" value="approved" />
+        <el-option label="待付款" value="pending_payment" />
+        <el-option label="已结算" value="settled" />
         <el-option label="已驳回" value="rejected" />
       </el-select>
       <el-button icon="Refresh" @click="handleReset">重置</el-button>
@@ -96,12 +124,17 @@
         </template>
       </el-table-column>
       <el-table-column prop="createdAt" label="做单时间" width="170" align="center" />
-      <el-table-column prop="rejectReason" label="驳回原因" width="140" show-overflow-tooltip>
+      <el-table-column prop="rejectReason" label="驳回原因" width="120" show-overflow-tooltip>
         <template #default="{ row }">
           <span style="color: #f56c6c;">{{ row.rejectReason || '--' }}</span>
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="180" align="center" fixed="right">
+      <el-table-column prop="settledAt" label="结算日期" width="170" align="center">
+        <template #default="{ row }">
+          <span>{{ row.settledAt ? formatTime(row.settledAt) : '--' }}</span>
+        </template>
+      </el-table-column>
+      <el-table-column label="操作" width="200" align="center" fixed="right">
         <template #default="{ row }">
           <div class="table-actions">
             <template v-if="row.status === 'pending'">
@@ -110,6 +143,16 @@
               </el-button>
               <el-button type="danger" text size="small" @click="handleReject(row)">
                 驳回
+              </el-button>
+            </template>
+            <template v-else-if="row.status === 'approved'">
+              <el-button type="primary" text size="small" @click="handleAddToPayment(row)">
+                添加到待付款
+              </el-button>
+            </template>
+            <template v-else-if="row.status === 'pending_payment'">
+              <el-button type="success" text size="small" @click="handleConfirmPaid(row)">
+                确认付款
               </el-button>
             </template>
             <template v-else>
@@ -139,7 +182,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Document, Clock, CircleCheck, CircleClose } from '@element-plus/icons-vue'
+import { Document, Clock, CircleCheck, CircleClose, Wallet, SuccessFilled } from '@element-plus/icons-vue'
 import { get, put } from '@promo/shared/utils/request'
 
 // 加载状态
@@ -160,6 +203,8 @@ const stats = reactive({
   total: 0,
   pending: 0,
   approved: 0,
+  pendingPayment: 0,
+  settled: 0,
   rejected: 0
 })
 
@@ -179,6 +224,8 @@ const statusTagType = (status: string) => {
   const map: Record<string, string> = {
     pending: 'warning',
     approved: 'success',
+    pending_payment: '',
+    settled: 'success',
     rejected: 'danger',
   }
   return map[status] || 'info'
@@ -188,9 +235,19 @@ const statusText = (status: string) => {
   const map: Record<string, string> = {
     pending: '待审核',
     approved: '已通过',
+    pending_payment: '待付款',
+    settled: '已结算',
     rejected: '已驳回',
   }
   return map[status] || status
+}
+
+// 格式化时间
+const formatTime = (iso: string) => {
+  if (!iso) return ''
+  const d = new Date(iso)
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
 // 获取统计数据
@@ -203,6 +260,8 @@ const fetchStats = async () => {
       stats.total = res.data.total || 0
       stats.pending = res.data.pending || 0
       stats.approved = res.data.approved || 0
+      stats.pendingPayment = res.data.pendingPayment || 0
+      stats.settled = res.data.settled || 0
       stats.rejected = res.data.rejected || 0
     }
   } catch (error) {
@@ -282,6 +341,44 @@ const handleReject = async (row: any) => {
 
     await put(`/orders/${row.id}/review`, { action: 'reject', reason })
     ElMessage.success('已驳回，库存已退回')
+    fetchStats()
+    fetchData()
+  } catch (error: any) {
+    if (error !== 'cancel' && error?.message) {
+      ElMessage.error(error.message || '操作失败')
+    }
+  }
+}
+
+// 添加到待付款
+const handleAddToPayment = async (row: any) => {
+  try {
+    await ElMessageBox.confirm(
+      `确认将「${row.productName}」添加到待付款列表？`,
+      '添加到待付款',
+      { confirmButtonText: '确定', cancelButtonText: '取消', type: 'info' }
+    )
+    await put(`/orders/${row.id}/settle`, { action: 'pending_payment' })
+    ElMessage.success('已添加到待付款')
+    fetchStats()
+    fetchData()
+  } catch (error: any) {
+    if (error !== 'cancel' && error?.message) {
+      ElMessage.error(error.message || '操作失败')
+    }
+  }
+}
+
+// 确认付款
+const handleConfirmPaid = async (row: any) => {
+  try {
+    await ElMessageBox.confirm(
+      `确认已完成「${row.productName}」¥${row.productPrice} 的付款？`,
+      '确认付款',
+      { confirmButtonText: '确认已付款', cancelButtonText: '取消', type: 'success' }
+    )
+    await put(`/orders/${row.id}/settle`, { action: 'paid' })
+    ElMessage.success('已确认结算')
     fetchStats()
     fetchData()
   } catch (error: any) {

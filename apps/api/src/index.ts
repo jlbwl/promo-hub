@@ -622,9 +622,11 @@ app.get('/api/orders/stats', (req, res) => {
 
   const pending = orders.filter((o: any) => o.status === 'pending').length
   const approved = orders.filter((o: any) => o.status === 'approved').length
+  const pendingPayment = orders.filter((o: any) => o.status === 'pending_payment').length
+  const settled = orders.filter((o: any) => o.status === 'settled').length
   const rejected = orders.filter((o: any) => o.status === 'rejected').length
 
-  res.json({ code: 0, message: 'success', data: { total: orders.length, pending, approved, rejected } })
+  res.json({ code: 0, message: 'success', data: { total: orders.length, pending, approved, pendingPayment, settled, rejected } })
 })
 
 // 经理审核订单（通过/驳回）
@@ -684,6 +686,56 @@ app.put('/api/orders/:id/review', (req, res) => {
   writeOrders(orders)
 
   res.json({ code: 0, message: action === 'approve' ? '审核通过' : '已驳回', data: order })
+})
+
+// 经理结算操作（添加到待付款 / 确认已付款）
+app.put('/api/orders/:id/settle', (req, res) => {
+  const { action } = req.body // action: 'pending_payment' | 'paid'
+  if (!action || !['pending_payment', 'paid'].includes(action)) {
+    res.json({ code: 400, message: '无效的结算操作', data: null })
+    return
+  }
+
+  let orders = readOrders()
+  const index = orders.findIndex((o: any) => o.id === req.params.id)
+  if (index === -1) {
+    res.json({ code: 404, message: '订单不存在', data: null })
+    return
+  }
+
+  const order = orders[index]
+
+  if (action === 'pending_payment') {
+    // 已通过 → 待付款
+    if (order.status !== 'approved') {
+      res.json({ code: 400, message: '仅已通过的订单可添加到待付款', data: null })
+      return
+    }
+    order.status = 'pending_payment'
+    order.addedToPaymentAt = new Date().toISOString()
+  } else {
+    // 待付款 → 已结算
+    if (order.status !== 'pending_payment') {
+      res.json({ code: 400, message: '仅待付款的订单可确认结算', data: null })
+      return
+    }
+    order.status = 'settled'
+    order.settledAt = new Date().toISOString()
+    // 同步更新佣金记录状态
+    let commissions = readCommissions()
+    const cIdx = commissions.findIndex((c: any) => c.orderId === order.id)
+    if (cIdx !== -1) {
+      commissions[cIdx].status = 'paid'
+      commissions[cIdx].paidAt = order.settledAt
+      writeCommissions(commissions)
+    }
+  }
+
+  orders[index] = order
+  writeOrders(orders)
+
+  const msg = action === 'pending_payment' ? '已添加到待付款' : '已确认结算'
+  res.json({ code: 0, message: msg, data: order })
 })
 
 // ============ 佣金接口 ============
