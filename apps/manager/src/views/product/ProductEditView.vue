@@ -148,7 +148,19 @@
                       <el-input v-model="opt.limit" placeholder="请输入" size="small" />
                     </td>
                     <td>
-                      <el-input v-model="opt.redirectUrl" placeholder="输入跳转链接（不填则不跳转）" size="small" />
+                      <div class="redirect-input-wrap">
+                        <el-input v-model="opt.redirectUrl" placeholder="输入跳转链接（不填则不跳转）" size="small" />
+                        <el-upload
+                          :show-file-list="false"
+                          :auto-upload="false"
+                          accept="image/*"
+                          @change="(file: any) => handleQrUpload(file, idx)"
+                        >
+                          <el-button type="primary" text size="small" :loading="opt._qrLoading" title="上传推广码识别链接">
+                            <el-icon><PictureFilled /></el-icon>
+                          </el-button>
+                        </el-upload>
+                      </div>
                     </td>
                     <td>
                       <div class="option-actions">
@@ -212,7 +224,7 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
-import { ArrowLeft, Plus } from '@element-plus/icons-vue'
+import { ArrowLeft, Plus, PictureFilled } from '@element-plus/icons-vue'
 import { get, post, put } from '@promo/shared/utils/request'
 
 const route = useRoute()
@@ -241,7 +253,7 @@ const form = reactive({
   stock: 0,
   tags: [] as string[],
   cover: '',
-  options: [] as { label: string; limit: string; redirectUrl: string }[]
+  options: [] as { label: string; limit: string; redirectUrl: string; _qrLoading?: boolean }[]
 })
 
 // 表单校验规则
@@ -278,6 +290,57 @@ const handleRemoveTag = (tag: string) => {
 // ====== 单选框组操作 ======
 const handleAddOption = () => {
   form.options.push({ label: '', limit: '', redirectUrl: '' })
+}
+
+// 上传推广码识别链接
+const handleQrUpload = async (uploadFile: any, idx: number) => {
+  const file = uploadFile.raw || uploadFile
+  if (!file) return
+
+  form.options[idx]._qrLoading = true
+  try {
+    const img = new Image()
+    const url = URL.createObjectURL(file)
+    img.src = url
+
+    await new Promise<void>((resolve, reject) => {
+      img.onload = () => resolve()
+      img.onerror = () => reject(new Error('图片加载失败'))
+    })
+
+    // 使用 Canvas 获取图片数据
+    const canvas = document.createElement('canvas')
+    canvas.width = img.naturalWidth
+    canvas.height = img.naturalHeight
+    const ctx = canvas.getContext('2d')
+    if (!ctx) throw new Error('Canvas 不支持')
+    ctx.drawImage(img, 0, 0)
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
+    URL.revokeObjectURL(url)
+
+    // 使用 jsqr 解析二维码
+    const jsqr = (await import('jsqr')).default
+    const code = jsqr(imageData.data, imageData.width, imageData.height)
+
+    if (code && code.data) {
+      const url = code.data.trim()
+      // 验证是否为有效链接
+      if (url.startsWith('http://') || url.startsWith('https://')) {
+        form.options[idx].redirectUrl = url
+        ElMessage.success('识别成功，链接已填入')
+      } else {
+        form.options[idx].redirectUrl = url
+        ElMessage.warning(`已识别内容：${url.slice(0, 50)}${url.length > 50 ? '...' : ''}，请确认是否为有效链接`)
+      }
+    } else {
+      ElMessage.error('未识别到二维码，请确认图片中包含有效的推广码')
+    }
+  } catch (error: any) {
+    console.error('二维码识别失败:', error)
+    ElMessage.error('识别失败：' + (error.message || '请重试'))
+  } finally {
+    form.options[idx]._qrLoading = false
+  }
 }
 
 const handleCopyOption = (idx: number) => {
@@ -347,7 +410,7 @@ const handleSave = async () => {
       stock: form.stock || 0,
       tags: form.tags,
       coverImage: form.cover,
-      options: form.options.filter(o => o.label.trim()), // 只保存有名称的选项
+      options: form.options.filter(o => o.label.trim()).map(({ label, limit, redirectUrl }) => ({ label, limit, redirectUrl })), // 只保存有名称的选项
       status: 'published',
       managerId,
       publishedBy: localStorage.getItem('manager_token') || 'manager',
@@ -510,6 +573,16 @@ onMounted(() => {
       &:hover {
         border-color: #409eff;
         color: #409eff;
+      }
+    }
+
+    .redirect-input-wrap {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+
+      .el-input {
+        flex: 1;
       }
     }
   }
