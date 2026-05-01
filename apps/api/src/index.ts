@@ -76,6 +76,19 @@ app.get('/api/products', (req, res) => {
   const start = (pageNum - 1) * pageSizeNum
   const list = products.slice(start, start + pageSizeNum)
 
+  // 统计每个产品的做单量（已售）
+  const orders = readOrders()
+  const salesMap = new Map<string, number>()
+  orders.forEach((o: any) => {
+    if (o.productId) {
+      salesMap.set(o.productId, (salesMap.get(o.productId) || 0) + 1)
+    }
+  })
+  // 附加 sales 字段到每个产品
+  list.forEach((p: any) => {
+    p.sales = salesMap.get(p.id) || 0
+  })
+
   res.json({
     code: 0,
     message: 'success',
@@ -131,6 +144,9 @@ app.get('/api/products/:id', (req, res) => {
     res.json({ code: 404, message: '产品不存在', data: null })
     return
   }
+  // 统计做单量
+  const orders = readOrders()
+  product.sales = orders.filter((o: any) => o.productId === product.id).length
   res.json({ code: 0, message: 'success', data: product })
 })
 
