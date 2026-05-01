@@ -738,6 +738,33 @@ app.put('/api/orders/:id/settle', (req, res) => {
   res.json({ code: 0, message: msg, data: order })
 })
 
+// ============ 管理后台全局统计 ============
+
+app.get('/api/admin/stats', (_req, res) => {
+  const managers = readManagers()
+  const users = readUsers()
+  const products = readProducts()
+  const commissions = readCommissions()
+
+  const managerCount = managers.length
+  const userCount = users.length
+  const productCount = products.length
+  const totalCommission = commissions
+    .filter((c: any) => c.status === 'paid')
+    .reduce((sum: number, c: any) => sum + (Number(c.amount) || 0), 0)
+
+  res.json({
+    code: 0,
+    message: 'success',
+    data: {
+      managerCount,
+      userCount,
+      productCount,
+      totalCommission: Math.round(totalCommission * 100) / 100,
+    }
+  })
+})
+
 // ============ 佣金接口 ============
 
 const COMMISSION_FILE = join(DATA_DIR, 'commissions.json')

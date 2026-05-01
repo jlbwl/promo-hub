@@ -71,15 +71,35 @@
 </template>
 
 <script setup lang="ts">
-import { reactive } from 'vue'
+import { reactive, onMounted } from 'vue'
 import { User, UserFilled, Goods, Money } from '@element-plus/icons-vue'
+import { get } from '@promo/shared/utils/request'
 
-// 统计数据（实际项目中从 API 获取）
+// 统计数据
 const stats = reactive({
-  managerCount: 128,
-  userCount: 5642,
-  productCount: 356,
-  totalCommission: 285630.50
+  managerCount: 0,
+  userCount: 0,
+  productCount: 0,
+  totalCommission: 0
+})
+
+// 获取全局统计数据
+const fetchStats = async () => {
+  try {
+    const res = await get<any>('/admin/stats')
+    if (res.data) {
+      stats.managerCount = res.data.managerCount || 0
+      stats.userCount = res.data.userCount || 0
+      stats.productCount = res.data.productCount || 0
+      stats.totalCommission = res.data.totalCommission || 0
+    }
+  } catch (error) {
+    console.error('获取统计数据失败:', error)
+  }
+}
+
+onMounted(() => {
+  fetchStats()
 })
 </script>
 

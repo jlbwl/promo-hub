@@ -3,90 +3,76 @@
     <!-- 统计卡片 -->
     <el-row :gutter="20" class="stat-cards">
       <el-col :xs="24" :sm="12" :md="4">
-        <el-card shadow="hover" class="stat-card">
+        <el-card shadow="hover" class="stat-card clickable" @click="openStatDialog('all', '总订单')">
           <div class="stat-content">
             <div class="stat-info">
               <span class="stat-label">总订单</span>
               <el-statistic :value="stats.total" />
             </div>
-            <el-icon class="stat-icon" style="color: #409eff; background: #ecf5ff;">
-              <Document />
-            </el-icon>
+            <el-icon class="stat-icon" style="color: #409eff; background: #ecf5ff;"><Document /></el-icon>
           </div>
+          <div v-if="stats.total > 0" class="card-badge">查看</div>
         </el-card>
       </el-col>
       <el-col :xs="24" :sm="12" :md="4">
-        <el-card shadow="hover" class="stat-card">
+        <el-card shadow="hover" class="stat-card clickable" @click="openStatDialog('pending', '待审核')">
           <div class="stat-content">
             <div class="stat-info">
               <span class="stat-label">待审核</span>
               <el-statistic :value="stats.pending" />
             </div>
-            <el-icon class="stat-icon" style="color: #e6a23c; background: #fdf6ec;">
-              <Clock />
-            </el-icon>
+            <el-icon class="stat-icon" style="color: #e6a23c; background: #fdf6ec;"><Clock /></el-icon>
           </div>
+          <div v-if="stats.pending > 0" class="card-badge" style="background: linear-gradient(135deg, #e6a23c, #f5c77e);">查看</div>
         </el-card>
       </el-col>
       <el-col :xs="24" :sm="12" :md="4">
-        <el-card shadow="hover" class="stat-card">
+        <el-card shadow="hover" class="stat-card clickable" @click="openStatDialog('approved', '已通过')">
           <div class="stat-content">
             <div class="stat-info">
               <span class="stat-label">已通过</span>
               <el-statistic :value="stats.approved" />
             </div>
-            <el-icon class="stat-icon" style="color: #67c23a; background: #f0f9eb;">
-              <CircleCheck />
-            </el-icon>
+            <el-icon class="stat-icon" style="color: #67c23a; background: #f0f9eb;"><CircleCheck /></el-icon>
           </div>
+          <div v-if="stats.approved > 0" class="card-badge" style="background: linear-gradient(135deg, #67c23a, #95d475);">查看</div>
         </el-card>
       </el-col>
       <!-- 待付款 - 可点击按钮 -->
       <el-col :xs="24" :sm="12" :md="4">
-        <el-card
-          shadow="hover"
-          class="stat-card clickable"
-          :class="{ 'has-items': stats.pendingPayment > 0 }"
-          @click="openPaymentDialog"
-        >
+        <el-card shadow="hover" class="stat-card clickable" :class="{ 'has-items': stats.pendingPayment > 0 }" @click="openPaymentDialog">
           <div class="stat-content">
             <div class="stat-info">
               <span class="stat-label">待付款</span>
               <el-statistic :value="stats.pendingPayment" />
             </div>
-            <el-icon class="stat-icon" style="color: #409eff; background: #ecf5ff;">
-              <Wallet />
-            </el-icon>
+            <el-icon class="stat-icon" style="color: #409eff; background: #ecf5ff;"><Wallet /></el-icon>
           </div>
-          <div v-if="stats.pendingPayment > 0" class="card-badge">
-            去结算
-          </div>
+          <div v-if="stats.pendingPayment > 0" class="card-badge">去结算</div>
         </el-card>
       </el-col>
       <el-col :xs="24" :sm="12" :md="4">
-        <el-card shadow="hover" class="stat-card">
+        <el-card shadow="hover" class="stat-card clickable" @click="openStatDialog('settled', '已结算')">
           <div class="stat-content">
             <div class="stat-info">
               <span class="stat-label">已结算</span>
               <el-statistic :value="stats.settled" />
             </div>
-            <el-icon class="stat-icon" style="color: #67c23a; background: #f0f9eb;">
-              <SuccessFilled />
-            </el-icon>
+            <el-icon class="stat-icon" style="color: #67c23a; background: #f0f9eb;"><SuccessFilled /></el-icon>
           </div>
+          <div v-if="stats.settled > 0" class="card-badge" style="background: linear-gradient(135deg, #67c23a, #95d475);">查看</div>
         </el-card>
       </el-col>
       <el-col :xs="24" :sm="12" :md="4">
-        <el-card shadow="hover" class="stat-card">
+        <el-card shadow="hover" class="stat-card clickable" @click="openStatDialog('rejected', '已驳回')">
           <div class="stat-content">
             <div class="stat-info">
               <span class="stat-label">已驳回</span>
               <el-statistic :value="stats.rejected" />
             </div>
-            <el-icon class="stat-icon" style="color: #f56c6c; background: #fef0f0;">
-              <CircleClose />
-            </el-icon>
+            <el-icon class="stat-icon" style="color: #f56c6c; background: #fef0f0;"><CircleClose /></el-icon>
           </div>
+          <div v-if="stats.rejected > 0" class="card-badge" style="background: linear-gradient(135deg, #f56c6c, #fab6b6);">查看</div>
         </el-card>
       </el-col>
     </el-row>
@@ -281,6 +267,54 @@
         </div>
       </div>
     </el-dialog>
+
+    <!-- ====== 通用数据查看模态框 ====== -->
+    <el-dialog
+      v-model="statDialogVisible"
+      :title="statDialogTitle"
+      width="750px"
+      destroy-on-close
+    >
+      <div class="stat-dialog-content">
+        <div class="payment-summary">
+          <span>共 <strong>{{ statDialogOrders.length }}</strong> 条记录</span>
+          <span class="payment-total">
+            合计金额：<strong>¥{{ statDialogTotal }}</strong>
+          </span>
+        </div>
+
+        <el-table :data="statDialogOrders" border size="small" max-height="450">
+          <el-table-column type="index" label="#" width="40" />
+          <el-table-column prop="productName" label="产品名称" min-width="140" show-overflow-tooltip />
+          <el-table-column prop="userId" label="用户ID" width="160" show-overflow-tooltip />
+          <el-table-column prop="productPrice" label="金额" width="90" align="right">
+            <template #default="{ row }">
+              <span style="font-weight: 600;">¥{{ row.productPrice }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column prop="status" label="状态" width="80" align="center">
+            <template #default="{ row }">
+              <el-tag :type="statusTagType(row.status)" size="small">{{ statusText(row.status) }}</el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column prop="createdAt" label="做单时间" width="150" align="center" />
+          <el-table-column prop="rejectReason" label="驳回原因" width="120" show-overflow-tooltip>
+            <template #default="{ row }">
+              <span style="color: #f56c6c;">{{ row.rejectReason || '--' }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column prop="settledAt" label="结算日期" width="150" align="center">
+            <template #default="{ row }">
+              <span>{{ row.settledAt ? formatTime(row.settledAt) : '--' }}</span>
+            </template>
+          </el-table-column>
+        </el-table>
+
+        <div class="payment-actions">
+          <el-button @click="statDialogVisible = false">关闭</el-button>
+        </div>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
@@ -315,6 +349,35 @@ const stats = reactive({
 
 // 表格数据
 const tableData = ref<any[]>([])
+
+// ====== 通用数据查看模态框 ======
+const statDialogVisible = ref(false)
+const statDialogTitle = ref('')
+const statDialogOrders = ref<any[]>([])
+
+const statDialogTotal = computed(() => {
+  return statDialogOrders.value.reduce((sum: number, o: any) => sum + (Number(o.productPrice) || 0), 0).toFixed(2)
+})
+
+// 打开通用数据查看弹窗
+const openStatDialog = async (status: string, title: string) => {
+  statDialogTitle.value = title + '明细'
+  statDialogVisible.value = true
+
+  try {
+    const params: any = {
+      managerId: getManagerId() || undefined,
+      pageSize: 999,
+    }
+    if (status !== 'all') params.status = status
+
+    const res = await get<any>('/orders', params)
+    statDialogOrders.value = res.data?.list || []
+  } catch (error) {
+    ElMessage.error('获取数据失败')
+    statDialogVisible.value = false
+  }
+}
 
 // ====== 待付款结算相关 ======
 const paymentDialogVisible = ref(false)
