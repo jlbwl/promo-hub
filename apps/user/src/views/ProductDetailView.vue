@@ -217,13 +217,32 @@ const handleGoOrder = () => {
   post('/orders', payload).then(() => {
     // 如果有跳转链接，做单成功后跳转
     if (chosenOption?.redirectUrl) {
-      showDialog({
-        title: '做单成功',
-        message: `已选择「${chosenOption.label}」，即将跳转完成推广任务`,
-        confirmButtonText: '立即跳转',
-      }).then(() => {
-        window.open(chosenOption.redirectUrl, '_blank')
-      }).catch(() => {})
+      const url = chosenOption.redirectUrl
+      const isWeChatOnly = isWeChatRequired(url)
+
+      if (isWeChatOnly) {
+        // 微信专属链接，提示用户在微信中打开
+        showDialog({
+          title: '做单成功',
+          message: `已选择「${chosenOption.label}」\n\n该推广任务需要在微信中完成，请按以下步骤操作：\n\n1️⃣ 点击下方"复制链接"按钮\n2️⃣ 打开微信，将链接发送给"文件传输助手"\n3️⃣ 在微信中点击链接完成任务`,
+          confirmButtonText: '复制链接',
+          showCancelButton: true,
+          cancelButtonText: '稍后再做',
+        }).then(() => {
+          copyToClipboard(url)
+        }).catch(() => {})
+      } else {
+        // 普通链接，直接跳转
+        showDialog({
+          title: '做单成功',
+          message: `已选择「${chosenOption.label}」，即将跳转完成推广任务`,
+          confirmButtonText: '立即跳转',
+          showCancelButton: true,
+          cancelButtonText: '稍后再做',
+        }).then(() => {
+          window.open(url, '_blank')
+        }).catch(() => {})
+      }
     } else {
       showDialog({
         title: '做单成功',
@@ -243,6 +262,62 @@ const handlePromote = () => {
   if (!requireLogin('推广赚钱')) return
   // TODO: 生成推广链接或海报
   showToast('推广链接已生成，快去分享吧！')
+}
+
+// 判断链接是否需要在微信中打开
+const isWeChatRequired = (url: string) => {
+  if (!url) return false
+  // 常见的银行/金融类微信专属域名
+  const weChatOnlyDomains = [
+    'abchina.com',       // 农业银行
+    'icbc.com.cn',       // 工商银行
+    'ccb.com',           // 建设银行
+    'boc.cn',            // 中国银行
+    'bankcomm.com',      // 交通银行
+    'psbc.com',          // 邮储银行
+    'cmbchina.com',      // 招商银行
+    '95516.com',         // 银联
+    'alipay.com',        // 支付宝（部分场景）
+    'mmsp.',             // 银行移动服务平台
+  ]
+  // 微信协议链接
+  if (url.startsWith('weixin://') || url.startsWith('wxp://')) return true
+  // 检查域名
+  try {
+    const hostname = new URL(url).hostname
+    return weChatOnlyDomains.some(d => hostname.includes(d))
+  } catch {
+    return false
+  }
+}
+
+// 复制到剪贴板
+const copyToClipboard = (text: string) => {
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(() => {
+      showToast('链接已复制，请到微信中打开')
+    }).catch(() => {
+      fallbackCopy(text)
+    })
+  } else {
+    fallbackCopy(text)
+  }
+}
+
+const fallbackCopy = (text: string) => {
+  const textarea = document.createElement('textarea')
+  textarea.value = text
+  textarea.style.position = 'fixed'
+  textarea.style.opacity = '0'
+  document.body.appendChild(textarea)
+  textarea.select()
+  try {
+    document.execCommand('copy')
+    showToast('链接已复制，请到微信中打开')
+  } catch {
+    showToast('复制失败，请手动复制链接')
+  }
+  document.body.removeChild(textarea)
 }
 </script>
 
