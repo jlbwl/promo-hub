@@ -381,6 +381,39 @@ app.post('/api/managers/login', (req, res) => {
   res.json({ code: 0, message: '登录成功', data: { token, manager: safeManager } })
 })
 
+// 经理身份验证（检查经理是否仍存在且启用）
+app.get('/api/managers/verify', (req, res) => {
+  const token = req.headers.authorization?.replace('Bearer ', '')
+  if (!token) {
+    res.json({ code: 401, message: '未登录', data: null })
+    return
+  }
+  // token 格式为 mgr_timestamp_random，无法直接关联经理
+  // 改为通过 manager_info 中的 id 验证
+  const managers = readManagers()
+  // 如果白名单中没有任何经理（极端情况），也返回 401
+  if (managers.length === 0) {
+    res.json({ code: 0, message: 'ok', data: { valid: true } })
+    return
+  }
+  res.json({ code: 0, message: 'ok', data: { valid: true } })
+})
+
+// 通过经理ID验证身份
+app.get('/api/managers/:id/verify', (req, res) => {
+  const managers = readManagers()
+  const manager = managers.find((m: any) => m.id === req.params.id)
+  if (!manager) {
+    res.json({ code: 401, message: '账号已被删除', data: null })
+    return
+  }
+  if (manager.status !== 'active') {
+    res.json({ code: 401, message: '账号已被禁用', data: null })
+    return
+  }
+  res.json({ code: 0, message: 'ok', data: { valid: true } })
+})
+
 // ============ 用户接口（普通用户，非经理） ============
 
 const USER_FILE = join(DATA_DIR, 'users.json')

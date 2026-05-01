@@ -76,7 +76,7 @@ const router = createRouter({
 })
 
 // 全局前置守卫 - 检查推广经理登录状态
-router.beforeEach((to, _from, next) => {
+router.beforeEach(async (to, _from, next) => {
   // 设置页面标题
   document.title = (to.meta.title as string) ? `${to.meta.title} - 推广经理后台` : '推广经理后台'
 
@@ -84,9 +84,27 @@ router.beforeEach((to, _from, next) => {
   if (to.matched.some(record => record.meta.requiresAuth)) {
     const token = localStorage.getItem('manager_token')
     if (!token) {
-      // 未登录，跳转到登录页
       next({ name: 'Login', query: { redirect: to.fullPath } })
       return
+    }
+
+    // 验证经理身份是否仍然有效
+    try {
+      const managerInfo = JSON.parse(localStorage.getItem('manager_info') || '{}')
+      if (managerInfo.id) {
+        const BASE_URL = import.meta.env?.VITE_API_BASE_URL || '/api'
+        const res = await fetch(`${BASE_URL}/managers/${managerInfo.id}/verify`)
+        const data = await res.json()
+        if (data.code !== 0) {
+          // 账号已被删除或禁用，强制退出
+          localStorage.removeItem('manager_token')
+          localStorage.removeItem('manager_info')
+          next({ name: 'Login', query: { redirect: to.fullPath, expired: '1' } })
+          return
+        }
+      }
+    } catch {
+      // 网络错误不阻止访问
     }
   }
 

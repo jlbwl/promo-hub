@@ -55,6 +55,11 @@ import { post } from '@promo/shared/utils/request'
 const router = useRouter()
 const route = useRoute()
 
+// 检查是否因账号失效被踢出
+if (route.query.expired === '1') {
+  ElMessage.warning('账号已被删除或禁用，请重新登录')
+}
+
 // 表单引用
 const loginFormRef = ref<FormInstance>()
 
