@@ -371,6 +371,45 @@ app.post('/api/managers/login', async (req, res) => {
   res.json({ code: 0, message: '登录成功', data: { token, manager: safeManager } })
 })
 
+// 经理短信验证码发送
+app.post('/api/managers/sms/send', async (req, res) => {
+  const { phone } = req.body
+  if (!phone || !/^1[3-9]\d{9}$/.test(phone)) {
+    res.json({ code: 400, message: '请输入正确的手机号', data: null })
+    return
+  }
+  const code = String(Math.floor(100000 + Math.random() * 900000))
+  const expiresAt = Date.now() + 10 * 60 * 1000
+  smsCodes.set(phone, { code, expiresAt })
+  console.log(`[SMS] Manager验证码 ${phone}: ${code}`)
+  res.json({ code: 0, message: '验证码已发送', data: null })
+})
+
+// 经理短信验证码登录
+app.post('/api/managers/sms/login', async (req, res) => {
+  const { phone, code } = req.body
+  if (!phone || !code) {
+    res.json({ code: 400, message: '手机号和验证码不能为空', data: null })
+    return
+  }
+  const record = smsCodes.get(phone)
+  if (!record || Date.now() > record.expiresAt || record.code !== code) {
+    res.json({ code: 400, message: '验证码错误或已过期', data: null })
+    return
+  }
+  smsCodes.delete(phone)
+
+  const managers = await readManagers()
+  const manager = managers.find((m: any) => m.phone === phone && m.status === 'active')
+  if (!manager) {
+    res.json({ code: 404, message: '该手机号未注册或已被禁用', data: null })
+    return
+  }
+  const { password: _, ...safeManager } = manager
+  const token = `mgr_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+  res.json({ code: 0, message: '登录成功', data: { token, manager: safeManager } })
+})
+
 // 经理身份验证（检查经理是否仍存在且启用）
 app.get('/api/managers/verify', async (req, res) => {
   const token = req.headers.authorization?.replace('Bearer ', '')
@@ -555,161 +594,6 @@ app.post('/api/users/sms/login', async (req, res) => {
   const { password: _, ...safeUser } = user
   const token = `usr_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
   res.json({ code: 0, message: '登录成功', data: { token, user: safeUser, isNew: !users.find((u: any) => u.phone === phone && u.id !== user.id) } })
-})
-
-// ============ 支付宝扫码登录 ============
-
-app.post('/api/users/alipay/login', async (req, res) => {
-  const { authCode } = req.body
-  if (!authCode) {
-    res.json({ code: 400, message: '授权码不能为空', data: null })
-    return
-  }
-
-  // TODO: 接入真实支付宝开放平台，当前为模拟模式
-  // 模拟：用 authCode 生成一个模拟的支付宝用户ID
-  const alipayUserId = `alipay_${authCode.slice(0, 12)}`
-  const alipayNickname = `支付宝用户${authCode.slice(-4)}`
-
-  let users = await readUsers()
-  let user = users.find((u: any) => u.alipayUserId === alipayUserId)
-
-  if (!user) {
-    // 检查是否有同手机号的用户可关联
-    const now = new Date().toISOString()
-    user = {
-      id: `u_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-      phone: '',
-      password: '',
-      nickname: alipayNickname,
-      role: 'user',
-      status: 'active',
-      alipayUserId,
-      loginMethods: ['alipay'],
-      createdAt: now,
-      updatedAt: now,
-    }
-    users.push(user)
-    await writeUsers(users)
-  } else {
-    if (!user.loginMethods) user.loginMethods = []
-    if (!user.loginMethods.includes('alipay')) user.loginMethods.push('alipay')
-    user.updatedAt = new Date().toISOString()
-    users = users.map((u: any) => u.id === user!.id ? user : u)
-    await writeUsers(users)
-  }
-
-  const { password: _, ...safeUser } = user
-  const token = `usr_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
-  res.json({ code: 0, message: '登录成功', data: { token, user: safeUser, needBindPhone: !user.phone } })
-})
-
-// ============ 微信扫码登录 ============
-
-app.post('/api/users/wechat/login', async (req, res) => {
-  const { authCode } = req.body
-  if (!authCode) {
-    res.json({ code: 400, message: '授权码不能为空', data: null })
-    return
-  }
-
-  // TODO: 接入真实微信开放平台，当前为模拟模式
-  const wechatOpenId = `wx_${authCode.slice(0, 12)}`
-  const wechatNickname = `微信用户${authCode.slice(-4)}`
-
-  let users = await readUsers()
-  let user = users.find((u: any) => u.wechatOpenId === wechatOpenId)
-
-  if (!user) {
-    const now = new Date().toISOString()
-    user = {
-      id: `u_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-      phone: '',
-      password: '',
-      nickname: wechatNickname,
-      role: 'user',
-      status: 'active',
-      wechatOpenId,
-      loginMethods: ['wechat'],
-      createdAt: now,
-      updatedAt: now,
-    }
-    users.push(user)
-    await writeUsers(users)
-  } else {
-    if (!user.loginMethods) user.loginMethods = []
-    if (!user.loginMethods.includes('wechat')) user.loginMethods.push('wechat')
-    user.updatedAt = new Date().toISOString()
-    users = users.map((u: any) => u.id === user!.id ? user : u)
-    await writeUsers(users)
-  }
-
-  const { password: _, ...safeUser } = user
-  const token = `usr_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
-  res.json({ code: 0, message: '登录成功', data: { token, user: safeUser, needBindPhone: !user.phone } })
-})
-
-// ============ 绑定手机号（扫码登录后绑定） ============
-
-app.post('/api/users/bindPhone', async (req, res) => {
-  const { userId, phone, code } = req.body
-  if (!userId || !phone || !code) {
-    res.json({ code: 400, message: '参数不完整', data: null })
-    return
-  }
-
-  // 验证码校验
-  const record = smsCodes.get(phone)
-  if (!record || Date.now() > record.expiresAt || record.code !== code) {
-    res.json({ code: 400, message: '验证码错误或已过期', data: null })
-    return
-  }
-  smsCodes.delete(phone)
-
-  // 检查手机号是否已被其他用户绑定
-  let users = await readUsers()
-  const existingUser = users.find((u: any) => u.phone === phone && u.id !== userId)
-
-  if (existingUser) {
-    // 关联：将扫码用户的 alipayUserId/wechatOpenId 合并到已有手机号用户
-    const currentUser = users.find((u: any) => u.id === userId)
-    if (currentUser) {
-      if (currentUser.alipayUserId && !existingUser.alipayUserId) {
-        existingUser.alipayUserId = currentUser.alipayUserId
-      }
-      if (currentUser.wechatOpenId && !existingUser.wechatOpenId) {
-        existingUser.wechatOpenId = currentUser.wechatOpenId
-      }
-      if (currentUser.loginMethods) {
-        currentUser.loginMethods.forEach((m: string) => {
-          if (!existingUser.loginMethods) existingUser.loginMethods = []
-          if (!existingUser.loginMethods.includes(m)) existingUser.loginMethods.push(m)
-        })
-      }
-      existingUser.updatedAt = new Date().toISOString()
-      // 删除扫码创建的临时用户
-      users = users.filter((u: any) => u.id !== userId)
-      await writeUsers(users)
-
-      const { password: _, ...safeUser } = existingUser
-      const token = `usr_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
-      res.json({ code: 0, message: '绑定成功，已关联已有账号', data: { token, user: safeUser } })
-      return
-    }
-  }
-
-  // 正常绑定
-  const user = users.find((u: any) => u.id === userId)
-  if (!user) {
-    res.json({ code: 404, message: '用户不存在', data: null })
-    return
-  }
-  user.phone = phone
-  user.updatedAt = new Date().toISOString()
-  await writeUsers(users)
-
-  const { password: _, ...safeUser } = user
-  res.json({ code: 0, message: '绑定成功', data: { user: safeUser } })
 })
 
 // 管理后台：获取所有用户列表（推广经理 + 普通用户）
@@ -1018,6 +902,73 @@ app.put('/api/orders/:id/settle', async (req, res) => {
 
   const msg = action === 'pending_payment' ? '已添加到待付款' : '已确认结算'
   res.json({ code: 0, message: msg, data: order })
+})
+
+// ============ 管理后台登录 ============
+
+const ADMIN_PHONE = '13800138000'
+const ADMIN_PASSWORD = 'admin123'
+
+app.post('/api/admin/login', async (req, res) => {
+  const { phone, password } = req.body
+  if (!phone || !password) {
+    res.json({ code: 400, message: '手机号和密码不能为空', data: null })
+    return
+  }
+  if (phone !== ADMIN_PHONE || password !== ADMIN_PASSWORD) {
+    res.json({ code: 401, message: '手机号或密码错误', data: null })
+    return
+  }
+  const token = `adm_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+  res.json({
+    code: 0,
+    message: '登录成功',
+    data: {
+      token,
+      admin: { id: 'admin_1', phone: ADMIN_PHONE, name: '超级管理员' }
+    }
+  })
+})
+
+app.post('/api/admin/sms/send', async (req, res) => {
+  const { phone } = req.body
+  if (!phone || !/^1[3-9]\d{9}$/.test(phone)) {
+    res.json({ code: 400, message: '请输入正确的手机号', data: null })
+    return
+  }
+  const code = String(Math.floor(100000 + Math.random() * 900000))
+  const expiresAt = Date.now() + 10 * 60 * 1000
+  smsCodes.set(phone, { code, expiresAt })
+  console.log(`[SMS] Admin验证码 ${phone}: ${code}`)
+  res.json({ code: 0, message: '验证码已发送', data: null })
+})
+
+app.post('/api/admin/sms/login', async (req, res) => {
+  const { phone, code } = req.body
+  if (!phone || !code) {
+    res.json({ code: 400, message: '手机号和验证码不能为空', data: null })
+    return
+  }
+  const record = smsCodes.get(phone)
+  if (!record || Date.now() > record.expiresAt || record.code !== code) {
+    res.json({ code: 400, message: '验证码错误或已过期', data: null })
+    return
+  }
+  smsCodes.delete(phone)
+
+  if (phone !== ADMIN_PHONE) {
+    res.json({ code: 404, message: '该手机号不是管理员', data: null })
+    return
+  }
+  const token = `adm_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+  res.json({
+    code: 0,
+    message: '登录成功',
+    data: {
+      token,
+      admin: { id: 'admin_1', phone: ADMIN_PHONE, name: '超级管理员' }
+    }
+  })
 })
 
 // ============ 管理后台全局统计 ============
