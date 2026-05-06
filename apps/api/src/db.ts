@@ -5,7 +5,7 @@ const pool = mysql.createPool({
   host: process.env.DB_HOST || 'rm-2zed47q2696h20ai9.mysql.rds.aliyuncs.com',
   port: parseInt(process.env.DB_PORT || '3306', 10),
   user: process.env.DB_USER || 'promo_admin',
-  password: process.env.DB_PASSWORD || '[REDACTED_DB_PASSWORD]',
+  password: process.env.DB_PASSWORD || 'jlbwl@416',
   database: process.env.DB_NAME || 'promo_hub',
   waitForConnections: true,
   connectionLimit: 10,
