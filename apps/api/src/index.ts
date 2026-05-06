@@ -6,7 +6,7 @@ import { fileURLToPath } from 'url'
 import { initDatabase } from './db.js'
 import {
   readProducts, writeProducts,
-  readManagers, writeManagers,
+  readManagers, writeManagers, deleteManager,
   readUsers, writeUsers,
   readOrders, writeOrders,
   readCommissions, writeCommissions,
@@ -281,8 +281,7 @@ app.delete('/api/managers/:id', async (req, res) => {
   }
   const managerId = managers[index].id
   const managerName = managers[index].name || ''
-  managers.splice(index, 1)
-  await writeManagers(managers)
+  await deleteManager(managerId)
 
   // 下架该经理的所有已发布产品
   let products = await readProducts()
