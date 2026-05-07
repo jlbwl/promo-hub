@@ -109,7 +109,7 @@ export async function updateProduct(id: string, fields: Record<string, any>): Pr
   const sets: string[] = []
   const values: any[] = []
   for (const [key, val] of Object.entries(fields)) {
-    if (key === 'id') continue
+    if (key === 'id' || key === 'updatedAt') continue
     sets.push(`${key} = ?`)
     if (key === 'images' || key === 'tags' || key === 'options') {
       values.push(serialize(val))
