@@ -160,14 +160,12 @@ jobs:
             cd ${{ env.DEPLOY_DIR }}/api
             
             # 创建 .env 文件（从 GitHub Secrets 读取）
-            cat > .env << EOF
-DB_HOST=${{ secrets.DB_HOST }}
-DB_PORT=${{ secrets.DB_PORT }}
-DB_USER=${{ secrets.DB_USER }}
-DB_PASSWORD=${{ secrets.DB_PASSWORD }}
-DB_NAME=${{ secrets.DB_NAME }}
-PORT=3000
-EOF
+            printf 'DB_HOST=%s\nDB_PORT=%s\nDB_USER=%s\nDB_PASSWORD=%s\nDB_NAME=%s\nPORT=3000\n' \
+              "${{ secrets.DB_HOST }}" \
+              "${{ secrets.DB_PORT }}" \
+              "${{ secrets.DB_USER }}" \
+              "${{ secrets.DB_PASSWORD }}" \
+              "${{ secrets.DB_NAME }}" > .env
             
             npm install --production 2>/dev/null
             pm2 delete promo-api 2>/dev/null || true
