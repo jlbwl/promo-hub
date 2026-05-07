@@ -52,6 +52,11 @@ export async function readProducts(): Promise<any[]> {
   const rows = await query('SELECT * FROM products ORDER BY createdAt DESC')
   return (rows as any[]).map(row => ({
     ...row,
+    price: Number(row.price) || 0,
+    originalPrice: Number(row.originalPrice) || 0,
+    commission: Number(row.commission) || 0,
+    commissionRate: Number(row.commissionRate) || 0,
+    stock: Number(row.stock) || 0,
     images: deserialize(row.images),
     tags: deserialize(row.tags),
     options: deserialize(row.options),
@@ -63,6 +68,11 @@ export async function readProduct(id: string): Promise<any> {
   if (!row) return null
   return {
     ...row,
+    price: Number(row.price) || 0,
+    originalPrice: Number(row.originalPrice) || 0,
+    commission: Number(row.commission) || 0,
+    commissionRate: Number(row.commissionRate) || 0,
+    stock: Number(row.stock) || 0,
     images: deserialize(row.images),
     tags: deserialize(row.tags),
     options: deserialize(row.options),
