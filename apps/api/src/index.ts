@@ -380,7 +380,7 @@ app.post('/api/managers/sms/send', async (req, res) => {
   }
   const code = String(Math.floor(100000 + Math.random() * 900000))
   const expiresAt = Date.now() + 10 * 60 * 1000
-  smsCodes.set(phone, { code, expiresAt })
+  smsCodes.set(phone, { code, expiresAt, phone })
   console.log(`[SMS] Manager验证码 ${phone}: ${code}`)
   res.json({ code: 0, message: '验证码已发送', data: null })
 })
@@ -938,7 +938,7 @@ app.post('/api/admin/sms/send', async (req, res) => {
   }
   const code = String(Math.floor(100000 + Math.random() * 900000))
   const expiresAt = Date.now() + 10 * 60 * 1000
-  smsCodes.set(phone, { code, expiresAt })
+  smsCodes.set(phone, { code, expiresAt, phone })
   console.log(`[SMS] Admin验证码 ${phone}: ${code}`)
   res.json({ code: 0, message: '验证码已发送', data: null })
 })
