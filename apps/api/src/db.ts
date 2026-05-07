@@ -142,9 +142,9 @@ export async function initDatabase(): Promise<void> {
   if (adminCount === 0) {
     await pool.execute(
       'INSERT INTO admins (id, phone, password, name, status) VALUES (?, ?, ?, ?, ?)',
-      ['admin_1', '13800138000', 'admin123', '超级管理员', 'active']
+      ['admin_1', '[REDACTED_ADMIN_PHONE]', 'admin123', '超级管理员', 'active']
     )
-    console.log('[DB] Default admin account created: 13800138000 / admin123')
+    console.log('[DB] Default admin account created: [REDACTED_ADMIN_PHONE] / admin123')
   }
 
   console.log('[DB] MySQL tables initialized successfully')
