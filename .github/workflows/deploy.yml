@@ -158,6 +158,17 @@ jobs:
           script: |
             mkdir -p ${{ env.DEPLOY_DIR }}/api/data/uploads
             cd ${{ env.DEPLOY_DIR }}/api
+            
+            # 创建 .env 文件
+            cat > .env << 'EOF'
+DB_HOST=rm-2zed47q2696h20ai9.mysql.rds.aliyuncs.com
+DB_PORT=3306
+DB_USER=promo_admin
+DB_PASSWORD=jlbwl@416
+DB_NAME=promo_hub
+PORT=3000
+EOF
+            
             npm install --production 2>/dev/null
             pm2 delete promo-api 2>/dev/null || true
             pm2 start dist/index.js --name promo-api
