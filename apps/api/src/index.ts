@@ -5,7 +5,7 @@ import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
 import { initDatabase } from './db.js'
 import {
-  readProducts, writeProducts, insertProduct,
+  readProducts, writeProducts, insertProduct, updateProduct,
   readManagers, writeManagers, deleteManager,
   readUsers, writeUsers,
   readOrders, writeOrders,
@@ -171,23 +171,20 @@ app.post('/api/products', async (req, res) => {
 
 // 更新产品
 app.put('/api/products/:id', async (req, res) => {
-  const products = await readProducts()
-  const index = products.findIndex((p: any) => p.id === req.params.id)
-  if (index === -1) {
+  const existing = await queryOne('SELECT * FROM products WHERE id = ?', [req.params.id])
+  if (!existing) {
     res.json({ code: 404, message: '产品不存在', data: null })
     return
   }
 
-  // 校验产品归属
-  if (req.body.managerId && products[index].managerId !== req.body.managerId) {
+  if (req.body.managerId && existing.managerId !== req.body.managerId) {
     res.json({ code: 403, message: '无权操作此产品', data: null })
     return
   }
 
   const title = (req.body.title || '').trim()
   if (title) {
-    // 标题重复校验（排除自身）
-    const duplicate = products.find((p: any) => p.title === title && p.id !== req.params.id)
+    const duplicate = await queryOne('SELECT id FROM products WHERE title = ? AND id != ?', [title, req.params.id])
     if (duplicate) {
       res.json({ code: 409, message: '产品标题已存在，请修改后重新发布', data: null })
       return
@@ -195,15 +192,14 @@ app.put('/api/products/:id', async (req, res) => {
   }
 
   const now = new Date().toISOString()
-  const updated = {
-    ...products[index],
+  const updatedFields: Record<string, any> = {
     ...req.body,
-    id: products[index].id,
-    publishedAt: req.body.status === 'published' && !products[index].publishedAt ? now : products[index].publishedAt,
+    publishedAt: req.body.status === 'published' && !existing.publishedAt ? now : existing.publishedAt,
     updatedAt: now,
   }
-  products[index] = updated
-  await writeProducts(products)
+  await updateProduct(req.params.id, updatedFields)
+
+  const updated = await queryOne('SELECT * FROM products WHERE id = ?', [req.params.id])
   res.json({ code: 0, message: '更新成功', data: updated })
 })
 
