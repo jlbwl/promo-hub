@@ -7,7 +7,6 @@ on:
 
 env:
   DEPLOY_DIR: /www/wwwroot/promo-hub
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
 
 jobs:
   build:
@@ -16,15 +15,15 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v5
         with:
           version: 10
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: pnpm
@@ -45,25 +44,25 @@ jobs:
         run: pnpm --filter @promo/api build
 
       - name: Upload Admin artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: admin-dist
           path: apps/admin/dist
 
       - name: Upload Manager artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: manager-dist
           path: apps/manager/dist
 
       - name: Upload User artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: user-dist
           path: apps/user/dist
 
       - name: Upload API artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: api-dist
           path: |
@@ -78,25 +77,25 @@ jobs:
 
     steps:
       - name: Download Admin artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: admin-dist
           path: admin-dist
 
       - name: Download Manager artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: manager-dist
           path: manager-dist
 
       - name: Download User artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: user-dist
           path: user-dist
 
       - name: Download API artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: api-dist
           path: api-dist
