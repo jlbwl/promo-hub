@@ -158,7 +158,7 @@ jobs:
           script: |
             mkdir -p ${{ env.DEPLOY_DIR }}/api/data/uploads
             cd ${{ env.DEPLOY_DIR }}/api
-            
+
             # 创建 .env 文件（从 GitHub Secrets 读取）
             printf 'DB_HOST=%s\nDB_PORT=%s\nDB_USER=%s\nDB_PASSWORD=%s\nDB_NAME=%s\nPORT=3000\n' \
               "${{ secrets.DB_HOST }}" \
@@ -166,10 +166,11 @@ jobs:
               "${{ secrets.DB_USER }}" \
               "${{ secrets.DB_PASSWORD }}" \
               "${{ secrets.DB_NAME }}" > .env
-            
-            npm install --production 2>/dev/null
+
+            npm install --production
             pm2 delete promo-api 2>/dev/null || true
-            pm2 start dist/index.js --name promo-api
+            pm2 start dist/index.js --name promo-api --wait-ready
+            pm2 restart promo-api
             pm2 save
             echo "Admin files: $(ls ${{ env.DEPLOY_DIR }}/admin/ | wc -l)"
             echo "Manager files: $(ls ${{ env.DEPLOY_DIR }}/manager/ | wc -l)"
