@@ -123,6 +123,30 @@ export async function initDatabase(): Promise<void> {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `)
 
+  // 管理员表
+  await pool.execute(`
+    CREATE TABLE IF NOT EXISTS admins (
+      id VARCHAR(100) PRIMARY KEY,
+      phone VARCHAR(50) NOT NULL,
+      password VARCHAR(500) NOT NULL,
+      name VARCHAR(200) DEFAULT '超级管理员',
+      status VARCHAR(50) NOT NULL DEFAULT 'active',
+      createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `)
+
+  // 检查是否有管理员账号，没有则创建默认账号
+  const [adminRows] = await pool.execute('SELECT COUNT(*) as count FROM admins')
+  const adminCount = (adminRows as any[])[0].count
+  if (adminCount === 0) {
+    await pool.execute(
+      'INSERT INTO admins (id, phone, password, name, status) VALUES (?, ?, ?, ?, ?)',
+      ['admin_1', '13800138000', 'admin123', '超级管理员', 'active']
+    )
+    console.log('[DB] Default admin account created: 13800138000 / admin123')
+  }
+
   console.log('[DB] MySQL tables initialized successfully')
 }
 

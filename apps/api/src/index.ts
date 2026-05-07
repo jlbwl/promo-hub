@@ -10,6 +10,7 @@ import {
   readUsers, writeUsers,
   readOrders, writeOrders,
   readCommissions, writeCommissions,
+  readAdminByPhone, updateAdmin,
 } from './data.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
@@ -906,16 +907,14 @@ app.put('/api/orders/:id/settle', async (req, res) => {
 
 // ============ 管理后台登录 ============
 
-let ADMIN_PHONE = '13800138000'
-let ADMIN_PASSWORD = 'admin123'
-
 app.post('/api/admin/login', async (req, res) => {
   const { phone, password } = req.body
   if (!phone || !password) {
     res.json({ code: 400, message: '手机号和密码不能为空', data: null })
     return
   }
-  if (phone !== ADMIN_PHONE || password !== ADMIN_PASSWORD) {
+  const admin = await readAdminByPhone(phone)
+  if (!admin || admin.password !== password) {
     res.json({ code: 401, message: '手机号或密码错误', data: null })
     return
   }
@@ -925,7 +924,7 @@ app.post('/api/admin/login', async (req, res) => {
     message: '登录成功',
     data: {
       token,
-      admin: { id: 'admin_1', phone: ADMIN_PHONE, name: '超级管理员' }
+      admin: { id: admin.id, phone: admin.phone, name: admin.name }
     }
   })
 })
@@ -956,7 +955,8 @@ app.post('/api/admin/sms/login', async (req, res) => {
   }
   smsCodes.delete(phone)
 
-  if (phone !== ADMIN_PHONE) {
+  const admin = await readAdminByPhone(phone)
+  if (!admin) {
     res.json({ code: 404, message: '该手机号不是管理员', data: null })
     return
   }
@@ -966,7 +966,7 @@ app.post('/api/admin/sms/login', async (req, res) => {
     message: '登录成功',
     data: {
       token,
-      admin: { id: 'admin_1', phone: ADMIN_PHONE, name: '超级管理员' }
+      admin: { id: admin.id, phone: admin.phone, name: admin.name }
     }
   })
 })
@@ -974,7 +974,13 @@ app.post('/api/admin/sms/login', async (req, res) => {
 app.post('/api/admin/update', async (req, res) => {
   const { oldPassword, newPhone, phoneCode, newPassword } = req.body
 
-  if (oldPassword !== ADMIN_PASSWORD) {
+  const admin = await readAdminByPhone(newPhone || '')
+  if (!admin) {
+    res.json({ code: 401, message: '旧密码错误', data: null })
+    return
+  }
+
+  if (oldPassword !== admin.password) {
     res.json({ code: 401, message: '旧密码错误', data: null })
     return
   }
@@ -990,7 +996,7 @@ app.post('/api/admin/update', async (req, res) => {
       return
     }
     smsCodes.delete(newPhone)
-    ADMIN_PHONE = newPhone
+    await updateAdmin(admin.id, { phone: newPhone })
   }
 
   if (newPassword) {
@@ -998,13 +1004,14 @@ app.post('/api/admin/update', async (req, res) => {
       res.json({ code: 400, message: '新密码长度需在6-20位之间', data: null })
       return
     }
-    ADMIN_PASSWORD = newPassword
+    await updateAdmin(admin.id, { password: newPassword })
   }
 
+  const updatedAdmin = await readAdminByPhone(newPhone || admin.phone)
   res.json({
     code: 0,
     message: '修改成功',
-    data: { phone: ADMIN_PHONE, name: '超级管理员' }
+    data: { phone: updatedAdmin?.phone, name: updatedAdmin?.name }
   })
 })
 
