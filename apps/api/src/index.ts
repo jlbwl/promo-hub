@@ -5,7 +5,7 @@ import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
 import { initDatabase } from './db.js'
 import {
-  readProducts, writeProducts, insertProduct, updateProduct,
+  readProducts, writeProducts, insertProduct, updateProduct, readProduct,
   readManagers, writeManagers, deleteManager,
   readUsers, writeUsers,
   readOrders, writeOrders,
@@ -166,7 +166,8 @@ app.post('/api/products', async (req, res) => {
     updatedAt: now,
   }
   await insertProduct(product)
-  res.json({ code: 0, message: '创建成功', data: product })
+  const savedProduct = await readProduct(product.id)
+  res.json({ code: 0, message: '创建成功', data: savedProduct })
 })
 
 // 更新产品
@@ -199,7 +200,7 @@ app.put('/api/products/:id', async (req, res) => {
   }
   await updateProduct(req.params.id, updatedFields)
 
-  const updated = await queryOne('SELECT * FROM products WHERE id = ?', [req.params.id])
+  const updated = await readProduct(req.params.id)
   res.json({ code: 0, message: '更新成功', data: updated })
 })
 
