@@ -180,6 +180,9 @@ const publishedProducts = ref<any[]>([])
 const offlineResultVisible = ref(false)
 const offlineProduct = ref<any>(null)
 
+// 经理列表（用于显示经理姓名）
+const managers = ref<any[]>([])
+
 // 分类映射
 const getCategoryName = (category: string) => {
   const map: Record<string, string> = {
@@ -200,10 +203,10 @@ const getCategoryName = (category: string) => {
 // 获取经理名称
 const getManagerName = (managerId: string) => {
   if (!managerId) return '--'
-  try {
-    const info = JSON.parse(localStorage.getItem('manager_info') || '{}')
-    if (info.id === managerId) return info.name || managerId
-  } catch {}
+  const manager = managers.value.find(m => m.id === managerId)
+  if (manager) {
+    return manager.name || manager.username || managerId
+  }
   return managerId.slice(0, 8)
 }
 
@@ -239,10 +242,15 @@ const openProductDialog = async () => {
   productDialogVisible.value = true
   productLoading.value = true
   try {
-    const res = await get<any>('/products', { status: 'published', pageSize: 999 })
-    publishedProducts.value = res.data?.list || []
+    // 同时获取产品列表和经理列表
+    const [productsRes, managersRes] = await Promise.all([
+      get<any>('/products', { status: 'published', pageSize: 999 }),
+      get<any>('/managers')
+    ])
+    publishedProducts.value = productsRes.data?.list || []
+    managers.value = managersRes.data || []
   } catch {
-    ElMessage.error('获取产品列表失败')
+    ElMessage.error('获取数据失败')
   } finally {
     productLoading.value = false
   }
