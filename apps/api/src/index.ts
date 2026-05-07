@@ -5,12 +5,13 @@ import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
 import { initDatabase } from './db.js'
 import {
-  readProducts, writeProducts,
+  readProducts, writeProducts, insertProduct,
   readManagers, writeManagers, deleteManager,
   readUsers, writeUsers,
   readOrders, writeOrders,
   readCommissions, writeCommissions,
   readAdminByPhone, updateAdmin,
+  queryOne,
 } from './data.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
@@ -142,7 +143,6 @@ app.get('/api/products/:id', async (req, res) => {
 
 // 创建产品
 app.post('/api/products', async (req, res) => {
-  const products = await readProducts()
   const title = (req.body.title || '').trim()
 
   if (!title) {
@@ -150,8 +150,7 @@ app.post('/api/products', async (req, res) => {
     return
   }
 
-  // 标题重复校验
-  const duplicate = products.find((p: any) => p.title === title)
+  const duplicate = await queryOne('SELECT id FROM products WHERE title = ?', [title])
   if (duplicate) {
     res.json({ code: 409, message: '产品标题已存在，请修改后重新发布', data: null })
     return
@@ -166,8 +165,7 @@ app.post('/api/products', async (req, res) => {
     createdAt: now,
     updatedAt: now,
   }
-  products.unshift(product)
-  await writeProducts(products)
+  await insertProduct(product)
   res.json({ code: 0, message: '创建成功', data: product })
 })
 

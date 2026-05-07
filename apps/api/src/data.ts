@@ -1,4 +1,5 @@
 import { query, queryOne } from './db.js'
+export { query, queryOne }
 
 // ============ 通用 JSON 序列化辅助 ============
 
