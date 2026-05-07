@@ -121,7 +121,7 @@ const handlePasswordLogin = async () => {
 
 // 去注册 - 改为跳转短信登录
 const goRegister = () => {
-  activeTab.value = 'sms'
+  loginTab.value = 'sms'
 }
 
 // 发送短信验证码
