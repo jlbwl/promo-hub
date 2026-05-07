@@ -906,8 +906,8 @@ app.put('/api/orders/:id/settle', async (req, res) => {
 
 // ============ 管理后台登录 ============
 
-const ADMIN_PHONE = '13800138000'
-const ADMIN_PASSWORD = 'admin123'
+let ADMIN_PHONE = '13800138000'
+let ADMIN_PASSWORD = 'admin123'
 
 app.post('/api/admin/login', async (req, res) => {
   const { phone, password } = req.body
@@ -968,6 +968,43 @@ app.post('/api/admin/sms/login', async (req, res) => {
       token,
       admin: { id: 'admin_1', phone: ADMIN_PHONE, name: '超级管理员' }
     }
+  })
+})
+
+app.post('/api/admin/update', async (req, res) => {
+  const { oldPassword, newPhone, phoneCode, newPassword } = req.body
+
+  if (oldPassword !== ADMIN_PASSWORD) {
+    res.json({ code: 401, message: '旧密码错误', data: null })
+    return
+  }
+
+  if (newPhone && phoneCode) {
+    if (!/^1[3-9]\d{9}$/.test(newPhone)) {
+      res.json({ code: 400, message: '新手机号格式不正确', data: null })
+      return
+    }
+    const record = smsCodes.get(newPhone)
+    if (!record || Date.now() > record.expiresAt || record.code !== phoneCode) {
+      res.json({ code: 400, message: '验证码错误或已过期', data: null })
+      return
+    }
+    smsCodes.delete(newPhone)
+    ADMIN_PHONE = newPhone
+  }
+
+  if (newPassword) {
+    if (newPassword.length < 6 || newPassword.length > 20) {
+      res.json({ code: 400, message: '新密码长度需在6-20位之间', data: null })
+      return
+    }
+    ADMIN_PASSWORD = newPassword
+  }
+
+  res.json({
+    code: 0,
+    message: '修改成功',
+    data: { phone: ADMIN_PHONE, name: '超级管理员' }
   })
 })
 
