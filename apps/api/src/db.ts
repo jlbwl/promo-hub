@@ -1,8 +1,10 @@
 import mysql from 'mysql2/promise'
 import dotenv from 'dotenv'
+import { join, dirname } from 'path'
+import { fileURLToPath } from 'url'
 
-// 加载环境变量
-dotenv.config()
+const __dirname = dirname(fileURLToPath(import.meta.url))
+dotenv.config({ path: join(__dirname, '..', '.env') })
 
 // 数据库连接配置（从环境变量读取）
 const pool = mysql.createPool({
