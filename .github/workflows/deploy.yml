@@ -159,13 +159,13 @@ jobs:
             mkdir -p ${{ env.DEPLOY_DIR }}/api/data/uploads
             cd ${{ env.DEPLOY_DIR }}/api
             
-            # 创建 .env 文件
-            cat > .env << 'EOF'
-DB_HOST=rm-2zed47q2696h20ai9.mysql.rds.aliyuncs.com
-DB_PORT=3306
-DB_USER=promo_admin
-DB_PASSWORD=jlbwl@416
-DB_NAME=promo_hub
+            # 创建 .env 文件（从 GitHub Secrets 读取）
+            cat > .env << EOF
+DB_HOST=${{ secrets.DB_HOST }}
+DB_PORT=${{ secrets.DB_PORT }}
+DB_USER=${{ secrets.DB_USER }}
+DB_PASSWORD=${{ secrets.DB_PASSWORD }}
+DB_NAME=${{ secrets.DB_NAME }}
 PORT=3000
 EOF
             
