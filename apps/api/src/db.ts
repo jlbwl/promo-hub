@@ -15,6 +15,7 @@ const pool = mysql.createPool({
   connectionLimit: 10,
   queueLimit: 0,
   charset: 'utf8mb4',
+  connectTimeout: 10000,
 })
 
 // 通用查询方法
