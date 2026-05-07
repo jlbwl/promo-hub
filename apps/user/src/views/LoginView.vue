@@ -119,9 +119,9 @@ const handlePasswordLogin = async () => {
   }
 }
 
-// 去注册
+// 去注册 - 改为跳转短信登录
 const goRegister = () => {
-  router.push({ name: 'Register', query: route.query })
+  activeTab.value = 'sms'
 }
 
 // 发送短信验证码
