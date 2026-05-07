@@ -86,8 +86,8 @@
         <el-form-item label="姓名" prop="name">
           <el-input v-model="addForm.name" placeholder="真实姓名" />
         </el-form-item>
-        <el-form-item label="手机号" prop="phone">
-          <el-input v-model="addForm.phone" placeholder="手机号（选填）" />
+        <el-form-item label="手机号" prop="phone" required>
+          <el-input v-model="addForm.phone" placeholder="手机号" />
         </el-form-item>
       </el-form>
       <template #footer>
@@ -147,6 +147,10 @@ const addFormRules: FormRules = {
   ],
   name: [
     { required: true, message: '请输入姓名', trigger: 'blur' }
+  ],
+  phone: [
+    { required: true, message: '请输入手机号', trigger: 'blur' },
+    { pattern: /^1[3-9]\d{9}$/, message: '请输入正确的手机号', trigger: 'blur' }
   ]
 }
 
