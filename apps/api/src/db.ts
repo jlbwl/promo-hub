@@ -20,14 +20,22 @@ const pool = mysql.createPool({
   connectTimeout: 10000,
 })
 
-// 通用查询方法
+// 通用查询方法（带超时）
 export async function query(sql: string, params?: any[]): Promise<any> {
-  const [rows] = await pool.execute(sql, params)
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    setTimeout(() => reject(new Error('Query timeout')), 8000)
+  })
+  const queryPromise = pool.execute(sql, params)
+  const [rows] = await Promise.race([queryPromise, timeoutPromise]) as any
   return rows
 }
 
 export async function queryOne(sql: string, params?: any[]): Promise<any> {
-  const [rows] = await pool.execute(sql, params)
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    setTimeout(() => reject(new Error('Query timeout')), 8000)
+  })
+  const queryPromise = pool.execute(sql, params)
+  const [rows] = await Promise.race([queryPromise, timeoutPromise]) as any
   return (rows as any[])[0] || null
 }
 
