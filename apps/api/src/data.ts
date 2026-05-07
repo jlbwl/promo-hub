@@ -1,11 +1,17 @@
 import { query, queryOne } from './db.js'
 export { query, queryOne }
 
-// ============ 通用 JSON 序列化辅助 ============
+// ============ 通用辅助函数 ============
 
 function serialize(val: any): string | null {
   if (val === null || val === undefined) return null
   return JSON.stringify(val)
+}
+
+function formatDateTime(dateStr: string | undefined | null): string | null {
+  if (!dateStr) return null
+  const date = new Date(dateStr)
+  return date.toISOString().replace('T', ' ').substring(0, 19)
 }
 
 function deserialize(val: any): any {
@@ -85,7 +91,7 @@ export async function writeProducts(products: any[]): Promise<void> {
 export async function insertProduct(p: any): Promise<void> {
   await query(
     `INSERT INTO products (id, title, description, coverImage, images, price, originalPrice, commission, commissionRate, category, tags, status, managerId, stock, options, publishedBy, publishedAt, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
-    [p.id, p.title || '', p.description || '', p.coverImage || '', serialize(p.images), p.price || 0, p.originalPrice || 0, p.commission || 0, p.commissionRate || 0, p.category || '', serialize(p.tags), p.status || 'draft', p.managerId || '', p.stock || 0, serialize(p.options), p.publishedBy || '', p.publishedAt || null]
+    [p.id, p.title || '', p.description || '', p.coverImage || '', serialize(p.images), p.price || 0, p.originalPrice || 0, p.commission || 0, p.commissionRate || 0, p.category || '', serialize(p.tags), p.status || 'draft', p.managerId || '', p.stock || 0, serialize(p.options), p.publishedBy || '', formatDateTime(p.publishedAt)]
   )
 }
 
@@ -97,6 +103,8 @@ export async function updateProduct(id: string, fields: Record<string, any>): Pr
     sets.push(`${key} = ?`)
     if (key === 'images' || key === 'tags' || key === 'options') {
       values.push(serialize(val))
+    } else if (key === 'publishedAt' || key === 'offlineAt') {
+      values.push(formatDateTime(val))
     } else {
       values.push(val ?? '')
     }
