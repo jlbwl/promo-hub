@@ -7,16 +7,21 @@ const SMS_CONFIG = {
   templateCode: process.env.ALIBABA_CLOUD_TEMPLATE_CODE || process.env.ALIBABA_CLOUD_SMS_TEMPLATE_CODE || 'SMS_333916680',
 }
 
+function percentEncode(str: string): string {
+  return encodeURIComponent(str)
+    .replace(/!/g, '%21')
+    .replace(/'/g, '%27')
+    .replace(/\(/g, '%28')
+    .replace(/\)/g, '%29')
+    .replace(/\*/g, '%2A')
+    .replace(/%7E/g, '~')
+}
+
 function sign(accessKeySecret: string, parameters: Record<string, string>): string {
   const sorted = Object.keys(parameters).sort()
-  let stringToSign = 'GET&%2F&'
-  const encodedParams = sorted.map(k => {
-    const encodedKey = encodeURIComponent(k).replace(/\+/g, '%20').replace(/\*/g, '%2A').replace(/%7E/g, '~')
-    const encodedValue = encodeURIComponent(parameters[k]).replace(/\+/g, '%20').replace(/\*/g, '%2A').replace(/%7E/g, '~')
-    return `${encodedKey}%3D${encodedValue}`
-  }).join('%26')
-  stringToSign += encodedParams
-  const hmac = crypto.createHmac('sha1', accessKeySecret + '&')
+  const paramString = sorted.map(k => `${percentEncode(k)}=${percentEncode(parameters[k])}`).join('&')
+  const stringToSign = `GET&%2F&${percentEncode(paramString)}`
+  const hmac = crypto.createHmac('sha1', `${accessKeySecret}&`)
   return hmac.update(stringToSign).digest('base64')
 }
 
@@ -60,8 +65,8 @@ export async function sendSmsCode(phone: string, code: string): Promise<{ succes
 
     const signature = sign(SMS_CONFIG.accessKeySecret, parameters)
     const sortedParams = Object.keys(parameters).sort()
-    const queryString = sortedParams.map(k => `${k}=${encodeURIComponent(parameters[k])}`).join('&')
-    const url = `https://dysmsapi.aliyuncs.com/?Signature=${encodeURIComponent(signature)}&${queryString}`
+    const queryString = sortedParams.map(k => `${percentEncode(k)}=${percentEncode(parameters[k])}`).join('&')
+    const url = `https://dysmsapi.aliyuncs.com/?Signature=${percentEncode(signature)}&${queryString}`
 
     console.log(`[SMS] 请求URL: ${url.substring(0, 100)}...`)
 
