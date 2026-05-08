@@ -110,7 +110,16 @@
           <el-tag v-if="row.optionLabel" size="small" type="info" style="margin-left: 6px;">{{ row.optionLabel }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="userId" label="用户ID" width="180" show-overflow-tooltip />
+      <el-table-column prop="userName" label="用户姓名" width="120" show-overflow-tooltip>
+        <template #default="{ row }">
+          <span>{{ row.userName || '--' }}</span>
+        </template>
+      </el-table-column>
+      <el-table-column prop="userPhone" label="手机号" width="130" show-overflow-tooltip>
+        <template #default="{ row }">
+          <span>{{ row.userPhone || '--' }}</span>
+        </template>
+      </el-table-column>
       <el-table-column prop="productPrice" label="产品售价" width="100" align="right">
         <template #default="{ row }">
           <span style="font-weight: 500;">¥{{ row.productPrice }}</span>
@@ -196,7 +205,16 @@
               <el-tag v-if="row.optionLabel" size="small" type="info" style="margin-left: 4px;">{{ row.optionLabel }}</el-tag>
             </template>
           </el-table-column>
-          <el-table-column prop="userId" label="用户ID" width="160" show-overflow-tooltip />
+          <el-table-column prop="userName" label="姓名" width="100" show-overflow-tooltip>
+            <template #default="{ row }">
+              <span>{{ row.userName || '--' }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column prop="userPhone" label="手机号" width="110" show-overflow-tooltip>
+            <template #default="{ row }">
+              <span>{{ row.userPhone || '--' }}</span>
+            </template>
+          </el-table-column>
           <el-table-column prop="productPrice" label="金额" width="90" align="right">
             <template #default="{ row }">
               <span style="font-weight: 600; color: #409eff;">¥{{ row.productPrice }}</span>
@@ -301,7 +319,16 @@
               <el-tag v-if="row.optionLabel" size="small" type="info" style="margin-left: 4px;">{{ row.optionLabel }}</el-tag>
             </template>
           </el-table-column>
-          <el-table-column prop="userId" label="用户ID" width="160" show-overflow-tooltip />
+          <el-table-column prop="userName" label="姓名" width="100" show-overflow-tooltip>
+            <template #default="{ row }">
+              <span>{{ row.userName || '--' }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column prop="userPhone" label="手机号" width="110" show-overflow-tooltip>
+            <template #default="{ row }">
+              <span>{{ row.userPhone || '--' }}</span>
+            </template>
+          </el-table-column>
           <el-table-column prop="productPrice" label="金额" width="90" align="right">
             <template #default="{ row }">
               <span style="font-weight: 600;">¥{{ row.productPrice }}</span>

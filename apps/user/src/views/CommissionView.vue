@@ -60,6 +60,10 @@
         >
           <div class="record-left">
             <h4 class="record-title">{{ record.productName }} <van-tag v-if="record.optionLabel" type="primary" plain size="medium" style="vertical-align: middle; margin-left: 4px;">{{ record.optionLabel }}</van-tag></h4>
+            <div class="record-user-info" v-if="record.userName || record.userPhone">
+              <span v-if="record.userName">姓名：{{ record.userName }}</span>
+              <span v-if="record.userPhone" style="margin-left: 8px;">手机：{{ record.userPhone }}</span>
+            </div>
             <span class="record-time">{{ formatTime(record.createdAt) }}</span>
             <span v-if="record.rejectReason" class="reject-reason">驳回原因：{{ record.rejectReason }}</span>
           </div>
@@ -301,6 +305,12 @@ loadStats()
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.record-user-info {
+  font-size: 12px;
+  color: #646566;
+  margin-bottom: 4px;
 }
 
 .record-time {
