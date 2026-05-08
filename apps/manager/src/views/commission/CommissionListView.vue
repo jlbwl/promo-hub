@@ -112,12 +112,12 @@
       </el-table-column>
       <el-table-column prop="userName" label="用户姓名" width="120" show-overflow-tooltip>
         <template #default="{ row }">
-          <span>{{ row.userName || '--' }}</span>
+          <span>{{ maskName(row.userName) }}</span>
         </template>
       </el-table-column>
       <el-table-column prop="userPhone" label="手机号" width="130" show-overflow-tooltip>
         <template #default="{ row }">
-          <span>{{ row.userPhone || '--' }}</span>
+          <span>{{ maskPhone(row.userPhone) }}</span>
         </template>
       </el-table-column>
       <el-table-column prop="productPrice" label="产品售价" width="100" align="right">
@@ -207,12 +207,12 @@
           </el-table-column>
           <el-table-column prop="userName" label="姓名" width="100" show-overflow-tooltip>
             <template #default="{ row }">
-              <span>{{ row.userName || '--' }}</span>
+              <span>{{ maskName(row.userName) }}</span>
             </template>
           </el-table-column>
           <el-table-column prop="userPhone" label="手机号" width="110" show-overflow-tooltip>
             <template #default="{ row }">
-              <span>{{ row.userPhone || '--' }}</span>
+              <span>{{ maskPhone(row.userPhone) }}</span>
             </template>
           </el-table-column>
           <el-table-column prop="productPrice" label="金额" width="90" align="right">
@@ -321,12 +321,12 @@
           </el-table-column>
           <el-table-column prop="userName" label="姓名" width="100" show-overflow-tooltip>
             <template #default="{ row }">
-              <span>{{ row.userName || '--' }}</span>
+              <span>{{ maskName(row.userName) }}</span>
             </template>
           </el-table-column>
           <el-table-column prop="userPhone" label="手机号" width="110" show-overflow-tooltip>
             <template #default="{ row }">
-              <span>{{ row.userPhone || '--' }}</span>
+              <span>{{ maskPhone(row.userPhone) }}</span>
             </template>
           </el-table-column>
           <el-table-column prop="productPrice" label="金额" width="90" align="right">
@@ -479,6 +479,17 @@ const formatTime = (iso: string) => {
   const d = new Date(iso)
   const pad = (n: number) => String(n).padStart(2, '0')
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
+const maskPhone = (phone: string) => {
+  if (!phone || phone.length < 7) return phone || '--'
+  return phone.slice(0, 3) + '****' + phone.slice(-4)
+}
+
+const maskName = (name: string) => {
+  if (!name || name.length < 2) return name || '--'
+  if (name.length === 2) return name[0] + '*'
+  return name[0] + '*' + name.slice(-1)
 }
 
 // 获取统计数据

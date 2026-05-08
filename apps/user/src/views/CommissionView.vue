@@ -61,8 +61,8 @@
           <div class="record-left">
             <h4 class="record-title">{{ record.productName }} <van-tag v-if="record.optionLabel" type="primary" plain size="medium" style="vertical-align: middle; margin-left: 4px;">{{ record.optionLabel }}</van-tag></h4>
             <div class="record-user-info" v-if="record.userName || record.userPhone">
-              <span v-if="record.userName">姓名：{{ record.userName }}</span>
-              <span v-if="record.userPhone" style="margin-left: 8px;">手机：{{ record.userPhone }}</span>
+              <span v-if="record.userName">姓名：{{ maskName(record.userName) }}</span>
+              <span v-if="record.userPhone" style="margin-left: 8px;">手机：{{ maskPhone(record.userPhone) }}</span>
             </div>
             <span class="record-time">{{ formatTime(record.createdAt) }}</span>
             <span v-if="record.rejectReason" class="reject-reason">驳回原因：{{ record.rejectReason }}</span>
@@ -154,6 +154,17 @@ const formatTime = (iso: string) => {
   const d = new Date(iso)
   const pad = (n: number) => String(n).padStart(2, '0')
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
+const maskPhone = (phone: string) => {
+  if (!phone || phone.length < 7) return phone || '--'
+  return phone.slice(0, 3) + '****' + phone.slice(-4)
+}
+
+const maskName = (name: string) => {
+  if (!name || name.length < 2) return name || '--'
+  if (name.length === 2) return name[0] + '*'
+  return name[0] + '*' + name.slice(-1)
 }
 
 // 加载统计数据
