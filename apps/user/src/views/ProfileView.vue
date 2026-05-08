@@ -97,6 +97,56 @@
       @confirm="doLogout"
     />
 
+    <!-- 设置密码弹窗 -->
+    <van-dialog
+      v-model:show="passwordDialogVisible"
+      title="设置登录密码"
+      message="为了账户安全，请设置登录密码"
+      show-cancel-button
+      confirm-button-text="确认设置"
+      cancel-button-text="稍后设置"
+      confirm-button-color="#1989fa"
+      @confirm="handleSetPassword"
+    >
+      <template #message>
+        <van-cell-group inset style="margin: 16px 0 0;">
+          <van-field
+            v-model="passwordForm.code"
+            type="digit"
+            label="验证码"
+            placeholder="请输入验证码"
+            maxlength="6"
+            clearable
+          >
+            <template #button>
+              <van-button
+                size="small"
+                type="primary"
+                :disabled="smsCooldown > 0"
+                :text="smsCooldown > 0 ? `${smsCooldown}s` : '获取验证码'"
+                @click="handleSendPasswordSms"
+                style="min-width: 90px;"
+              />
+            </template>
+          </van-field>
+          <van-field
+            v-model="passwordForm.password"
+            type="password"
+            label="新密码"
+            placeholder="请设置6位以上密码"
+            clearable
+          />
+          <van-field
+            v-model="passwordForm.confirmPassword"
+            type="password"
+            label="确认密码"
+            placeholder="请再次输入密码"
+            clearable
+          />
+        </van-cell-group>
+      </template>
+    </van-dialog>
+
     <!-- 退出登录按钮 -->
     <div class="logout-wrap">
       <van-button
@@ -117,6 +167,7 @@
 import { reactive, ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { showDialog, showToast } from 'vant'
+import { post } from '@promo/shared/utils/request'
 
 // 路由实例
 const router = useRouter()
@@ -124,11 +175,15 @@ const router = useRouter()
 // 退出登录弹窗
 const logoutDialogVisible = ref(false)
 
+// 设置密码弹窗
+const passwordDialogVisible = ref(false)
+
 // 用户信息（从 localStorage 读取真实数据）
 const userInfo = reactive({
   id: '',
   nickname: '加载中...',
-  avatar: ''
+  avatar: '',
+  phone: ''
 })
 
 // 统计数据
@@ -138,6 +193,17 @@ const stats = reactive({
   withdrawCount: '0'
 })
 
+// 设置密码表单
+const passwordForm = reactive({
+  code: '',
+  password: '',
+  confirmPassword: ''
+})
+
+// 短信验证码倒计时
+const smsCooldown = ref(0)
+let smsTimer: ReturnType<typeof setInterval> | null = null
+
 // 加载用户信息
 onMounted(() => {
   try {
@@ -145,6 +211,7 @@ onMounted(() => {
     userInfo.id = info.id || ''
     userInfo.nickname = info.nickname || info.phone || '用户'
     userInfo.avatar = info.avatar || ''
+    userInfo.phone = info.phone || ''
   } catch {
     userInfo.nickname = '用户'
   }
@@ -157,11 +224,48 @@ const goTo = (path: string) => {
 
 // 修改密码
 const handleChangePassword = () => {
-  showDialog({
-    title: '修改密码',
-    message: '请联系客服或通过短信验证修改密码',
-    confirmButtonText: '知道了'
-  })
+  passwordForm.code = ''
+  passwordForm.password = ''
+  passwordForm.confirmPassword = ''
+  passwordDialogVisible.value = true
+}
+
+// 发送验证码（用于设置密码）
+const handleSendPasswordSms = async () => {
+  if (!userInfo.phone) return showToast('获取手机号失败')
+  if (!/^1[3-9]\d{9}$/.test(userInfo.phone)) return showToast('手机号格式不正确')
+
+  try {
+    await post('/users/sms/send', { phone: userInfo.phone })
+    showToast('验证码已发送')
+    smsCooldown.value = 60
+    smsTimer = setInterval(() => {
+      smsCooldown.value--
+      if (smsCooldown.value <= 0 && smsTimer) { clearInterval(smsTimer); smsTimer = null }
+    }, 1000)
+  } catch (e: any) {
+    showToast(e.message || '发送失败')
+  }
+}
+
+// 设置密码
+const handleSetPassword = async () => {
+  if (!passwordForm.code) return showToast('请输入验证码')
+  if (!passwordForm.password) return showToast('请输入新密码')
+  if (passwordForm.password.length < 6) return showToast('密码长度至少6位')
+  if (passwordForm.password !== passwordForm.confirmPassword) return showToast('两次输入的密码不一致')
+
+  try {
+    await post('/users/password/set', {
+      phone: userInfo.phone,
+      code: passwordForm.code,
+      password: passwordForm.password
+    })
+    showToast('密码设置成功')
+    passwordDialogVisible.value = false
+  } catch (e: any) {
+    showToast(e.message || '设置失败')
+  }
 }
 
 // 关于我们

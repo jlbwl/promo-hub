@@ -592,6 +592,39 @@ app.post('/api/users/sms/login', async (req, res) => {
   res.json({ code: 0, message: '登录成功', data: { token, user: safeUser, isNew: !users.find((u: any) => u.phone === phone && u.id !== user.id) } })
 })
 
+// 用户：通过短信验证码设置/修改密码
+app.post('/api/users/password/set', async (req, res) => {
+  const { phone, code, password } = req.body
+  if (!phone || !code || !password) {
+    res.json({ code: 400, message: '缺少参数', data: null })
+    return
+  }
+  if (password.length < 6) {
+    res.json({ code: 400, message: '密码长度至少6位', data: null })
+    return
+  }
+
+  const record = smsCodes.get(phone)
+  if (!record || Date.now() > record.expiresAt || record.code !== code) {
+    res.json({ code: 400, message: '验证码错误或已过期', data: null })
+    return
+  }
+  smsCodes.delete(phone)
+
+  let users = await readUsers()
+  const index = users.findIndex((u: any) => u.phone === phone)
+  if (index === -1) {
+    res.json({ code: 404, message: '用户不存在', data: null })
+    return
+  }
+
+  users[index].password = password
+  users[index].updatedAt = new Date().toISOString()
+  await writeUsers(users)
+
+  res.json({ code: 0, message: '密码设置成功', data: null })
+})
+
 // 管理后台：获取所有用户列表（推广经理 + 普通用户）
 app.get('/api/users', async (req, res) => {
   const { page = '1', pageSize = '10', role, status, keyword } = req.query
