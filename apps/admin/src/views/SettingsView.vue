@@ -94,15 +94,6 @@
 
         <el-divider />
 
-        <el-form-item label="新手机号" prop="newPhone">
-          <el-input
-            v-model="securityForm.newPhone"
-            placeholder="请输入新手机号"
-            maxlength="11"
-            clearable
-          />
-        </el-form-item>
-
         <el-form-item label="验证码" prop="phoneCode">
           <el-input
             v-model="securityForm.phoneCode"
@@ -121,7 +112,15 @@
           </el-input>
         </el-form-item>
 
-        <el-divider />
+        <el-form-item label="旧密码" prop="oldPassword">
+          <el-input
+            v-model="securityForm.oldPassword"
+            type="password"
+            placeholder="请输入旧密码"
+            show-password
+            clearable
+          />
+        </el-form-item>
 
         <el-form-item label="新密码" prop="newPassword">
           <el-input
@@ -143,19 +142,9 @@
           />
         </el-form-item>
 
-        <el-form-item label="旧密码" prop="oldPassword">
-          <el-input
-            v-model="securityForm.oldPassword"
-            type="password"
-            placeholder="请输入旧密码以确认身份"
-            show-password
-            clearable
-          />
-        </el-form-item>
-
         <el-form-item>
           <el-button type="primary" :loading="securitySaving" @click="handleSecuritySave">
-            保存修改
+            修改密码
           </el-button>
           <el-button @click="handleSecurityReset">
             重置
@@ -190,11 +179,10 @@ const settingsForm = reactive({
 
 // 账户安全表单
 const securityForm = reactive({
-  newPhone: '',
   phoneCode: '',
+  oldPassword: '',
   newPassword: '',
-  confirmPassword: '',
-  oldPassword: ''
+  confirmPassword: ''
 })
 
 // 账户安全表单校验规则
@@ -207,13 +195,13 @@ const validateConfirmPassword = (_rule: any, value: string, callback: any) => {
 }
 
 const securityRules: FormRules = {
-  newPhone: [
-    { required: true, message: '请输入新手机号', trigger: 'blur' },
-    { pattern: /^1[3-9]\d{9}$/, message: '请输入正确的手机号', trigger: 'blur' }
-  ],
   phoneCode: [
     { required: true, message: '请输入验证码', trigger: 'blur' },
     { len: 6, message: '验证码为6位数字', trigger: 'blur' }
+  ],
+  oldPassword: [
+    { required: true, message: '请输入旧密码', trigger: 'blur' },
+    { min: 6, max: 20, message: '密码长度为6-20位', trigger: 'blur' }
   ],
   newPassword: [
     { required: true, message: '请输入新密码', trigger: 'blur' },
@@ -222,10 +210,6 @@ const securityRules: FormRules = {
   confirmPassword: [
     { required: true, message: '请再次输入新密码', trigger: 'blur' },
     { validator: validateConfirmPassword, trigger: 'blur' }
-  ],
-  oldPassword: [
-    { required: true, message: '请输入旧密码', trigger: 'blur' },
-    { min: 6, max: 20, message: '密码长度为6-20位', trigger: 'blur' }
   ]
 }
 
@@ -247,11 +231,11 @@ const phoneCooldown = ref(0)
 let phoneTimer: ReturnType<typeof setInterval> | null = null
 
 const handleSendPhoneCode = async () => {
-  if (!securityForm.newPhone) return ElMessage.warning('请输入新手机号')
-  if (!/^1[3-9]\d{9}$/.test(securityForm.newPhone)) return ElMessage.warning('请输入正确的新手机号')
+  if (!currentPhone.value) return ElMessage.warning('获取当前手机号失败')
+  if (!/^1[3-9]\d{9}$/.test(currentPhone.value)) return ElMessage.warning('当前手机号格式不正确')
 
   try {
-    await post('/admin/sms/send', { phone: securityForm.newPhone })
+    await post('/admin/sms/send', { phone: currentPhone.value })
     ElMessage.success('验证码已发送')
     phoneCooldown.value = 60
     phoneTimer = setInterval(() => {
@@ -274,19 +258,19 @@ const handleSecuritySave = async () => {
 
     securitySaving.value = true
     try {
-      await post('/admin/update', {
+      await post('/admin/password/update', {
+        phone: currentPhone.value,
+        code: securityForm.phoneCode,
         oldPassword: securityForm.oldPassword,
-        newPhone: securityForm.newPhone,
-        phoneCode: securityForm.phoneCode,
         newPassword: securityForm.newPassword
       })
-      ElMessage.success('账户信息修改成功')
+      ElMessage.success('密码修改成功，请重新登录')
       handleSecurityReset()
-      const adminInfo = localStorage.getItem('admin_info')
-      if (adminInfo) {
-        const info = JSON.parse(adminInfo)
-        currentPhone.value = info.phone
-      }
+      setTimeout(() => {
+        localStorage.removeItem('admin_token')
+        localStorage.removeItem('admin_info')
+        window.location.href = '/login'
+      }, 1500)
     } catch (error: any) {
       ElMessage.error(error.message || '修改失败')
     } finally {

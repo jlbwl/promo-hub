@@ -1076,6 +1076,43 @@ app.post('/api/admin/update', async (req, res) => {
   })
 })
 
+// 管理员：通过短信验证码+旧密码修改密码
+app.post('/api/admin/password/update', async (req, res) => {
+  const { phone, code, oldPassword, newPassword } = req.body
+
+  if (!phone || !code || !oldPassword || !newPassword) {
+    res.json({ code: 400, message: '缺少参数', data: null })
+    return
+  }
+
+  if (newPassword.length < 6 || newPassword.length > 20) {
+    res.json({ code: 400, message: '新密码长度需在6-20位之间', data: null })
+    return
+  }
+
+  const admin = await readAdminByPhone(phone)
+  if (!admin) {
+    res.json({ code: 404, message: '管理员不存在', data: null })
+    return
+  }
+
+  if (oldPassword !== admin.password) {
+    res.json({ code: 401, message: '旧密码错误', data: null })
+    return
+  }
+
+  const record = smsCodes.get(phone)
+  if (!record || Date.now() > record.expiresAt || record.code !== code) {
+    res.json({ code: 400, message: '验证码错误或已过期', data: null })
+    return
+  }
+  smsCodes.delete(phone)
+
+  await updateAdmin(admin.id, { password: newPassword })
+
+  res.json({ code: 0, message: '密码修改成功', data: null })
+})
+
 // ============ 管理后台全局统计 ============
 
 app.get('/api/admin/stats', async (_req, res) => {
