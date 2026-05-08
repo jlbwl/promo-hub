@@ -271,43 +271,13 @@ const submitGoOrder = (userInfo: any) => {
   }
 
   post('/orders', payload).then(() => {
-    // 如果有跳转链接，做单成功后跳转
-    if (chosenOption?.redirectUrl) {
-      const url = chosenOption.redirectUrl
-      const isWeChatOnly = isWeChatRequired(url)
-
-      if (isWeChatOnly) {
-        // 微信专属链接，提示用户在微信中打开
-        showDialog({
-          title: '做单成功',
-          message: `已选择「${chosenOption.label}」\n\n该推广任务需要在微信中完成，请按以下步骤操作：\n\n1️⃣ 点击下方"复制链接"按钮\n2️⃣ 打开微信，将链接发送给"文件传输助手"\n3️⃣ 在微信中点击链接完成任务`,
-          confirmButtonText: '复制链接',
-          showCancelButton: true,
-          cancelButtonText: '稍后再做',
-        }).then(() => {
-          copyToClipboard(url)
-        }).catch(() => {})
-      } else {
-        // 普通链接，直接跳转
-        showDialog({
-          title: '做单成功',
-          message: `已选择「${chosenOption.label}」，即将跳转完成推广任务`,
-          confirmButtonText: '立即跳转',
-          showCancelButton: true,
-          cancelButtonText: '稍后再做',
-        }).then(() => {
-          window.open(url, '_blank')
-        }).catch(() => {})
-      }
-    } else {
-      showDialog({
-        title: '做单成功',
-        message: '订单已提交，请按照产品要求完成推广。推广结果将由经理审核。',
-        confirmButtonText: '好的',
-      })
-    }
     // 刷新产品信息（更新库存）
     fetchProductDetail()
+    // 如果有跳转链接，做单成功后直接跳转，不显示弹窗
+    if (chosenOption?.redirectUrl) {
+      const url = chosenOption.redirectUrl
+      window.open(url, '_blank')
+    }
   }).catch((error: any) => {
     showToast(error.message || '做单失败')
   })
