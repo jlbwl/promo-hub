@@ -147,16 +147,6 @@ onMounted(() => {
   fetchProductDetail()
 })
 
-// 分享产品
-const handleShare = () => {
-  // TODO: 调用分享功能
-  showDialog({
-    title: '分享产品',
-    message: '分享链接已复制到剪贴板，快去分享给好友吧！',
-    confirmButtonText: '知道了'
-  })
-}
-
 // 检查是否已登录
 const isLoggedIn = () => !!localStorage.getItem('user_token')
 
@@ -248,13 +238,6 @@ const handleGoOrder = () => {
   }).catch((error: any) => {
     showToast(error.message || '做单失败')
   })
-}
-
-// 推广产品
-const handlePromote = () => {
-  if (!requireLogin('推广赚钱')) return
-  // TODO: 生成推广链接或海报
-  showToast('推广链接已生成，快去分享吧！')
 }
 
 // 判断链接是否需要在微信中打开
