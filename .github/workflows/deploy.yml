@@ -160,12 +160,16 @@ jobs:
             cd ${{ env.DEPLOY_DIR }}/api
 
             # 创建 .env 文件（从 GitHub Secrets 读取）
-            printf 'DB_HOST=%s\nDB_PORT=%s\nDB_USER=%s\nDB_PASSWORD=%s\nDB_NAME=%s\nPORT=3000\n' \
+            printf 'DB_HOST=%s\nDB_PORT=%s\nDB_USER=%s\nDB_PASSWORD=%s\nDB_NAME=%s\nPORT=3000\nALIBABA_CLOUD_ACCESS_KEY_ID=%s\nALIBABA_CLOUD_ACCESS_KEY_SECRET=%s\nALIBABA_CLOUD_SMS_SIGN_NAME=%s\nALIBABA_CLOUD_SMS_TEMPLATE_CODE=%s\n' \
               "${{ secrets.DB_HOST }}" \
               "${{ secrets.DB_PORT }}" \
               "${{ secrets.DB_USER }}" \
               "${{ secrets.DB_PASSWORD }}" \
-              "${{ secrets.DB_NAME }}" > .env
+              "${{ secrets.DB_NAME }}" \
+              "${{ secrets.ALIBABA_CLOUD_ACCESS_KEY_ID }}" \
+              "${{ secrets.ALIBABA_CLOUD_ACCESS_KEY_SECRET }}" \
+              "${{ secrets.ALIBABA_CLOUD_SMS_SIGN_NAME }}" \
+              "${{ secrets.ALIBABA_CLOUD_SMS_TEMPLATE_CODE }}" > .env
 
             npm install --production
             pm2 delete promo-api 2>/dev/null || true

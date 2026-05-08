@@ -4,6 +4,7 @@ import { existsSync, mkdirSync } from 'fs'
 import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
 import { initDatabase } from './db.js'
+import { sendSmsCode } from './sms.js'
 import {
   readProducts, writeProducts, insertProduct, updateProduct, readProduct,
   readManagers, writeManagers, deleteManager,
@@ -377,7 +378,7 @@ app.post('/api/managers/sms/send', async (req, res) => {
   const code = String(Math.floor(100000 + Math.random() * 900000))
   const expiresAt = Date.now() + 10 * 60 * 1000
   smsCodes.set(phone, { code, expiresAt, phone })
-  console.log(`[SMS] Manager验证码 ${phone}: ${code}`)
+  await sendSmsCode(phone, code)
   res.json({ code: 0, message: '验证码已发送', data: null })
 })
 
@@ -527,8 +528,7 @@ app.post('/api/users/sms/send', async (req, res) => {
   const code = String(Math.floor(100000 + Math.random() * 900000))
   smsCodes.set(phone, { code, expiresAt: Date.now() + 300000, phone })
 
-  // TODO: 接入真实短信服务商（如阿里云SMS），当前为模拟模式
-  console.log(`[SMS] 手机号 ${phone} 验证码: ${code}`)
+  await sendSmsCode(phone, code)
 
   res.json({ code: 0, message: '验证码已发送', data: { expiresIn: 300 } })
 })
@@ -933,7 +933,7 @@ app.post('/api/admin/sms/send', async (req, res) => {
   const code = String(Math.floor(100000 + Math.random() * 900000))
   const expiresAt = Date.now() + 10 * 60 * 1000
   smsCodes.set(phone, { code, expiresAt, phone })
-  console.log(`[SMS] Admin验证码 ${phone}: ${code}`)
+  await sendSmsCode(phone, code)
   res.json({ code: 0, message: '验证码已发送', data: null })
 })
 
