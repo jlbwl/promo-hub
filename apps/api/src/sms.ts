@@ -3,8 +3,8 @@ import crypto from 'crypto'
 const SMS_CONFIG = {
   accessKeyId: process.env.ALIBABA_CLOUD_ACCESS_KEY_ID || '',
   accessKeySecret: process.env.ALIBABA_CLOUD_ACCESS_KEY_SECRET || '',
-  signName: process.env.ALIBABA_CLOUD_SMS_SIGN_NAME || '金卢比网络',
-  templateCode: process.env.ALIBABA_CLOUD_SMS_TEMPLATE_CODE || 'SMS_333916680',
+  signName: process.env.ALIBABA_CLOUD_SIGN_NAME || process.env.ALIBABA_CLOUD_SMS_SIGN_NAME || '金卢比',
+  templateCode: process.env.ALIBABA_CLOUD_TEMPLATE_CODE || process.env.ALIBABA_CLOUD_SMS_TEMPLATE_CODE || 'SMS_333916680',
 }
 
 function sign(accessKeySecret: string, parameters: Record<string, string>): string {
@@ -32,8 +32,11 @@ function getTimestamp(): string {
 }
 
 export async function sendSmsCode(phone: string, code: string): Promise<{ success: boolean; message: string }> {
+  console.log(`[SMS] 准备发送验证码到 ${phone}`)
+  console.log(`[SMS] 配置检查 - accessKeyId: ${SMS_CONFIG.accessKeyId ? '已配置' : '未配置'}, signName: '${SMS_CONFIG.signName}', templateCode: '${SMS_CONFIG.templateCode}'`)
+
   if (!SMS_CONFIG.accessKeyId || !SMS_CONFIG.accessKeySecret) {
-    console.log(`[SMS-DEV] 手机号 ${phone} 验证码: ${code}`)
+    console.log(`[SMS-DEV] 开发模式 - 手机号 ${phone} 验证码: ${code}`)
     return { success: true, message: '开发模式：验证码仅打印到日志' }
   }
 
@@ -53,19 +56,25 @@ export async function sendSmsCode(phone: string, code: string): Promise<{ succes
       TemplateParam: JSON.stringify({ code }),
     }
 
+    console.log(`[SMS] 请求参数 - PhoneNumbers: ${phone}, SignName: ${SMS_CONFIG.signName}, TemplateCode: ${SMS_CONFIG.templateCode}, Timestamp: ${parameters.Timestamp}`)
+
     const signature = sign(SMS_CONFIG.accessKeySecret, parameters)
     const sortedParams = Object.keys(parameters).sort()
     const queryString = sortedParams.map(k => `${k}=${encodeURIComponent(parameters[k])}`).join('&')
     const url = `https://dysmsapi.aliyuncs.com/?Signature=${encodeURIComponent(signature)}&${queryString}`
 
+    console.log(`[SMS] 请求URL: ${url.substring(0, 100)}...`)
+
     const response = await fetch(url)
     const result = await response.json()
+
+    console.log(`[SMS] 响应结果:`, JSON.stringify(result))
 
     if (result.Code === 'OK') {
       console.log(`[SMS] 发送成功 ${phone}: ${code}`)
       return { success: true, message: '发送成功' }
     } else {
-      console.error(`[SMS] 发送失败 ${phone}:`, result.Message)
+      console.error(`[SMS] 发送失败 ${phone}: ${result.Code} - ${result.Message}`)
       return { success: false, message: result.Message || '发送失败' }
     }
   } catch (error: any) {
