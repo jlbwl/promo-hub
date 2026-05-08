@@ -1,6 +1,4 @@
-import Dysmsapi20170525, * as Dysmsapi20170525Module from '@alicloud/dysmsapi20170525'
-import * as OpenApi from '@alicloud/openapi-client'
-import * as Util from '@alicloud/tea-util'
+import crypto from 'crypto'
 
 const SMS_CONFIG = {
   accessKeyId: process.env.ALIBABA_CLOUD_ACCESS_KEY_ID || '',
@@ -9,18 +7,11 @@ const SMS_CONFIG = {
   templateCode: process.env.ALIBABA_CLOUD_SMS_TEMPLATE_CODE || 'SMS_333916680',
 }
 
-let smsClient: Dysmsapi20170525 | null = null
-
-function getSmsClient(): Dysmsapi20170525 {
-  if (!smsClient) {
-    const config = new OpenApi.Config({
-      accessKeyId: SMS_CONFIG.accessKeyId,
-      accessKeySecret: SMS_CONFIG.accessKeySecret,
-    })
-    config.endpoint = 'dysmsapi.aliyuncs.com'
-    smsClient = new Dysmsapi20170525(config)
-  }
-  return smsClient
+function sign(accessKeySecret: string, parameters: Record<string, string>): string {
+  const sorted = Object.keys(parameters).sort()
+  const stringToSign = sorted.map(k => `${k}=${encodeURIComponent(parameters[k])}`).join('&')
+  const hmac = crypto.createHmac('sha1', accessKeySecret + '&')
+  return hmac.update(stringToSign).digest('base64')
 }
 
 export async function sendSmsCode(phone: string, code: string): Promise<{ success: boolean; message: string }> {
@@ -30,24 +21,36 @@ export async function sendSmsCode(phone: string, code: string): Promise<{ succes
   }
 
   try {
-    const sendRequest = new Dysmsapi20170525Module.SendSmsRequest({
-      phoneNumbers: phone,
-      signName: SMS_CONFIG.signName,
-      templateCode: SMS_CONFIG.templateCode,
-      templateParam: JSON.stringify({ code }),
-    })
+    const timestamp = new Date().toISOString().replace(/[:\-]|\.\d{3}/g, '')
+    const parameters: Record<string, string> = {
+      AccessKeyId: SMS_CONFIG.accessKeyId,
+      Action: 'SendSms',
+      Format: 'JSON',
+      SignatureMethod: 'HMAC-SHA1',
+      SignatureNonce: `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+      SignatureVersion: '1.0',
+      TemplateCode: SMS_CONFIG.templateCode,
+      Timestamp: timestamp,
+      Version: '2017-05-25',
+      PhoneNumbers: phone,
+      SignName: SMS_CONFIG.signName,
+      TemplateParam: JSON.stringify({ code }),
+    }
 
-    const runtime = new Util.RuntimeOptions({})
-    const client = getSmsClient()
+    const signature = sign(SMS_CONFIG.accessKeySecret, parameters)
+    const sortedParams = Object.keys(parameters).sort()
+    const queryString = sortedParams.map(k => `${k}=${encodeURIComponent(parameters[k])}`).join('&')
+    const url = `https://dysmsapi.aliyuncs.com/?Signature=${encodeURIComponent(signature)}&${queryString}`
 
-    const result = await client.sendSmsWithOptions(sendRequest, runtime)
+    const response = await fetch(url)
+    const result = await response.json()
 
-    if (result.body?.code === 'OK') {
+    if (result.Code === 'OK') {
       console.log(`[SMS] 发送成功 ${phone}: ${code}`)
       return { success: true, message: '发送成功' }
     } else {
-      console.error(`[SMS] 发送失败 ${phone}:`, result.body?.message)
-      return { success: false, message: result.body?.message || '发送失败' }
+      console.error(`[SMS] 发送失败 ${phone}:`, result.Message)
+      return { success: false, message: result.Message || '发送失败' }
     }
   } catch (error: any) {
     console.error(`[SMS] 发送异常 ${phone}:`, error.message)
