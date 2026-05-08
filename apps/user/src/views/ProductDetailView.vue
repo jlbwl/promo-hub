@@ -84,17 +84,10 @@
     <!-- 底部操作栏 -->
     <van-action-bar>
       <van-action-bar-icon icon="chat-o" text="客服" />
-      <van-action-bar-icon icon="star-o" text="收藏" />
-      <van-action-bar-icon icon="share-o" text="分享" @click="handleShare" />
       <van-action-bar-button
         type="primary"
         text="去做单"
         @click="handleGoOrder"
-      />
-      <van-action-bar-button
-        color="#ff976a"
-        text="推广赚钱"
-        @click="handlePromote"
       />
     </van-action-bar>
   </div>
