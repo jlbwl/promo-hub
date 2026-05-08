@@ -440,6 +440,39 @@ app.get('/api/managers/:id/verify', async (req, res) => {
   res.json({ code: 0, message: 'ok', data: { valid: true } })
 })
 
+// 经理：通过短信验证码修改密码
+app.post('/api/managers/password/set', async (req, res) => {
+  const { phone, code, password } = req.body
+  if (!phone || !code || !password) {
+    res.json({ code: 400, message: '缺少参数', data: null })
+    return
+  }
+  if (password.length < 6) {
+    res.json({ code: 400, message: '密码长度至少6位', data: null })
+    return
+  }
+
+  const record = smsCodes.get(phone)
+  if (!record || Date.now() > record.expiresAt || record.code !== code) {
+    res.json({ code: 400, message: '验证码错误或已过期', data: null })
+    return
+  }
+  smsCodes.delete(phone)
+
+  let managers = await readManagers()
+  const index = managers.findIndex((m: any) => m.phone === phone)
+  if (index === -1) {
+    res.json({ code: 404, message: '经理不存在', data: null })
+    return
+  }
+
+  managers[index].password = password
+  managers[index].updatedAt = new Date().toISOString()
+  await writeManagers(managers)
+
+  res.json({ code: 0, message: '密码修改成功', data: null })
+})
+
 // ============ 用户接口（普通用户，非经理） ============
 
 // 用户注册

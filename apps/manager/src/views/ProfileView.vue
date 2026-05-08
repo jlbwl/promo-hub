@@ -53,13 +53,23 @@
             label-width="100px"
             style="max-width: 400px;"
           >
-            <el-form-item label="当前密码" prop="oldPassword">
-              <el-input
-                v-model="passwordForm.oldPassword"
-                type="password"
-                placeholder="请输入当前密码"
-                show-password
-              />
+            <el-form-item label="验证码" prop="code">
+              <div style="display: flex; gap: 12px;">
+                <el-input
+                  v-model="passwordForm.code"
+                  placeholder="请输入验证码"
+                  maxlength="6"
+                  style="flex: 1;"
+                />
+                <el-button
+                  type="primary"
+                  :disabled="smsCooldown > 0"
+                  @click="handleSendSms"
+                  style="min-width: 120px;"
+                >
+                  {{ smsCooldown > 0 ? `${smsCooldown}s` : '获取验证码' }}
+                </el-button>
+              </div>
             </el-form-item>
             <el-form-item label="新密码" prop="newPassword">
               <el-input
@@ -91,14 +101,19 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, onUnmounted } from 'vue'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
+import { post } from '@promo/shared/utils/request'
 
 // 密码表单引用
 const passwordFormRef = ref<FormInstance>()
 
 // 密码保存状态
 const passwordSaving = ref(false)
+
+// 短信验证码倒计时
+const smsCooldown = ref(0)
+let smsTimer: ReturnType<typeof setInterval> | null = null
 
 // 经理信息（模拟数据，实际从接口获取）
 const managerInfo = reactive({
@@ -111,7 +126,7 @@ const managerInfo = reactive({
 
 // 修改密码表单
 const passwordForm = reactive({
-  oldPassword: '',
+  code: '',
   newPassword: '',
   confirmPassword: ''
 })
@@ -127,8 +142,9 @@ const validateConfirmPassword = (_rule: any, value: string, callback: Function) 
 
 // 密码表单校验规则
 const passwordRules: FormRules = {
-  oldPassword: [
-    { required: true, message: '请输入当前密码', trigger: 'blur' }
+  code: [
+    { required: true, message: '请输入验证码', trigger: 'blur' },
+    { len: 6, message: '验证码为6位数字', trigger: 'blur' }
   ],
   newPassword: [
     { required: true, message: '请输入新密码', trigger: 'blur' },
@@ -139,6 +155,10 @@ const passwordRules: FormRules = {
     { validator: validateConfirmPassword, trigger: 'blur' }
   ]
 }
+
+onUnmounted(() => {
+  if (smsTimer) clearInterval(smsTimer)
+})
 
 // 获取经理信息
 const fetchManagerInfo = async () => {
@@ -164,6 +184,24 @@ const fetchManagerInfo = async () => {
   }
 }
 
+// 发送短信验证码
+const handleSendSms = async () => {
+  if (!managerInfo.phone) return ElMessage.error('获取手机号失败')
+  if (!/^1[3-9]\d{9}$/.test(managerInfo.phone)) return ElMessage.error('手机号格式不正确')
+
+  try {
+    await post('/managers/sms/send', { phone: managerInfo.phone })
+    ElMessage.success('验证码已发送')
+    smsCooldown.value = 60
+    smsTimer = setInterval(() => {
+      smsCooldown.value--
+      if (smsCooldown.value <= 0 && smsTimer) { clearInterval(smsTimer); smsTimer = null }
+    }, 1000)
+  } catch (e: any) {
+    ElMessage.error(e.message || '发送失败')
+  }
+}
+
 // 修改密码
 const handleChangePassword = async () => {
   if (!passwordFormRef.value) return
@@ -173,18 +211,22 @@ const handleChangePassword = async () => {
 
     passwordSaving.value = true
 
-    // 模拟接口请求
-    await new Promise(resolve => setTimeout(resolve, 1000))
+    await post('/managers/password/set', {
+      phone: managerInfo.phone,
+      code: passwordForm.code,
+      password: passwordForm.newPassword
+    })
 
     ElMessage.success('密码修改成功，请重新登录')
 
     // 清除登录凭证，跳转到登录页
     localStorage.removeItem('manager_token')
+    localStorage.removeItem('manager_info')
     setTimeout(() => {
       window.location.href = '/login'
     }, 1500)
-  } catch (error) {
-    console.error('密码修改失败:', error)
+  } catch (error: any) {
+    ElMessage.error(error.message || '密码修改失败')
   } finally {
     passwordSaving.value = false
   }
