@@ -98,7 +98,7 @@
     />
 
     <!-- 设置密码弹窗 -->
-    <van-popup v-model:show="passwordDialogVisible" position="center" :style="{ width: '320px' }">
+    <van-popup v-model:show="passwordDialogVisible" position="center" :style="{ width: '90%', maxWidth: '360px' }">
       <div class="password-dialog">
         <div class="dialog-header">
           <h3>设置登录密码</h3>
@@ -106,6 +106,7 @@
         </div>
         <div class="dialog-content">
           <van-cell-group inset>
+            <van-cell title="当前手机号" :value="userInfo.phone" />
             <van-field
               v-model="passwordForm.code"
               type="digit"
