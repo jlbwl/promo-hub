@@ -208,6 +208,25 @@
           </div>
         </el-form-item>
 
+        <!-- 用户信息收集 -->
+        <el-form-item label="用户信息">
+          <div style="width: 100%;">
+            <div style="display: flex; gap: 24px; align-items: center;">
+              <el-checkbox v-model="form.requireName">
+                <span>需要用户填写姓名</span>
+                <span style="color: #f56c6c; margin-left: 4px;">*</span>
+              </el-checkbox>
+              <el-checkbox v-model="form.requirePhone">
+                <span>需要用户填写手机号</span>
+                <span style="color: #f56c6c; margin-left: 4px;">*</span>
+              </el-checkbox>
+            </div>
+            <div style="font-size: 12px; color: #909399; margin-top: 8px;">
+              用户端去做单前会显示信息填写表单
+            </div>
+          </div>
+        </el-form-item>
+
         <!-- 操作按钮 -->
         <el-form-item>
           <el-button type="primary" :loading="saving" @click="handleSave">
@@ -253,7 +272,9 @@ const form = reactive({
   stock: 0,
   tags: [] as string[],
   cover: '',
-  options: [] as { label: string; limit: string; redirectUrl: string; _qrLoading?: boolean }[]
+  options: [] as { label: string; limit: string; redirectUrl: string; _qrLoading?: boolean }[],
+  requireName: false,
+  requirePhone: false
 })
 
 // 表单校验规则
@@ -414,6 +435,8 @@ const handleSave = async () => {
       status: 'published',
       managerId,
       publishedBy: localStorage.getItem('manager_token') || 'manager',
+      requireName: form.requireName,
+      requirePhone: form.requirePhone
     }
 
     if (isEdit.value) {
@@ -449,6 +472,8 @@ const fetchProductDetail = async () => {
         tags: p.tags || [],
         cover: p.coverImage || '',
         options: p.options || [],
+        requireName: p.requireName || false,
+        requirePhone: p.requirePhone || false
       })
     }
   } catch (error: any) {

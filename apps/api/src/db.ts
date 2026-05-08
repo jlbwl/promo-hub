@@ -63,10 +63,20 @@ export async function initDatabase(): Promise<void> {
       publishedAt DATETIME DEFAULT NULL,
       offlineReason TEXT DEFAULT NULL,
       offlineAt DATETIME DEFAULT NULL,
+      requireName TINYINT(1) NOT NULL DEFAULT 0,
+      requirePhone TINYINT(1) NOT NULL DEFAULT 0,
       createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
       updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `)
+
+  // 新增 requireName 和 requirePhone 列（如果不存在）
+  try {
+    await pool.execute('ALTER TABLE products ADD COLUMN requireName TINYINT(1) NOT NULL DEFAULT 0 AFTER offlineAt')
+  } catch (e) { /* 列可能已存在，忽略错误 */ }
+  try {
+    await pool.execute('ALTER TABLE products ADD COLUMN requirePhone TINYINT(1) NOT NULL DEFAULT 0 AFTER requireName')
+  } catch (e) { /* 列可能已存在，忽略错误 */ }
 
   // 推广经理表
   await pool.execute(`
@@ -110,6 +120,8 @@ export async function initDatabase(): Promise<void> {
       productPrice DECIMAL(10,2) DEFAULT 0,
       optionLabel VARCHAR(500) DEFAULT '',
       redirectUrl VARCHAR(2000) DEFAULT '',
+      userName VARCHAR(200) DEFAULT '',
+      userPhone VARCHAR(50) DEFAULT '',
       status VARCHAR(50) NOT NULL DEFAULT 'pending',
       reviewedAt DATETIME DEFAULT NULL,
       rejectReason TEXT DEFAULT NULL,
@@ -121,6 +133,14 @@ export async function initDatabase(): Promise<void> {
       createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `)
+
+  // 新增 userName 和 userPhone 列（如果不存在）
+  try {
+    await pool.execute('ALTER TABLE orders ADD COLUMN userName VARCHAR(200) DEFAULT "" AFTER redirectUrl')
+  } catch (e) { /* 列可能已存在，忽略错误 */ }
+  try {
+    await pool.execute('ALTER TABLE orders ADD COLUMN userPhone VARCHAR(50) DEFAULT "" AFTER userName')
+  } catch (e) { /* 列可能已存在，忽略错误 */ }
 
   // 佣金表
   await pool.execute(`

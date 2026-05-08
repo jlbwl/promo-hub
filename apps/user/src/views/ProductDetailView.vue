@@ -90,6 +90,45 @@
         @click="handleGoOrder"
       />
     </van-action-bar>
+
+    <!-- 用户信息填写弹窗 -->
+    <van-popup v-model:show="infoFormVisible" position="bottom" :style="{ height: 'auto' }">
+      <div class="info-form-container">
+        <div class="info-form-header">
+          <span class="info-form-title">请填写您的信息</span>
+          <van-icon name="cross" @click="infoFormVisible = false" />
+        </div>
+        <van-form @submit="submitInfoForm">
+          <van-cell-group inset>
+            <van-field
+              v-if="product.requireName"
+              v-model="infoForm.name"
+              name="name"
+              label="姓名"
+              placeholder="请输入姓名"
+              :rules="[{ required: true, message: '请填写姓名' }]"
+            />
+            <van-field
+              v-if="product.requirePhone"
+              v-model="infoForm.phone"
+              name="phone"
+              label="手机号"
+              type="tel"
+              placeholder="请输入手机号"
+              :rules="[
+                { required: true, message: '请填写手机号' },
+                { pattern: /^1[3-9]\d{9}$/, message: '请输入正确的手机号' }
+              ]"
+            />
+          </van-cell-group>
+          <div class="info-form-footer">
+            <van-button type="primary" native-type="submit" block>
+              确认提交并做单
+            </van-button>
+          </div>
+        </van-form>
+      </div>
+    </van-popup>
   </div>
 </template>
 
@@ -119,7 +158,16 @@ const product = reactive({
   rate: '-',
   images: [] as string[],
   description: '',
-  options: [] as { label: string; limit: string; redirectUrl: string }[]
+  options: [] as { label: string; limit: string; redirectUrl: string }[],
+  requireName: false,
+  requirePhone: false
+})
+
+// 信息填写弹窗
+const infoFormVisible = ref(false)
+const infoForm = reactive({
+  name: '',
+  phone: ''
 })
 
 // 加载产品详情
@@ -136,6 +184,8 @@ const fetchProductDetail = async () => {
       product.images = p.images && p.images.length > 0 ? p.images : (p.coverImage ? [p.coverImage] : [])
       product.description = p.description || ''
       product.options = p.options || []
+      product.requireName = p.requireName || false
+      product.requirePhone = p.requirePhone || false
     }
   } catch (error) {
     console.error('获取产品详情失败:', error)
@@ -183,6 +233,29 @@ const handleGoOrder = () => {
     return
   }
 
+  // 检查是否需要收集用户信息
+  if (product.requireName || product.requirePhone) {
+    infoForm.name = ''
+    infoForm.phone = ''
+    infoFormVisible.value = true
+    return
+  }
+
+  // 直接做单（不需要收集信息）
+  submitGoOrder({})
+}
+
+// 提交信息表单
+const submitInfoForm = () => {
+  submitGoOrder({
+    userName: product.requireName ? infoForm.name : undefined,
+    userPhone: product.requirePhone ? infoForm.phone : undefined
+  })
+  infoFormVisible.value = false
+}
+
+// 执行做单
+const submitGoOrder = (userInfo: any) => {
   // 获取选中的选项
   const chosenOption = product.options.length > 0 ? product.options[selectedOption.value] : null
 
@@ -191,7 +264,7 @@ const handleGoOrder = () => {
     try { return JSON.parse(localStorage.getItem('user_info') || '{}').id || '' } catch { return '' }
   })()
 
-  const payload: any = { productId: product.id, userId }
+  const payload: any = { productId: product.id, userId, ...userInfo }
   if (chosenOption) {
     payload.optionLabel = chosenOption.label
     payload.redirectUrl = chosenOption.redirectUrl || ''
@@ -452,6 +525,31 @@ const fallbackCopy = (text: string) => {
 
   :deep(li) {
     margin-bottom: 4px;
+  }
+}
+
+// 信息填写弹窗
+.info-form-container {
+  background: #fff;
+  border-radius: 16px 16px 0 0;
+  padding-bottom: 24px;
+
+  .info-form-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid #f0f0f0;
+
+    .info-form-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: #323233;
+    }
+  }
+
+  .info-form-footer {
+    padding: 16px 20px 0;
   }
 }
 </style>

@@ -755,7 +755,7 @@ app.put('/api/users/:id/status', async (req, res) => {
 
 // 做单（扣减库存）
 app.post('/api/orders', async (req, res) => {
-  const { productId, userId, optionLabel, redirectUrl } = req.body
+  const { productId, userId, optionLabel, redirectUrl, userName, userPhone } = req.body
   if (!productId) {
     res.json({ code: 400, message: '缺少产品ID', data: null })
     return
@@ -798,6 +798,8 @@ app.post('/api/orders', async (req, res) => {
     productPrice: product.price,
     optionLabel: optionLabel || '',
     redirectUrl: redirectUrl || '',
+    userName: userName || '',
+    userPhone: userPhone || '',
     status: 'pending',
     createdAt: new Date().toISOString(),
   }
