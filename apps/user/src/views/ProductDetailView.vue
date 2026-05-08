@@ -271,12 +271,10 @@ const submitGoOrder = (userInfo: any) => {
   }
 
   post('/orders', payload).then(() => {
-    // 刷新产品信息（更新库存）
     fetchProductDetail()
-    // 如果有跳转链接，做单成功后直接跳转，不显示弹窗
     if (chosenOption?.redirectUrl) {
       const url = chosenOption.redirectUrl
-      window.open(url, '_blank')
+      window.location.href = url
     }
   }).catch((error: any) => {
     showToast(error.message || '做单失败')
