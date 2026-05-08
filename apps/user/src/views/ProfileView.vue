@@ -98,54 +98,55 @@
     />
 
     <!-- 设置密码弹窗 -->
-    <van-dialog
-      v-model:show="passwordDialogVisible"
-      title="设置登录密码"
-      message="为了账户安全，请设置登录密码"
-      show-cancel-button
-      confirm-button-text="确认设置"
-      cancel-button-text="稍后设置"
-      confirm-button-color="#1989fa"
-      @confirm="handleSetPassword"
-    >
-      <template #message>
-        <van-cell-group inset style="margin: 16px 0 0;">
-          <van-field
-            v-model="passwordForm.code"
-            type="digit"
-            label="验证码"
-            placeholder="请输入验证码"
-            maxlength="6"
-            clearable
-          >
-            <template #button>
-              <van-button
-                size="small"
-                type="primary"
-                :disabled="smsCooldown > 0"
-                :text="smsCooldown > 0 ? `${smsCooldown}s` : '获取验证码'"
-                @click="handleSendPasswordSms"
-                style="min-width: 90px;"
-              />
-            </template>
-          </van-field>
-          <van-field
-            v-model="passwordForm.password"
-            type="password"
-            label="新密码"
-            placeholder="请设置6位以上密码"
-            clearable
-          />
-          <van-field
-            v-model="passwordForm.confirmPassword"
-            type="password"
-            label="确认密码"
-            placeholder="请再次输入密码"
-            clearable
-          />
-        </van-cell-group>
-      </template>
-    </van-dialog>
+    <van-popup v-model:show="passwordDialogVisible" position="center" :style="{ width: '320px' }">
+      <div class="password-dialog">
+        <div class="dialog-header">
+          <h3>设置登录密码</h3>
+          <van-icon name="cross" @click="passwordDialogVisible = false" />
+        </div>
+        <div class="dialog-content">
+          <van-cell-group inset>
+            <van-field
+              v-model="passwordForm.code"
+              type="digit"
+              label="验证码"
+              placeholder="请输入验证码"
+              maxlength="6"
+              clearable
+            >
+              <template #button>
+                <van-button
+                  size="small"
+                  type="primary"
+                  :disabled="smsCooldown > 0"
+                  :text="smsCooldown > 0 ? `${smsCooldown}s` : '获取验证码'"
+                  @click="handleSendPasswordSms"
+                  style="min-width: 90px;"
+                />
+              </template>
+            </van-field>
+            <van-field
+              v-model="passwordForm.password"
+              type="password"
+              label="新密码"
+              placeholder="请设置6位以上密码"
+              clearable
+            />
+            <van-field
+              v-model="passwordForm.confirmPassword"
+              type="password"
+              label="确认密码"
+              placeholder="请再次输入密码"
+              clearable
+            />
+          </van-cell-group>
+        </div>
+        <div class="dialog-footer">
+          <van-button plain type="default" block @click="passwordDialogVisible = false">稍后设置</van-button>
+          <van-button type="primary" block @click="handleSetPassword">确认设置</van-button>
+        </div>
+      </div>
+    </van-popup>
 
     <!-- 退出登录按钮 -->
     <div class="logout-wrap">
@@ -397,5 +398,48 @@ const doLogout = () => {
 // 退出登录
 .logout-wrap {
   margin: 24px 16px 0;
+}
+
+// 设置密码弹窗
+.password-dialog {
+  background: #fff;
+  border-radius: 16px;
+  overflow: hidden;
+
+  .dialog-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid #f0f0f0;
+
+    h3 {
+      font-size: 16px;
+      font-weight: 600;
+      color: #323233;
+      margin: 0;
+    }
+
+    :deep(.van-icon) {
+      font-size: 20px;
+      color: #969799;
+      cursor: pointer;
+    }
+  }
+
+  .dialog-content {
+    padding: 16px 20px;
+  }
+
+  .dialog-footer {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 0 16px 16px;
+
+    :deep(.van-button) {
+      border-radius: 8px;
+    }
+  }
 }
 </style>
