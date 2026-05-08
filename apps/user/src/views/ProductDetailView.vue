@@ -282,62 +282,6 @@ const submitGoOrder = (userInfo: any) => {
     showToast(error.message || '做单失败')
   })
 }
-
-// 判断链接是否需要在微信中打开
-const isWeChatRequired = (url: string) => {
-  if (!url) return false
-  // 常见的银行/金融类微信专属域名
-  const weChatOnlyDomains = [
-    'abchina.com',       // 农业银行
-    'icbc.com.cn',       // 工商银行
-    'ccb.com',           // 建设银行
-    'boc.cn',            // 中国银行
-    'bankcomm.com',      // 交通银行
-    'psbc.com',          // 邮储银行
-    'cmbchina.com',      // 招商银行
-    '95516.com',         // 银联
-    'alipay.com',        // 支付宝（部分场景）
-    'mmsp.',             // 银行移动服务平台
-  ]
-  // 微信协议链接
-  if (url.startsWith('weixin://') || url.startsWith('wxp://')) return true
-  // 检查域名
-  try {
-    const hostname = new URL(url).hostname
-    return weChatOnlyDomains.some(d => hostname.includes(d))
-  } catch {
-    return false
-  }
-}
-
-// 复制到剪贴板
-const copyToClipboard = (text: string) => {
-  if (navigator.clipboard && navigator.clipboard.writeText) {
-    navigator.clipboard.writeText(text).then(() => {
-      showToast('链接已复制，请到微信中打开')
-    }).catch(() => {
-      fallbackCopy(text)
-    })
-  } else {
-    fallbackCopy(text)
-  }
-}
-
-const fallbackCopy = (text: string) => {
-  const textarea = document.createElement('textarea')
-  textarea.value = text
-  textarea.style.position = 'fixed'
-  textarea.style.opacity = '0'
-  document.body.appendChild(textarea)
-  textarea.select()
-  try {
-    document.execCommand('copy')
-    showToast('链接已复制，请到微信中打开')
-  } catch {
-    showToast('复制失败，请手动复制链接')
-  }
-  document.body.removeChild(textarea)
-}
 </script>
 
 <style scoped lang="scss">
