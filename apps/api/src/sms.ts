@@ -9,9 +9,26 @@ const SMS_CONFIG = {
 
 function sign(accessKeySecret: string, parameters: Record<string, string>): string {
   const sorted = Object.keys(parameters).sort()
-  const stringToSign = sorted.map(k => `${k}=${encodeURIComponent(parameters[k])}`).join('&')
+  let stringToSign = 'GET&%2F&'
+  const encodedParams = sorted.map(k => {
+    const encodedKey = encodeURIComponent(k).replace(/\+/g, '%20').replace(/\*/g, '%2A').replace(/%7E/g, '~')
+    const encodedValue = encodeURIComponent(parameters[k]).replace(/\+/g, '%20').replace(/\*/g, '%2A').replace(/%7E/g, '~')
+    return `${encodedKey}%3D${encodedValue}`
+  }).join('%26')
+  stringToSign += encodedParams
   const hmac = crypto.createHmac('sha1', accessKeySecret + '&')
   return hmac.update(stringToSign).digest('base64')
+}
+
+function getTimestamp(): string {
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = String(now.getMonth() + 1).padStart(2, '0')
+  const day = String(now.getDate()).padStart(2, '0')
+  const hours = String(now.getHours()).padStart(2, '0')
+  const minutes = String(now.getMinutes()).padStart(2, '0')
+  const seconds = String(now.getSeconds()).padStart(2, '0')
+  return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}Z`
 }
 
 export async function sendSmsCode(phone: string, code: string): Promise<{ success: boolean; message: string }> {
@@ -21,7 +38,6 @@ export async function sendSmsCode(phone: string, code: string): Promise<{ succes
   }
 
   try {
-    const timestamp = new Date().toISOString().replace(/[:\-]|\.\d{3}/g, '')
     const parameters: Record<string, string> = {
       AccessKeyId: SMS_CONFIG.accessKeyId,
       Action: 'SendSms',
@@ -30,7 +46,7 @@ export async function sendSmsCode(phone: string, code: string): Promise<{ succes
       SignatureNonce: `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
       SignatureVersion: '1.0',
       TemplateCode: SMS_CONFIG.templateCode,
-      Timestamp: timestamp,
+      Timestamp: getTimestamp(),
       Version: '2017-05-25',
       PhoneNumbers: phone,
       SignName: SMS_CONFIG.signName,

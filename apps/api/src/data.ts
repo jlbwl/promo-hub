@@ -80,19 +80,17 @@ export async function readProduct(id: string): Promise<any> {
 }
 
 export async function writeProducts(products: any[]): Promise<void> {
-  // 全量写入（兼容旧代码的 writeProducts 调用）
-  // 注意：新代码应使用 insertProduct / updateProduct
   for (const p of products) {
     const existing = await queryOne('SELECT id FROM products WHERE id = ?', [p.id])
     if (existing) {
       await query(
         `UPDATE products SET title=?, description=?, coverImage=?, images=?, price=?, originalPrice=?, commission=?, commissionRate=?, category=?, tags=?, status=?, managerId=?, stock=?, options=?, publishedBy=?, publishedAt=?, offlineReason=?, offlineAt=?, updatedAt=NOW() WHERE id=?`,
-        [p.title || '', p.description || '', p.coverImage || '', serialize(p.images), p.price || 0, p.originalPrice || 0, p.commission || 0, p.commissionRate || 0, p.category || '', serialize(p.tags), p.status || 'draft', p.managerId || '', p.stock || 0, serialize(p.options), p.publishedBy || '', p.publishedAt || null, p.offlineReason || '', p.offlineAt || null, p.id]
+        [p.title || '', p.description || '', p.coverImage || '', serialize(p.images), p.price || 0, p.originalPrice || 0, p.commission || 0, p.commissionRate || 0, p.category || '', serialize(p.tags), p.status || 'draft', p.managerId || '', p.stock || 0, serialize(p.options), p.publishedBy || '', formatDateTime(p.publishedAt), p.offlineReason || '', formatDateTime(p.offlineAt), p.id]
       )
     } else {
       await query(
         `INSERT INTO products (id, title, description, coverImage, images, price, originalPrice, commission, commissionRate, category, tags, status, managerId, stock, options, publishedBy, publishedAt, offlineReason, offlineAt, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
-        [p.id, p.title || '', p.description || '', p.coverImage || '', serialize(p.images), p.price || 0, p.originalPrice || 0, p.commission || 0, p.commissionRate || 0, p.category || '', serialize(p.tags), p.status || 'draft', p.managerId || '', p.stock || 0, serialize(p.options), p.publishedBy || '', p.publishedAt || null, p.offlineReason || '', p.offlineAt || null]
+        [p.id, p.title || '', p.description || '', p.coverImage || '', serialize(p.images), p.price || 0, p.originalPrice || 0, p.commission || 0, p.commissionRate || 0, p.category || '', serialize(p.tags), p.status || 'draft', p.managerId || '', p.stock || 0, serialize(p.options), p.publishedBy || '', formatDateTime(p.publishedAt), p.offlineReason || '', formatDateTime(p.offlineAt)]
       )
     }
   }
