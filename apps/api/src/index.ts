@@ -193,11 +193,11 @@ app.put('/api/products/:id', async (req, res) => {
     }
   }
 
-  const now = new Date().toISOString()
+  const now = new Date()
+  const nowStr = now.toISOString().replace('T', ' ').substring(0, 19)
   const updatedFields: Record<string, any> = {
     ...req.body,
-    publishedAt: req.body.status === 'published' && !existing.publishedAt ? now : existing.publishedAt,
-    updatedAt: now,
+    publishedAt: req.body.status === 'published' && !existing.publishedAt ? nowStr : existing.publishedAt,
   }
   await updateProduct(req.params.id, updatedFields)
 
