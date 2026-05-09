@@ -24,7 +24,7 @@
             type="password"
             label="密码"
             placeholder="请输入密码"
-            :rules="[{ required: true, message: '请输入密码' }, { minlength: 6, message: '密码至少6位' }]"
+            :rules="[{ required: true, message: '请输入密码' }, { pattern: /.{6,}/, message: '密码至少6位' }]"
           />
         </van-cell-group>
 
@@ -67,7 +67,7 @@ const handleSubmit = async () => {
   loading.value = true
   
   try {
-    const res = await post('/employees/login', {
+    const res: any = await post('/employees/login', {
       phone: form.phone,
       password: form.password
     })

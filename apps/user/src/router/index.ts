@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
+import { showToast } from 'vant'
 
 // 获取当前登录类型
 const getLoginType = (): 'user' | 'employee' | null => {
@@ -111,8 +112,5 @@ router.beforeEach((to, _from, next) => {
 
   next()
 })
-
-// 引入showToast
-import { showToast } from 'vant'
 
 export default router

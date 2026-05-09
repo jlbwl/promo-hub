@@ -249,7 +249,7 @@
 import { reactive, ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { showDialog, showToast } from 'vant'
-import { post, get } from '@promo/shared/utils/request'
+import { get, post } from '@promo/shared/utils/request'
 
 // 路由实例
 const router = useRouter()
@@ -420,7 +420,7 @@ const handleCreateEmployee = async () => {
   }
 
   try {
-    const res = await post('/employees', {
+    const res: any = await post('/employees', {
       userId: userInfo.id,
       phone: employeeForm.phone,
       password: employeeForm.password,
@@ -456,11 +456,11 @@ const loadEmployees = async () => {
   loadingEmployees.value = true
   
   try {
-    const res = await get(`/employees?userId=${userInfo.id}`)
+    const res: any = await get(`/employees?userId=${userInfo.id}`)
     
     if (res.code === 0) {
-      employees.value = res.data
-      employeeCount.value = res.data.length
+      employees.value = res.data as any[]
+      employeeCount.value = (res.data as any[]).length
     }
   } catch (e: any) {
     showToast(e.message || '获取员工列表失败')
