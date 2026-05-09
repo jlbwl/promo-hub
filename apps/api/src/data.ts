@@ -57,6 +57,8 @@ export async function readProducts(): Promise<any[]> {
     commission: Number(row.commission) || 0,
     commissionRate: Number(row.commissionRate) || 0,
     stock: Number(row.stock) || 0,
+    requireName: Boolean(Number(row.requireName)),
+    requirePhone: Boolean(Number(row.requirePhone)),
     images: deserialize(row.images),
     tags: deserialize(row.tags),
     options: deserialize(row.options),
