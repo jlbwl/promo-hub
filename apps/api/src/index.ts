@@ -811,37 +811,76 @@ app.put('/api/users/:id/team-name', async (req, res) => {
   // 先查用户是否存在
   let users = await readUsers()
   const usrIdx = users.findIndex((u: any) => u.id === userId)
-  if (usrIdx === -1) {
-    res.json({ code: 404, message: '用户不存在', data: null })
-    return
-  }
-
-  const oldTeamName = users[usrIdx].teamName
   
-  // 团队名称查重（排除当前用户）
-  if (users.find((u: any) => u.id !== userId && u.teamName === teamName)) {
-    res.json({ code: 409, message: '该团队名称已存在', data: null })
-    return
+  if (usrIdx !== -1) {
+    // 是普通用户
+    const oldTeamName = users[usrIdx].teamName
+    
+    // 团队名称查重（排除当前用户，同时检查用户表和经理表）
+    const managers = await readManagers()
+    if (users.find((u: any) => u.id !== userId && u.teamName === teamName) || 
+        managers.find((m: any) => m.teamName === teamName)) {
+      res.json({ code: 409, message: '该团队名称已存在', data: null })
+      return
+    }
+
+    // 更新用户团队名称
+    users[usrIdx].teamName = teamName
+    users[usrIdx].updatedAt = new Date().toISOString()
+    await writeUsers(users)
+
+    // 如果团队名称发生变更，同步更新该用户的历史订单
+    if (oldTeamName && oldTeamName !== teamName) {
+      let orders = await readOrders()
+      orders = orders.map((o: any) => {
+        if (o.userId === userId && o.teamName === oldTeamName) {
+          return { ...o, teamName, updatedAt: new Date().toISOString() }
+        }
+        return o
+      })
+      await writeOrders(orders)
+    }
+
+    res.json({ code: 0, message: '更新成功', data: null })
+  } else {
+    // 不是普通用户，检查是否是经理
+    let managers = await readManagers()
+    const mgrIdx = managers.findIndex((m: any) => m.id === userId)
+    
+    if (mgrIdx === -1) {
+      res.json({ code: 404, message: '用户不存在', data: null })
+      return
+    }
+
+    // 是经理
+    const oldTeamName = managers[mgrIdx].teamName
+    
+    // 团队名称查重（排除当前经理，同时检查用户表和经理表）
+    if (managers.find((m: any) => m.id !== userId && m.teamName === teamName) || 
+        users.find((u: any) => u.teamName === teamName)) {
+      res.json({ code: 409, message: '该团队名称已存在', data: null })
+      return
+    }
+
+    // 更新经理团队名称
+    managers[mgrIdx].teamName = teamName
+    managers[mgrIdx].updatedAt = new Date().toISOString()
+    await writeManagers(managers)
+
+    // 如果团队名称发生变更，同步更新该经理的历史订单
+    if (oldTeamName && oldTeamName !== teamName) {
+      let orders = await readOrders()
+      orders = orders.map((o: any) => {
+        if (o.managerId === userId && o.teamName === oldTeamName) {
+          return { ...o, teamName, updatedAt: new Date().toISOString() }
+        }
+        return o
+      })
+      await writeOrders(orders)
+    }
+
+    res.json({ code: 0, message: '更新成功', data: null })
   }
-
-  // 更新用户团队名称
-  users[usrIdx].teamName = teamName
-  users[usrIdx].updatedAt = new Date().toISOString()
-  await writeUsers(users)
-
-  // 如果团队名称发生变更，同步更新该用户的历史订单
-  if (oldTeamName && oldTeamName !== teamName) {
-    let orders = await readOrders()
-    orders = orders.map((o: any) => {
-      if (o.userId === userId && o.teamName === oldTeamName) {
-        return { ...o, teamName, updatedAt: new Date().toISOString() }
-      }
-      return o
-    })
-    await writeOrders(orders)
-  }
-
-  res.json({ code: 0, message: '更新成功', data: null })
 })
 
 // ============ 做单接口 ============
