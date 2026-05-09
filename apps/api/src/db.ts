@@ -113,6 +113,11 @@ export async function initDatabase(): Promise<void> {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `)
 
+  // 新增 teamName 列（如果不存在）
+  try {
+    await pool.execute('ALTER TABLE users ADD COLUMN teamName VARCHAR(200) DEFAULT "" AFTER nickname')
+  } catch (e) { /* 列可能已存在，忽略错误 */ }
+
   // 订单表
   await pool.execute(`
     CREATE TABLE IF NOT EXISTS orders (
