@@ -707,7 +707,7 @@ app.post('/api/users/password/set', async (req, res) => {
 
 // 管理后台：获取所有用户列表（渠道经理 + 普通用户）
 app.get('/api/users', async (req, res) => {
-  const { page = '1', pageSize = '10', role, status, keyword } = req.query
+  const { page = '1', pageSize = '10', role, status, keyword, teamName } = req.query
   const managers = await readManagers()
   const users = await readUsers()
 
@@ -717,6 +717,7 @@ app.get('/api/users', async (req, res) => {
       id: m.id,
       name: m.name,
       phone: m.phone,
+      teamName: m.teamName || '',
       role: 'manager',
       status: m.status === 'active' ? 1 : 0,
       createdAt: m.createdAt,
@@ -725,6 +726,7 @@ app.get('/api/users', async (req, res) => {
       id: u.id,
       name: u.nickname,
       phone: u.phone,
+      teamName: u.teamName || '',
       role: u.role,
       status: u.status === 'active' ? 1 : 0,
       createdAt: u.createdAt,
@@ -744,6 +746,12 @@ app.get('/api/users', async (req, res) => {
     const kw = String(keyword).toLowerCase()
     filtered = filtered.filter(
       (u: any) => (u.name || '').toLowerCase().includes(kw) || (u.phone || '').includes(kw)
+    )
+  }
+  if (teamName) {
+    const tn = String(teamName).toLowerCase()
+    filtered = filtered.filter(
+      (u: any) => (u.teamName || '').toLowerCase().includes(tn)
     )
   }
 
