@@ -50,6 +50,7 @@
                 />
               </template>
             </van-field>
+            <van-field v-model="smsForm.teamName" label="团队名称" placeholder="选填，用于区分不同团队" clearable />
           </van-cell-group>
           <div class="login-btn-wrap">
             <van-button type="primary" block round size="large" :loading="loading" loading-text="登录中..." @click="handleSmsLogin">登录 / 注册</van-button>
@@ -90,7 +91,7 @@ const showPassword = ref(false)
 const pwdForm = reactive({ phone: '', password: '' })
 
 // 短信登录
-const smsForm = reactive({ phone: '', code: '' })
+const smsForm = reactive({ phone: '', code: '', teamName: '' })
 const smsCooldown = ref(0)
 let smsTimer: ReturnType<typeof setInterval> | null = null
 
@@ -154,7 +155,7 @@ const handleSmsLogin = async () => {
 
   loading.value = true
   try {
-    const res = await post<any>('/users/sms/login', { phone: smsForm.phone, code: smsForm.code })
+    const res = await post<any>('/users/sms/login', { phone: smsForm.phone, code: smsForm.code, teamName: smsForm.teamName })
     if (res.data?.token) onLoginSuccess(res.data)
   } catch (e: any) {
     showToast(e.message || '登录失败')

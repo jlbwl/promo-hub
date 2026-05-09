@@ -19,6 +19,7 @@
         <div class="user-detail">
           <h3 class="user-name">{{ userInfo.nickname }}</h3>
           <p class="user-id">ID: {{ userInfo.id }}</p>
+          <p class="team-name" v-if="userInfo.teamName">团队: {{ userInfo.teamName }}</p>
         </div>
       </div>
     </div>
@@ -276,7 +277,8 @@ const userInfo = reactive({
   id: '',
   nickname: '加载中...',
   avatar: '',
-  phone: ''
+  phone: '',
+  teamName: ''
 })
 
 // 统计数据
@@ -313,6 +315,7 @@ onMounted(() => {
     userInfo.nickname = info.nickname || info.phone || '用户'
     userInfo.avatar = info.avatar || ''
     userInfo.phone = info.phone || ''
+    userInfo.teamName = info.teamName || ''
   } catch {
     userInfo.nickname = '用户'
   }

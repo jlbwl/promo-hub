@@ -206,13 +206,13 @@ export async function writeUsers(users: any[]): Promise<void> {
     const existing = await queryOne('SELECT id FROM users WHERE id = ?', [u.id])
     if (existing) {
       await query(
-        `UPDATE users SET phone=?, password=?, nickname=?, role=?, status=?, alipayUserId=?, wechatOpenId=?, loginMethods=?, updatedAt=NOW() WHERE id=?`,
-        [u.phone || '', u.password || '', u.nickname || '', u.role || 'user', u.status || 'active', u.alipayUserId || '', u.wechatOpenId || '', serialize(u.loginMethods), u.id]
+        `UPDATE users SET phone=?, password=?, nickname=?, teamName=?, role=?, status=?, alipayUserId=?, wechatOpenId=?, loginMethods=?, updatedAt=NOW() WHERE id=?`,
+        [u.phone || '', u.password || '', u.nickname || '', u.teamName || '', u.role || 'user', u.status || 'active', u.alipayUserId || '', u.wechatOpenId || '', serialize(u.loginMethods), u.id]
       )
     } else {
       await query(
-        `INSERT INTO users (id, phone, password, nickname, role, status, alipayUserId, wechatOpenId, loginMethods, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
-        [u.id, u.phone || '', u.password || '', u.nickname || '', u.role || 'user', u.status || 'active', u.alipayUserId || '', u.wechatOpenId || '', serialize(u.loginMethods)]
+        `INSERT INTO users (id, phone, password, nickname, teamName, role, status, alipayUserId, wechatOpenId, loginMethods, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
+        [u.id, u.phone || '', u.password || '', u.nickname || '', u.teamName || '', u.role || 'user', u.status || 'active', u.alipayUserId || '', u.wechatOpenId || '', serialize(u.loginMethods)]
       )
     }
   }
@@ -220,8 +220,8 @@ export async function writeUsers(users: any[]): Promise<void> {
 
 export async function insertUser(u: any): Promise<void> {
   await query(
-    `INSERT INTO users (id, phone, password, nickname, role, status, alipayUserId, wechatOpenId, loginMethods, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
-    [u.id, u.phone || '', u.password || '', u.nickname || '', u.role || 'user', u.status || 'active', u.alipayUserId || '', u.wechatOpenId || '', serialize(u.loginMethods)]
+    `INSERT INTO users (id, phone, password, nickname, teamName, role, status, alipayUserId, wechatOpenId, loginMethods, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
+    [u.id, u.phone || '', u.password || '', u.nickname || '', u.teamName || '', u.role || 'user', u.status || 'active', u.alipayUserId || '', u.wechatOpenId || '', serialize(u.loginMethods)]
   )
 }
 
@@ -258,13 +258,13 @@ export async function writeOrders(orders: any[]): Promise<void> {
     const existing = await queryOne('SELECT id FROM orders WHERE id = ?', [o.id])
     if (existing) {
       await query(
-        `UPDATE orders SET productId=?, userId=?, managerId=?, productName=?, productPrice=?, optionLabel=?, redirectUrl=?, userName=?, userPhone=?, status=?, reviewedAt=?, rejectReason=?, addedToPaymentAt=?, settledAt=?, transferredFromManager=?, transferredAt=?, managedBy=? WHERE id=?`,
-        [o.productId || '', o.userId || '', o.managerId || '', o.productName || '', o.productPrice || 0, o.optionLabel || '', o.redirectUrl || '', o.userName || '', o.userPhone || '', o.status || 'pending', o.reviewedAt || null, o.rejectReason || '', o.addedToPaymentAt || null, o.settledAt || null, o.transferredFromManager || '', o.transferredAt || null, o.managedBy || 'manager', o.id]
+        `UPDATE orders SET productId=?, userId=?, managerId=?, productName=?, productPrice=?, optionLabel=?, redirectUrl=?, userName=?, userPhone=?, teamName=?, status=?, reviewedAt=?, rejectReason=?, addedToPaymentAt=?, settledAt=?, transferredFromManager=?, transferredAt=?, managedBy=? WHERE id=?`,
+        [o.productId || '', o.userId || '', o.managerId || '', o.productName || '', o.productPrice || 0, o.optionLabel || '', o.redirectUrl || '', o.userName || '', o.userPhone || '', o.teamName || '', o.status || 'pending', o.reviewedAt || null, o.rejectReason || '', o.addedToPaymentAt || null, o.settledAt || null, o.transferredFromManager || '', o.transferredAt || null, o.managedBy || 'manager', o.id]
       )
     } else {
       await query(
-        `INSERT INTO orders (id, productId, userId, managerId, productName, productPrice, optionLabel, redirectUrl, userName, userPhone, status, reviewedAt, rejectReason, addedToPaymentAt, settledAt, transferredFromManager, transferredAt, managedBy, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
-        [o.id, o.productId || '', o.userId || '', o.managerId || '', o.productName || '', o.productPrice || 0, o.optionLabel || '', o.redirectUrl || '', o.userName || '', o.userPhone || '', o.status || 'pending', o.reviewedAt || null, o.rejectReason || '', o.addedToPaymentAt || null, o.settledAt || null, o.transferredFromManager || '', o.transferredAt || null, o.managedBy || 'manager']
+        `INSERT INTO orders (id, productId, userId, managerId, productName, productPrice, optionLabel, redirectUrl, userName, userPhone, teamName, status, reviewedAt, rejectReason, addedToPaymentAt, settledAt, transferredFromManager, transferredAt, managedBy, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
+        [o.id, o.productId || '', o.userId || '', o.managerId || '', o.productName || '', o.productPrice || 0, o.optionLabel || '', o.redirectUrl || '', o.userName || '', o.userPhone || '', o.teamName || '', o.status || 'pending', o.reviewedAt || null, o.rejectReason || '', o.addedToPaymentAt || null, o.settledAt || null, o.transferredFromManager || '', o.transferredAt || null, o.managedBy || 'manager']
       )
     }
   }
@@ -272,8 +272,8 @@ export async function writeOrders(orders: any[]): Promise<void> {
 
 export async function insertOrder(o: any): Promise<void> {
   await query(
-    `INSERT INTO orders (id, productId, userId, managerId, productName, productPrice, optionLabel, redirectUrl, userName, userPhone, status, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
-    [o.id, o.productId || '', o.userId || '', o.managerId || '', o.productName || '', o.productPrice || 0, o.optionLabel || '', o.redirectUrl || '', o.userName || '', o.userPhone || '', o.status || 'pending']
+    `INSERT INTO orders (id, productId, userId, managerId, productName, productPrice, optionLabel, redirectUrl, userName, userPhone, teamName, status, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
+    [o.id, o.productId || '', o.userId || '', o.managerId || '', o.productName || '', o.productPrice || 0, o.optionLabel || '', o.redirectUrl || '', o.userName || '', o.userPhone || '', o.teamName || '', o.status || 'pending']
   )
 }
 

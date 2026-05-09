@@ -26,6 +26,15 @@
           </el-select>
         </el-col>
         <el-col :span="4">
+          <el-input
+            v-model="searchTeamName"
+            placeholder="团队名称筛选"
+            clearable
+            @clear="handleSearch"
+            @keyup.enter="handleSearch"
+          />
+        </el-col>
+        <el-col :span="4">
           <el-select
             v-model="searchStatus"
             placeholder="状态筛选"
@@ -56,6 +65,7 @@
       >
         <el-table-column prop="name" label="姓名" width="120" />
         <el-table-column prop="phone" label="手机号" width="140" />
+        <el-table-column prop="teamName" label="团队名称" width="140" />
         <el-table-column prop="role" label="角色" width="120" align="center">
           <template #default="{ row }">
             <el-tag :type="getRoleTagType(row.role)">
@@ -75,7 +85,7 @@
             {{ formatTime(row.createdAt) }}
           </template>
         </el-table-column>
-        <el-table-column label="操作" min-width="160" fixed="right">
+        <el-table-column label="操作" min-width="200" fixed="right">
           <template #default="{ row }">
             <el-button type="primary" text size="small" @click="handleViewDetail(row)">
               查看详情
@@ -87,6 +97,9 @@
               @click="handleToggleStatus(row)"
             >
               {{ row.status === 1 ? '禁用' : '启用' }}
+            </el-button>
+            <el-button type="warning" text size="small" @click="handleEditTeamName(row)">
+              修改团队名称
             </el-button>
           </template>
         </el-table-column>
@@ -115,6 +128,7 @@
       <el-descriptions :column="1" border>
         <el-descriptions-item label="姓名">{{ detailData.name }}</el-descriptions-item>
         <el-descriptions-item label="手机号">{{ detailData.phone }}</el-descriptions-item>
+        <el-descriptions-item label="团队名称">{{ detailData.teamName || '--' }}</el-descriptions-item>
         <el-descriptions-item label="角色">
           <el-tag :type="getRoleTagType(detailData.role)">
             {{ getRoleLabel(detailData.role) }}
@@ -129,6 +143,32 @@
       </el-descriptions>
       <template #footer>
         <el-button @click="detailDialogVisible = false">关闭</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 修改团队名称弹窗 -->
+    <el-dialog
+      v-model="teamNameDialogVisible"
+      title="修改团队名称"
+      width="400px"
+    >
+      <el-form :model="teamNameForm" label-width="100px">
+        <el-form-item label="团队名称">
+          <el-input
+            v-model="teamNameForm.teamName"
+            placeholder="请输入团队名称"
+            :disabled="teamNameLoading"
+          />
+        </el-form-item>
+        <el-form-item label="原团队名称">
+          <el-input :value="editRow?.teamName || '--'" disabled />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="teamNameDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="teamNameLoading" @click="handleSaveTeamName">
+          确定
+        </el-button>
       </template>
     </el-dialog>
   </div>
@@ -160,6 +200,7 @@ const formatTime = (iso: string) => {
 // 搜索条件
 const searchKeyword = ref('')
 const searchRole = ref('')
+const searchTeamName = ref('')
 const searchStatus = ref<number | ''>('')
 // 加载状态
 const loading = ref(false)
@@ -176,6 +217,7 @@ interface UserItem {
   id: string
   name: string
   phone: string
+  teamName: string
   role: string
   status: number
   createdAt: string
@@ -190,10 +232,19 @@ const detailData = reactive<UserItem>({
   id: '',
   name: '',
   phone: '',
+  teamName: '',
   role: '',
   status: 0,
   createdAt: ''
 })
+
+// 修改团队名称弹窗
+const teamNameDialogVisible = ref(false)
+const teamNameLoading = ref(false)
+const teamNameForm = reactive({
+  teamName: ''
+})
+const editRow = ref<UserItem | null>(null)
 
 // 获取角色标签类型
 const getRoleTagType = (role: string) => {
@@ -225,6 +276,7 @@ const loadData = async () => {
       role: searchRole.value || undefined,
       status: searchStatus.value !== '' ? searchStatus.value : undefined,
       keyword: searchKeyword.value || undefined,
+      teamName: searchTeamName.value || undefined,
     })
     const { list, total } = res.data
     tableData.value = list || []
@@ -265,6 +317,34 @@ const handleToggleStatus = async (row: UserItem) => {
     if (error !== 'cancel') {
       ElMessage.error(error.message || '操作失败')
     }
+  }
+}
+
+// 修改团队名称
+const handleEditTeamName = (row: UserItem) => {
+  editRow.value = row
+  teamNameForm.teamName = row.teamName || ''
+  teamNameDialogVisible.value = true
+}
+
+// 保存团队名称
+const handleSaveTeamName = async () => {
+  if (!teamNameForm.teamName.trim()) {
+    ElMessage.warning('请输入团队名称')
+    return
+  }
+  if (!editRow.value) return
+
+  teamNameLoading.value = true
+  try {
+    await put(`/users/${editRow.value.id}/team-name`, { teamName: teamNameForm.teamName.trim() })
+    ElMessage.success('修改成功')
+    teamNameDialogVisible.value = false
+    loadData()
+  } catch (error: any) {
+    ElMessage.error(error.message || '修改失败')
+  } finally {
+    teamNameLoading.value = false
   }
 }
 

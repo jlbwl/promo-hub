@@ -478,7 +478,7 @@ app.post('/api/managers/password/set', async (req, res) => {
 
 // 用户注册
 app.post('/api/users/register', async (req, res) => {
-  const { phone, password, nickname } = req.body
+  const { phone, password, nickname, teamName } = req.body
 
   if (!phone || !password) {
     res.json({ code: 400, message: '手机号和密码不能为空', data: null })
@@ -499,12 +499,21 @@ app.post('/api/users/register', async (req, res) => {
     return
   }
 
+  // 团队名称查重
+  if (teamName) {
+    if (users.find((u: any) => u.teamName === teamName)) {
+      res.json({ code: 409, message: '该团队名称已存在', data: null })
+      return
+    }
+  }
+
   const now = new Date().toISOString()
   const user = {
     id: `u_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
     phone,
     password,
     nickname: nickname || `用户${phone.slice(-4)}`,
+    teamName: teamName || '',
     role: 'user',
     status: 'active',
     createdAt: now,
@@ -569,7 +578,7 @@ app.post('/api/users/sms/send', async (req, res) => {
 
 // 短信验证码登录/注册
 app.post('/api/users/sms/login', async (req, res) => {
-  const { phone, code } = req.body
+  const { phone, code, teamName } = req.body
   if (!phone || !code) {
     res.json({ code: 400, message: '手机号和验证码不能为空', data: null })
     return
@@ -597,6 +606,14 @@ app.post('/api/users/sms/login', async (req, res) => {
   let user = users.find((u: any) => u.phone === phone)
 
   if (!user) {
+    // 团队名称查重
+    if (teamName) {
+      if (users.find((u: any) => u.teamName === teamName)) {
+        res.json({ code: 409, message: '该团队名称已存在', data: null })
+        return
+      }
+    }
+
     // 自动注册
     const now = new Date().toISOString()
     user = {
@@ -604,6 +621,7 @@ app.post('/api/users/sms/login', async (req, res) => {
       phone,
       password: '',
       nickname: `用户${phone.slice(-4)}`,
+      teamName: teamName || '',
       role: 'user',
       status: 'active',
       loginMethods: ['sms'],
@@ -752,6 +770,52 @@ app.put('/api/users/:id/status', async (req, res) => {
   res.json({ code: 404, message: '用户不存在', data: null })
 })
 
+// 管理后台修改用户团队名称
+app.put('/api/users/:id/team-name', async (req, res) => {
+  const { teamName } = req.body
+  const userId = req.params.id
+
+  if (!teamName) {
+    res.json({ code: 400, message: '团队名称不能为空', data: null })
+    return
+  }
+
+  // 先查用户是否存在
+  let users = await readUsers()
+  const usrIdx = users.findIndex((u: any) => u.id === userId)
+  if (usrIdx === -1) {
+    res.json({ code: 404, message: '用户不存在', data: null })
+    return
+  }
+
+  const oldTeamName = users[usrIdx].teamName
+  
+  // 团队名称查重（排除当前用户）
+  if (users.find((u: any) => u.id !== userId && u.teamName === teamName)) {
+    res.json({ code: 409, message: '该团队名称已存在', data: null })
+    return
+  }
+
+  // 更新用户团队名称
+  users[usrIdx].teamName = teamName
+  users[usrIdx].updatedAt = new Date().toISOString()
+  await writeUsers(users)
+
+  // 如果团队名称发生变更，同步更新该用户的历史订单
+  if (oldTeamName && oldTeamName !== teamName) {
+    let orders = await readOrders()
+    orders = orders.map((o: any) => {
+      if (o.userId === userId && o.teamName === oldTeamName) {
+        return { ...o, teamName, updatedAt: new Date().toISOString() }
+      }
+      return o
+    })
+    await writeOrders(orders)
+  }
+
+  res.json({ code: 0, message: '更新成功', data: null })
+})
+
 // ============ 做单接口 ============
 
 // 做单（扣减库存）
@@ -797,6 +861,15 @@ app.post('/api/orders', async (req, res) => {
     }
   }
 
+  // 获取用户团队名称
+  let teamName = ''
+  if (finalUserId !== 'guest') {
+    const user = await readUser(finalUserId)
+    if (user) {
+      teamName = user.teamName || ''
+    }
+  }
+
   // 记录做单
   const orders = await readOrders()
   const order = {
@@ -810,6 +883,7 @@ app.post('/api/orders', async (req, res) => {
     redirectUrl: redirectUrl || '',
     userName: userName || '',
     userPhone: userPhone || '',
+    teamName,
     status: 'pending',
     createdAt: new Date().toISOString(),
   }

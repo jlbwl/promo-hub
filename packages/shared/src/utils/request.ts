@@ -57,8 +57,8 @@ const request = createRequest()
 /**
  * 通用请求方法
  */
-export async function get<T>(url: string, params?: Record<string, unknown>): Promise<ApiResponse<T>> {
-  const res = await request.get<ApiResponse<T>>(url, { params })
+export async function get<T>(url: string, params?: object): Promise<ApiResponse<T>> {
+  const res = await request.get<ApiResponse<T>>(url, { params: params as Record<string, unknown> })
   return res.data
 }
 

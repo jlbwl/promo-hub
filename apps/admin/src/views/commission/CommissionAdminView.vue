@@ -110,6 +110,7 @@
           <span>{{ maskName(row.userName) }}</span>
         </template>
       </el-table-column>
+      <el-table-column prop="teamName" label="团队名称" width="140" show-overflow-tooltip />
       <el-table-column prop="userPhone" label="手机号" width="130" show-overflow-tooltip>
         <template #default="{ row }">
           <span>{{ maskPhone(row.userPhone) }}</span>
@@ -174,6 +175,7 @@
           <el-table-column prop="userName" label="用户姓名" width="100" show-overflow-tooltip>
             <template #default="{ row }"><span>{{ maskName(row.userName) }}</span></template>
           </el-table-column>
+          <el-table-column prop="teamName" label="团队名称" width="120" show-overflow-tooltip />
           <el-table-column prop="userPhone" label="手机号" width="110" show-overflow-tooltip>
             <template #default="{ row }"><span>{{ maskPhone(row.userPhone) }}</span></template>
           </el-table-column>
