@@ -7,7 +7,7 @@
 ```
 ├── apps/
 │   ├── admin/          # 系统管理员后台 (Element Plus)
-│   ├── manager/        # 推广经理后台 (Element Plus)
+│   ├── manager/        # 渠道经理后台 (Element Plus)
 │   └── user/           # 用户端 (Vant 4)
 ├── packages/
 │   └── shared/         # 共享包（类型、Store、工具函数）
@@ -23,7 +23,7 @@ pnpm install
 
 # 启动开发服务器
 pnpm dev:admin      # 管理员后台 → http://localhost:3001
-pnpm dev:manager    # 推广经理后台 → http://localhost:3002
+pnpm dev:manager    # 渠道经理后台 → http://localhost:3002
 pnpm dev:user       # 用户端 → http://localhost:3003
 
 # 构建
@@ -73,7 +73,7 @@ pnpm build:user
 
 部署完成后：
 - 管理员后台：`http://服务器IP/`
-- 推广经理后台：`http://服务器IP/manager/`
+- 渠道经理后台：`http://服务器IP/manager/`
 - 用户端：`http://服务器IP/user/`
 
 ## 🔧 环境变量

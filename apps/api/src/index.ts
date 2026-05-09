@@ -705,13 +705,13 @@ app.post('/api/users/password/set', async (req, res) => {
   res.json({ code: 0, message: '密码设置成功', data: null })
 })
 
-// 管理后台：获取所有用户列表（推广经理 + 普通用户）
+// 管理后台：获取所有用户列表（渠道经理 + 普通用户）
 app.get('/api/users', async (req, res) => {
   const { page = '1', pageSize = '10', role, status, keyword } = req.query
   const managers = await readManagers()
   const users = await readUsers()
 
-  // 合并推广经理和普通用户
+  // 合并渠道经理和普通用户
   const allUsers = [
     ...managers.map((m: any) => ({
       id: m.id,

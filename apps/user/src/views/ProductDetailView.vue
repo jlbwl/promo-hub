@@ -51,7 +51,7 @@
       <div class="desc-content" v-html="product.description"></div>
     </div>
 
-    <!-- 单选框组（推广经理设置的选项） -->
+    <!-- 单选框组（渠道经理设置的选项） -->
     <div v-if="product.options && product.options.length > 0" class="option-section">
       <h3 class="section-title">选择推广选项</h3>
       <van-radio-group v-model="selectedOption" class="option-radio-group">

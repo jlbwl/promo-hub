@@ -3,8 +3,8 @@
     <!-- 左侧导航栏 -->
     <el-aside :width="isCollapse ? '64px' : '220px'" class="layout-aside">
       <div class="logo-container">
-        <h2 v-show="!isCollapse">推广经理后台</h2>
-        <h2 v-show="isCollapse">推广</h2>
+        <h2 v-show="!isCollapse">渠道经理后台</h2>
+        <h2 v-show="isCollapse">渠道</h2>
       </div>
       <el-menu
         :default-active="activeMenu"
@@ -103,7 +103,7 @@ const activeMenu = computed(() => route.path)
 
 // 当前页面标题
 const currentTitle = computed(() => {
-  return (route.meta.title as string) || '推广经理后台'
+  return (route.meta.title as string) || '渠道经理后台'
 })
 
 // 退出登录

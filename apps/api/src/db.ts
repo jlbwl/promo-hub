@@ -75,7 +75,7 @@ export async function initDatabase(): Promise<void> {
     await pool.execute('ALTER TABLE products ADD COLUMN requirePhone TINYINT(1) NOT NULL DEFAULT 0 AFTER requireName')
   } catch (e) { /* 列可能已存在，忽略错误 */ }
 
-  // 推广经理表
+  // 渠道经理表
   await pool.execute(`
     CREATE TABLE IF NOT EXISTS managers (
       id VARCHAR(100) PRIMARY KEY,

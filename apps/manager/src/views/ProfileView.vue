@@ -14,11 +14,11 @@
               </el-avatar>
               <div class="info-text">
                 <h3>{{ managerInfo.name }}</h3>
-                <p class="info-label">推广经理</p>
+                <p class="info-label">渠道经理</p>
               </div>
             </div>
             <el-descriptions :column="1" border class="info-descriptions">
-              <el-descriptions-item label="姓名">
+              <el-descriptions-item label="渠道名称">
                 {{ managerInfo.name }}
               </el-descriptions-item>
               <el-descriptions-item label="手机号">

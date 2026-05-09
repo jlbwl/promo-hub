@@ -47,7 +47,7 @@ server {
         try_files $uri $uri/ /index.html;
     }
 
-    # 推广经理后台
+    # 渠道经理后台
     location /manager/ {
         alias /www/wwwroot/promo-hub/manager/;
         index index.html;
@@ -91,7 +91,7 @@ echo ""
 echo "🎉 服务器初始化完成！"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo "  管理员后台:  http://$(hostname -I | awk '{print $1}')/"
-echo "  推广经理端:  http://$(hostname -I | awk '{print $1}')/manager/"
+echo "  渠道经理端:  http://$(hostname -I | awk '{print $1}')/manager/"
 echo "  用户端:      http://$(hostname -I | awk '{print $1}')/user/"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""

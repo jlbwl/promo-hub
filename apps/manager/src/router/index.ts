@@ -75,10 +75,10 @@ const router = createRouter({
   routes
 })
 
-// 全局前置守卫 - 检查推广经理登录状态
+// 全局前置守卫 - 检查渠道经理登录状态
 router.beforeEach(async (to, _from, next) => {
   // 设置页面标题
-  document.title = (to.meta.title as string) ? `${to.meta.title} - 推广经理后台` : '推广经理后台'
+  document.title = (to.meta.title as string) ? `${to.meta.title} - 渠道经理后台` : '渠道经理后台'
 
   // 检查是否需要认证
   if (to.matched.some(record => record.meta.requiresAuth)) {

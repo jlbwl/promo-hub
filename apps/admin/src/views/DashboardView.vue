@@ -4,7 +4,7 @@
     <el-row :gutter="20" class="stat-row">
       <el-col :span="6">
         <el-card shadow="hover" class="stat-card">
-          <el-statistic title="推广经理总数" :value="stats.managerCount">
+          <el-statistic title="渠道经理总数" :value="stats.managerCount">
             <template #prefix>
               <el-icon style="color: #409eff;"><User /></el-icon>
             </template>

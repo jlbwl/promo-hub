@@ -21,7 +21,7 @@
             @change="handleSearch"
           >
             <el-option label="全部" value="" />
-            <el-option label="推广经理" value="manager" />
+            <el-option label="渠道经理" value="manager" />
             <el-option label="普通用户" value="user" />
           </el-select>
         </el-col>
@@ -260,7 +260,7 @@ const getRoleTagType = (role: string) => {
 const getRoleLabel = (role: string) => {
   const map: Record<string, string> = {
     admin: '管理员',
-    manager: '推广经理',
+    manager: '渠道经理',
     user: '普通用户'
   }
   return map[role] || role

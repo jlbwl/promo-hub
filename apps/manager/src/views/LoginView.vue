@@ -2,8 +2,8 @@
   <div class="login-page">
     <div class="login-container">
       <div class="login-header">
-        <h2>推广经理后台</h2>
-        <p>推广经理管理系统</p>
+        <h2>渠道经理后台</h2>
+        <p>渠道经理管理系统</p>
       </div>
 
       <el-tabs v-model="loginTab" class="login-tabs">

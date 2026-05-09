@@ -234,7 +234,7 @@ const handleAdd = async () => {
 const handleToggleStatus = async (row: any) => {
   const action = row.status === 'active' ? '禁用' : '启用'
   try {
-    await ElMessageBox.confirm(`确定要${action}推广经理「${row.name}」吗？`, '提示', {
+    await ElMessageBox.confirm(`确定要${action}渠道经理「${row.name}」吗？`, '提示', {
       confirmButtonText: '确定',
       cancelButtonText: '取消',
       type: 'warning'
@@ -252,7 +252,7 @@ const handleToggleStatus = async (row: any) => {
 // 删除
 const handleDelete = async (row: any) => {
   try {
-    await ElMessageBox.confirm(`确定要删除推广经理「${row.name}」吗？删除后该经理将无法登录。`, '警告', {
+    await ElMessageBox.confirm(`确定要删除渠道经理「${row.name}」吗？删除后该经理将无法登录。`, '警告', {
       confirmButtonText: '确定删除',
       cancelButtonText: '取消',
       type: 'error'
