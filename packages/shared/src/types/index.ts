@@ -37,7 +37,6 @@ export interface Product {
   price: number
   originalPrice?: number
   category: string
-  tags: string[]
   status: 'draft' | 'published' | 'archived'
   publishedBy: string
   publishedAt?: string

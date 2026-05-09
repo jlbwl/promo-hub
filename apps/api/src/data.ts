@@ -58,7 +58,6 @@ export async function readProducts(): Promise<any[]> {
     requireName: Boolean(Number(row.requireName)),
     requirePhone: Boolean(Number(row.requirePhone)),
     images: deserialize(row.images),
-    tags: deserialize(row.tags),
     options: deserialize(row.options),
   }))
 }
@@ -74,7 +73,6 @@ export async function readProduct(id: string): Promise<any> {
     requireName: Boolean(Number(row.requireName)),
     requirePhone: Boolean(Number(row.requirePhone)),
     images: deserialize(row.images),
-    tags: deserialize(row.tags),
     options: deserialize(row.options),
   }
 }
@@ -84,13 +82,13 @@ export async function writeProducts(products: any[]): Promise<void> {
     const existing = await queryOne('SELECT id FROM products WHERE id = ?', [p.id])
     if (existing) {
       await query(
-        `UPDATE products SET title=?, description=?, coverImage=?, images=?, price=?, originalPrice=?, category=?, tags=?, status=?, managerId=?, stock=?, options=?, publishedBy=?, publishedAt=?, offlineReason=?, offlineAt=?, updatedAt=NOW() WHERE id=?`,
-        [p.title || '', p.description || '', p.coverImage || '', serialize(p.images), p.price || 0, p.originalPrice || 0, p.category || '', serialize(p.tags), p.status || 'draft', p.managerId || '', p.stock || 0, serialize(p.options), p.publishedBy || '', formatDateTime(p.publishedAt), p.offlineReason || '', formatDateTime(p.offlineAt), p.id]
+        `UPDATE products SET title=?, description=?, coverImage=?, images=?, price=?, originalPrice=?, category=?, status=?, managerId=?, stock=?, options=?, publishedBy=?, publishedAt=?, offlineReason=?, offlineAt=?, updatedAt=NOW() WHERE id=?`,
+        [p.title || '', p.description || '', p.coverImage || '', serialize(p.images), p.price || 0, p.originalPrice || 0, p.category || '', p.status || 'draft', p.managerId || '', p.stock || 0, serialize(p.options), p.publishedBy || '', formatDateTime(p.publishedAt), p.offlineReason || '', formatDateTime(p.offlineAt), p.id]
       )
     } else {
       await query(
-        `INSERT INTO products (id, title, description, coverImage, images, price, originalPrice, category, tags, status, managerId, stock, options, publishedBy, publishedAt, offlineReason, offlineAt, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
-        [p.id, p.title || '', p.description || '', p.coverImage || '', serialize(p.images), p.price || 0, p.originalPrice || 0, p.category || '', serialize(p.tags), p.status || 'draft', p.managerId || '', p.stock || 0, serialize(p.options), p.publishedBy || '', formatDateTime(p.publishedAt), p.offlineReason || '', formatDateTime(p.offlineAt)]
+        `INSERT INTO products (id, title, description, coverImage, images, price, originalPrice, category, status, managerId, stock, options, publishedBy, publishedAt, offlineReason, offlineAt, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
+        [p.id, p.title || '', p.description || '', p.coverImage || '', serialize(p.images), p.price || 0, p.originalPrice || 0, p.category || '', p.status || 'draft', p.managerId || '', p.stock || 0, serialize(p.options), p.publishedBy || '', formatDateTime(p.publishedAt), p.offlineReason || '', formatDateTime(p.offlineAt)]
       )
     }
   }
@@ -98,8 +96,8 @@ export async function writeProducts(products: any[]): Promise<void> {
 
 export async function insertProduct(p: any): Promise<void> {
   await query(
-    `INSERT INTO products (id, title, description, coverImage, images, price, originalPrice, category, tags, status, managerId, stock, options, publishedBy, publishedAt, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
-    [p.id, p.title || '', p.description || '', p.coverImage || '', serialize(p.images), p.price || 0, p.originalPrice || 0, p.category || '', serialize(p.tags), p.status || 'draft', p.managerId || '', p.stock || 0, serialize(p.options), p.publishedBy || '', formatDateTime(p.publishedAt)]
+    `INSERT INTO products (id, title, description, coverImage, images, price, originalPrice, category, status, managerId, stock, options, publishedBy, publishedAt, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
+    [p.id, p.title || '', p.description || '', p.coverImage || '', serialize(p.images), p.price || 0, p.originalPrice || 0, p.category || '', p.status || 'draft', p.managerId || '', p.stock || 0, serialize(p.options), p.publishedBy || '', formatDateTime(p.publishedAt)]
   )
 }
 
@@ -109,7 +107,7 @@ export async function updateProduct(id: string, fields: Record<string, any>): Pr
   for (const [key, val] of Object.entries(fields)) {
     if (key === 'id' || key === 'updatedAt') continue
     sets.push(`${key} = ?`)
-    if (key === 'images' || key === 'tags' || key === 'options') {
+    if (key === 'images' || key === 'options') {
       values.push(serialize(val))
     } else if (key === 'publishedAt' || key === 'offlineAt') {
       values.push(formatDateTime(val))

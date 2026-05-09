@@ -84,39 +84,6 @@
           </el-col>
         </el-row>
 
-        <!-- 产品标签 -->
-        <el-form-item label="产品标签" prop="tags">
-          <div class="tags-container">
-            <el-tag
-              v-for="tag in form.tags"
-              :key="tag"
-              closable
-              type="primary"
-              style="margin-right: 8px; margin-bottom: 8px;"
-              @close="handleRemoveTag(tag)"
-            >
-              {{ tag }}
-            </el-tag>
-            <el-input
-              v-if="tagInputVisible"
-              ref="tagInputRef"
-              v-model="tagInputValue"
-              size="small"
-              style="width: 120px;"
-              placeholder="输入标签"
-              @keyup.enter="handleAddTag"
-              @blur="handleAddTag"
-            />
-            <el-button
-              v-else
-              size="small"
-              @click="tagInputVisible = true"
-            >
-              + 添加标签
-            </el-button>
-          </div>
-        </el-form-item>
-
         <!-- 单选框组 -->
         <el-form-item label="单选框组">
           <div class="option-group-config">
@@ -251,17 +218,12 @@ const router = useRouter()
 
 // 表单引用
 const formRef = ref<FormInstance>()
-const tagInputRef = ref()
 
 // 保存状态
 const saving = ref(false)
 
 // 是否为编辑模式
 const isEdit = computed(() => !!route.params.id)
-
-// 标签输入
-const tagInputVisible = ref(false)
-const tagInputValue = ref('')
 
 // 表单数据
 const form = reactive({
@@ -270,7 +232,6 @@ const form = reactive({
   category: '',
   price: 0,
   stock: 0,
-  tags: [] as string[],
   cover: '',
   options: [] as { label: string; limit: string; redirectUrl: string; _qrLoading?: boolean }[],
   requireName: false,
@@ -292,20 +253,6 @@ const formRules: FormRules = {
   price: [
     { required: true, message: '请输入售价', trigger: 'blur' }
   ]
-}
-
-// 添加标签
-const handleAddTag = () => {
-  if (tagInputValue.value && !form.tags.includes(tagInputValue.value)) {
-    form.tags.push(tagInputValue.value)
-  }
-  tagInputVisible.value = false
-  tagInputValue.value = ''
-}
-
-// 移除标签
-const handleRemoveTag = (tag: string) => {
-  form.tags = form.tags.filter(t => t !== tag)
 }
 
 // ====== 单选框组操作 ======
@@ -429,7 +376,6 @@ const handleSave = async () => {
       category: form.category,
       price: form.price,
       stock: form.stock || 0,
-      tags: form.tags,
       coverImage: form.cover,
       options: form.options.filter(o => o.label.trim()).map(({ label, limit, redirectUrl }) => ({ label, limit, redirectUrl })), // 只保存有名称的选项
       status: 'published',
@@ -469,7 +415,6 @@ const fetchProductDetail = async () => {
         category: p.category || '',
         price: p.price || 0,
         stock: p.stock || 0,
-        tags: p.tags || [],
         cover: p.coverImage || '',
         options: p.options || [],
         requireName: p.requireName || false,
@@ -496,11 +441,7 @@ onMounted(() => {
     margin-top: 4px;
   }
 
-  .tags-container {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-  }
+
 
   .upload-area {
     .upload-placeholder {

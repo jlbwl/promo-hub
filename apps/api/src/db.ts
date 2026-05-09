@@ -52,7 +52,6 @@ export async function initDatabase(): Promise<void> {
       price DECIMAL(10,2) NOT NULL DEFAULT 0,
       originalPrice DECIMAL(10,2) DEFAULT 0,
       category VARCHAR(100) DEFAULT '',
-      tags JSON DEFAULT NULL,
       status VARCHAR(50) NOT NULL DEFAULT 'draft',
       managerId VARCHAR(100) DEFAULT '',
       stock INT NOT NULL DEFAULT 0,
