@@ -10,16 +10,20 @@ export function formatMoney(value: number): string {
   }).format(value)
 }
 
-/** 格式化日期 */
+/** 格式化日期（北京时区 UTC+8） */
 export function formatDate(date: string | Date, format = 'YYYY-MM-DD HH:mm:ss'): string {
   const d = new Date(date)
+  // 转换为北京时区（UTC+8）
+  const utc = d.getTime() + d.getTimezoneOffset() * 60000
+  const beijingTime = new Date(utc + 8 * 3600000)
+  
   const map: Record<string, string> = {
-    'YYYY': String(d.getFullYear()),
-    'MM': String(d.getMonth() + 1).padStart(2, '0'),
-    'DD': String(d.getDate()).padStart(2, '0'),
-    'HH': String(d.getHours()).padStart(2, '0'),
-    'mm': String(d.getMinutes()).padStart(2, '0'),
-    'ss': String(d.getSeconds()).padStart(2, '0'),
+    'YYYY': String(beijingTime.getFullYear()),
+    'MM': String(beijingTime.getMonth() + 1).padStart(2, '0'),
+    'DD': String(beijingTime.getDate()).padStart(2, '0'),
+    'HH': String(beijingTime.getHours()).padStart(2, '0'),
+    'mm': String(beijingTime.getMinutes()).padStart(2, '0'),
+    'ss': String(beijingTime.getSeconds()).padStart(2, '0'),
   }
   let result = format
   for (const [key, val] of Object.entries(map)) {
