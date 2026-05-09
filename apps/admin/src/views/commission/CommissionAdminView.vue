@@ -86,11 +86,6 @@
         <el-option label="已结算" value="settled" />
         <el-option label="已驳回" value="rejected" />
       </el-select>
-      <el-select v-model="filterSource" placeholder="数据来源" clearable style="width: 140px; margin-left: 12px;" @change="fetchData">
-        <el-option label="全部" value="" />
-        <el-option label="经理管理" value="manager" />
-        <el-option label="已转移（经理删除）" value="admin" />
-      </el-select>
       <el-select v-model="filterManager" placeholder="筛选经理" clearable style="width: 160px; margin-left: 12px;" @change="fetchData">
         <el-option label="全部经理" value="" />
         <el-option v-for="m in managers" :key="m.id" :label="m.name" :value="m.id" />
@@ -114,13 +109,6 @@
       <el-table-column prop="status" label="状态" width="90" align="center">
         <template #default="{ row }">
           <el-tag :type="statusTagType(row.status)">{{ statusText(row.status) }}</el-tag>
-        </template>
-      </el-table-column>
-      <el-table-column label="来源" width="120" align="center">
-        <template #default="{ row }">
-          <el-tag :type="row.managedBy === 'admin' ? 'warning' : 'info'" size="small">
-            {{ row.managedBy === 'admin' ? '已转移' : '经理管理' }}
-          </el-tag>
         </template>
       </el-table-column>
       <el-table-column prop="transferredFromManager" label="原经理" width="100" show-overflow-tooltip>
@@ -219,7 +207,6 @@ import { get, put } from '@promo/shared/utils/request'
 
 const loading = ref(false)
 const filterStatus = ref('')
-const filterSource = ref('')
 const filterManager = ref('')
 const filterUser = ref('')
 const pagination = reactive({ page: 1, pageSize: 10, total: 0 })
@@ -285,7 +272,6 @@ const fetchData = async () => {
   try {
     const params: any = { page: pagination.page, pageSize: pagination.pageSize }
     if (filterStatus.value) params.status = filterStatus.value
-    if (filterSource.value) params.managedBy = filterSource.value
     if (filterManager.value) params.managerId = filterManager.value
     if (filterUser.value) params.userId = filterUser.value
     const res = await get<any>('/orders', params)
@@ -294,7 +280,7 @@ const fetchData = async () => {
   finally { loading.value = false }
 }
 
-const handleReset = () => { filterStatus.value = ''; filterSource.value = ''; filterManager.value = ''; filterUser.value = ''; pagination.page = 1; fetchData() }
+const handleReset = () => { filterStatus.value = ''; filterManager.value = ''; filterUser.value = ''; pagination.page = 1; fetchData() }
 
 const openStatDialog = async (status: string, title: string) => {
   statDialogTitle.value = title + '明细'
