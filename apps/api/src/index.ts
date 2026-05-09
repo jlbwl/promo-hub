@@ -3,21 +3,49 @@ import cors from 'cors'
 import { existsSync, mkdirSync } from 'fs'
 import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
-import { initDatabase } from './db.js'
-import { sendSmsCode } from './sms.js'
-import {
-  readProducts, writeProducts, insertProduct, updateProduct, readProduct,
-  readManagers, writeManagers, deleteManager,
-  readUsers, writeUsers, readUser,
-  readOrders, writeOrders, insertOrder,
-  readCommissions, writeCommissions,
-  readAdminByPhone, updateAdmin,
-  readEmployeesByUserId, readEmployeeById, readEmployeeByPhone, insertEmployee, deleteEmployee, validateEmployee,
-  queryOne,
-} from './data.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const DATA_DIR = process.env.DATA_DIR || join(__dirname, '..', 'data')
+
+// 确保数据目录存在
+if (!existsSync(DATA_DIR)) {
+  mkdirSync(DATA_DIR, { recursive: true })
+}
+
+// 导入数据访问层（先尝试数据库，如果失败则使用文件存储）
+let dataModule: typeof import('./data.js') | typeof import('./data-memory.js')
+
+try {
+  dataModule = await import('./data.js')
+} catch {
+  console.log('[INFO] 数据库连接失败，使用文件存储模式')
+  dataModule = await import('./data-memory.js')
+}
+
+const {
+  readProducts, writeProducts, insertProduct, updateProduct, readProduct,
+  readManagers, writeManagers, deleteManager,
+  readUsers, writeUsers, readUser, insertUser, updateUser,
+  readOrders, writeOrders, insertOrder,
+  readCommissions, writeCommissions,
+  readAdminByPhone, updateAdmin,
+  readEmployeesByUserId, readEmployeeById, readEmployeeByPhone, insertEmployee, deleteEmployee,
+  queryOne,
+} = dataModule
+
+// 初始化验证函数（内存模式下需要自定义）
+let validateEmployee: (phone: string, password: string) => Promise<any>
+try {
+  const { validateEmployee: dbValidate } = await import('./data.js')
+  validateEmployee = dbValidate
+} catch {
+  validateEmployee = async (phone: string, password: string) => {
+    const employees = await readEmployeesByUserId('')
+    return employees.find((e: any) => e.phone === phone && e.password === password && e.status === 'active') || null
+  }
+}
+
+import { sendSmsCode } from './sms.js'
 
 const app = express()
 const PORT = process.env.PORT || 3000
@@ -1205,7 +1233,7 @@ app.get('/api/admin/stats', async (_req, res) => {
   const managers = await readManagers()
   const users = await readUsers()
   const products = await readProducts()
-  const commissions = await readCommissions()
+  const orders = await readOrders()
 
   const managerCount = managers.length
   const userCount = users.length
@@ -1215,9 +1243,11 @@ app.get('/api/admin/stats', async (_req, res) => {
   const publishedProductCount = products.filter((p: any) =>
     p.status === 'published' && activeManagerIds.has(p.managerId)
   ).length
-  const totalCommission = commissions
-    .filter((c: any) => c.status === 'paid')
-    .reduce((sum: number, c: any) => sum + (Number(c.amount) || 0), 0)
+
+  // 佣金总额 = 所有经理审核通过的订单金额总和
+  const totalCommission = orders
+    .filter((o: any) => o.status === 'approved')
+    .reduce((sum: number, o: any) => sum + (Number(o.productPrice) || 0), 0)
 
   res.json({
     code: 0,
@@ -1484,12 +1514,23 @@ app.get('/api/health', async (_req, res) => {
   res.json({ code: 0, message: 'ok', data: { uptime: process.uptime() } })
 })
 
-// 启动服务器（先初始化数据库）
+// 启动服务器
 async function start() {
-  await initDatabase()
-  app.listen(PORT, () => {
-    console.log(`API server running on port ${PORT} (MySQL)`)
-  })
+  // 检查是否使用数据库模式
+  const isDatabaseMode = process.env.DB_HOST && process.env.DB_NAME
+  if (isDatabaseMode) {
+    try {
+      const { initDatabase } = await import('./db.js')
+      await initDatabase()
+      console.log(`API server running on port ${PORT} (MySQL)`)
+    } catch (err) {
+      console.log(`[INFO] MySQL connection failed, falling back to file storage: ${err}`)
+      console.log(`API server running on port ${PORT} (File Storage)`)
+    }
+  } else {
+    console.log(`API server running on port ${PORT} (File Storage)`)
+  }
+  app.listen(PORT)
 }
 
 start().catch(err => {

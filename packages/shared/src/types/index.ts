@@ -23,7 +23,6 @@ export interface User {
 
 export interface Manager extends User {
   role: UserRole.MANAGER
-  commissionRate: number
   totalCommission: number
   managedUserCount: number
 }
@@ -37,8 +36,6 @@ export interface Product {
   images?: string[]
   price: number
   originalPrice?: number
-  commission: number
-  commissionRate: number
   category: string
   tags: string[]
   status: 'draft' | 'published' | 'archived'

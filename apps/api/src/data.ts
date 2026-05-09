@@ -54,8 +54,6 @@ export async function readProducts(): Promise<any[]> {
     ...row,
     price: Number(row.price) || 0,
     originalPrice: Number(row.originalPrice) || 0,
-    commission: Number(row.commission) || 0,
-    commissionRate: Number(row.commissionRate) || 0,
     stock: Number(row.stock) || 0,
     requireName: Boolean(Number(row.requireName)),
     requirePhone: Boolean(Number(row.requirePhone)),
@@ -72,8 +70,6 @@ export async function readProduct(id: string): Promise<any> {
     ...row,
     price: Number(row.price) || 0,
     originalPrice: Number(row.originalPrice) || 0,
-    commission: Number(row.commission) || 0,
-    commissionRate: Number(row.commissionRate) || 0,
     stock: Number(row.stock) || 0,
     requireName: Boolean(Number(row.requireName)),
     requirePhone: Boolean(Number(row.requirePhone)),
@@ -88,13 +84,13 @@ export async function writeProducts(products: any[]): Promise<void> {
     const existing = await queryOne('SELECT id FROM products WHERE id = ?', [p.id])
     if (existing) {
       await query(
-        `UPDATE products SET title=?, description=?, coverImage=?, images=?, price=?, originalPrice=?, commission=?, commissionRate=?, category=?, tags=?, status=?, managerId=?, stock=?, options=?, publishedBy=?, publishedAt=?, offlineReason=?, offlineAt=?, updatedAt=NOW() WHERE id=?`,
-        [p.title || '', p.description || '', p.coverImage || '', serialize(p.images), p.price || 0, p.originalPrice || 0, p.commission || 0, p.commissionRate || 0, p.category || '', serialize(p.tags), p.status || 'draft', p.managerId || '', p.stock || 0, serialize(p.options), p.publishedBy || '', formatDateTime(p.publishedAt), p.offlineReason || '', formatDateTime(p.offlineAt), p.id]
+        `UPDATE products SET title=?, description=?, coverImage=?, images=?, price=?, originalPrice=?, category=?, tags=?, status=?, managerId=?, stock=?, options=?, publishedBy=?, publishedAt=?, offlineReason=?, offlineAt=?, updatedAt=NOW() WHERE id=?`,
+        [p.title || '', p.description || '', p.coverImage || '', serialize(p.images), p.price || 0, p.originalPrice || 0, p.category || '', serialize(p.tags), p.status || 'draft', p.managerId || '', p.stock || 0, serialize(p.options), p.publishedBy || '', formatDateTime(p.publishedAt), p.offlineReason || '', formatDateTime(p.offlineAt), p.id]
       )
     } else {
       await query(
-        `INSERT INTO products (id, title, description, coverImage, images, price, originalPrice, commission, commissionRate, category, tags, status, managerId, stock, options, publishedBy, publishedAt, offlineReason, offlineAt, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
-        [p.id, p.title || '', p.description || '', p.coverImage || '', serialize(p.images), p.price || 0, p.originalPrice || 0, p.commission || 0, p.commissionRate || 0, p.category || '', serialize(p.tags), p.status || 'draft', p.managerId || '', p.stock || 0, serialize(p.options), p.publishedBy || '', formatDateTime(p.publishedAt), p.offlineReason || '', formatDateTime(p.offlineAt)]
+        `INSERT INTO products (id, title, description, coverImage, images, price, originalPrice, category, tags, status, managerId, stock, options, publishedBy, publishedAt, offlineReason, offlineAt, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
+        [p.id, p.title || '', p.description || '', p.coverImage || '', serialize(p.images), p.price || 0, p.originalPrice || 0, p.category || '', serialize(p.tags), p.status || 'draft', p.managerId || '', p.stock || 0, serialize(p.options), p.publishedBy || '', formatDateTime(p.publishedAt), p.offlineReason || '', formatDateTime(p.offlineAt)]
       )
     }
   }
@@ -102,8 +98,8 @@ export async function writeProducts(products: any[]): Promise<void> {
 
 export async function insertProduct(p: any): Promise<void> {
   await query(
-    `INSERT INTO products (id, title, description, coverImage, images, price, originalPrice, commission, commissionRate, category, tags, status, managerId, stock, options, publishedBy, publishedAt, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
-    [p.id, p.title || '', p.description || '', p.coverImage || '', serialize(p.images), p.price || 0, p.originalPrice || 0, p.commission || 0, p.commissionRate || 0, p.category || '', serialize(p.tags), p.status || 'draft', p.managerId || '', p.stock || 0, serialize(p.options), p.publishedBy || '', formatDateTime(p.publishedAt)]
+    `INSERT INTO products (id, title, description, coverImage, images, price, originalPrice, category, tags, status, managerId, stock, options, publishedBy, publishedAt, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
+    [p.id, p.title || '', p.description || '', p.coverImage || '', serialize(p.images), p.price || 0, p.originalPrice || 0, p.category || '', serialize(p.tags), p.status || 'draft', p.managerId || '', p.stock || 0, serialize(p.options), p.publishedBy || '', formatDateTime(p.publishedAt)]
   )
 }
 

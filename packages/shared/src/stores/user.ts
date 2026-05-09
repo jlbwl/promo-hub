@@ -48,11 +48,6 @@ export const useUserStore = defineStore('user', () => {
     await del(`/users/${id}`)
   }
 
-  async function updateManagerCommission(id: string, rate: number) {
-    const res = await put<Manager>(`/managers/${id}`, { commissionRate: rate })
-    return res.data
-  }
-
   return {
     users,
     managers,
@@ -63,6 +58,5 @@ export const useUserStore = defineStore('user', () => {
     createUser,
     updateUser,
     deleteUser,
-    updateManagerCommission,
   }
 })

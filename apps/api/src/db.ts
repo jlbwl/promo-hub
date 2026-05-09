@@ -51,8 +51,6 @@ export async function initDatabase(): Promise<void> {
       images JSON DEFAULT NULL,
       price DECIMAL(10,2) NOT NULL DEFAULT 0,
       originalPrice DECIMAL(10,2) DEFAULT 0,
-      commission DECIMAL(10,2) DEFAULT 0,
-      commissionRate DECIMAL(5,2) DEFAULT 0,
       category VARCHAR(100) DEFAULT '',
       tags JSON DEFAULT NULL,
       status VARCHAR(50) NOT NULL DEFAULT 'draft',

@@ -21,18 +21,6 @@
           />
         </el-form-item>
 
-        <!-- 默认佣金比例 -->
-        <el-form-item label="默认佣金比例" prop="defaultCommissionRate">
-          <el-input-number
-            v-model="settingsForm.defaultCommissionRate"
-            :min="0"
-            :max="100"
-            :precision="1"
-            :step="0.5"
-          />
-          <span style="margin-left: 8px; color: #909399;">%</span>
-        </el-form-item>
-
         <!-- 最低提现金额 -->
         <el-form-item label="最低提现金额" prop="minWithdrawAmount">
           <el-input-number
@@ -171,7 +159,6 @@ const currentPhone = ref('')
 // 设置表单数据
 const settingsForm = reactive({
   systemName: '',
-  defaultCommissionRate: 10,
   minWithdrawAmount: 100,
   pageSize: 20,
   announcement: ''
@@ -218,9 +205,6 @@ const settingsRules: FormRules = {
   systemName: [
     { required: true, message: '请输入系统名称', trigger: 'blur' },
     { min: 2, max: 50, message: '系统名称长度为 2 到 50 个字符', trigger: 'blur' }
-  ],
-  defaultCommissionRate: [
-    { required: true, message: '请设置默认佣金比例', trigger: 'change' }
   ],
   minWithdrawAmount: [
     { required: true, message: '请设置最低提现金额', trigger: 'change' }
@@ -321,7 +305,6 @@ onMounted(() => {
     }
   } else {
     settingsForm.systemName = '推广管理系统'
-    settingsForm.defaultCommissionRate = 10
     settingsForm.minWithdrawAmount = 100
     settingsForm.pageSize = 20
     settingsForm.announcement = '欢迎使用推广管理系统！'

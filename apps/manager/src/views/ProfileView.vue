@@ -24,9 +24,6 @@
               <el-descriptions-item label="手机号">
                 {{ managerInfo.phone }}
               </el-descriptions-item>
-              <el-descriptions-item label="佣金比例">
-                <el-tag type="success">{{ managerInfo.commissionRate }}%</el-tag>
-              </el-descriptions-item>
               <el-descriptions-item label="累计佣金">
                 <span style="color: #f56c6c; font-weight: 600; font-size: 16px;">
                   ¥{{ managerInfo.totalCommission.toFixed(2) }}
@@ -103,7 +100,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, onUnmounted } from 'vue'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
-import { post } from '@promo/shared/utils/request'
+import { get, post } from '@promo/shared/utils/request'
 
 // 密码表单引用
 const passwordFormRef = ref<FormInstance>()
@@ -119,7 +116,6 @@ let smsTimer: ReturnType<typeof setInterval> | null = null
 const managerInfo = reactive({
   name: '',
   phone: '',
-  commissionRate: 0,
   totalCommission: 0,
   createdAt: ''
 })
@@ -163,10 +159,6 @@ onUnmounted(() => {
 // 获取经理信息
 const fetchManagerInfo = async () => {
   try {
-    // 模拟接口请求
-    await new Promise(resolve => setTimeout(resolve, 500))
-
-    // 模拟数据（实际从 localStorage 或接口获取）
     const storedInfo = localStorage.getItem('manager_info')
     if (storedInfo) {
       const info = JSON.parse(storedInfo)
@@ -174,14 +166,32 @@ const fetchManagerInfo = async () => {
       managerInfo.phone = info.phone || '13800138000'
     }
 
-    // 模拟其他数据
-    managerInfo.commissionRate = 15.0
-    managerInfo.totalCommission = 28650.00
+    // 获取审核通过的订单金额总和
+    const managerId = getManagerId()
+    if (managerId) {
+      const res = await get<any>('/orders', {
+        managerId,
+        status: 'approved',
+        pageSize: 9999
+      })
+      const orders = res.data?.list || []
+      // 累计佣金 = 审核通过的订单金额总和
+      managerInfo.totalCommission = orders.reduce((sum: number, o: any) => sum + (Number(o.productPrice) || 0), 0)
+    }
+
     managerInfo.createdAt = '2025-06-15 10:00:00'
   } catch (error) {
     console.error('获取经理信息失败:', error)
     ElMessage.error('获取经理信息失败')
   }
+}
+
+// 获取当前经理 ID
+const getManagerId = () => {
+  try {
+    const info = JSON.parse(localStorage.getItem('manager_info') || '{}')
+    return info.id || ''
+  } catch { return '' }
 }
 
 // 发送短信验证码
