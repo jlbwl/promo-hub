@@ -68,10 +68,9 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, computed, onMounted, onUnmounted, ref } from 'vue'
+import { reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { showDialog, showToast } from 'vant'
-import { post } from '@promo/shared/utils/request'
 
 const router = useRouter()
 
