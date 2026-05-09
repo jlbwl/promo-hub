@@ -99,31 +99,35 @@
 
     <!-- 数据表格 -->
     <el-table v-loading="loading" :data="tableData" border stripe style="width: 100%;">
-      <el-table-column prop="productName" label="产品名称" min-width="150" show-overflow-tooltip />
-      <el-table-column prop="userId" label="用户ID" width="160" show-overflow-tooltip />
-      <el-table-column prop="productPrice" label="金额" width="90" align="right">
+      <el-table-column prop="productName" label="产品名称" min-width="180" show-overflow-tooltip>
+        <template #default="{ row }">
+          <span>{{ row.productName }}</span>
+          <el-tag v-if="row.optionLabel" size="small" type="info" style="margin-left: 6px;">{{ row.optionLabel }}</el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column prop="userName" label="用户姓名" width="120" show-overflow-tooltip>
+        <template #default="{ row }">
+          <span>{{ maskName(row.userName) }}</span>
+        </template>
+      </el-table-column>
+      <el-table-column prop="userPhone" label="手机号" width="130" show-overflow-tooltip>
+        <template #default="{ row }">
+          <span>{{ maskPhone(row.userPhone) }}</span>
+        </template>
+      </el-table-column>
+      <el-table-column prop="productPrice" label="产品售价" width="100" align="right">
         <template #default="{ row }">
           <span style="font-weight: 500;">¥{{ row.productPrice }}</span>
         </template>
       </el-table-column>
-      <el-table-column prop="status" label="状态" width="90" align="center">
+      <el-table-column prop="status" label="状态" width="100" align="center">
         <template #default="{ row }">
           <el-tag :type="statusTagType(row.status)">{{ statusText(row.status) }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="transferredFromManager" label="原经理" width="100" show-overflow-tooltip>
-        <template #default="{ row }">
-          <span>{{ row.transferredFromManager || '--' }}</span>
-        </template>
-      </el-table-column>
-      <el-table-column label="做单时间" width="160" align="center">
+      <el-table-column label="做单时间" width="170" align="center">
         <template #default="{ row }">
           {{ formatTime(row.createdAt) }}
-        </template>
-      </el-table-column>
-      <el-table-column prop="settledAt" label="结算日期" width="160" align="center">
-        <template #default="{ row }">
-          <span>{{ row.settledAt ? formatTime(row.settledAt) : '--' }}</span>
         </template>
       </el-table-column>
       <el-table-column prop="rejectReason" label="驳回原因" width="120" show-overflow-tooltip>
@@ -131,18 +135,9 @@
           <span style="color: #f56c6c;">{{ row.rejectReason || '--' }}</span>
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="180" align="center" fixed="right">
+      <el-table-column prop="settledAt" label="结算日期" width="170" align="center">
         <template #default="{ row }">
-          <template v-if="row.status === 'pending'">
-            <el-button type="success" text size="small" @click="handleApprove(row)">审核通过</el-button>
-            <el-button type="danger" text size="small" @click="handleReject(row)">驳回</el-button>
-          </template>
-          <template v-else-if="row.status === 'approved'">
-            <el-button type="primary" text size="small" @click="handleAddToPayment(row)">添加到待付款</el-button>
-          </template>
-          <template v-else>
-            <span style="color: #909399; font-size: 13px;">--</span>
-          </template>
+          <span>{{ row.settledAt ? formatTime(row.settledAt) : '--' }}</span>
         </template>
       </el-table-column>
     </el-table>
@@ -170,20 +165,20 @@
         </div>
         <el-table :data="statDialogOrders" border size="small" max-height="450">
           <el-table-column type="index" label="#" width="40" />
-          <el-table-column prop="productName" label="产品名称" min-width="130" show-overflow-tooltip />
-          <el-table-column prop="userId" label="用户ID" width="150" show-overflow-tooltip />
-          <el-table-column prop="productPrice" label="金额" width="80" align="right">
-            <template #default="{ row }"><span style="font-weight: 600;">¥{{ row.productPrice }}</span></template>
-          </el-table-column>
-          <el-table-column label="来源" width="90" align="center">
+          <el-table-column prop="productName" label="产品名称" min-width="150" show-overflow-tooltip>
             <template #default="{ row }">
-              <el-tag :type="row.managedBy === 'admin' ? 'warning' : 'info'" size="small">
-                {{ row.managedBy === 'admin' ? '已转移' : '经理' }}
-              </el-tag>
+              <span>{{ row.productName }}</span>
+              <el-tag v-if="row.optionLabel" size="small" type="info" style="margin-left: 4px;">{{ row.optionLabel }}</el-tag>
             </template>
           </el-table-column>
-          <el-table-column prop="transferredFromManager" label="原经理" width="90" show-overflow-tooltip>
-            <template #default="{ row }"><span>{{ row.transferredFromManager || '--' }}</span></template>
+          <el-table-column prop="userName" label="用户姓名" width="100" show-overflow-tooltip>
+            <template #default="{ row }"><span>{{ maskName(row.userName) }}</span></template>
+          </el-table-column>
+          <el-table-column prop="userPhone" label="手机号" width="110" show-overflow-tooltip>
+            <template #default="{ row }"><span>{{ maskPhone(row.userPhone) }}</span></template>
+          </el-table-column>
+          <el-table-column prop="productPrice" label="金额" width="80" align="right">
+            <template #default="{ row }"><span style="font-weight: 600;">¥{{ row.productPrice }}</span></template>
           </el-table-column>
           <el-table-column label="做单时间" width="140" align="center">
             <template #default="{ row }">
@@ -201,9 +196,9 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage } from 'element-plus'
 import { Document, Clock, CircleCheck, CircleClose, Wallet, SuccessFilled } from '@element-plus/icons-vue'
-import { get, put } from '@promo/shared/utils/request'
+import { get } from '@promo/shared/utils/request'
 
 const loading = ref(false)
 const filterStatus = ref('')
@@ -242,6 +237,18 @@ const formatTime = (iso: string) => {
     day += 1
   }
   return `${year}-${p(month)}-${p(day)} ${p(hours)}:${p(d.getUTCMinutes())}`
+}
+
+const maskPhone = (phone: string) => {
+  if (!phone || phone.length < 7) return phone || '--'
+  return phone.slice(0, 3) + '****' + phone.slice(-4)
+}
+
+const maskName = (name: string) => {
+  if (!name) return '--'
+  if (name.length <= 1) return name
+  if (name.length === 2) return name[0] + '*'
+  return name[0] + '*'.repeat(name.length - 2) + name[name.length - 1]
 }
 
 const fetchStats = async () => {
@@ -291,30 +298,6 @@ const openStatDialog = async (status: string, title: string) => {
     const res = await get<any>('/orders', params)
     statDialogOrders.value = res.data?.list || []
   } catch { ElMessage.error('获取数据失败'); statDialogVisible.value = false }
-}
-
-const handleApprove = async (row: any) => {
-  try {
-    await ElMessageBox.confirm(`确认「${row.productName}」推广有效？`, '审核', { confirmButtonText: '通过', cancelButtonText: '取消', type: 'success' })
-    await put(`/orders/${row.id}/review`, { action: 'approve' })
-    ElMessage.success('审核通过'); fetchStats(); fetchData()
-  } catch (e: any) { if (e !== 'cancel' && e?.message) ElMessage.error(e.message) }
-}
-
-const handleReject = async (row: any) => {
-  try {
-    const { value: reason } = await ElMessageBox.prompt('请输入驳回原因', '驳回', { confirmButtonText: '确定', cancelButtonText: '取消', type: 'warning', inputValidator: (v: string) => v?.trim() ? true : '请输入原因' })
-    await put(`/orders/${row.id}/review`, { action: 'reject', reason })
-    ElMessage.success('已驳回'); fetchStats(); fetchData()
-  } catch (e: any) { if (e !== 'cancel' && e?.message) ElMessage.error(e.message) }
-}
-
-const handleAddToPayment = async (row: any) => {
-  try {
-    await ElMessageBox.confirm(`将「${row.productName}」添加到待付款？`, '确认', { confirmButtonText: '确定', cancelButtonText: '取消' })
-    await put(`/orders/${row.id}/settle`, { action: 'pending_payment' })
-    ElMessage.success('已添加到待付款'); fetchStats(); fetchData()
-  } catch (e: any) { if (e !== 'cancel' && e?.message) ElMessage.error(e.message) }
 }
 
 onMounted(() => { fetchStats(); fetchData(); fetchManagers(); fetchUsers() })
