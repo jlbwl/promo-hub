@@ -268,14 +268,14 @@ const fetchStats = async () => {
 const fetchManagers = async () => {
   try {
     const res = await get<any>('/managers')
-    if (res.data) managers.value = res.data.list || []
+    if (res.data) managers.value = res.data || []
   } catch (e) { console.error(e) }
 }
 
-// 获取用户列表
+// 获取用户列表（主账号用户，不包含员工子账号）
 const fetchUsers = async () => {
   try {
-    const res = await get<any>('/users')
+    const res = await get<any>('/users', { role: 'user' })
     if (res.data) users.value = res.data.list || []
   } catch (e) { console.error(e) }
 }
