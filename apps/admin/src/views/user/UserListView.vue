@@ -295,9 +295,14 @@ const handleSearch = () => {
 }
 
 // 查看用户详情
-const handleViewDetail = (row: UserItem) => {
-  Object.assign(detailData, row)
-  detailDialogVisible.value = true
+const handleViewDetail = async (row: UserItem) => {
+  try {
+    const res = await get<any>(`/users/${row.id}`)
+    Object.assign(detailData, res.data)
+    detailDialogVisible.value = true
+  } catch (error: any) {
+    ElMessage.error(error.message || '获取详情失败')
+  }
 }
 
 // 切换启用/禁用状态

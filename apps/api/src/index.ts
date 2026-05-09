@@ -891,6 +891,53 @@ app.put('/api/users/:id/team-name', async (req, res) => {
   }
 })
 
+// 管理后台：获取单个用户详情
+app.get('/api/users/:id', async (req, res) => {
+  const userId = req.params.id
+  
+  // 先查经理表
+  const managers = await readManagers()
+  const manager = managers.find((m: any) => m.id === userId)
+  if (manager) {
+    res.json({
+      code: 0,
+      message: 'success',
+      data: {
+        id: manager.id,
+        name: manager.name,
+        phone: manager.phone,
+        teamName: manager.teamName || '',
+        role: 'manager',
+        status: manager.status === 'active' ? 1 : 0,
+        createdAt: manager.createdAt,
+      }
+    })
+    return
+  }
+
+  // 再查用户表
+  const users = await readUsers()
+  const user = users.find((u: any) => u.id === userId)
+  if (user) {
+    res.json({
+      code: 0,
+      message: 'success',
+      data: {
+        id: user.id,
+        name: user.nickname,
+        phone: user.phone,
+        teamName: user.teamName || '',
+        role: user.role,
+        status: user.status === 'active' ? 1 : 0,
+        createdAt: user.createdAt,
+      }
+    })
+    return
+  }
+
+  res.json({ code: 404, message: '用户不存在', data: null })
+})
+
 // ============ 做单接口 ============
 
 // 做单（扣减库存）
