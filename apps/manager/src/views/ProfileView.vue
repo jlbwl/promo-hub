@@ -19,7 +19,7 @@
             </div>
             <el-descriptions :column="1" border class="info-descriptions">
               <el-descriptions-item label="渠道名称">
-                {{ managerInfo.name }}
+                {{ managerInfo.teamName || managerInfo.name }}
               </el-descriptions-item>
               <el-descriptions-item label="手机号">
                 {{ managerInfo.phone }}
@@ -115,6 +115,7 @@ let smsTimer: ReturnType<typeof setInterval> | null = null
 // 经理信息（模拟数据，实际从接口获取）
 const managerInfo = reactive({
   name: '',
+  teamName: '',
   phone: '',
   totalCommission: 0,
   createdAt: ''
@@ -164,26 +165,52 @@ const fetchManagerInfo = async () => {
       const info = JSON.parse(storedInfo)
       managerInfo.name = info.name || '张经理'
       managerInfo.phone = info.phone || '13800138000'
+      managerInfo.teamName = info.teamName || ''
     }
 
-    // 获取审核通过的订单金额总和
+    // 从后端获取最新的经理信息
     const managerId = getManagerId()
     if (managerId) {
-      const res = await get<any>('/orders', {
+      const res = await get<any>(`/managers/${managerId}`)
+      if (res.data) {
+        managerInfo.name = res.data.name || managerInfo.name
+        managerInfo.phone = res.data.phone || managerInfo.phone
+        managerInfo.teamName = res.data.teamName || managerInfo.name
+        managerInfo.createdAt = res.data.createdAt ? formatTime(res.data.createdAt) : '2025-06-15 10:00:00'
+      }
+
+      // 获取审核通过的订单金额总和
+      const orderRes = await get<any>('/orders', {
         managerId,
         status: 'approved',
         pageSize: 9999
       })
-      const orders = res.data?.list || []
+      const orders = orderRes.data?.list || []
       // 累计佣金 = 审核通过的订单金额总和
       managerInfo.totalCommission = orders.reduce((sum: number, o: any) => sum + (Number(o.productPrice) || 0), 0)
     }
 
-    managerInfo.createdAt = '2025-06-15 10:00:00'
+    if (!managerInfo.createdAt) {
+      managerInfo.createdAt = '2025-06-15 10:00:00'
+    }
   } catch (error) {
     console.error('获取经理信息失败:', error)
     ElMessage.error('获取经理信息失败')
   }
+}
+
+// 格式化时间
+const formatTime = (iso: string) => {
+  if (!iso) return '--'
+  const d = new Date(iso)
+  const p = (n: number) => String(n).padStart(2, '0')
+  const year = d.getFullYear()
+  const month = d.getMonth() + 1
+  const day = d.getDate()
+  const hours = d.getHours()
+  const minutes = d.getMinutes()
+  const seconds = d.getSeconds()
+  return `${year}-${p(month)}-${p(day)} ${p(hours)}:${p(minutes)}:${p(seconds)}`
 }
 
 // 获取当前经理 ID

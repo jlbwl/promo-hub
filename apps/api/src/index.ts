@@ -263,6 +263,22 @@ app.get('/api/managers', async (_req, res) => {
   res.json({ code: 0, message: 'success', data: managers })
 })
 
+// 获取单个经理信息
+app.get('/api/managers/:id', async (req, res) => {
+  const managerId = req.params.id
+  const managers = await readManagers()
+  const manager = managers.find((m: any) => m.id === managerId)
+  
+  if (!manager) {
+    res.json({ code: 404, message: '经理不存在', data: null })
+    return
+  }
+
+  // 返回时隐藏密码
+  const { password: _, ...safeManager } = manager
+  res.json({ code: 0, message: 'success', data: safeManager })
+})
+
 // 添加经理
 app.post('/api/managers', async (req, res) => {
   const managers = await readManagers()
