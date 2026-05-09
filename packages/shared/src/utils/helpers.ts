@@ -13,17 +13,40 @@ export function formatMoney(value: number): string {
 /** 格式化日期（北京时区 UTC+8） */
 export function formatDate(date: string | Date, format = 'YYYY-MM-DD HH:mm:ss'): string {
   const d = new Date(date)
-  // 转换为北京时区（UTC+8）
-  const utc = d.getTime() + d.getTimezoneOffset() * 60000
-  const beijingTime = new Date(utc + 8 * 3600000)
+  const p = (n: number) => String(n).padStart(2, '0')
+  
+  // 获取北京时区时间（UTC+8）
+  let year = d.getUTCFullYear()
+  let month = d.getUTCMonth() + 1
+  let day = d.getUTCDate()
+  let hours = d.getUTCHours() + 8
+  let minutes = d.getUTCMinutes()
+  let seconds = d.getUTCSeconds()
+  
+  // 处理跨天、跨月、跨年情况
+  if (hours >= 24) {
+    hours -= 24
+    day += 1
+    
+    const daysInMonth = new Date(year, month, 0).getDate()
+    if (day > daysInMonth) {
+      day = 1
+      month += 1
+      
+      if (month > 12) {
+        month = 1
+        year += 1
+      }
+    }
+  }
   
   const map: Record<string, string> = {
-    'YYYY': String(beijingTime.getFullYear()),
-    'MM': String(beijingTime.getMonth() + 1).padStart(2, '0'),
-    'DD': String(beijingTime.getDate()).padStart(2, '0'),
-    'HH': String(beijingTime.getHours()).padStart(2, '0'),
-    'mm': String(beijingTime.getMinutes()).padStart(2, '0'),
-    'ss': String(beijingTime.getSeconds()).padStart(2, '0'),
+    'YYYY': String(year),
+    'MM': p(month),
+    'DD': p(day),
+    'HH': p(hours),
+    'mm': p(minutes),
+    'ss': p(seconds),
   }
   let result = format
   for (const [key, val] of Object.entries(map)) {

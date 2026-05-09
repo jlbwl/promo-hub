@@ -214,10 +214,18 @@ const getManagerName = (managerId: string) => {
 const formatTime = (iso: string) => {
   if (!iso) return '--'
   const d = new Date(iso)
-  const utc = d.getTime() + d.getTimezoneOffset() * 60000
-  const beijingTime = new Date(utc + 8 * 3600000)
   const p = (n: number) => String(n).padStart(2, '0')
-  return `${beijingTime.getFullYear()}-${p(beijingTime.getMonth() + 1)}-${p(beijingTime.getDate())} ${p(beijingTime.getHours())}:${p(beijingTime.getMinutes())}`
+  // 获取北京时区时间（UTC+8）
+  const year = d.getUTCFullYear()
+  const month = d.getUTCMonth() + 1
+  let day = d.getUTCDate()
+  let hours = d.getUTCHours() + 8
+  // 处理跨天情况
+  if (hours >= 24) {
+    hours -= 24
+    day += 1
+  }
+  return `${year}-${p(month)}-${p(day)} ${p(hours)}:${p(d.getUTCMinutes())}`
 }
 
 // 获取全局统计数据
