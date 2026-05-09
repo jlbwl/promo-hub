@@ -266,25 +266,33 @@ app.get('/api/managers', async (_req, res) => {
 // 添加经理
 app.post('/api/managers', async (req, res) => {
   const managers = await readManagers()
-  const { username, password, name, phone } = req.body
+  const { teamName, password, phone } = req.body
 
-  if (!username || !password) {
-    res.json({ code: 400, message: '用户名和密码不能为空', data: null })
+  if (!teamName || !password) {
+    res.json({ code: 400, message: '渠道名称和密码不能为空', data: null })
     return
   }
 
-  // 用户名重复校验
-  if (managers.find((m: any) => m.username === username)) {
-    res.json({ code: 409, message: '用户名已存在', data: null })
+  // 渠道名称重复校验
+  if (managers.find((m: any) => m.teamName === teamName)) {
+    res.json({ code: 409, message: '该渠道名称已存在', data: null })
+    return
+  }
+
+  // 同时检查用户表中的团队名称
+  const users = await readUsers()
+  if (users.find((u: any) => u.teamName === teamName)) {
+    res.json({ code: 409, message: '该团队名称已存在', data: null })
     return
   }
 
   const now = new Date().toISOString()
   const manager = {
     id: `m_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-    username,
+    username: teamName,
     password,
-    name: name || username,
+    name: teamName,
+    teamName,
     phone: phone || '',
     status: 'active',
     createdAt: now,

@@ -6,7 +6,7 @@
         <el-col :span="8">
           <el-input
             v-model="searchKeyword"
-            placeholder="搜索姓名或手机号"
+            placeholder="搜索渠道名称或手机号"
             prefix-icon="Search"
             clearable
             @clear="handleSearch"
@@ -35,8 +35,7 @@
         style="width: 100%"
         v-loading="loading"
       >
-        <el-table-column prop="name" label="姓名" width="120" />
-        <el-table-column prop="username" label="用户名" width="120" />
+        <el-table-column prop="teamName" label="渠道名称" width="140" show-overflow-tooltip />
         <el-table-column prop="phone" label="手机号" width="140" />
         <el-table-column prop="status" label="状态" width="100" align="center">
           <template #default="{ row }">
@@ -81,14 +80,11 @@
         :rules="addFormRules"
         label-width="80px"
       >
-        <el-form-item label="用户名" prop="username">
-          <el-input v-model="addForm.username" placeholder="登录用户名" />
+        <el-form-item label="渠道名称" prop="teamName">
+          <el-input v-model="addForm.teamName" placeholder="渠道名称" />
         </el-form-item>
         <el-form-item label="密码" prop="password">
           <el-input v-model="addForm.password" type="password" placeholder="登录密码" show-password />
-        </el-form-item>
-        <el-form-item label="姓名" prop="name">
-          <el-input v-model="addForm.name" placeholder="真实姓名" />
         </el-form-item>
         <el-form-item label="手机号" prop="phone" required>
           <el-input v-model="addForm.phone" placeholder="手机号" />
@@ -141,9 +137,8 @@ const filteredData = computed(() => {
   const keyword = searchKeyword.value.toLowerCase()
   return tableData.value.filter(
     (item: any) =>
-      (item.name || '').toLowerCase().includes(keyword) ||
-      (item.phone || '').includes(keyword) ||
-      (item.username || '').toLowerCase().includes(keyword)
+      (item.teamName || '').toLowerCase().includes(keyword) ||
+      (item.phone || '').includes(keyword)
   )
 })
 
@@ -152,23 +147,18 @@ const addDialogVisible = ref(false)
 const addLoading = ref(false)
 const addFormRef = ref<FormInstance>()
 const addForm = reactive({
-  username: '',
+  teamName: '',
   password: '',
-  name: '',
   phone: ''
 })
 
 const addFormRules: FormRules = {
-  username: [
-    { required: true, message: '请输入用户名', trigger: 'blur' },
-    { min: 3, max: 20, message: '用户名长度在 3 到 20 个字符', trigger: 'blur' }
+  teamName: [
+    { required: true, message: '请输入渠道名称', trigger: 'blur' }
   ],
   password: [
     { required: true, message: '请输入密码', trigger: 'blur' },
     { min: 6, max: 20, message: '密码长度在 6 到 20 个字符', trigger: 'blur' }
-  ],
-  name: [
-    { required: true, message: '请输入姓名', trigger: 'blur' }
   ],
   phone: [
     { required: true, message: '请输入手机号', trigger: 'blur' },
@@ -201,9 +191,8 @@ const showAddDialog = () => {
 
 // 重置表单
 const resetAddForm = () => {
-  addForm.username = ''
+  addForm.teamName = ''
   addForm.password = ''
-  addForm.name = ''
   addForm.phone = ''
   addFormRef.value?.resetFields()
 }
@@ -215,9 +204,8 @@ const handleAdd = async () => {
     await addFormRef.value.validate()
     addLoading.value = true
     await post('/managers', {
-      username: addForm.username,
+      teamName: addForm.teamName,
       password: addForm.password,
-      name: addForm.name,
       phone: addForm.phone,
     })
     ElMessage.success('添加成功')
@@ -234,7 +222,7 @@ const handleAdd = async () => {
 const handleToggleStatus = async (row: any) => {
   const action = row.status === 'active' ? '禁用' : '启用'
   try {
-    await ElMessageBox.confirm(`确定要${action}渠道经理「${row.name}」吗？`, '提示', {
+    await ElMessageBox.confirm(`确定要${action}渠道「${row.teamName}」吗？`, '提示', {
       confirmButtonText: '确定',
       cancelButtonText: '取消',
       type: 'warning'
@@ -252,7 +240,7 @@ const handleToggleStatus = async (row: any) => {
 // 删除
 const handleDelete = async (row: any) => {
   try {
-    await ElMessageBox.confirm(`确定要删除渠道经理「${row.name}」吗？删除后该经理将无法登录。`, '警告', {
+    await ElMessageBox.confirm(`确定要删除渠道「${row.teamName}」吗？删除后该渠道将无法登录。`, '警告', {
       confirmButtonText: '确定删除',
       cancelButtonText: '取消',
       type: 'error'
