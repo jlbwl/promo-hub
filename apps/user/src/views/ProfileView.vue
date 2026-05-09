@@ -382,7 +382,7 @@ const handleAbout = () => {
 const handleContactService = () => {
   showDialog({
     title: '联系客服',
-    message: '客服微信：service_distributor\n客服电话：400-888-8888\n工作时间：周一至周五 9:00-18:00',
+    message: '客服微信：jlyc415\n工作时间：周一至周五 9:00-18:00',
     confirmButtonText: '知道了'
   })
 }
