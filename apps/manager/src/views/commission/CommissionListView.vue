@@ -132,7 +132,11 @@
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="createdAt" label="做单时间" width="170" align="center" />
+      <el-table-column label="做单时间" width="170" align="center">
+        <template #default="{ row }">
+          {{ formatTime(row.createdAt) }}
+        </template>
+      </el-table-column>
       <el-table-column prop="rejectReason" label="驳回原因" width="120" show-overflow-tooltip>
         <template #default="{ row }">
           <span style="color: #f56c6c;">{{ row.rejectReason || '--' }}</span>
@@ -339,7 +343,11 @@
               <el-tag :type="statusTagType(row.status)" size="small">{{ statusText(row.status) }}</el-tag>
             </template>
           </el-table-column>
-          <el-table-column prop="createdAt" label="做单时间" width="150" align="center" />
+          <el-table-column label="做单时间" width="150" align="center">
+            <template #default="{ row }">
+              {{ formatTime(row.createdAt) }}
+            </template>
+          </el-table-column>
           <el-table-column prop="rejectReason" label="驳回原因" width="120" show-overflow-tooltip>
             <template #default="{ row }">
               <span style="color: #f56c6c;">{{ row.rejectReason || '--' }}</span>
@@ -473,12 +481,22 @@ const statusText = (status: string) => {
   return map[status] || status
 }
 
-// 格式化时间
+// 格式化时间（北京时区 UTC+8）
 const formatTime = (iso: string) => {
   if (!iso) return ''
   const d = new Date(iso)
   const pad = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
+  // 获取北京时区时间（UTC+8）
+  const year = d.getUTCFullYear()
+  const month = d.getUTCMonth() + 1
+  let day = d.getUTCDate()
+  let hours = d.getUTCHours() + 8
+  // 处理跨天情况
+  if (hours >= 24) {
+    hours -= 24
+    day += 1
+  }
+  return `${year}-${pad(month)}-${pad(day)} ${pad(hours)}:${pad(d.getUTCMinutes())}`
 }
 
 const maskPhone = (phone: string) => {
