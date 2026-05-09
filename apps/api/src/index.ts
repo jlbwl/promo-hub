@@ -841,16 +841,19 @@ app.put('/api/users/:id/team-name', async (req, res) => {
     await writeUsers(users)
     console.log('[调试] 已保存用户数据:', users[usrIdx])
 
-    // 如果团队名称发生变更，同步更新该用户的历史订单
-    if (oldTeamName && oldTeamName !== teamName) {
-      let orders = await readOrders()
-      orders = orders.map((o: any) => {
-        if (o.userId === userId && o.teamName === oldTeamName) {
-          return { ...o, teamName, updatedAt: new Date().toISOString() }
-        }
-        return o
-      })
+    // 同步更新该用户的所有历史订单的团队名称
+    let orders = await readOrders()
+    let updated = false
+    orders = orders.map((o: any) => {
+      if (o.userId === userId) {
+        updated = true
+        return { ...o, teamName, updatedAt: new Date().toISOString() }
+      }
+      return o
+    })
+    if (updated) {
       await writeOrders(orders)
+      console.log('[调试] 已更新用户历史订单团队名称')
     }
 
     res.json({ code: 0, message: '更新成功', data: null })
@@ -882,17 +885,8 @@ app.put('/api/users/:id/team-name', async (req, res) => {
     await writeManagers(managers)
     console.log('[调试] 已保存经理数据:', managers[mgrIdx])
 
-    // 如果团队名称发生变更，同步更新该经理的历史订单
-    if (oldTeamName && oldTeamName !== teamName) {
-      let orders = await readOrders()
-      orders = orders.map((o: any) => {
-        if (o.managerId === userId && o.teamName === oldTeamName) {
-          return { ...o, teamName, updatedAt: new Date().toISOString() }
-        }
-        return o
-      })
-      await writeOrders(orders)
-    }
+    // 注意：渠道经理的团队名称变更不会影响历史订单
+    // 因为订单的 teamName 是做单用户的团队名称
 
     res.json({ code: 0, message: '更新成功', data: null })
   }
@@ -1050,11 +1044,28 @@ app.get('/api/orders', async (req, res) => {
 
   orders.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
 
+  // 预加载所有用户和经理数据，用于动态获取团队名称
+  const users = await readUsers()
+  const managers = await readManagers()
+
   const total = orders.length
   const pageNum = parseInt(page as string, 10)
   const pageSizeNum = parseInt(pageSize as string, 10)
   const start = (pageNum - 1) * pageSizeNum
-  const list = orders.slice(start, start + pageSizeNum)
+  const list = orders.slice(start, start + pageSizeNum).map(order => {
+    // 动态获取用户当前的团队名称
+    let currentTeamName = order.teamName || ''
+    if (order.userId && order.userId !== 'guest') {
+      const user = users.find((u: any) => u.id === order.userId)
+      if (user && user.teamName) {
+        currentTeamName = user.teamName
+      }
+    }
+    return {
+      ...order,
+      teamName: currentTeamName
+    }
+  })
 
   res.json({ code: 0, message: 'success', data: { list, total, page: pageNum, pageSize: pageSizeNum } })
 })
