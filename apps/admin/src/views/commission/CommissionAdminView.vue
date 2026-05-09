@@ -112,7 +112,7 @@
       </el-table-column>
       <el-table-column label="渠道名称" width="140" show-overflow-tooltip>
         <template #default="{ row }">
-          <span>{{ getManagerName(row.managerId) }}</span>
+          <span>{{ getManagerTeamName(row.managerId) }}</span>
         </template>
       </el-table-column>
       <el-table-column prop="teamName" label="团队名称" width="140" show-overflow-tooltip />
@@ -181,7 +181,7 @@
             <template #default="{ row }"><span>{{ maskName(row.userName) }}</span></template>
           </el-table-column>
           <el-table-column label="渠道名称" width="120" show-overflow-tooltip>
-            <template #default="{ row }"><span>{{ getManagerName(row.managerId) }}</span></template>
+            <template #default="{ row }"><span>{{ getManagerTeamName(row.managerId) }}</span></template>
           </el-table-column>
           <el-table-column prop="teamName" label="团队名称" width="120" show-overflow-tooltip />
           <el-table-column prop="userPhone" label="手机号" width="110" show-overflow-tooltip>
@@ -261,12 +261,12 @@ const maskName = (name: string) => {
   return name[0] + '*'.repeat(name.length - 2) + name[name.length - 1]
 }
 
-// 根据经理 ID 获取经理名称
-const getManagerName = (managerId: string) => {
+// 根据经理 ID 获取经理团队名称
+const getManagerTeamName = (managerId: string) => {
   if (!managerId) return '--'
   const manager = managers.value.find(m => m.id === managerId)
   if (manager) {
-    return manager.name || manager.username || '--'
+    return manager.teamName || manager.name || manager.username || '--'
   }
   return '--'
 }
