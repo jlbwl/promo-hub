@@ -83,11 +83,17 @@ export async function initDatabase(): Promise<void> {
       password VARCHAR(500) NOT NULL DEFAULT '',
       name VARCHAR(200) DEFAULT '',
       phone VARCHAR(50) DEFAULT '',
+      teamName VARCHAR(200) DEFAULT '',
       status VARCHAR(50) NOT NULL DEFAULT 'active',
       createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
       updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `)
+
+  // 新增 teamName 列（如果不存在）
+  try {
+    await pool.execute('ALTER TABLE managers ADD COLUMN teamName VARCHAR(200) DEFAULT "" AFTER phone')
+  } catch (e) { /* 列可能已存在，忽略错误 */ }
 
   // 用户表
   await pool.execute(`
