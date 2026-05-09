@@ -6,7 +6,7 @@
         <el-col :span="6">
           <el-input
             v-model="searchKeyword"
-            placeholder="搜索姓名或手机号"
+            placeholder="搜索团队名称或手机号"
             prefix-icon="Search"
             clearable
             @clear="handleSearch"
@@ -63,9 +63,8 @@
         style="width: 100%"
         v-loading="loading"
       >
-        <el-table-column prop="name" label="姓名" width="120" />
+        <el-table-column prop="teamName" label="团队名称" width="160" show-overflow-tooltip />
         <el-table-column prop="phone" label="手机号" width="140" />
-        <el-table-column prop="teamName" label="团队名称" width="140" />
         <el-table-column prop="role" label="角色" width="120" align="center">
           <template #default="{ row }">
             <el-tag :type="getRoleTagType(row.role)">
@@ -126,9 +125,8 @@
       width="500px"
     >
       <el-descriptions :column="1" border>
-        <el-descriptions-item label="姓名">{{ detailData.name }}</el-descriptions-item>
-        <el-descriptions-item label="手机号">{{ detailData.phone }}</el-descriptions-item>
         <el-descriptions-item label="团队名称">{{ detailData.teamName || '--' }}</el-descriptions-item>
+        <el-descriptions-item label="手机号">{{ detailData.phone }}</el-descriptions-item>
         <el-descriptions-item label="角色">
           <el-tag :type="getRoleTagType(detailData.role)">
             {{ getRoleLabel(detailData.role) }}
@@ -316,7 +314,7 @@ const handleViewDetail = async (row: UserItem) => {
 const handleToggleStatus = async (row: UserItem) => {
   const action = row.status === 1 ? '禁用' : '启用'
   try {
-    await ElMessageBox.confirm(`确定要${action}用户「${row.name}」吗？`, '提示', {
+    await ElMessageBox.confirm(`确定要${action}团队「${row.teamName}」吗？`, '提示', {
       confirmButtonText: '确定',
       cancelButtonText: '取消',
       type: 'warning'

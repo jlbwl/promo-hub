@@ -753,7 +753,10 @@ app.get('/api/users', async (req, res) => {
   if (keyword) {
     const kw = String(keyword).toLowerCase()
     filtered = filtered.filter(
-      (u: any) => (u.name || '').toLowerCase().includes(kw) || (u.phone || '').includes(kw)
+      (u: any) => 
+        (u.name || '').toLowerCase().includes(kw) || 
+        (u.phone || '').includes(kw) ||
+        (u.teamName || '').toLowerCase().includes(kw)
     )
   }
   if (teamName) {
