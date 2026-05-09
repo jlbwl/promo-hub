@@ -113,6 +113,8 @@ export async function updateProduct(id: string, fields: Record<string, any>): Pr
       values.push(serialize(val))
     } else if (key === 'publishedAt' || key === 'offlineAt') {
       values.push(formatDateTime(val))
+    } else if (typeof val === 'boolean') {
+      values.push(val ? 1 : 0)
     } else {
       values.push(val ?? '')
     }
