@@ -811,6 +811,8 @@ app.put('/api/users/:id/team-name', async (req, res) => {
   const { teamName } = req.body
   const userId = req.params.id
 
+  console.log('[调试] 修改团队名称:', { userId, teamName })
+
   if (!teamName) {
     res.json({ code: 400, message: '团队名称不能为空', data: null })
     return
@@ -821,6 +823,7 @@ app.put('/api/users/:id/team-name', async (req, res) => {
   const usrIdx = users.findIndex((u: any) => u.id === userId)
   
   if (usrIdx !== -1) {
+    console.log('[调试] 找到普通用户:', users[usrIdx])
     // 是普通用户
     const oldTeamName = users[usrIdx].teamName
     
@@ -836,6 +839,7 @@ app.put('/api/users/:id/team-name', async (req, res) => {
     users[usrIdx].teamName = teamName
     users[usrIdx].updatedAt = new Date().toISOString()
     await writeUsers(users)
+    console.log('[调试] 已保存用户数据:', users[usrIdx])
 
     // 如果团队名称发生变更，同步更新该用户的历史订单
     if (oldTeamName && oldTeamName !== teamName) {
@@ -856,10 +860,12 @@ app.put('/api/users/:id/team-name', async (req, res) => {
     const mgrIdx = managers.findIndex((m: any) => m.id === userId)
     
     if (mgrIdx === -1) {
+      console.log('[调试] 用户不存在')
       res.json({ code: 404, message: '用户不存在', data: null })
       return
     }
 
+    console.log('[调试] 找到渠道经理:', managers[mgrIdx])
     // 是经理
     const oldTeamName = managers[mgrIdx].teamName
     
@@ -874,6 +880,7 @@ app.put('/api/users/:id/team-name', async (req, res) => {
     managers[mgrIdx].teamName = teamName
     managers[mgrIdx].updatedAt = new Date().toISOString()
     await writeManagers(managers)
+    console.log('[调试] 已保存经理数据:', managers[mgrIdx])
 
     // 如果团队名称发生变更，同步更新该经理的历史订单
     if (oldTeamName && oldTeamName !== teamName) {
@@ -894,11 +901,13 @@ app.put('/api/users/:id/team-name', async (req, res) => {
 // 管理后台：获取单个用户详情
 app.get('/api/users/:id', async (req, res) => {
   const userId = req.params.id
+  console.log('[调试] 获取用户详情:', userId)
   
   // 先查经理表
   const managers = await readManagers()
   const manager = managers.find((m: any) => m.id === userId)
   if (manager) {
+    console.log('[调试] 找到经理数据:', manager)
     res.json({
       code: 0,
       message: 'success',
@@ -919,6 +928,7 @@ app.get('/api/users/:id', async (req, res) => {
   const users = await readUsers()
   const user = users.find((u: any) => u.id === userId)
   if (user) {
+    console.log('[调试] 找到用户数据:', user)
     res.json({
       code: 0,
       message: 'success',
@@ -935,6 +945,7 @@ app.get('/api/users/:id', async (req, res) => {
     return
   }
 
+  console.log('[调试] 用户不存在')
   res.json({ code: 404, message: '用户不存在', data: null })
 })
 

@@ -296,11 +296,18 @@ const handleSearch = () => {
 
 // 查看用户详情
 const handleViewDetail = async (row: UserItem) => {
+  console.log('[调试] 查看用户详情:', {
+    rowId: row.id,
+    rowTeamName: row.teamName
+  })
   try {
     const res = await get<any>(`/users/${row.id}`)
+    console.log('[调试] 详情接口返回:', res)
     Object.assign(detailData, res.data)
+    console.log('[调试] 更新后的详情数据:', detailData)
     detailDialogVisible.value = true
   } catch (error: any) {
+    console.error('[调试] 获取详情失败:', error)
     ElMessage.error(error.message || '获取详情失败')
   }
 }
@@ -340,13 +347,20 @@ const handleSaveTeamName = async () => {
   }
   if (!editRow.value) return
 
+  console.log('[调试] 开始保存团队名称:', {
+    id: editRow.value.id,
+    newTeamName: teamNameForm.teamName.trim()
+  })
+
   teamNameLoading.value = true
   try {
     await put(`/users/${editRow.value.id}/team-name`, { teamName: teamNameForm.teamName.trim() })
+    console.log('[调试] 保存成功')
     ElMessage.success('修改成功')
     teamNameDialogVisible.value = false
     loadData()
   } catch (error: any) {
+    console.error('[调试] 保存失败:', error)
     ElMessage.error(error.message || '修改失败')
   } finally {
     teamNameLoading.value = false
