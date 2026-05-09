@@ -91,6 +91,14 @@
         <el-option label="经理管理" value="manager" />
         <el-option label="已转移（经理删除）" value="admin" />
       </el-select>
+      <el-select v-model="filterManager" placeholder="筛选经理" clearable style="width: 160px; margin-left: 12px;" @change="fetchData">
+        <el-option label="全部经理" value="" />
+        <el-option v-for="m in managers" :key="m.id" :label="m.name" :value="m.id" />
+      </el-select>
+      <el-select v-model="filterUser" placeholder="筛选用户" clearable style="width: 160px; margin-left: 12px;" @change="fetchData">
+        <el-option label="全部用户" value="" />
+        <el-option v-for="u in users" :key="u.id" :label="u.phone" :value="u.id" />
+      </el-select>
       <el-button icon="Refresh" style="margin-left: 12px;" @click="handleReset">重置</el-button>
     </div>
 
@@ -212,8 +220,14 @@ import { get, put } from '@promo/shared/utils/request'
 const loading = ref(false)
 const filterStatus = ref('')
 const filterSource = ref('')
+const filterManager = ref('')
+const filterUser = ref('')
 const pagination = reactive({ page: 1, pageSize: 10, total: 0 })
 const tableData = ref<any[]>([])
+
+// 经理列表和用户列表
+const managers = ref<any[]>([])
+const users = ref<any[]>([])
 
 const stats = reactive({ total: 0, pending: 0, approved: 0, pendingPayment: 0, settled: 0, rejected: 0 })
 
@@ -250,19 +264,37 @@ const fetchStats = async () => {
   } catch (e) { console.error(e) }
 }
 
+// 获取经理列表
+const fetchManagers = async () => {
+  try {
+    const res = await get<any>('/managers')
+    if (res.data) managers.value = res.data.list || []
+  } catch (e) { console.error(e) }
+}
+
+// 获取用户列表
+const fetchUsers = async () => {
+  try {
+    const res = await get<any>('/users')
+    if (res.data) users.value = res.data.list || []
+  } catch (e) { console.error(e) }
+}
+
 const fetchData = async () => {
   loading.value = true
   try {
     const params: any = { page: pagination.page, pageSize: pagination.pageSize }
     if (filterStatus.value) params.status = filterStatus.value
     if (filterSource.value) params.managedBy = filterSource.value
+    if (filterManager.value) params.managerId = filterManager.value
+    if (filterUser.value) params.userId = filterUser.value
     const res = await get<any>('/orders', params)
     if (res.data) { tableData.value = res.data.list || []; pagination.total = res.data.total || 0 }
   } catch (e: any) { ElMessage.error(e.message || '获取失败') }
   finally { loading.value = false }
 }
 
-const handleReset = () => { filterStatus.value = ''; filterSource.value = ''; pagination.page = 1; fetchData() }
+const handleReset = () => { filterStatus.value = ''; filterSource.value = ''; filterManager.value = ''; filterUser.value = ''; pagination.page = 1; fetchData() }
 
 const openStatDialog = async (status: string, title: string) => {
   statDialogTitle.value = title + '明细'
@@ -299,7 +331,7 @@ const handleAddToPayment = async (row: any) => {
   } catch (e: any) { if (e !== 'cancel' && e?.message) ElMessage.error(e.message) }
 }
 
-onMounted(() => { fetchStats(); fetchData() })
+onMounted(() => { fetchStats(); fetchData(); fetchManagers(); fetchUsers() })
 </script>
 
 <style lang="scss" scoped>
