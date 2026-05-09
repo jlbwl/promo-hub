@@ -17,9 +17,8 @@
           </template>
         </van-image>
         <div class="user-detail">
-          <h3 class="user-name">{{ userInfo.nickname }}</h3>
+          <h3 class="user-name">{{ userInfo.teamName || userInfo.nickname }}</h3>
           <p class="user-id">ID: {{ userInfo.id }}</p>
-          <p class="team-name" v-if="userInfo.teamName">团队: {{ userInfo.teamName }}</p>
         </div>
       </div>
     </div>
@@ -308,7 +307,7 @@ const smsCooldown = ref(0)
 let smsTimer: ReturnType<typeof setInterval> | null = null
 
 // 加载用户信息
-onMounted(() => {
+const loadUserInfo = async () => {
   try {
     const info = JSON.parse(localStorage.getItem('user_info') || '{}')
     userInfo.id = info.id || ''
@@ -316,9 +315,30 @@ onMounted(() => {
     userInfo.avatar = info.avatar || ''
     userInfo.phone = info.phone || ''
     userInfo.teamName = info.teamName || ''
-  } catch {
+
+    // 从后端获取最新的用户信息
+    if (userInfo.id) {
+      const res: any = await get(`/users/${userInfo.id}`)
+      if (res.code === 0 && res.data) {
+        userInfo.nickname = res.data.name || userInfo.nickname
+        userInfo.phone = res.data.phone || userInfo.phone
+        userInfo.teamName = res.data.teamName || userInfo.teamName
+        
+        // 更新 localStorage
+        localStorage.setItem('user_info', JSON.stringify({
+          ...info,
+          teamName: userInfo.teamName
+        }))
+      }
+    }
+  } catch (e) {
+    console.error('获取用户信息失败:', e)
     userInfo.nickname = '用户'
   }
+}
+
+onMounted(() => {
+  loadUserInfo()
 })
 
 // 页面跳转
