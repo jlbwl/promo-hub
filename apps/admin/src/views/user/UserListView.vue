@@ -70,7 +70,11 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="createdAt" label="注册时间" width="180" />
+        <el-table-column label="注册时间" width="180">
+          <template #default="{ row }">
+            {{ formatTime(row.createdAt) }}
+          </template>
+        </el-table-column>
         <el-table-column label="操作" min-width="160" fixed="right">
           <template #default="{ row }">
             <el-button type="primary" text size="small" @click="handleViewDetail(row)">
@@ -121,7 +125,7 @@
             {{ detailData.status === 1 ? '启用' : '禁用' }}
           </el-tag>
         </el-descriptions-item>
-        <el-descriptions-item label="注册时间">{{ detailData.createdAt }}</el-descriptions-item>
+        <el-descriptions-item label="注册时间">{{ formatTime(detailData.createdAt) }}</el-descriptions-item>
       </el-descriptions>
       <template #footer>
         <el-button @click="detailDialogVisible = false">关闭</el-button>
@@ -134,6 +138,16 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { get, put } from '@promo/shared/utils/request'
+
+// 格式化时间（北京时区 UTC+8）
+const formatTime = (iso: string) => {
+  if (!iso) return '--'
+  const d = new Date(iso)
+  const utc = d.getTime() + d.getTimezoneOffset() * 60000
+  const beijingTime = new Date(utc + 8 * 3600000)
+  const p = (n: number) => String(n).padStart(2, '0')
+  return `${beijingTime.getFullYear()}-${p(beijingTime.getMonth() + 1)}-${p(beijingTime.getDate())} ${p(beijingTime.getHours())}:${p(beijingTime.getMinutes())}`
+}
 
 // 搜索条件
 const searchKeyword = ref('')

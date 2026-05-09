@@ -45,7 +45,11 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="createdAt" label="创建时间" width="180" />
+        <el-table-column label="创建时间" width="180">
+          <template #default="{ row }">
+            {{ formatTime(row.createdAt) }}
+          </template>
+        </el-table-column>
         <el-table-column label="操作" min-width="200" fixed="right">
           <template #default="{ row }">
             <el-button
@@ -104,6 +108,16 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
 import { get, post, put, del } from '@promo/shared/utils/request'
+
+// 格式化时间（北京时区 UTC+8）
+const formatTime = (iso: string) => {
+  if (!iso) return '--'
+  const d = new Date(iso)
+  const utc = d.getTime() + d.getTimezoneOffset() * 60000
+  const beijingTime = new Date(utc + 8 * 3600000)
+  const p = (n: number) => String(n).padStart(2, '0')
+  return `${beijingTime.getFullYear()}-${p(beijingTime.getMonth() + 1)}-${p(beijingTime.getDate())} ${p(beijingTime.getHours())}:${p(beijingTime.getMinutes())}`
+}
 
 // 搜索关键词
 const searchKeyword = ref('')

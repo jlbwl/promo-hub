@@ -120,7 +120,11 @@
           <span>{{ row.transferredFromManager || '--' }}</span>
         </template>
       </el-table-column>
-      <el-table-column prop="createdAt" label="做单时间" width="160" align="center" />
+      <el-table-column label="做单时间" width="160" align="center">
+        <template #default="{ row }">
+          {{ formatTime(row.createdAt) }}
+        </template>
+      </el-table-column>
       <el-table-column prop="settledAt" label="结算日期" width="160" align="center">
         <template #default="{ row }">
           <span>{{ row.settledAt ? formatTime(row.settledAt) : '--' }}</span>
@@ -185,7 +189,11 @@
           <el-table-column prop="transferredFromManager" label="原经理" width="90" show-overflow-tooltip>
             <template #default="{ row }"><span>{{ row.transferredFromManager || '--' }}</span></template>
           </el-table-column>
-          <el-table-column prop="createdAt" label="做单时间" width="140" align="center" />
+          <el-table-column label="做单时间" width="140" align="center">
+            <template #default="{ row }">
+              {{ formatTime(row.createdAt) }}
+            </template>
+          </el-table-column>
         </el-table>
         <div class="payment-actions">
           <el-button @click="statDialogVisible = false">关闭</el-button>
@@ -221,8 +229,10 @@ const statusText = (s: string) => ({ pending: '待审核', approved: '已通过'
 const formatTime = (iso: string) => {
   if (!iso) return ''
   const d = new Date(iso)
+  const utc = d.getTime() + d.getTimezoneOffset() * 60000
+  const beijingTime = new Date(utc + 8 * 3600000)
   const p = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
+  return `${beijingTime.getFullYear()}-${p(beijingTime.getMonth() + 1)}-${p(beijingTime.getDate())} ${p(beijingTime.getHours())}:${p(beijingTime.getMinutes())}`
 }
 
 const fetchStats = async () => {

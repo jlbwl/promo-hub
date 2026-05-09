@@ -210,12 +210,14 @@ const getManagerName = (managerId: string) => {
   return managerId.slice(0, 8)
 }
 
-// 格式化时间
+// 格式化时间（北京时区 UTC+8）
 const formatTime = (iso: string) => {
   if (!iso) return '--'
   const d = new Date(iso)
+  const utc = d.getTime() + d.getTimezoneOffset() * 60000
+  const beijingTime = new Date(utc + 8 * 3600000)
   const p = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
+  return `${beijingTime.getFullYear()}-${p(beijingTime.getMonth() + 1)}-${p(beijingTime.getDate())} ${p(beijingTime.getHours())}:${p(beijingTime.getMinutes())}`
 }
 
 // 获取全局统计数据
