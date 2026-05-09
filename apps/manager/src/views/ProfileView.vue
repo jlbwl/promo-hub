@@ -10,10 +10,10 @@
           <div class="profile-info">
             <div class="avatar-section">
               <el-avatar :size="80" class="avatar">
-                {{ managerInfo.name.charAt(0) }}
+                {{ (managerInfo.teamName || managerInfo.name).charAt(0) }}
               </el-avatar>
               <div class="info-text">
-                <h3>{{ managerInfo.name }}</h3>
+                <h3>{{ managerInfo.teamName || managerInfo.name }}</h3>
                 <p class="info-label">渠道经理</p>
               </div>
             </div>
