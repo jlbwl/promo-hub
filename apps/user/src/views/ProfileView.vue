@@ -30,9 +30,9 @@
         <span class="stat-label">累计佣金</span>
       </div>
       <div class="stat-divider"></div>
-      <div class="stat-item">
-        <span class="stat-value">{{ stats.promotionCount }}</span>
-        <span class="stat-label">我的推广</span>
+      <div class="stat-item" @click="showEmployeeList = true">
+        <span class="stat-value">{{ employeeCount }}</span>
+        <span class="stat-label">我的团队</span>
       </div>
       <div class="stat-divider"></div>
       <div class="stat-item" @click="goTo('/commissions')">
@@ -44,10 +44,10 @@
     <!-- 功能列表 -->
     <van-cell-group inset class="func-group">
       <van-cell
-        title="我的推广"
-        icon="chart-trending-o"
+        title="创建员工子账户"
+        icon="user-plus"
         is-link
-        @click="goTo('/commissions')"
+        @click="showCreateEmployee = true"
       />
       <van-cell
         title="累计佣金"
@@ -96,6 +96,86 @@
       confirm-button-color="#ee0a24"
       @confirm="doLogout"
     />
+
+    <!-- 创建员工子账户弹窗 -->
+    <van-popup v-model:show="showCreateEmployee" position="center" :style="{ width: '90%', maxWidth: '400px' }">
+      <div class="employee-dialog">
+        <div class="dialog-header">
+          <h3>{{ editingEmployee ? '编辑员工' : '创建员工子账户' }}</h3>
+          <van-icon name="cross" @click="closeCreateEmployee" />
+        </div>
+        <div class="dialog-content">
+          <van-cell-group inset>
+            <van-field
+              v-model="employeeForm.phone"
+              type="tel"
+              label="员工手机号"
+              placeholder="请输入员工手机号"
+              maxlength="11"
+            />
+            <van-field
+              v-model="employeeForm.password"
+              type="password"
+              label="登录密码"
+              placeholder="请设置6位以上密码"
+            />
+            <van-field
+              v-model="employeeForm.nickname"
+              type="text"
+              label="员工昵称"
+              placeholder="默认为员工+手机号后四位"
+            />
+            <van-field
+              v-model="employeeForm.expiresHours"
+              type="digit"
+              label="登录有效期(小时)"
+              placeholder="请输入有效期，至少1小时"
+            />
+          </van-cell-group>
+          <div class="expire-tips">
+            <p>员工账户有效期到期后将自动失效</p>
+            <p>员工做单业绩将归属于您的账户</p>
+          </div>
+        </div>
+        <div class="dialog-footer">
+          <van-button plain type="default" block @click="closeCreateEmployee">取消</van-button>
+          <van-button type="primary" block @click="handleCreateEmployee">{{ editingEmployee ? '保存修改' : '创建账户' }}</van-button>
+        </div>
+      </div>
+    </van-popup>
+
+    <!-- 员工列表弹窗 -->
+    <van-popup v-model:show="showEmployeeList" position="center" :style="{ width: '90%', maxWidth: '400px', height: '70%' }">
+      <div class="employee-list-dialog">
+        <div class="dialog-header">
+          <h3>员工子账户列表</h3>
+          <van-icon name="cross" @click="showEmployeeList = false" />
+        </div>
+        <div class="dialog-content">
+          <van-list
+            v-model:loading="loadingEmployees"
+            :finished="employeesFinished"
+            finished-text="没有更多了"
+            @load="loadEmployees"
+          >
+            <van-cell v-for="emp in employees" :key="emp.id" clickable @click="editEmployee(emp)">
+              <template #title>{{ emp.nickname }}</template>
+              <template #value>{{ maskPhone(emp.phone) }}</template>
+              <template #right-icon>
+                <van-icon name="edit" size="18" color="#1989fa" />
+              </template>
+            </van-cell>
+          </van-list>
+          <div v-if="employees.length === 0" class="empty-tip">
+            <van-icon name="user-o" size="48" color="#ccc" />
+            <p>暂无员工子账户</p>
+          </div>
+        </div>
+        <div class="dialog-footer">
+          <van-button type="primary" block @click="showCreateEmployee = true; showEmployeeList = false">添加员工</van-button>
+        </div>
+      </div>
+    </van-popup>
 
     <!-- 设置密码弹窗 -->
     <van-popup v-model:show="passwordDialogVisible" position="center" :style="{ width: '90%', maxWidth: '360px' }">
@@ -169,7 +249,7 @@
 import { reactive, ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { showDialog, showToast } from 'vant'
-import { post } from '@promo/shared/utils/request'
+import { post, get } from '@promo/shared/utils/request'
 
 // 路由实例
 const router = useRouter()
@@ -179,6 +259,17 @@ const logoutDialogVisible = ref(false)
 
 // 设置密码弹窗
 const passwordDialogVisible = ref(false)
+
+// 创建员工弹窗
+const showCreateEmployee = ref(false)
+const showEmployeeList = ref(false)
+const editingEmployee = ref<any>(null)
+
+// 员工列表
+const employees = ref<any[]>([])
+const loadingEmployees = ref(false)
+const employeesFinished = ref(false)
+const employeeCount = ref(0)
 
 // 用户信息（从 localStorage 读取真实数据）
 const userInfo = reactive({
@@ -193,6 +284,14 @@ const stats = reactive({
   totalCommission: '¥0.00',
   promotionCount: '0',
   withdrawCount: '0'
+})
+
+// 员工表单
+const employeeForm = reactive({
+  phone: '',
+  password: '',
+  nickname: '',
+  expiresHours: '24'
 })
 
 // 设置密码表单
@@ -294,6 +393,87 @@ const doLogout = () => {
   localStorage.removeItem('user_info')
   showToast('已退出登录')
   router.replace('/login')
+}
+
+// ============ 员工子账户相关方法 ============
+
+// 关闭创建员工弹窗
+const closeCreateEmployee = () => {
+  showCreateEmployee.value = false
+  editingEmployee.value = null
+  employeeForm.phone = ''
+  employeeForm.password = ''
+  employeeForm.nickname = ''
+  employeeForm.expiresHours = '24'
+}
+
+// 创建员工子账户
+const handleCreateEmployee = async () => {
+  if (!employeeForm.phone || !/^1[3-9]\d{9}$/.test(employeeForm.phone)) {
+    return showToast('请输入正确的手机号')
+  }
+  if (!employeeForm.password || employeeForm.password.length < 6) {
+    return showToast('密码至少6位')
+  }
+  if (!employeeForm.expiresHours || parseInt(employeeForm.expiresHours) < 1) {
+    return showToast('有效期至少1小时')
+  }
+
+  try {
+    const res = await post('/employees', {
+      userId: userInfo.id,
+      phone: employeeForm.phone,
+      password: employeeForm.password,
+      nickname: employeeForm.nickname,
+      expiresHours: parseInt(employeeForm.expiresHours)
+    })
+
+    if (res.code === 0) {
+      showToast('创建成功')
+      closeCreateEmployee()
+      loadEmployees()
+    } else {
+      showToast(res.message || '创建失败')
+    }
+  } catch (e: any) {
+    showToast(e.message || '创建失败')
+  }
+}
+
+// 编辑员工
+const editEmployee = (emp: any) => {
+  editingEmployee.value = emp
+  employeeForm.phone = emp.phone
+  employeeForm.nickname = emp.nickname
+  showEmployeeList.value = false
+  showCreateEmployee.value = true
+}
+
+// 加载员工列表
+const loadEmployees = async () => {
+  if (loadingEmployees.value) return
+  
+  loadingEmployees.value = true
+  
+  try {
+    const res = await get(`/employees?userId=${userInfo.id}`)
+    
+    if (res.code === 0) {
+      employees.value = res.data
+      employeeCount.value = res.data.length
+    }
+  } catch (e: any) {
+    showToast(e.message || '获取员工列表失败')
+  } finally {
+    loadingEmployees.value = false
+    employeesFinished.value = true
+  }
+}
+
+// 手机号脱敏
+const maskPhone = (phone: string) => {
+  if (!phone) return '--'
+  return phone.replace(/(\d{3})\d{4}(\d{4})/, '$1****$2')
 }
 </script>
 

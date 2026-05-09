@@ -64,6 +64,11 @@
           访客登录
         </van-button>
       </div>
+
+      <!-- 员工登录入口 -->
+      <div class="employee-login-wrap">
+        <span class="employee-link" @click="goEmployeeLogin">员工入口</span>
+      </div>
     </div>
   </div>
 </template>
@@ -163,6 +168,11 @@ const handleGuestLogin = () => {
   showToast('已进入访客模式')
   router.replace('/home')
 }
+
+// 员工登录入口
+const goEmployeeLogin = () => {
+  router.replace('/employee/login')
+}
 </script>
 
 <style scoped lang="scss">
@@ -235,5 +245,17 @@ const handleGuestLogin = () => {
   font-size: 12px;
   color: rgba(255, 255, 255, 0.6);
   margin-top: 8px;
+}
+
+.employee-login-wrap {
+  text-align: center;
+  margin-top: 24px;
+
+  .employee-link {
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.8);
+    cursor: pointer;
+    &:active { opacity: 0.7; }
+  }
 }
 </style>

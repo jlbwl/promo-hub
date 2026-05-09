@@ -14,7 +14,9 @@
       >
         抢单大厅
       </van-tabbar-item>
+      <!-- 主账户显示佣金页面 -->
       <van-tabbar-item
+        v-if="!isEmployee"
         to="/commissions"
         icon="balance-o"
         name="commissions"
@@ -22,11 +24,11 @@
         佣金
       </van-tabbar-item>
       <van-tabbar-item
-        to="/profile"
+        :to="isEmployee ? '/employee-profile' : '/profile'"
         icon="user-o"
-        name="profile"
+        :name="isEmployee ? 'employee-profile' : 'profile'"
       >
-        我的
+        {{ isEmployee ? '员工中心' : '我的' }}
       </van-tabbar-item>
     </van-tabbar>
   </div>
@@ -39,11 +41,16 @@ import { useRoute } from 'vue-router'
 // 当前激活的 Tab
 const activeTab = ref('home')
 
+// 获取当前路由
+const route = useRoute()
+
 // 是否为产品详情页
 const isProductDetail = computed(() => route.path.startsWith('/product'))
 
-// 获取当前路由
-const route = useRoute()
+// 是否为员工账户
+const isEmployee = computed(() => {
+  return localStorage.getItem('login_type') === 'employee'
+})
 
 // 监听路由变化，同步更新 Tab 激活状态
 watch(
@@ -53,8 +60,8 @@ watch(
       activeTab.value = 'home'
     } else if (newPath.startsWith('/commissions')) {
       activeTab.value = 'commissions'
-    } else if (newPath.startsWith('/profile')) {
-      activeTab.value = 'profile'
+    } else if (newPath.startsWith('/profile') || newPath.startsWith('/employee-profile')) {
+      activeTab.value = isEmployee.value ? 'employee-profile' : 'profile'
     }
   },
   { immediate: true }

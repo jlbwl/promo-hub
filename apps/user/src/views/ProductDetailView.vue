@@ -264,7 +264,16 @@ const submitGoOrder = (userInfo: any) => {
     try { return JSON.parse(localStorage.getItem('user_info') || '{}').id || '' } catch { return '' }
   })()
 
+  // 检查是否是员工账户
+  const isEmployee = localStorage.getItem('login_type') === 'employee'
+  const employeeId = isEmployee ? (() => {
+    try { return JSON.parse(localStorage.getItem('employee_info') || '{}').id || '' } catch { return '' }
+  })() : undefined
+
   const payload: any = { productId: product.id, userId, ...userInfo }
+  if (isEmployee && employeeId) {
+    payload.employeeId = employeeId
+  }
   if (chosenOption) {
     payload.optionLabel = chosenOption.label
     payload.redirectUrl = chosenOption.redirectUrl || ''

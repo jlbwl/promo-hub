@@ -8,10 +8,11 @@ import { sendSmsCode } from './sms.js'
 import {
   readProducts, writeProducts, insertProduct, updateProduct, readProduct,
   readManagers, writeManagers, deleteManager,
-  readUsers, writeUsers,
-  readOrders, writeOrders,
+  readUsers, writeUsers, readUser,
+  readOrders, writeOrders, insertOrder,
   readCommissions, writeCommissions,
   readAdminByPhone, updateAdmin,
+  readEmployeesByUserId, readEmployeeById, readEmployeeByPhone, insertEmployee, deleteEmployee, validateEmployee,
   queryOne,
 } from './data.js'
 
@@ -755,7 +756,7 @@ app.put('/api/users/:id/status', async (req, res) => {
 
 // 做单（扣减库存）
 app.post('/api/orders', async (req, res) => {
-  const { productId, userId, optionLabel, redirectUrl, userName, userPhone } = req.body
+  const { productId, userId, employeeId, optionLabel, redirectUrl, userName, userPhone } = req.body
   if (!productId) {
     res.json({ code: 400, message: '缺少产品ID', data: null })
     return
@@ -787,12 +788,21 @@ app.post('/api/orders', async (req, res) => {
     await writeProducts(products)
   }
 
+  // 如果是员工子账户做单，获取主账户ID
+  let finalUserId = userId || 'guest'
+  if (employeeId) {
+    const employee = await readEmployeeById(employeeId)
+    if (employee) {
+      finalUserId = employee.userId
+    }
+  }
+
   // 记录做单
   const orders = await readOrders()
   const order = {
     id: `o_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
     productId,
-    userId: userId || 'guest',
+    userId: finalUserId,
     managerId: product.managerId,
     productName: product.title,
     productPrice: product.price,
@@ -1264,6 +1274,136 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
 
 // 静态文件服务 - 上传的图片
 app.use('/api/uploads', express.static(UPLOAD_DIR))
+
+// ============ 员工子账户接口 ============
+
+// 创建员工子账户
+app.post('/api/employees', async (req, res) => {
+  try {
+    const { userId, phone, password, nickname, expiresHours } = req.body
+    
+    // 验证参数
+    if (!userId) return res.json({ code: 1, message: '缺少用户ID' })
+    if (!phone || !/^1[3-9]\d{9}$/.test(phone)) return res.json({ code: 1, message: '手机号格式不正确' })
+    if (!password || password.length < 6) return res.json({ code: 1, message: '密码至少6位' })
+    if (!expiresHours || expiresHours < 1) return res.json({ code: 1, message: '有效期至少1小时' })
+    
+    // 检查手机号是否已存在
+    const existing = await readEmployeeByPhone(phone)
+    if (existing) return res.json({ code: 1, message: '该手机号已被注册为员工' })
+    
+    // 计算过期时间
+    const expiresAt = new Date()
+    expiresAt.setHours(expiresAt.getHours() + expiresHours)
+    
+    // 创建员工
+    const employee = {
+      id: `emp_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+      userId,
+      phone,
+      password,
+      nickname: nickname || `员工${phone.slice(-4)}`,
+      expiresAt: expiresAt.toISOString().slice(0, 19).replace('T', ' '),
+      status: 'active',
+    }
+    
+    await insertEmployee(employee)
+    
+    res.json({ code: 0, message: '创建成功', data: { ...employee, password: '******' } })
+  } catch (err: any) {
+    res.json({ code: 1, message: err.message || '创建失败' })
+  }
+})
+
+// 获取当前用户的员工列表
+app.get('/api/employees', async (req, res) => {
+  try {
+    const { userId } = req.query
+    if (!userId) return res.json({ code: 1, message: '缺少用户ID' })
+    
+    const employees = await readEmployeesByUserId(userId as string)
+    res.json({ code: 0, message: 'success', data: employees })
+  } catch (err: any) {
+    res.json({ code: 1, message: err.message || '获取失败' })
+  }
+})
+
+// 获取员工详情
+app.get('/api/employees/:id', async (req, res) => {
+  try {
+    const { id } = req.params
+    const employee = await readEmployeeById(id)
+    if (!employee) return res.json({ code: 1, message: '员工不存在' })
+    res.json({ code: 0, message: 'success', data: employee })
+  } catch (err: any) {
+    res.json({ code: 1, message: err.message || '获取失败' })
+  }
+})
+
+// 删除员工
+app.delete('/api/employees/:id', async (req, res) => {
+  try {
+    const { id } = req.params
+    await deleteEmployee(id)
+    res.json({ code: 0, message: '删除成功' })
+  } catch (err: any) {
+    res.json({ code: 1, message: err.message || '删除失败' })
+  }
+})
+
+// 员工登录验证
+app.post('/api/employees/login', async (req, res) => {
+  try {
+    const { phone, password } = req.body
+    
+    if (!phone || !password) return res.json({ code: 1, message: '请输入手机号和密码' })
+    
+    const employee = await validateEmployee(phone, password)
+    
+    if (!employee) {
+      return res.json({ code: 1, message: '手机号、密码错误或账户已过期' })
+    }
+    
+    // 获取主账户信息
+    const user = await readUser(employee.userId)
+    
+    res.json({ 
+      code: 0, 
+      message: '登录成功', 
+      data: {
+        employee: { ...employee, password: '******' },
+        user: user ? { id: user.id, phone: user.phone, nickname: user.nickname } : null
+      } 
+    })
+  } catch (err: any) {
+    res.json({ code: 1, message: err.message || '登录失败' })
+  }
+})
+
+// 检查员工账户是否有效
+app.post('/api/employees/validate', async (req, res) => {
+  try {
+    const { employeeId } = req.body
+    
+    if (!employeeId) return res.json({ code: 1, message: '缺少员工ID' })
+    
+    const employee = await readEmployeeById(employeeId)
+    if (!employee || employee.status !== 'active') {
+      return res.json({ code: 1, message: '账户不存在或已被禁用' })
+    }
+    
+    const now = new Date()
+    const expiresAt = new Date(employee.expiresAt)
+    
+    if (expiresAt < now) {
+      return res.json({ code: 1, message: '账户已过期' })
+    }
+    
+    res.json({ code: 0, message: '账户有效', data: { expiresAt: employee.expiresAt } })
+  } catch (err: any) {
+    res.json({ code: 1, message: err.message || '验证失败' })
+  }
+})
 
 // 健康检查
 app.get('/api/health', async (_req, res) => {

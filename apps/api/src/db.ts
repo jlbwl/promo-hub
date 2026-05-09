@@ -158,6 +158,24 @@ export async function initDatabase(): Promise<void> {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `)
 
+  // 员工子账户表
+  await pool.execute(`
+    CREATE TABLE IF NOT EXISTS employees (
+      id VARCHAR(100) PRIMARY KEY,
+      userId VARCHAR(100) NOT NULL,
+      phone VARCHAR(50) NOT NULL,
+      password VARCHAR(500) NOT NULL,
+      nickname VARCHAR(200) DEFAULT '',
+      expiresAt DATETIME NOT NULL,
+      status VARCHAR(50) NOT NULL DEFAULT 'active',
+      createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      INDEX idx_userId (userId),
+      INDEX idx_phone (phone),
+      INDEX idx_expiresAt (expiresAt)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `)
+
   // 管理员表
   await pool.execute(`
     CREATE TABLE IF NOT EXISTS admins (
