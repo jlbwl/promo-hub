@@ -45,7 +45,7 @@
     <van-cell-group inset class="func-group">
       <van-cell
         title="创建员工子账户"
-        icon="user-plus"
+        icon="users"
         is-link
         @click="showCreateEmployee = true"
       />
