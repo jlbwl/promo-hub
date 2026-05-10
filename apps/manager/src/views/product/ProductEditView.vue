@@ -30,14 +30,26 @@
 
         <!-- 产品描述 -->
         <el-form-item label="产品描述" prop="description">
-          <el-input
-            v-model="form.description"
-            type="textarea"
-            placeholder="请输入产品描述"
-            :rows="4"
-            maxlength="500"
-            show-word-limit
-          />
+          <div class="rich-text-wrapper">
+            <RichTextEditor
+              v-model="form.description"
+              placeholder="请输入产品描述，支持图文混排"
+              :maxLength="5000"
+              ref="richTextRef"
+            />
+            <div class="editor-toolbar">
+              <el-button
+                type="primary"
+                text
+                size="small"
+                icon="PictureFilled"
+                @click="handleImageUpload"
+              >
+                插入图片
+              </el-button>
+              <span class="editor-tip">支持拖拽、粘贴或点击按钮上传图片</span>
+            </div>
+          </div>
         </el-form-item>
 
         <!-- 产品分类 -->
@@ -212,6 +224,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
 import { ArrowLeft, Plus, PictureFilled } from '@element-plus/icons-vue'
 import { get, post, put } from '@promo/shared/utils/request'
+import RichTextEditor from '@/components/RichTextEditor.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -219,8 +232,36 @@ const router = useRouter()
 // 表单引用
 const formRef = ref<FormInstance>()
 
+// 富文本编辑器引用
+const richTextRef = ref<InstanceType<typeof RichTextEditor>>()
+
 // 保存状态
 const saving = ref(false)
+
+// 图片上传input
+const imageInputRef = ref<HTMLInputElement>()
+
+// 处理图片上传（点击按钮）
+const handleImageUpload = () => {
+  if (!imageInputRef.value) {
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = 'image/*'
+    input.multiple = false
+    input.style.display = 'none'
+    input.onchange = async (e: Event) => {
+      const target = e.target as HTMLInputElement
+      const file = target.files?.[0]
+      if (file && richTextRef.value) {
+        await richTextRef.value.insertImage(file)
+      }
+      input.value = ''
+    }
+    imageInputRef.value = input
+    document.body.appendChild(input)
+  }
+  imageInputRef.value.click()
+}
 
 // 是否为编辑模式
 const isEdit = computed(() => !!route.params.id)
@@ -245,7 +286,18 @@ const formRules: FormRules = {
     { min: 2, max: 100, message: '标题长度在 2 到 100 个字符', trigger: 'blur' }
   ],
   description: [
-    { required: true, message: '请输入产品描述', trigger: 'blur' }
+    { required: true, message: '请输入产品描述', trigger: 'blur' },
+    { validator: (rule, value, callback) => {
+      // 移除HTML标签后检查长度
+      const text = value.replace(/<[^>]*>/g, '')
+      if (text.length < 2) {
+        callback(new Error('描述至少需要2个字符'))
+      } else if (text.length > 5000) {
+        callback(new Error('描述不能超过5000个字符'))
+      } else {
+        callback()
+      }
+    }, trigger: 'blur' }
   ],
   category: [
     { required: true, message: '请选择产品分类', trigger: 'change' }
@@ -443,7 +495,25 @@ onMounted(() => {
 
 
 
-  .upload-area {
+  // 富文本编辑器样式
+.rich-text-wrapper {
+  .editor-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 8px;
+    padding: 8px 12px;
+    background: #f5f7fa;
+    border-radius: 4px;
+    
+    .editor-tip {
+      font-size: 12px;
+      color: #909399;
+    }
+  }
+}
+
+.upload-area {
     .upload-placeholder {
       width: 200px;
       height: 200px;
