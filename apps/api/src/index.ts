@@ -403,17 +403,17 @@ app.put('/api/managers/:id', async (req, res) => {
 
 // 经理登录校验
 app.post('/api/managers/login', async (req, res) => {
-  const { username, password } = req.body
-  if (!username || !password) {
-    res.json({ code: 400, message: '用户名和密码不能为空', data: null })
+  const { phone, password } = req.body
+  if (!phone || !password) {
+    res.json({ code: 400, message: '手机号和密码不能为空', data: null })
     return
   }
   const managers = await readManagers()
   const manager = managers.find(
-    (m: any) => m.username === username && m.password === password && m.status === 'active'
+    (m: any) => m.phone === phone && m.password === password && m.status === 'active'
   )
   if (!manager) {
-    res.json({ code: 401, message: '用户名或密码错误，或账号已被禁用', data: null })
+    res.json({ code: 401, message: '手机号或密码错误，或账号已被禁用', data: null })
     return
   }
   const { password: _, ...safeManager } = manager

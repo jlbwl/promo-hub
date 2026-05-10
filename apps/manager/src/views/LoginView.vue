@@ -16,12 +16,13 @@
             class="login-form"
             @keyup.enter="handlePasswordLogin"
           >
-            <el-form-item prop="username">
+            <el-form-item prop="phone">
               <el-input
-                v-model="pwdForm.username"
-                placeholder="请输入用户名"
-                prefix-icon="User"
+                v-model="pwdForm.phone"
+                placeholder="请输入手机号"
+                prefix-icon="Phone"
                 size="large"
+                maxlength="11"
               />
             </el-form-item>
             <el-form-item prop="password">
@@ -120,11 +121,11 @@ const loading = ref(false)
 
 // 密码登录
 const pwdFormRef = ref<FormInstance>()
-const pwdForm = reactive({ username: '', password: '' })
+const pwdForm = reactive({ phone: '', password: '' })
 const pwdRules: FormRules = {
-  username: [
-    { required: true, message: '请输入用户名', trigger: 'blur' },
-    { min: 3, max: 20, message: '用户名长度在 3 到 20 个字符', trigger: 'blur' }
+  phone: [
+    { required: true, message: '请输入手机号', trigger: 'blur' },
+    { pattern: /^1[3-9]\d{9}$/, message: '请输入正确的手机号', trigger: 'blur' }
   ],
   password: [
     { required: true, message: '请输入密码', trigger: 'blur' },
@@ -157,7 +158,7 @@ const handlePasswordLogin = async () => {
     loading.value = true
 
     const res = await post<any>('/managers/login', {
-      username: pwdForm.username,
+      phone: pwdForm.phone,
       password: pwdForm.password,
     })
 
@@ -169,7 +170,7 @@ const handlePasswordLogin = async () => {
       router.push(redirect)
     }
   } catch (error: any) {
-    ElMessage.error(error.message || '登录失败，请检查用户名和密码')
+    ElMessage.error(error.message || '登录失败，请检查手机号和密码')
   } finally {
     loading.value = false
   }
