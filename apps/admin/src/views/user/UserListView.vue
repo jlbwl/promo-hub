@@ -384,6 +384,13 @@ const sendSmsCode = async () => {
   
   // 从 localStorage 获取管理员信息
   const adminInfo = JSON.parse(localStorage.getItem('admin_info') || '{}')
+  const token = localStorage.getItem('token')
+  console.log('[调试] 准备发送短信验证码:', {
+    adminInfo,
+    token: token ? '已获取' : '未获取',
+    phone: adminInfo.phone
+  })
+  
   if (!adminInfo.phone) {
     ElMessage.error('未获取到管理员手机号，请重新登录')
     return
@@ -391,7 +398,9 @@ const sendSmsCode = async () => {
   
   smsLoading.value = true
   try {
+    console.log('[调试] 开始调用短信接口:', '/admin/sms/send')
     const res = await post('/admin/sms/send', { phone: adminInfo.phone })
+    console.log('[调试] 短信接口响应:', res)
     if (res.code === 0) {
       ElMessage.success('验证码已发送')
       smsCooldown.value = 60
@@ -402,9 +411,11 @@ const sendSmsCode = async () => {
         }
       }, 1000)
     } else {
+      console.error('[调试] 短信接口返回错误:', res.message)
       ElMessage.error(res.message || '发送失败')
     }
   } catch (error: any) {
+    console.error('[调试] 短信接口调用异常:', error)
     ElMessage.error(error.message || '发送失败')
   } finally {
     smsLoading.value = false

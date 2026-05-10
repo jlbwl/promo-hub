@@ -1322,21 +1322,29 @@ app.post('/api/admin/login', async (req, res) => {
 })
 
 app.post('/api/admin/sms/send', async (req, res) => {
+  console.log('[ADMIN-SMS] 收到短信发送请求:', req.body)
+  
   const { phone } = req.body
   if (!phone || !/^1[3-9]\d{9}$/.test(phone)) {
+    console.log('[ADMIN-SMS] 手机号格式错误:', phone)
     res.json({ code: 400, message: '请输入正确的手机号', data: null })
     return
   }
+  
   const code = String(Math.floor(100000 + Math.random() * 900000))
   const expiresAt = Date.now() + 10 * 60 * 1000
   smsCodes.set(phone, { code, expiresAt, phone })
+  console.log('[ADMIN-SMS] 生成验证码:', { phone, code, expiresAt })
   
   const result = await sendSmsCode(phone, code)
   if (!result.success) {
     smsCodes.delete(phone)
+    console.log('[ADMIN-SMS] 发送失败:', result.message)
     res.json({ code: 500, message: result.message || '发送失败', data: null })
     return
   }
+  
+  console.log('[ADMIN-SMS] 发送成功:', phone)
   res.json({ code: 0, message: '验证码已发送', data: null })
 })
 
