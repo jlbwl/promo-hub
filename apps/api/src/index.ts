@@ -27,7 +27,7 @@ const {
   readProducts, writeProducts, insertProduct, updateProduct, readProduct,
   readManagers, writeManagers, deleteManager,
   readUsers, writeUsers, readUser, insertUser, updateUser, deleteUser,
-  readOrders, writeOrders, insertOrder, deleteOrder,
+  readOrders, writeOrders, insertOrder, deleteOrder, readOrder,
   readCommissions, writeCommissions,
   readAdminByPhone, readAdminById, updateAdmin,
   readEmployeesByUserId, readEmployeeById, readEmployeeByPhone, insertEmployee, deleteEmployee,
