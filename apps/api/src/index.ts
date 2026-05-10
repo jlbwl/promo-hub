@@ -1330,7 +1330,13 @@ app.post('/api/admin/sms/send', async (req, res) => {
   const code = String(Math.floor(100000 + Math.random() * 900000))
   const expiresAt = Date.now() + 10 * 60 * 1000
   smsCodes.set(phone, { code, expiresAt, phone })
-  await sendSmsCode(phone, code)
+  
+  const result = await sendSmsCode(phone, code)
+  if (!result.success) {
+    smsCodes.delete(phone)
+    res.json({ code: 500, message: result.message || '发送失败', data: null })
+    return
+  }
   res.json({ code: 0, message: '验证码已发送', data: null })
 })
 
