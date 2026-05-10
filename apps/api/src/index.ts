@@ -856,21 +856,6 @@ app.put('/api/users/:id/team-name', async (req, res) => {
     await writeUsers(users)
     console.log('[调试] 已保存用户数据:', users[usrIdx])
 
-    // 同步更新该用户的所有历史订单的团队名称
-    let orders = await readOrders()
-    let updated = false
-    orders = orders.map((o: any) => {
-      if (o.userId === userId) {
-        updated = true
-        return { ...o, teamName, updatedAt: new Date().toISOString() }
-      }
-      return o
-    })
-    if (updated) {
-      await writeOrders(orders)
-      console.log('[调试] 已更新用户历史订单团队名称')
-    }
-
     res.json({ code: 0, message: '更新成功', data: null })
   } else {
     // 不是普通用户，检查是否是经理
@@ -905,6 +890,47 @@ app.put('/api/users/:id/team-name', async (req, res) => {
 
     res.json({ code: 0, message: '更新成功', data: null })
   }
+})
+
+// 管理后台：修改渠道经理团队名称
+app.put('/api/managers/:id/team-name', async (req, res) => {
+  const { teamName } = req.body
+  const managerId = req.params.id
+
+  console.log('[调试] 修改渠道经理团队名称:', { managerId, teamName })
+
+  if (!teamName) {
+    res.json({ code: 400, message: '渠道名称不能为空', data: null })
+    return
+  }
+
+  // 查询经理是否存在
+  let managers = await readManagers()
+  const mgrIdx = managers.findIndex((m: any) => m.id === managerId)
+  
+  if (mgrIdx === -1) {
+    console.log('[调试] 渠道经理不存在')
+    res.json({ code: 404, message: '渠道经理不存在', data: null })
+    return
+  }
+
+  console.log('[调试] 找到渠道经理:', managers[mgrIdx])
+  
+  // 团队名称查重（排除当前经理，同时检查用户表和经理表）
+  const users = await readUsers()
+  if (managers.find((m: any) => m.id !== managerId && m.teamName === teamName) || 
+      users.find((u: any) => u.teamName === teamName)) {
+    res.json({ code: 409, message: '该渠道名称已存在', data: null })
+    return
+  }
+
+  // 更新经理团队名称
+  managers[mgrIdx].teamName = teamName
+  managers[mgrIdx].updatedAt = new Date().toISOString()
+  await writeManagers(managers)
+  console.log('[调试] 已保存渠道经理数据:', managers[mgrIdx])
+
+  res.json({ code: 0, message: '更新成功', data: null })
 })
 
 // 管理后台：获取单个用户详情
