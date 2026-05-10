@@ -1,18 +1,62 @@
 <template>
-  <div
-    ref="editorRef"
-    class="rich-text-editor"
-    contenteditable="true"
-    :placeholder="placeholder"
-    @paste="handlePaste"
-    @dragover.prevent="handleDragOver"
-    @drop.prevent="handleDrop"
-    @input="handleInput"
-  ></div>
+  <div class="rich-text-editor-wrapper">
+    <div
+      ref="editorRef"
+      class="rich-text-editor"
+      contenteditable="true"
+      :placeholder="placeholder"
+      @paste="handlePaste"
+      @dragover.prevent="handleDragOver"
+      @dragleave.prevent="handleDragLeave"
+      @drop.prevent="handleDrop"
+      @input="handleInput"
+    ></div>
+    
+    <div class="editor-toolbar">
+      <div class="toolbar-left">
+        <el-button
+          type="primary"
+          size="small"
+          :icon="PictureFilled"
+          @click="handleImageUpload"
+          class="upload-btn"
+        >
+          插入图片
+        </el-button>
+        <input
+          ref="fileInputRef"
+          type="file"
+          accept="image/*"
+          style="display: none;"
+          @change="handleFileSelect"
+        />
+      </div>
+      
+      <div class="toolbar-right">
+        <span class="editor-tip">
+          <el-icon><InfoFilled /></el-icon>
+          支持拖拽、复制粘贴或点击按钮上传图片
+        </span>
+        <span class="word-count" :class="{ warning: currentLength > maxLength * 0.9 }">
+          {{ currentLength }} / {{ maxLength }}
+        </span>
+      </div>
+    </div>
+    
+    <div v-if="uploading" class="uploading-overlay">
+      <div class="uploading-content">
+        <el-icon class="loading-icon" :size="32"><Loading /></el-icon>
+        <span class="uploading-text">图片上传中...</span>
+      </div>
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch, nextTick } from 'vue'
+import { ref, onMounted, watch, nextTick, computed } from 'vue'
+import { ElMessage } from 'element-plus'
+import { PictureFilled, InfoFilled, Loading } from '@element-plus/icons-vue'
+import { post } from '@promo/shared/utils/request'
 
 const props = withDefaults(defineProps<{
   modelValue: string
@@ -28,14 +72,36 @@ const emit = defineEmits<{
 }>()
 
 const editorRef = ref<HTMLDivElement>()
+const fileInputRef = ref<HTMLInputElement>()
+const uploading = ref(false)
+const currentLength = computed(() => {
+  if (!editorRef.value) return 0
+  const textContent = editorRef.value.textContent || ''
+  return textContent.length
+})
 
-// 图片压缩配置
+// 检测是否为移动设备
+const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+
+// 压缩配置 - 根据设备类型优化
 const COMPRESS_CONFIG = {
-  maxWidth: 1024,
-  maxHeight: 1024,
-  quality: 0.8,
-  maxFileSize: 5 * 1024 * 1024 // 5MB
+  desktop: {
+    maxWidth: 1920,
+    maxHeight: 1920,
+    quality: 0.85,
+    maxFileSize: 10 * 1024 * 1024, // 10MB
+    mimeType: 'image/jpeg'
+  },
+  mobile: {
+    maxWidth: 1080,
+    maxHeight: 1080,
+    quality: 0.7,
+    maxFileSize: 5 * 1024 * 1024, // 5MB
+    mimeType: 'image/jpeg'
+  }
 }
+
+const config = isMobile ? COMPRESS_CONFIG.mobile : COMPRESS_CONFIG.desktop
 
 // 初始化编辑器
 const initEditor = () => {
@@ -63,21 +129,65 @@ const handlePaste = async (e: ClipboardEvent) => {
   const items = e.clipboardData?.items
   if (!items) return
   
+  let hasImage = false
   for (const item of items) {
     if (item.type.startsWith('image/')) {
+      hasImage = true
       e.preventDefault()
       const file = item.getAsFile()
       if (file) {
-        await uploadImage(file)
+        await processImage(file)
       }
     }
   }
+  
+  // 如果是粘贴HTML，清理一下
+  if (!hasImage && e.clipboardData?.types.includes('text/html')) {
+    const html = e.clipboardData.getData('text/html')
+    const sanitizedHtml = sanitizeHtml(html)
+    if (sanitizedHtml !== html) {
+      e.preventDefault()
+      document.execCommand('insertHTML', false, sanitizedHtml)
+    }
+  }
+}
+
+// 清理HTML
+const sanitizeHtml = (html: string): string => {
+  const div = document.createElement('div')
+  div.innerHTML = html
+  
+  // 移除script标签
+  const scripts = div.querySelectorAll('script')
+  scripts.forEach(s => s.remove())
+  
+  // 移除style标签
+  const styles = div.querySelectorAll('style')
+  styles.forEach(s => s.remove())
+  
+  // 移除on*属性
+  const allElements = div.querySelectorAll('*')
+  allElements.forEach(el => {
+    const attrs = Array.from(el.attributes)
+    attrs.forEach(attr => {
+      if (attr.name.startsWith('on')) {
+        el.removeAttribute(attr.name)
+      }
+    })
+  })
+  
+  return div.innerHTML
 }
 
 // 处理拖拽悬停
 const handleDragOver = (e: DragEvent) => {
   e.dataTransfer!.dropEffect = 'copy'
   editorRef.value?.classList.add('drag-over')
+}
+
+// 处理拖拽离开
+const handleDragLeave = () => {
+  editorRef.value?.classList.remove('drag-over')
 }
 
 // 处理拖拽放下
@@ -90,7 +200,7 @@ const handleDrop = async (e: DragEvent) => {
   for (let i = 0; i < files.length; i++) {
     const file = files[i]
     if (file.type.startsWith('image/')) {
-      await uploadImage(file)
+      await processImage(file)
     }
   }
 }
@@ -108,14 +218,14 @@ const compressImage = async (file: File): Promise<Blob> => {
       let width = img.width
       let height = img.height
       
-      if (width > COMPRESS_CONFIG.maxWidth) {
-        height = (height * COMPRESS_CONFIG.maxWidth) / width
-        width = COMPRESS_CONFIG.maxWidth
+      if (width > config.maxWidth) {
+        height = (height * config.maxWidth) / width
+        width = config.maxWidth
       }
       
-      if (height > COMPRESS_CONFIG.maxHeight) {
-        width = (width * COMPRESS_CONFIG.maxHeight) / height
-        height = COMPRESS_CONFIG.maxHeight
+      if (height > config.maxHeight) {
+        width = (width * config.maxHeight) / height
+        height = config.maxHeight
       }
       
       // 创建 canvas
@@ -129,6 +239,10 @@ const compressImage = async (file: File): Promise<Blob> => {
         return
       }
       
+      // 使用平滑绘制
+      ctx.imageSmoothingEnabled = true
+      ctx.imageSmoothingQuality = 'high'
+      
       // 绘制图片
       ctx.drawImage(img, 0, 0, width, height)
       
@@ -141,8 +255,8 @@ const compressImage = async (file: File): Promise<Blob> => {
             reject(new Error('图片压缩失败'))
           }
         },
-        'image/jpeg',
-        COMPRESS_CONFIG.quality
+        config.mimeType,
+        config.quality
       )
     }
     
@@ -155,35 +269,81 @@ const compressImage = async (file: File): Promise<Blob> => {
   })
 }
 
-// 上传图片（模拟上传）
-const uploadImage = async (file: File) => {
+// 上传图片到服务器
+const uploadToServer = async (file: File): Promise<string> => {
+  const formData = new FormData()
+  formData.append('file', file)
+  
+  const res = await post<{ url: string }>('/upload', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data'
+    }
+  })
+  
+  return res.data.url
+}
+
+// 处理图片完整流程
+const processImage = async (file: File) => {
   try {
+    uploading.value = true
+    
+    // 检查文件大小
+    if (file.size > config.maxFileSize * 2) { // 允许原图稍大，压缩后会变小
+      ElMessage.error(`图片大小不能超过 ${(config.maxFileSize / 1024 / 1024).toFixed(0)}MB`)
+      return
+    }
+    
     // 压缩图片
+    console.log(`[图片处理] 原大小: ${(file.size / 1024).toFixed(1)}KB, 设备: ${isMobile ? '手机' : '电脑'}`)
     const compressedBlob = await compressImage(file)
-    const compressedFile = new File([compressedBlob], file.name, { type: 'image/jpeg' })
+    const compressedFile = new File(
+      [compressedBlob], 
+      file.name.replace(/\.[^.]+$/, `.${config.mimeType.split('/')[1]}`), 
+      { type: config.mimeType }
+    )
+    console.log(`[图片压缩] 压缩后: ${(compressedFile.size / 1024).toFixed(1)}KB, 压缩比: ${((1 - compressedFile.size / file.size) * 100).toFixed(1)}%`)
     
-    console.log(`[图片压缩] 原大小: ${(file.size / 1024).toFixed(1)}KB, 压缩后: ${(compressedFile.size / 1024).toFixed(1)}KB`)
-    
-    // 模拟上传到服务器
-    // 实际项目中应该调用上传接口
-    const formData = new FormData()
-    formData.append('file', compressedFile)
-    
-    // 这里使用占位图模拟上传结果
-    const imageUrl = `https://neeko-copilot.bytedance.net/api/text_to_image?prompt=product%20image&image_size=landscape_16_9`
+    // 上传到服务器
+    const imageUrl = await uploadToServer(compressedFile)
     
     // 插入图片到编辑器
     insertImage(imageUrl)
     
+    ElMessage.success('图片插入成功')
+    
   } catch (error: any) {
-    console.error('图片上传失败:', error)
-    alert('图片上传失败：' + error.message)
+    console.error('图片处理失败:', error)
+    ElMessage.error('图片处理失败：' + (error.message || '请重试'))
+  } finally {
+    uploading.value = false
+  }
+}
+
+// 点击上传按钮
+const handleImageUpload = () => {
+  fileInputRef.value?.click()
+}
+
+// 选择文件
+const handleFileSelect = async (e: Event) => {
+  const target = e.target as HTMLInputElement
+  const file = target.files?.[0]
+  if (file) {
+    await processImage(file)
+  }
+  // 重置input，允许重复选择同一文件
+  if (target) {
+    target.value = ''
   }
 }
 
 // 插入图片到编辑器
 const insertImage = (url: string) => {
   if (!editorRef.value) return
+  
+  // 确保编辑器聚焦
+  editorRef.value.focus()
   
   const selection = window.getSelection()
   if (!selection || selection.rangeCount === 0) {
@@ -192,7 +352,9 @@ const insertImage = (url: string) => {
     img.src = url
     img.style.maxWidth = '100%'
     img.style.height = 'auto'
-    img.style.margin = '4px 0'
+    img.style.margin = '12px 0'
+    img.style.borderRadius = '4px'
+    img.style.display = 'block'
     editorRef.value.appendChild(img)
     editorRef.value.appendChild(document.createElement('br'))
   } else {
@@ -204,7 +366,9 @@ const insertImage = (url: string) => {
     img.src = url
     img.style.maxWidth = '100%'
     img.style.height = 'auto'
-    img.style.margin = '4px 0'
+    img.style.margin = '12px 0'
+    img.style.borderRadius = '4px'
+    img.style.display = 'block'
     
     range.insertNode(img)
     
@@ -212,6 +376,10 @@ const insertImage = (url: string) => {
     range.collapse(false)
     const br = document.createElement('br')
     range.insertNode(br)
+    
+    // 移动光标到图片后面
+    selection.removeAllRanges()
+    selection.addRange(range)
   }
   
   handleInput()
@@ -262,7 +430,7 @@ watch(() => props.modelValue, (newValue) => {
 
 // 插入图片（供外部调用，用于手机端）
 const insertImageFromFile = (file: File) => {
-  uploadImage(file)
+  processImage(file)
 }
 
 // 清空内容
@@ -286,66 +454,252 @@ defineExpose({
 </script>
 
 <style lang="scss" scoped>
-.rich-text-editor {
-  min-height: 200px;
-  padding: 12px;
-  border: 1px solid #dcdfe6;
-  border-radius: 4px;
-  outline: none;
-  font-size: 14px;
-  line-height: 1.6;
-  color: #606266;
-  background: #fff;
-  transition: all 0.3s;
+.rich-text-editor-wrapper {
+  position: relative;
   
-  &:hover {
-    border-color: #c0c4cc;
-  }
-  
-  &:focus {
-    border-color: #409eff;
-    box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.2);
-  }
-  
-  &.drag-over {
-    border-color: #409eff;
-    background: rgba(64, 158, 255, 0.05);
-    box-shadow: inset 0 0 12px rgba(64, 158, 255, 0.1);
-  }
-  
-  &[contenteditable="true"]:empty:before {
-    content: attr(placeholder);
-    color: #c0c4cc;
-    pointer-events: none;
-  }
-  
-  // 图片样式
-  img {
-    max-width: 100%;
-    height: auto;
-    border-radius: 4px;
-    margin: 4px 0;
-    vertical-align: middle;
-  }
-  
-  // 段落样式
-  p {
-    margin: 0 0 8px 0;
-  }
-  
-  // 列表样式
-  ul, ol {
-    padding-left: 20px;
-    margin: 8px 0;
-  }
-  
-  // 链接样式
-  a {
-    color: #409eff;
-    text-decoration: none;
+  .rich-text-editor {
+    min-height: 280px;
+    max-height: 600px;
+    overflow-y: auto;
+    padding: 16px;
+    border: 1px solid #dcdfe6;
+    border-radius: 8px;
+    outline: none;
+    font-size: 14px;
+    line-height: 1.8;
+    color: #303133;
+    background: #fff;
+    transition: all 0.3s;
+    word-wrap: break-word;
+    word-break: break-word;
     
     &:hover {
-      text-decoration: underline;
+      border-color: #c0c4cc;
+    }
+    
+    &:focus {
+      border-color: #409eff;
+      box-shadow: 0 0 0 3px rgba(64, 158, 255, 0.15);
+    }
+    
+    &.drag-over {
+      border-color: #409eff;
+      background: rgba(64, 158, 255, 0.03);
+      box-shadow: inset 0 0 20px rgba(64, 158, 255, 0.1);
+    }
+    
+    &[contenteditable="true"]:empty:before {
+      content: attr(placeholder);
+      color: #c0c4cc;
+      pointer-events: none;
+    }
+    
+    // 图片样式
+    img {
+      max-width: 100%;
+      height: auto;
+      border-radius: 6px;
+      margin: 12px 0;
+      vertical-align: middle;
+      display: block;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+      
+      &:hover {
+        transform: scale(1.01);
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+      }
+    }
+    
+    // 段落样式
+    p {
+      margin: 0 0 12px 0;
+    }
+    
+    // 列表样式
+    ul, ol {
+      padding-left: 24px;
+      margin: 12px 0;
+      
+      li {
+        margin: 4px 0;
+      }
+    }
+    
+    // 链接样式
+    a {
+      color: #409eff;
+      text-decoration: none;
+      
+      &:hover {
+        text-decoration: underline;
+      }
+    }
+    
+    // 标题样式
+    h1, h2, h3, h4, h5, h6 {
+      margin: 16px 0 8px 0;
+      font-weight: 600;
+      color: #303133;
+    }
+    
+    h1 { font-size: 24px; }
+    h2 { font-size: 20px; }
+    h3 { font-size: 18px; }
+    h4 { font-size: 16px; }
+    h5 { font-size: 15px; }
+    h6 { font-size: 14px; }
+    
+    // 引用样式
+    blockquote {
+      border-left: 4px solid #409eff;
+      padding-left: 16px;
+      margin: 12px 0;
+      color: #606266;
+      background: #f5f7fa;
+      padding: 12px 16px;
+      border-radius: 0 6px 6px 0;
+    }
+    
+    // 代码样式
+    code {
+      background: #f5f7fa;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: 'Consolas', 'Monaco', monospace;
+      font-size: 13px;
+      color: #e6a23c;
+    }
+    
+    // 分割线
+    hr {
+      border: none;
+      border-top: 1px solid #ebeef5;
+      margin: 20px 0;
+    }
+  }
+  
+  .editor-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin-top: 12px;
+    padding: 10px 16px;
+    background: #f5f7fa;
+    border-radius: 8px;
+    
+    .toolbar-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      
+      .upload-btn {
+        border-radius: 6px;
+      }
+    }
+    
+    .toolbar-right {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      
+      .editor-tip {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 12px;
+        color: #909399;
+        
+        .el-icon {
+          font-size: 14px;
+        }
+      }
+      
+      .word-count {
+        font-size: 12px;
+        color: #909399;
+        font-variant-numeric: tabular-nums;
+        
+        &.warning {
+          color: #e6a23c;
+        }
+      }
+    }
+  }
+  
+  .uploading-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 46px; // 留出工具栏高度
+    background: rgba(255, 255, 255, 0.95);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    z-index: 10;
+    
+    .uploading-content {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      
+      .loading-icon {
+        animation: spin 1s linear infinite;
+        color: #409eff;
+      }
+      
+      .uploading-text {
+        font-size: 14px;
+        color: #606266;
+      }
+    }
+  }
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+// 响应式适配
+@media (max-width: 768px) {
+  .rich-text-editor-wrapper {
+    .rich-text-editor {
+      min-height: 200px;
+      padding: 12px;
+      font-size: 15px;
+    }
+    
+    .editor-toolbar {
+      flex-direction: column;
+      align-items: stretch;
+      padding: 8px 12px;
+      
+      .toolbar-left {
+        justify-content: center;
+        
+        .upload-btn {
+          width: 100%;
+          justify-content: center;
+        }
+      }
+      
+      .toolbar-right {
+        justify-content: space-between;
+        
+        .editor-tip {
+          display: none; // 手机端隐藏提示
+        }
+      }
     }
   }
 }

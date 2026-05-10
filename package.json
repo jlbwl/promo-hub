@@ -10,6 +10,7 @@
     "build:admin": "pnpm --filter @promo/admin build",
     "build:manager": "pnpm --filter @promo/manager build",
     "build:user": "pnpm --filter @promo/user build",
+    "build:api": "pnpm --filter @promo/api build",
     "build:shared": "pnpm --filter @promo/shared build",
     "lint": "eslint . --ext .vue,.js,.ts,.tsx",
     "type-check": "vue-tsc --noEmit"
