@@ -247,7 +247,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage } from 'element-plus'
 import { Document, Clock, CircleCheck, CircleClose, Wallet, SuccessFilled, Warning } from '@element-plus/icons-vue'
 import { get, del } from '@promo/shared/utils/request'
 

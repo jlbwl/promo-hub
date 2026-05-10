@@ -126,7 +126,7 @@ const fetchLogs = async () => {
     if (searchForm.targetType) params.targetType = searchForm.targetType
     if (searchForm.adminId) params.adminId = searchForm.adminId
 
-    const res = await get('/admin/operation-logs', params)
+    const res = await get<{ list: any[]; total: number }>('/admin/operation-logs', params)
     if (res.code === 0) {
       tableData.value = res.data?.list || []
       pagination.total = res.data?.total || 0
