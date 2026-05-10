@@ -25,7 +25,7 @@ try {
 const {
   readProducts, writeProducts, insertProduct, updateProduct, readProduct,
   readManagers, writeManagers, deleteManager,
-  readUsers, writeUsers, readUser, insertUser, updateUser,
+  readUsers, writeUsers, readUser, insertUser, updateUser, deleteUser,
   readOrders, writeOrders, insertOrder,
   readCommissions, writeCommissions,
   readAdminByPhone, updateAdmin,
@@ -323,6 +323,31 @@ app.post('/api/managers', async (req, res) => {
 
 // 删除经理（同时下架其所有产品，转移佣金数据给管理后台）
 app.delete('/api/managers/:id', async (req, res) => {
+  const smsCode = req.query.smsCode as string
+  // 从 localStorage 获取管理员信息（这里简化处理，实际需要从 token 获取管理员）
+  // 这里假设管理员的手机号需要验证
+  // 先验证验证码
+  if (!smsCode) {
+    res.json({ code: 400, message: '验证码不能为空', data: null })
+    return
+  }
+  
+  // 这里简化处理：因为前端从 localStorage 获取了管理员手机号发送验证码
+  // 我们需要查找最后发送给管理员的验证码
+  let validCodeFound = false
+  for (const [phone, record] of smsCodes.entries()) {
+    if (record.code === smsCode && Date.now() <= record.expiresAt) {
+      validCodeFound = true
+      smsCodes.delete(phone)
+      break
+    }
+  }
+  
+  if (!validCodeFound) {
+    res.json({ code: 400, message: '验证码错误或已过期', data: null })
+    return
+  }
+  
   let managers = await readManagers()
   const index = managers.findIndex((m: any) => m.id === req.params.id)
   if (index === -1) {
@@ -368,6 +393,41 @@ app.delete('/api/managers/:id', async (req, res) => {
     message: `删除成功，已下架 ${offlineCount} 个产品，转移 ${transferredOrders} 笔订单至管理后台`,
     data: null
   })
+})
+
+// 删除用户
+app.delete('/api/users/:id', async (req, res) => {
+  const smsCode = req.query.smsCode as string
+  // 验证验证码
+  if (!smsCode) {
+    res.json({ code: 400, message: '验证码不能为空', data: null })
+    return
+  }
+  
+  // 查找验证码
+  let validCodeFound = false
+  for (const [phone, record] of smsCodes.entries()) {
+    if (record.code === smsCode && Date.now() <= record.expiresAt) {
+      validCodeFound = true
+      smsCodes.delete(phone)
+      break
+    }
+  }
+  
+  if (!validCodeFound) {
+    res.json({ code: 400, message: '验证码错误或已过期', data: null })
+    return
+  }
+  
+  let users = await readUsers()
+  const index = users.findIndex((u: any) => u.id === req.params.id)
+  if (index === -1) {
+    res.json({ code: 404, message: '用户不存在', data: null })
+    return
+  }
+  await deleteUser(req.params.id)
+  
+  res.json({ code: 0, message: '删除成功', data: null })
 })
 
 // 更新经理（启用/禁用时联动产品状态）

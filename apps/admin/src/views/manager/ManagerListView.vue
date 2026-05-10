@@ -348,9 +348,16 @@ const smsCooldown = ref(0)
 const sendSmsCode = async () => {
   if (smsCooldown.value > 0) return
   
+  // 从 localStorage 获取管理员信息
+  const adminInfo = JSON.parse(localStorage.getItem('admin_info') || '{}')
+  if (!adminInfo.phone) {
+    ElMessage.error('未获取到管理员手机号，请重新登录')
+    return
+  }
+  
   smsLoading.value = true
   try {
-    const res = await post('/admin/sms/verify', { type: 'delete_manager' })
+    const res = await post('/admin/sms/send', { phone: adminInfo.phone })
     if (res.code === 0) {
       ElMessage.success('验证码已发送')
       smsCooldown.value = 60

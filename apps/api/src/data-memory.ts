@@ -69,6 +69,12 @@ export async function updateUser(id: string, fields: Record<string, any>): Promi
   }
 }
 
+export async function deleteUser(id: string): Promise<void> {
+  const users = await readUsers()
+  const filtered = users.filter((u: any) => u.id !== id)
+  await writeUsers(filtered)
+}
+
 // ============ Orders ============
 
 export async function readOrders(): Promise<any[]> {

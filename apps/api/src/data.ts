@@ -237,6 +237,10 @@ export async function updateUser(id: string, fields: Record<string, any>): Promi
   await query(`UPDATE users SET ${sets.join(', ')} WHERE id = ?`, values)
 }
 
+export async function deleteUser(id: string): Promise<void> {
+  await query('DELETE FROM users WHERE id = ?', [id])
+}
+
 // ============ Orders ============
 
 export async function readOrders(): Promise<any[]> {
