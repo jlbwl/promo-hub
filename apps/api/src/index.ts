@@ -490,6 +490,14 @@ app.post('/api/managers/sms/send', async (req, res) => {
     res.json({ code: 400, message: '请输入正确的手机号', data: null })
     return
   }
+  
+  // 防刷：60秒内不能重复发送
+  const existing = smsCodes.get(phone)
+  if (existing && Date.now() - (existing.expiresAt - 10 * 60 * 1000) < 60000) {
+    res.json({ code: 429, message: '发送太频繁，请60秒后重试', data: null })
+    return
+  }
+  
   const code = String(Math.floor(100000 + Math.random() * 900000))
   const expiresAt = Date.now() + 10 * 60 * 1000
   smsCodes.set(phone, { code, expiresAt, phone })
@@ -1366,6 +1374,14 @@ app.post('/api/admin/sms/send', async (req, res) => {
   if (!phone || !/^1[3-9]\d{9}$/.test(phone)) {
     console.log('[ADMIN-SMS] 手机号格式错误:', phone)
     res.json({ code: 400, message: '请输入正确的手机号', data: null })
+    return
+  }
+  
+  // 防刷：60秒内不能重复发送
+  const existing = smsCodes.get(phone)
+  if (existing && Date.now() - (existing.expiresAt - 10 * 60 * 1000) < 60000) {
+    console.log('[ADMIN-SMS] 发送过于频繁:', phone)
+    res.json({ code: 429, message: '发送太频繁，请60秒后重试', data: null })
     return
   }
   
