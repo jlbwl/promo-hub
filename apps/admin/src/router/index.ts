@@ -26,13 +26,13 @@ const routes: RouteRecordRaw[] = [
         path: 'managers',
         name: 'ManagerList',
         component: () => import('../views/manager/ManagerListView.vue'),
-        meta: { title: '系统管理后台' }
+        meta: { title: '渠道管理' }
       },
       {
         path: 'users',
         name: 'UserList',
         component: () => import('../views/user/UserListView.vue'),
-        meta: { title: '用户管理' }
+        meta: { title: '团队管理' }
       },
       {
         path: 'commissions',

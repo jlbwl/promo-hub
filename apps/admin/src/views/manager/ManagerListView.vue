@@ -20,7 +20,7 @@
         </el-col>
         <el-col :span="12" style="text-align: right;">
           <el-button type="primary" icon="Plus" @click="showAddDialog">
-            添加推广经理
+            添加渠道
           </el-button>
         </el-col>
       </el-row>
@@ -70,7 +70,7 @@
     <!-- 添加经理弹窗 -->
     <el-dialog
       v-model="addDialogVisible"
-      title="添加推广经理"
+      title="添加渠道"
       width="450px"
       @close="resetAddForm"
     >

@@ -729,33 +729,21 @@ app.post('/api/users/password/set', async (req, res) => {
   res.json({ code: 0, message: '密码设置成功', data: null })
 })
 
-// 管理后台：获取所有用户列表（渠道经理 + 普通用户）
+// 管理后台：获取普通用户列表（团队管理）
 app.get('/api/users', async (req, res) => {
   const { page = '1', pageSize = '10', role, status, keyword, teamName } = req.query
-  const managers = await readManagers()
   const users = await readUsers()
 
-  // 合并渠道经理和普通用户
-  const allUsers = [
-    ...managers.map((m: any) => ({
-      id: m.id,
-      name: m.name,
-      phone: m.phone,
-      teamName: m.teamName || '',
-      role: 'manager',
-      status: m.status === 'active' ? 1 : 0,
-      createdAt: m.createdAt,
-    })),
-    ...users.map((u: any) => ({
-      id: u.id,
-      name: u.nickname,
-      phone: u.phone,
-      teamName: u.teamName || '',
-      role: u.role,
-      status: u.status === 'active' ? 1 : 0,
-      createdAt: u.createdAt,
-    })),
-  ]
+  // 只返回普通用户
+  const allUsers = users.map((u: any) => ({
+    id: u.id,
+    name: u.nickname,
+    phone: u.phone,
+    teamName: u.teamName || '',
+    role: u.role,
+    status: u.status === 'active' ? 1 : 0,
+    createdAt: u.createdAt,
+  }))
 
   // 按角色筛选
   let filtered = allUsers

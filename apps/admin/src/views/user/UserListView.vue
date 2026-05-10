@@ -21,7 +21,6 @@
             @change="handleSearch"
           >
             <el-option label="全部" value="" />
-            <el-option label="渠道经理" value="manager" />
             <el-option label="普通用户" value="user" />
           </el-select>
         </el-col>

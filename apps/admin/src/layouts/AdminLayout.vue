@@ -19,11 +19,11 @@
         </el-menu-item>
         <el-menu-item index="/managers">
           <el-icon><User /></el-icon>
-          <span>系统管理后台</span>
+          <span>渠道管理</span>
         </el-menu-item>
         <el-menu-item index="/users">
           <el-icon><UserFilled /></el-icon>
-          <span>用户管理</span>
+          <span>团队管理</span>
         </el-menu-item>
         <el-menu-item index="/commissions">
           <el-icon><Wallet /></el-icon>
