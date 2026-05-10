@@ -155,6 +155,7 @@ const handlePasswordLogin = async () => {
       })
 
       if (res.data && res.data.token) {
+        localStorage.setItem('token', res.data.token)
         localStorage.setItem('admin_token', res.data.token)
         localStorage.setItem('admin_info', JSON.stringify(res.data.admin))
         ElMessage.success('登录成功')
@@ -203,6 +204,7 @@ const handleSmsLogin = async () => {
       })
 
       if (res.data && res.data.token) {
+        localStorage.setItem('token', res.data.token)
         localStorage.setItem('admin_token', res.data.token)
         localStorage.setItem('admin_info', JSON.stringify(res.data.admin))
         ElMessage.success('登录成功')
