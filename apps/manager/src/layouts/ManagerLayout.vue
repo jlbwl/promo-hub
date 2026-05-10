@@ -92,7 +92,7 @@ const managerName = ref('')
 onMounted(() => {
   try {
     const info = JSON.parse(localStorage.getItem('manager_info') || '{}')
-    managerName.value = info.name || info.username || '经理'
+    managerName.value = info.teamName || info.name || info.username || '经理'
   } catch {
     managerName.value = '经理'
   }
