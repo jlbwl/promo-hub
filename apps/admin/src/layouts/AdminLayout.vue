@@ -34,7 +34,7 @@
           <span>系统设置</span>
         </el-menu-item>
         <el-menu-item index="/operation-logs">
-          <el-icon><File /></el-icon>
+          <el-icon><Files /></el-icon>
           <span>操作日志</span>
         </el-menu-item>
       </el-menu>
@@ -65,7 +65,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Odometer, User, UserFilled, Setting, Wallet, File } from '@element-plus/icons-vue'
+import { Odometer, User, UserFilled, Setting, Wallet, Files } from '@element-plus/icons-vue'
 import { ElMessageBox } from 'element-plus'
 
 const route = useRoute()
