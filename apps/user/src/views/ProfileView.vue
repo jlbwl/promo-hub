@@ -98,48 +98,77 @@
     />
 
     <!-- 创建员工子账户弹窗 -->
-    <van-popup v-model:show="showCreateEmployee" position="center" :style="{ width: '90%', maxWidth: '400px' }">
+    <van-popup v-model:show="showCreateEmployee" position="center" :style="{ width: '90%', maxWidth: '420px', borderRadius: '16px', overflow: 'hidden' }">
       <div class="employee-dialog">
         <div class="dialog-header">
+          <div class="header-icon">
+            <van-icon name="user-o" size="24" />
+          </div>
           <h3>{{ editingEmployee ? '编辑员工' : '创建员工子账户' }}</h3>
-          <van-icon name="cross" @click="closeCreateEmployee" />
+          <van-icon name="cross" @click="closeCreateEmployee" class="close-icon" />
         </div>
         <div class="dialog-content">
-          <van-cell-group inset>
+          <van-cell-group inset class="form-group">
             <van-field
               v-model="employeeForm.phone"
               type="tel"
               label="员工手机号"
               placeholder="请输入员工手机号"
               maxlength="11"
-            />
+              class="form-field"
+            >
+              <template #left-icon>
+                <van-icon name="phone" size="16" color="#1989fa" />
+              </template>
+            </van-field>
             <van-field
               v-model="employeeForm.password"
               type="password"
               label="登录密码"
               placeholder="请设置6位以上密码"
-            />
+              class="form-field"
+            >
+              <template #left-icon>
+                <van-icon name="lock" size="16" color="#1989fa" />
+              </template>
+            </van-field>
             <van-field
               v-model="employeeForm.nickname"
               type="text"
               label="员工昵称"
               placeholder="默认为员工+手机号后四位"
-            />
+              class="form-field"
+            >
+              <template #left-icon>
+                <van-icon name="user-o" size="16" color="#1989fa" />
+              </template>
+            </van-field>
             <van-field
               v-model="employeeForm.expiresHours"
               type="digit"
-              label="登录有效期(小时)"
+              label="登录有效期"
               placeholder="请输入有效期，至少1小时"
-            />
+              class="form-field"
+            >
+              <template #left-icon>
+                <van-icon name="clock-o" size="16" color="#1989fa" />
+              </template>
+              <template #right-icon>
+                <span class="unit">小时</span>
+              </template>
+            </van-field>
           </van-cell-group>
           <div class="expire-tips">
-            <p>员工账户有效期到期后将自动失效</p>
-            <p>员工做单业绩将归属于您的账户</p>
+            <van-icon name="info-o" size="16" color="#1989fa" />
+            <div class="tips-content">
+              <p>员工账户有效期到期后将自动失效</p>
+              <p>员工做单业绩将归属于您的账户</p>
+            </div>
           </div>
         </div>
         <div class="dialog-footer">
-          <van-button plain type="default" block @click="closeCreateEmployee">取消</van-button>
-          <van-button type="primary" block @click="handleCreateEmployee">{{ editingEmployee ? '保存修改' : '创建账户' }}</van-button>
+          <van-button plain type="default" block class="btn-cancel" @click="closeCreateEmployee">取消</van-button>
+          <van-button type="primary" block class="btn-confirm" @click="handleCreateEmployee">{{ editingEmployee ? '保存修改' : '创建账户' }}</van-button>
         </div>
       </div>
     </van-popup>
@@ -604,45 +633,196 @@ const maskPhone = (phone: string) => {
   margin: 24px 16px 0;
 }
 
-// 设置密码弹窗
-.password-dialog {
+// 创建员工子账户弹窗
+.employee-dialog {
   background: #fff;
   border-radius: 16px;
   overflow: hidden;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
 
   .dialog-header {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    padding: 16px 20px;
-    border-bottom: 1px solid #f0f0f0;
+    padding: 20px 24px;
+    background: linear-gradient(135deg, #1989fa 0%, #4fc3f7 100%);
+
+    .header-icon {
+      width: 40px;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 50%;
+      margin-right: 12px;
+      color: #fff;
+    }
 
     h3 {
-      font-size: 16px;
+      flex: 1;
+      font-size: 18px;
       font-weight: 600;
-      color: #323233;
+      color: #fff;
       margin: 0;
     }
 
-    :deep(.van-icon) {
+    .close-icon {
       font-size: 20px;
-      color: #969799;
+      color: rgba(255, 255, 255, 0.8);
       cursor: pointer;
+      padding: 4px;
+      transition: all 0.2s;
+
+      &:hover {
+        color: #fff;
+        transform: rotate(90deg);
+      }
     }
   }
 
   .dialog-content {
-    padding: 16px 20px;
+    padding: 24px;
+  }
+
+  .form-group {
+    background: #f8f9fa;
+    border-radius: 12px;
+    padding: 8px 0;
+    margin-bottom: 16px;
+
+    .form-field {
+      border-bottom: 1px solid #e8e8e8;
+
+      &:last-child {
+        border-bottom: none;
+      }
+
+      :deep(.van-field__label) {
+        font-size: 14px;
+        color: #646566;
+        width: 72px;
+      }
+
+      :deep(.van-field__value) {
+        font-size: 14px;
+      }
+
+      :deep(.van-field__control) {
+        font-size: 14px;
+      }
+    }
+  }
+
+  .expire-tips {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 12px 16px;
+    background: #e8f4fd;
+    border-radius: 8px;
+    border-left: 4px solid #1989fa;
+
+    .tips-content {
+      flex: 1;
+
+      p {
+        font-size: 12px;
+        color: #646566;
+        margin: 4px 0;
+        line-height: 1.5;
+      }
+    }
+  }
+
+  .unit {
+    font-size: 13px;
+    color: #969799;
   }
 
   .dialog-footer {
     display: flex;
     flex-direction: column;
-    gap: 8px;
-    padding: 0 16px 16px;
+    gap: 10px;
+    padding: 0 24px 24px;
+
+    .btn-cancel {
+      border-radius: 10px;
+      height: 44px;
+      font-size: 15px;
+      color: #646566;
+      background: #f5f5f5;
+      border: none;
+
+      &:active {
+        background: #e8e8e8;
+      }
+    }
+
+    .btn-confirm {
+      border-radius: 10px;
+      height: 44px;
+      font-size: 15px;
+      font-weight: 500;
+      background: linear-gradient(135deg, #1989fa 0%, #4fc3f7 100%);
+      border: none;
+      box-shadow: 0 4px 12px rgba(25, 137, 250, 0.3);
+
+      &:active {
+        transform: scale(0.98);
+      }
+    }
+  }
+}
+
+// 设置密码弹窗
+.password-dialog {
+  background: #fff;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+
+  .dialog-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 24px;
+    background: linear-gradient(135deg, #1989fa 0%, #4fc3f7 100%);
+
+    h3 {
+      font-size: 18px;
+      font-weight: 600;
+      color: #fff;
+      margin: 0;
+    }
+
+    :deep(.van-icon) {
+      font-size: 20px;
+      color: rgba(255, 255, 255, 0.8);
+      cursor: pointer;
+      padding: 4px;
+      transition: all 0.2s;
+
+      &:hover {
+        color: #fff;
+        transform: rotate(90deg);
+      }
+    }
+  }
+
+  .dialog-content {
+    padding: 24px;
+  }
+
+  .dialog-footer {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 0 24px 24px;
 
     :deep(.van-button) {
-      border-radius: 8px;
+      border-radius: 10px;
+      height: 44px;
+      font-size: 15px;
     }
   }
 }
