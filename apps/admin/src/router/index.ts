@@ -45,6 +45,12 @@ const routes: RouteRecordRaw[] = [
         name: 'Settings',
         component: () => import('../views/SettingsView.vue'),
         meta: { title: '系统设置' }
+      },
+      {
+        path: 'operation-logs',
+        name: 'OperationLogs',
+        component: () => import('../views/OperationLogView.vue'),
+        meta: { title: '操作日志' }
       }
     ]
   }

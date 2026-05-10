@@ -29,8 +29,9 @@ const {
   readUsers, writeUsers, readUser, insertUser, updateUser, deleteUser,
   readOrders, writeOrders, insertOrder, deleteOrder,
   readCommissions, writeCommissions,
-  readAdminByPhone, updateAdmin,
+  readAdminByPhone, readAdminById, updateAdmin,
   readEmployeesByUserId, readEmployeeById, readEmployeeByPhone, insertEmployee, deleteEmployee,
+  insertOperationLog, readOperationLogs,
   queryOne,
 } = dataModule
 
@@ -1175,8 +1176,32 @@ app.get('/api/orders', async (req, res) => {
 // 删除订单（管理后台）
 app.delete('/api/orders/:id', async (req, res) => {
   const { id } = req.params
+  const { reason, adminId, adminPhone, adminName } = req.body
+  
   try {
+    // 先读取订单数据用于日志记录
+    const order = await readOrder(id)
+    if (!order) {
+      res.json({ code: 404, message: '订单不存在', data: null })
+      return
+    }
+    
+    // 执行删除
     await deleteOrder(id)
+    
+    // 记录操作日志
+    await insertOperationLog({
+      adminId: adminId || '',
+      adminPhone: adminPhone || '',
+      adminName: adminName || '未知管理员',
+      operationType: 'delete',
+      targetType: 'order',
+      targetId: id,
+      targetName: order.productName || '订单',
+      reason: reason || '',
+      detail: JSON.stringify(order),
+    })
+    
     res.json({ code: 0, message: '删除成功', data: null })
   } catch (error: any) {
     console.error('[订单删除] 错误:', error)
@@ -1592,6 +1617,28 @@ app.put('/api/commissions/:id', async (req, res) => {
   commissions[index] = updated
   await writeCommissions(commissions)
   res.json({ code: 0, message: '操作成功', data: updated })
+})
+
+// ============ 操作日志接口 ============
+
+// 获取操作日志列表
+app.get('/api/admin/operation-logs', async (req, res) => {
+  const { page = '1', pageSize = '20', operationType, targetType, adminId } = req.query
+  
+  try {
+    const result = await readOperationLogs({
+      adminId: adminId as string || undefined,
+      operationType: operationType as string || undefined,
+      targetType: targetType as string || undefined,
+      page: parseInt(page as string, 10),
+      pageSize: parseInt(pageSize as string, 10),
+    })
+    
+    res.json({ code: 0, message: 'success', data: result })
+  } catch (error: any) {
+    console.error('[操作日志查询] 错误:', error)
+    res.json({ code: 500, message: '查询失败', data: null })
+  }
 })
 
 // ============ 图片上传 ============

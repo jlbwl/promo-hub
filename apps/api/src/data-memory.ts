@@ -234,3 +234,55 @@ export async function updateEmployee(id: string, fields: Record<string, any>): P
     await writeEmployees(employees)
   }
 }
+
+// ============ Operation Logs (操作日志) ============
+
+export async function insertOperationLog(log: {
+  adminId: string
+  adminPhone: string
+  adminName: string
+  operationType: string
+  targetType: string
+  targetId: string
+  targetName: string
+  reason?: string
+  detail?: string
+}): Promise<void> {
+  const logs = await readFileData('operation_logs')
+  logs.push({
+    id: `log_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+    ...log,
+    createdAt: new Date().toISOString(),
+  })
+  await writeFileData('operation_logs', logs)
+}
+
+export async function readOperationLogs(params?: {
+  adminId?: string
+  operationType?: string
+  targetType?: string
+  page?: number
+  pageSize?: number
+}): Promise<{ list: any[]; total: number }> {
+  let logs = await readFileData('operation_logs')
+  
+  if (params?.adminId) {
+    logs = logs.filter((log: any) => log.adminId === params.adminId)
+  }
+  if (params?.operationType) {
+    logs = logs.filter((log: any) => log.operationType === params.operationType)
+  }
+  if (params?.targetType) {
+    logs = logs.filter((log: any) => log.targetType === params.targetType)
+  }
+  
+  logs.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+  
+  const total = logs.length
+  const pageNum = params?.page || 1
+  const pageSizeNum = params?.pageSize || 20
+  const start = (pageNum - 1) * pageSizeNum
+  const list = logs.slice(start, start + pageSizeNum)
+  
+  return { list, total }
+}

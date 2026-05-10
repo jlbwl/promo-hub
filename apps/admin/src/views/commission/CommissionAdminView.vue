@@ -169,6 +169,40 @@
       />
     </div>
 
+    <!-- 删除确认弹窗 -->
+    <el-dialog
+      v-model="deleteDialogVisible"
+      title="删除确认"
+      width="480px"
+      :close-on-click-modal="false"
+      @close="closeDeleteDialog"
+    >
+      <div class="delete-dialog-content">
+        <div class="warning-icon">
+          <el-icon size="48" color="#f56c6c"><Warning /></el-icon>
+        </div>
+        <div class="warning-text">
+          <p>确定要删除订单「<strong>{{ deleteRow?.productName }}</strong>」吗？</p>
+          <p class="hint">删除后将同时从经理端和用户端移除该条数据，请谨慎操作。</p>
+        </div>
+        <div class="reason-section">
+          <el-form-item label="删除原因" required>
+            <el-textarea
+              v-model="deleteReason"
+              placeholder="请输入删除原因（选填）"
+              :rows="3"
+              maxlength="500"
+              show-word-limit
+            />
+          </el-form-item>
+        </div>
+      </div>
+      <template #footer>
+        <el-button @click="closeDeleteDialog">取消</el-button>
+        <el-button type="danger" @click="confirmDelete">确定删除</el-button>
+      </template>
+    </el-dialog>
+
     <!-- ====== 通用数据查看模态框 ====== -->
     <el-dialog v-model="statDialogVisible" :title="statDialogTitle" width="750px" destroy-on-close>
       <div class="stat-dialog-content">
@@ -214,7 +248,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Document, Clock, CircleCheck, CircleClose, Wallet, SuccessFilled } from '@element-plus/icons-vue'
+import { Document, Clock, CircleCheck, CircleClose, Wallet, SuccessFilled, Warning } from '@element-plus/icons-vue'
 import { get, del } from '@promo/shared/utils/request'
 
 const loading = ref(false)
@@ -327,32 +361,53 @@ const openStatDialog = async (status: string, title: string) => {
   } catch { ElMessage.error('获取数据失败'); statDialogVisible.value = false }
 }
 
-// 删除订单
-const handleDelete = async (row: any) => {
+// 删除相关状态
+const deleteDialogVisible = ref(false)
+const deleteRow = ref<any>(null)
+const deleteReason = ref('')
+
+// 打开删除确认弹窗
+const handleDelete = (row: any) => {
+  deleteRow.value = row
+  deleteReason.value = ''
+  deleteDialogVisible.value = true
+}
+
+// 确认删除
+const confirmDelete = async () => {
+  if (!deleteRow.value) return
+  
+  // 获取管理员信息
+  const adminInfo = JSON.parse(localStorage.getItem('admin_info') || '{}')
+  
   try {
-    await ElMessageBox.confirm(
-      `确定要删除订单「${row.productName}」吗？删除后将同时从经理端和用户端移除该条数据。`,
-      '删除确认',
-      {
-        confirmButtonText: '确定删除',
-        cancelButtonText: '取消',
-        type: 'warning'
-      }
-    )
+    const res = await del(`/orders/${deleteRow.value.id}`, {
+      reason: deleteReason.value.trim(),
+      adminId: adminInfo.id || '',
+      adminPhone: adminInfo.phone || '',
+      adminName: adminInfo.name || ''
+    })
     
-    const res = await del(`/orders/${row.id}`)
     if (res.code === 0) {
       ElMessage.success('删除成功')
+      deleteDialogVisible.value = false
+      deleteRow.value = null
+      deleteReason.value = ''
       fetchData()
       fetchStats()
     } else {
       ElMessage.error(res.message || '删除失败')
     }
   } catch (error: any) {
-    if (error !== 'cancel') {
-      ElMessage.error(error.message || '删除失败')
-    }
+    ElMessage.error(error.message || '删除失败')
   }
+}
+
+// 关闭删除弹窗
+const closeDeleteDialog = () => {
+  deleteDialogVisible.value = false
+  deleteRow.value = null
+  deleteReason.value = ''
 }
 
 onMounted(() => { fetchStats(); fetchData(); fetchManagers(); fetchUsers() })
@@ -378,5 +433,21 @@ onMounted(() => { fetchStats(); fetchData(); fetchManagers(); fetchUsers() })
     .payment-total { color: #409eff; font-size: 16px; }
   }
   .payment-actions { display: flex; justify-content: flex-end; gap: 12px; margin-top: 20px; padding-top: 16px; border-top: 1px solid #ebeef5; }
+  
+  .delete-dialog-content {
+    text-align: center;
+    padding: 20px 0;
+    .warning-icon { margin-bottom: 16px; }
+    .warning-text {
+      margin-bottom: 20px;
+      p { margin: 8px 0; font-size: 14px; color: #606266;
+        &.hint { font-size: 13px; color: #909399; }
+      }
+    }
+    .reason-section {
+      text-align: left;
+      .el-textarea { width: 100%; }
+    }
+  }
 }
 </style>

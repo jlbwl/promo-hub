@@ -199,6 +199,23 @@ export async function initDatabase(): Promise<void> {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `)
 
+  // 操作日志表
+  await pool.execute(`
+    CREATE TABLE IF NOT EXISTS operation_logs (
+      id VARCHAR(100) PRIMARY KEY,
+      adminId VARCHAR(100) DEFAULT '',
+      adminPhone VARCHAR(50) DEFAULT '',
+      adminName VARCHAR(200) DEFAULT '',
+      operationType VARCHAR(100) NOT NULL,
+      targetType VARCHAR(100) NOT NULL,
+      targetId VARCHAR(100) DEFAULT '',
+      targetName VARCHAR(500) DEFAULT '',
+      reason VARCHAR(1000) DEFAULT '',
+      detail TEXT DEFAULT '',
+      createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `)
+
   // 检查是否有管理员账号，没有则创建默认账号
   const [adminRows] = await pool.execute('SELECT COUNT(*) as count FROM admins')
   const adminCount = (adminRows as any[])[0].count
