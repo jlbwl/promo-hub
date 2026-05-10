@@ -379,9 +379,7 @@ const confirmDelete = async () => {
 
   smsLoading.value = true
   try {
-    const res = await del(`/managers/${deleteRow.value.id}`, {
-      params: { smsCode: smsCode.value }
-    })
+    const res = await del(`/managers/${deleteRow.value.id}?smsCode=${smsCode.value}`)
     if (res.code === 0) {
       ElMessage.success('删除成功')
       deleteSmsDialogVisible.value = false
