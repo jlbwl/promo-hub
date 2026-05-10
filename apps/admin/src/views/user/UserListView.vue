@@ -83,8 +83,11 @@
             {{ formatTime(row.createdAt) }}
           </template>
         </el-table-column>
-        <el-table-column label="操作" min-width="180" fixed="right">
+        <el-table-column label="操作" min-width="260" fixed="right">
           <template #default="{ row }">
+            <el-button type="warning" text size="small" @click="handleEditTeamName(row)">
+              修改团队名称
+            </el-button>
             <el-button
               :type="row.status === 1 ? 'danger' : 'success'"
               text
@@ -93,8 +96,8 @@
             >
               {{ row.status === 1 ? '禁用' : '启用' }}
             </el-button>
-            <el-button type="warning" text size="small" @click="handleEditTeamName(row)">
-              修改团队名称
+            <el-button type="danger" text size="small" @click="handleDelete(row)">
+              删除
             </el-button>
           </template>
         </el-table-column>
@@ -139,13 +142,52 @@
         </el-button>
       </template>
     </el-dialog>
+
+    <!-- 删除确认弹窗 -->
+    <el-dialog
+      v-model="deleteSmsDialogVisible"
+      title="安全验证"
+      width="400px"
+    >
+      <el-form :model="{ smsCode: smsCode }" label-width="100px">
+        <el-form-item label="短信验证码">
+          <el-input
+            v-model="smsCode"
+            placeholder="请输入验证码"
+            :disabled="smsLoading"
+            maxlength="6"
+          />
+        </el-form-item>
+      </el-form>
+      <p style="color: #999; font-size: 12px; margin-top: -10px; margin-bottom: 16px;">
+        请输入管理员手机收到的验证码
+      </p>
+      <template #footer>
+        <el-button @click="deleteSmsDialogVisible = false; smsCode = ''">取消</el-button>
+        <el-button
+          type="primary"
+          :loading="smsLoading"
+          @click="confirmDelete"
+        >
+          确认删除
+        </el-button>
+        <el-button
+          type="success"
+          :loading="smsLoading"
+          @click="sendSmsCode"
+          :disabled="smsCooldown > 0"
+        >
+          {{ smsCooldown > 0 ? `${smsCooldown}s` : '获取验证码' }}
+        </el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { get, put } from '@promo/shared/utils/request'
+import { get, put, del, post } from '@promo/shared/utils/request'
 
 // 格式化时间（北京时区 UTC+8）
 const formatTime = (iso: string) => {
@@ -302,6 +344,91 @@ const handleSaveTeamName = async () => {
     ElMessage.error(error.message || '修改失败')
   } finally {
     teamNameLoading.value = false
+  }
+}
+
+// 删除用户
+const handleDelete = async (row: UserItem) => {
+  try {
+    await ElMessageBox.confirm(
+      `删除后将清空该用户「${row.teamName}」的所有档案，且数据不可找回，确定要删除吗？`,
+      '危险操作',
+      {
+        confirmButtonText: '确定删除',
+        cancelButtonText: '取消',
+        type: 'error',
+        confirmButtonClass: 'el-button--danger'
+      }
+    )
+    
+    // 显示短信验证弹窗
+    deleteRow.value = row
+    deleteSmsDialogVisible.value = true
+  } catch (error: any) {
+    if (error !== 'cancel') {
+      ElMessage.error(error.message || '操作失败')
+    }
+  }
+}
+
+// 短信验证码相关
+const deleteRow = ref<UserItem | null>(null)
+const deleteSmsDialogVisible = ref(false)
+const smsCode = ref('')
+const smsLoading = ref(false)
+const smsCooldown = ref(0)
+
+// 发送验证码
+const sendSmsCode = async () => {
+  if (smsCooldown.value > 0) return
+  
+  smsLoading.value = true
+  try {
+    const res = await post('/admin/sms/verify', { type: 'delete_user' })
+    if (res.code === 0) {
+      ElMessage.success('验证码已发送')
+      smsCooldown.value = 60
+      const timer = setInterval(() => {
+        smsCooldown.value--
+        if (smsCooldown.value <= 0) {
+          clearInterval(timer)
+        }
+      }, 1000)
+    } else {
+      ElMessage.error(res.message || '发送失败')
+    }
+  } catch (error: any) {
+    ElMessage.error(error.message || '发送失败')
+  } finally {
+    smsLoading.value = false
+  }
+}
+
+// 确认删除
+const confirmDelete = async () => {
+  if (!smsCode.value.trim() || !deleteRow.value) {
+    ElMessage.warning('请输入验证码')
+    return
+  }
+
+  smsLoading.value = true
+  try {
+    const res = await del(`/users/${deleteRow.value.id}`, {
+      params: { smsCode: smsCode.value }
+    })
+    if (res.code === 0) {
+      ElMessage.success('删除成功')
+      deleteSmsDialogVisible.value = false
+      smsCode.value = ''
+      deleteRow.value = null
+      loadData()
+    } else {
+      ElMessage.error(res.message || '删除失败')
+    }
+  } catch (error: any) {
+    ElMessage.error(error.message || '删除失败')
+  } finally {
+    smsLoading.value = false
   }
 }
 
