@@ -288,6 +288,10 @@ export async function updateOrder(id: string, fields: Record<string, any>): Prom
   await query(`UPDATE orders SET ${sets.join(', ')} WHERE id = ?`, values)
 }
 
+export async function deleteOrder(id: string): Promise<void> {
+  await query('DELETE FROM orders WHERE id = ?', [id])
+}
+
 // ============ Commissions ============
 
 export async function readCommissions(): Promise<any[]> {

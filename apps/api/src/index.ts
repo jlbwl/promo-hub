@@ -27,7 +27,7 @@ const {
   readProducts, writeProducts, insertProduct, updateProduct, readProduct,
   readManagers, writeManagers, deleteManager,
   readUsers, writeUsers, readUser, insertUser, updateUser, deleteUser,
-  readOrders, writeOrders, insertOrder,
+  readOrders, writeOrders, insertOrder, deleteOrder,
   readCommissions, writeCommissions,
   readAdminByPhone, updateAdmin,
   readEmployeesByUserId, readEmployeeById, readEmployeeByPhone, insertEmployee, deleteEmployee,
@@ -1170,6 +1170,18 @@ app.get('/api/orders', async (req, res) => {
   })
 
   res.json({ code: 0, message: 'success', data: { list, total, page: pageNum, pageSize: pageSizeNum } })
+})
+
+// 删除订单（管理后台）
+app.delete('/api/orders/:id', async (req, res) => {
+  const { id } = req.params
+  try {
+    await deleteOrder(id)
+    res.json({ code: 0, message: '删除成功', data: null })
+  } catch (error: any) {
+    console.error('[订单删除] 错误:', error)
+    res.json({ code: 500, message: '删除失败', data: null })
+  }
 })
 
 // 获取订单统计

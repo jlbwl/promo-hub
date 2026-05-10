@@ -96,6 +96,12 @@ export async function insertOrder(o: any): Promise<void> {
   await writeOrders(orders)
 }
 
+export async function deleteOrder(id: string): Promise<void> {
+  const orders = await readOrders()
+  const filtered = orders.filter((o: any) => o.id !== id)
+  await writeOrders(filtered)
+}
+
 // ============ Products ============
 
 export async function readProducts(): Promise<any[]> {

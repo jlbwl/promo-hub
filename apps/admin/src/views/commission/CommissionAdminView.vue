@@ -146,6 +146,13 @@
           <span>{{ row.settledAt ? formatTime(row.settledAt) : '--' }}</span>
         </template>
       </el-table-column>
+      <el-table-column label="操作" width="120" align="center">
+        <template #default="{ row }">
+          <el-button type="danger" text size="small" @click="handleDelete(row)">
+            删除
+          </el-button>
+        </template>
+      </el-table-column>
     </el-table>
 
     <!-- 分页 -->
@@ -206,9 +213,9 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { Document, Clock, CircleCheck, CircleClose, Wallet, SuccessFilled } from '@element-plus/icons-vue'
-import { get } from '@promo/shared/utils/request'
+import { get, del } from '@promo/shared/utils/request'
 
 const loading = ref(false)
 const filterStatus = ref('')
@@ -318,6 +325,34 @@ const openStatDialog = async (status: string, title: string) => {
     const res = await get<any>('/orders', params)
     statDialogOrders.value = res.data?.list || []
   } catch { ElMessage.error('获取数据失败'); statDialogVisible.value = false }
+}
+
+// 删除订单
+const handleDelete = async (row: any) => {
+  try {
+    await ElMessageBox.confirm(
+      `确定要删除订单「${row.productName}」吗？删除后将同时从经理端和用户端移除该条数据。`,
+      '删除确认',
+      {
+        confirmButtonText: '确定删除',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }
+    )
+    
+    const res = await del(`/orders/${row.id}`)
+    if (res.code === 0) {
+      ElMessage.success('删除成功')
+      fetchData()
+      fetchStats()
+    } else {
+      ElMessage.error(res.message || '删除失败')
+    }
+  } catch (error: any) {
+    if (error !== 'cancel') {
+      ElMessage.error(error.message || '删除失败')
+    }
+  }
 }
 
 onMounted(() => { fetchStats(); fetchData(); fetchManagers(); fetchUsers() })
