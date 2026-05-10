@@ -83,11 +83,8 @@
             {{ formatTime(row.createdAt) }}
           </template>
         </el-table-column>
-        <el-table-column label="操作" min-width="200" fixed="right">
+        <el-table-column label="操作" min-width="180" fixed="right">
           <template #default="{ row }">
-            <el-button type="primary" text size="small" @click="handleViewDetail(row)">
-              查看详情
-            </el-button>
             <el-button
               :type="row.status === 1 ? 'danger' : 'success'"
               text
@@ -116,32 +113,6 @@
         />
       </div>
     </el-card>
-
-    <!-- 用户详情弹窗 -->
-    <el-dialog
-      v-model="detailDialogVisible"
-      title="用户详情"
-      width="500px"
-    >
-      <el-descriptions :column="1" border>
-        <el-descriptions-item label="团队名称">{{ detailData.teamName || '--' }}</el-descriptions-item>
-        <el-descriptions-item label="手机号">{{ detailData.phone }}</el-descriptions-item>
-        <el-descriptions-item label="角色">
-          <el-tag :type="getRoleTagType(detailData.role)">
-            {{ getRoleLabel(detailData.role) }}
-          </el-tag>
-        </el-descriptions-item>
-        <el-descriptions-item label="状态">
-          <el-tag :type="detailData.status === 1 ? 'success' : 'danger'">
-            {{ detailData.status === 1 ? '启用' : '禁用' }}
-          </el-tag>
-        </el-descriptions-item>
-        <el-descriptions-item label="注册时间">{{ formatTime(detailData.createdAt) }}</el-descriptions-item>
-      </el-descriptions>
-      <template #footer>
-        <el-button @click="detailDialogVisible = false">关闭</el-button>
-      </template>
-    </el-dialog>
 
     <!-- 修改团队名称弹窗 -->
     <el-dialog
@@ -223,18 +194,6 @@ interface UserItem {
 // 表格数据
 const tableData = ref<UserItem[]>([])
 
-// 详情弹窗
-const detailDialogVisible = ref(false)
-const detailData = reactive<UserItem>({
-  id: '',
-  name: '',
-  phone: '',
-  teamName: '',
-  role: '',
-  status: 0,
-  createdAt: ''
-})
-
 // 修改团队名称弹窗
 const teamNameDialogVisible = ref(false)
 const teamNameLoading = ref(false)
@@ -289,24 +248,6 @@ const loadData = async () => {
 const handleSearch = () => {
   pagination.page = 1
   loadData()
-}
-
-// 查看用户详情
-const handleViewDetail = async (row: UserItem) => {
-  console.log('[调试] 查看用户详情:', {
-    rowId: row.id,
-    rowTeamName: row.teamName
-  })
-  try {
-    const res = await get<any>(`/users/${row.id}`)
-    console.log('[调试] 详情接口返回:', res)
-    Object.assign(detailData, res.data)
-    console.log('[调试] 更新后的详情数据:', detailData)
-    detailDialogVisible.value = true
-  } catch (error: any) {
-    console.error('[调试] 获取详情失败:', error)
-    ElMessage.error(error.message || '获取详情失败')
-  }
 }
 
 // 切换启用/禁用状态

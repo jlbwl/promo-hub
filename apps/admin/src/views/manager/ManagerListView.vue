@@ -49,8 +49,11 @@
             {{ formatTime(row.createdAt) }}
           </template>
         </el-table-column>
-        <el-table-column label="操作" min-width="200" fixed="right">
+        <el-table-column label="操作" min-width="260" fixed="right">
           <template #default="{ row }">
+            <el-button type="warning" text size="small" @click="handleEditTeamName(row)">
+              修改渠道名称
+            </el-button>
             <el-button
               :type="row.status === 'active' ? 'danger' : 'success'"
               text
@@ -94,6 +97,32 @@
         <el-button @click="addDialogVisible = false">取消</el-button>
         <el-button type="primary" :loading="addLoading" @click="handleAdd">
           添加
+        </el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 修改渠道名称弹窗 -->
+    <el-dialog
+      v-model="teamNameDialogVisible"
+      title="修改渠道名称"
+      width="400px"
+    >
+      <el-form :model="teamNameForm" label-width="100px">
+        <el-form-item label="渠道名称">
+          <el-input
+            v-model="teamNameForm.teamName"
+            placeholder="请输入渠道名称"
+            :disabled="teamNameLoading"
+          />
+        </el-form-item>
+        <el-form-item label="原渠道名称">
+          <el-input :value="editRow?.teamName || '--'" disabled />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="teamNameDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="teamNameLoading" @click="handleSaveTeamName">
+          确定
         </el-button>
       </template>
     </el-dialog>
@@ -151,6 +180,14 @@ const addForm = reactive({
   password: '',
   phone: ''
 })
+
+// 修改渠道名称弹窗
+const teamNameDialogVisible = ref(false)
+const teamNameLoading = ref(false)
+const teamNameForm = reactive({
+  teamName: ''
+})
+const editRow = ref<any>(null)
 
 const addFormRules: FormRules = {
   teamName: [
@@ -252,6 +289,41 @@ const handleDelete = async (row: any) => {
     if (error !== 'cancel') {
       ElMessage.error(error.message || '删除失败')
     }
+  }
+}
+
+// 修改渠道名称
+const handleEditTeamName = (row: any) => {
+  editRow.value = row
+  teamNameForm.teamName = row.teamName || ''
+  teamNameDialogVisible.value = true
+}
+
+// 保存渠道名称
+const handleSaveTeamName = async () => {
+  if (!teamNameForm.teamName.trim()) {
+    ElMessage.warning('请输入渠道名称')
+    return
+  }
+  if (!editRow.value) return
+
+  console.log('[调试] 开始保存渠道名称:', {
+    id: editRow.value.id,
+    newTeamName: teamNameForm.teamName.trim()
+  })
+
+  teamNameLoading.value = true
+  try {
+    await put(`/managers/${editRow.value.id}/team-name`, { teamName: teamNameForm.teamName.trim() })
+    console.log('[调试] 保存成功')
+    ElMessage.success('修改成功')
+    teamNameDialogVisible.value = false
+    loadData()
+  } catch (error: any) {
+    console.error('[调试] 保存失败:', error)
+    ElMessage.error(error.message || '修改失败')
+  } finally {
+    teamNameLoading.value = false
   }
 }
 
