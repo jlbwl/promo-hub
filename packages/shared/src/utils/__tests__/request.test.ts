@@ -1,8 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
 describe('request module', () => {
-  let mockRequest: any
-
   beforeEach(() => {
     vi.clearAllMocks()
     vi.resetModules()
@@ -219,9 +217,9 @@ describe('request module', () => {
 
     it('should extract error message from various formats', () => {
       const errorMessages = [
-        { source: 'response.data.message', value: 'Custom error message' },
-        { source: 'error.message', value: 'Network error' },
-        { source: 'default', value: '网络错误' },
+        { value: 'Custom error message' },
+        { value: 'Network error' },
+        { value: '网络错误' },
       ]
 
       errorMessages.forEach(({ value }) => {
