@@ -238,7 +238,7 @@ describe('helpers', () => {
       })
 
       it('should have all required status properties', () => {
-        Object.entries(commissionStatusMap).forEach(([key, status]) => {
+        Object.values(commissionStatusMap).forEach((status) => {
           expect(status).toHaveProperty('label')
           expect(status).toHaveProperty('color')
         })
@@ -278,7 +278,7 @@ describe('helpers', () => {
       })
 
       it('should have all required status properties', () => {
-        Object.entries(userStatusMap).forEach(([key, status]) => {
+        Object.values(userStatusMap).forEach((status) => {
           expect(status).toHaveProperty('label')
           expect(status).toHaveProperty('color')
         })
