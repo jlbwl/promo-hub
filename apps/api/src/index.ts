@@ -4,6 +4,7 @@ import cors from 'cors'
 import { existsSync, mkdirSync } from 'fs'
 import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
+import { smsLimiter, loginLimiter } from './middleware/rateLimit.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const DATA_DIR = process.env.DATA_DIR || join(__dirname, '..', 'data')
@@ -464,7 +465,7 @@ app.put('/api/managers/:id', async (req, res) => {
 })
 
 // 经理登录校验
-app.post('/api/managers/login', async (req, res) => {
+app.post('/api/managers/login', loginLimiter, async (req, res) => {
   const { phone, password } = req.body
   if (!phone || !password) {
     res.json({ code: 400, message: '手机号和密码不能为空', data: null })
@@ -484,7 +485,7 @@ app.post('/api/managers/login', async (req, res) => {
 })
 
 // 经理短信验证码发送
-app.post('/api/managers/sms/send', async (req, res) => {
+app.post('/api/managers/sms/send', smsLimiter, async (req, res) => {
   const { phone } = req.body
   if (!phone || !/^1[3-9]\d{9}$/.test(phone)) {
     res.json({ code: 400, message: '请输入正确的手机号', data: null })
@@ -493,14 +494,14 @@ app.post('/api/managers/sms/send', async (req, res) => {
   
   // 防刷：60秒内不能重复发送
   const existing = smsCodes.get(phone)
-  if (existing && Date.now() - (existing.expiresAt - 10 * 60 * 1000) < 60000) {
+  if (existing && existing.sentAt && Date.now() - existing.sentAt < 60000) {
     res.json({ code: 429, message: '发送太频繁，请60秒后重试', data: null })
     return
   }
   
   const code = String(Math.floor(100000 + Math.random() * 900000))
   const expiresAt = Date.now() + 10 * 60 * 1000
-  smsCodes.set(phone, { code, expiresAt, phone })
+  smsCodes.set(phone, { code, expiresAt, phone, sentAt: Date.now() })
   await sendSmsCode(phone, code)
   res.json({ code: 0, message: '验证码已发送', data: null })
 })
@@ -650,7 +651,7 @@ app.post('/api/users/register', async (req, res) => {
 })
 
 // 用户登录
-app.post('/api/users/login', async (req, res) => {
+app.post('/api/users/login', loginLimiter, async (req, res) => {
   const { phone, password } = req.body
   if (!phone || !password) {
     res.json({ code: 400, message: '手机号和密码不能为空', data: null })
@@ -671,11 +672,17 @@ app.post('/api/users/login', async (req, res) => {
 
 // ============ 短信验证码登录 ============
 
-// 验证码存储（内存，重启后清空）
-const smsCodes = new Map<string, { code: string; expiresAt: number; phone: string }>()
+interface SmsCodeRecord {
+  code: string
+  expiresAt: number
+  phone: string
+  sentAt: number
+}
+
+const smsCodes = new Map<string, SmsCodeRecord>()
 
 // 发送短信验证码
-app.post('/api/users/sms/send', async (req, res) => {
+app.post('/api/users/sms/send', smsLimiter, async (req, res) => {
   const { phone } = req.body
   if (!phone || !/^1[3-9]\d{9}$/.test(phone)) {
     res.json({ code: 400, message: '手机号格式不正确', data: null })
@@ -684,14 +691,14 @@ app.post('/api/users/sms/send', async (req, res) => {
 
   // 防刷：60秒内不能重复发送
   const existing = smsCodes.get(phone)
-  if (existing && Date.now() - (existing.expiresAt - 300000) < 60000) {
+  if (existing && existing.sentAt && Date.now() - existing.sentAt < 60000) {
     res.json({ code: 429, message: '发送太频繁，请60秒后重试', data: null })
     return
   }
 
   // 生成6位验证码
   const code = String(Math.floor(100000 + Math.random() * 900000))
-  smsCodes.set(phone, { code, expiresAt: Date.now() + 300000, phone })
+  smsCodes.set(phone, { code, expiresAt: Date.now() + 300000, phone, sentAt: Date.now() })
 
   await sendSmsCode(phone, code)
 
@@ -1345,7 +1352,7 @@ app.put('/api/orders/:id/settle', async (req, res) => {
 
 // ============ 管理后台登录 ============
 
-app.post('/api/admin/login', async (req, res) => {
+app.post('/api/admin/login', loginLimiter, async (req, res) => {
   const { phone, password } = req.body
   if (!phone || !password) {
     res.json({ code: 400, message: '手机号和密码不能为空', data: null })
@@ -1367,7 +1374,7 @@ app.post('/api/admin/login', async (req, res) => {
   })
 })
 
-app.post('/api/admin/sms/send', async (req, res) => {
+app.post('/api/admin/sms/send', smsLimiter, async (req, res) => {
   console.log('[ADMIN-SMS] 收到短信发送请求:', req.body)
   
   const { phone } = req.body
@@ -1379,7 +1386,7 @@ app.post('/api/admin/sms/send', async (req, res) => {
   
   // 防刷：60秒内不能重复发送
   const existing = smsCodes.get(phone)
-  if (existing && Date.now() - (existing.expiresAt - 10 * 60 * 1000) < 60000) {
+  if (existing && existing.sentAt && Date.now() - existing.sentAt < 60000) {
     console.log('[ADMIN-SMS] 发送过于频繁:', phone)
     res.json({ code: 429, message: '发送太频繁，请60秒后重试', data: null })
     return
@@ -1387,7 +1394,7 @@ app.post('/api/admin/sms/send', async (req, res) => {
   
   const code = String(Math.floor(100000 + Math.random() * 900000))
   const expiresAt = Date.now() + 10 * 60 * 1000
-  smsCodes.set(phone, { code, expiresAt, phone })
+  smsCodes.set(phone, { code, expiresAt, phone, sentAt: Date.now() })
   console.log('[ADMIN-SMS] 生成验证码:', { phone, code, expiresAt })
   
   const result = await sendSmsCode(phone, code)
@@ -1763,7 +1770,7 @@ app.delete('/api/employees/:id', async (req, res) => {
 })
 
 // 员工登录验证
-app.post('/api/employees/login', async (req, res) => {
+app.post('/api/employees/login', loginLimiter, async (req, res) => {
   try {
     const { phone, password } = req.body
     
