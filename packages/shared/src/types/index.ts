@@ -22,7 +22,7 @@ export interface User {
 }
 
 export interface Manager extends User {
-  role: UserRole.MANAGER
+  role: UserRole
   totalCommission: number
   managedUserCount: number
 }

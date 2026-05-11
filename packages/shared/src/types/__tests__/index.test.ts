@@ -123,12 +123,12 @@ describe('types - interfaces', () => {
         updatedAt: '2024-01-01T00:00:00Z',
       }
 
-      expect(manager.role).toBe(UserRole.MANAGER)
+      expect(manager.role).toBe('manager')
       expect(manager.totalCommission).toBe(5000)
       expect(manager.managedUserCount).toBe(100)
     })
 
-    it('should have role always as MANAGER', () => {
+    it('should have role always as manager literal', () => {
       const manager: Manager = {
         id: '1',
         name: 'Test Manager',
@@ -528,7 +528,6 @@ describe('types - params and results', () => {
 
 describe('types - practical usage', () => {
   it('should support CRUD operations flow', () => {
-    // Create
     const newProduct: Product = {
       id: '1',
       title: 'New Product',
@@ -542,7 +541,6 @@ describe('types - practical usage', () => {
       updatedAt: '2024-01-01T00:00:00Z',
     }
 
-    // Update
     const updatedProduct: Product = {
       ...newProduct,
       status: 'published',
@@ -552,7 +550,6 @@ describe('types - practical usage', () => {
 
     expect(updatedProduct.status).toBe('published')
 
-    // List with pagination
     const paginatedProducts: PaginatedResponse<Product> = {
       list: [updatedProduct],
       total: 1,
@@ -564,7 +561,6 @@ describe('types - practical usage', () => {
   })
 
   it('should support commission workflow', () => {
-    // Create commission
     const commission: Commission = {
       id: '1',
       userId: 'user1',
@@ -577,7 +573,6 @@ describe('types - practical usage', () => {
       updatedAt: '2024-01-01T00:00:00Z',
     }
 
-    // Approve commission
     const approvedCommission: Commission = {
       ...commission,
       status: CommissionStatus.APPROVED,
@@ -586,7 +581,6 @@ describe('types - practical usage', () => {
       updatedAt: '2024-01-02T00:00:00Z',
     }
 
-    // Pay commission
     const paidCommission: Commission = {
       ...approvedCommission,
       status: CommissionStatus.PAID,
@@ -599,7 +593,6 @@ describe('types - practical usage', () => {
   })
 
   it('should support user management workflow', () => {
-    // Login
     const loginResult: LoginResult = {
       token: 'jwt-token',
       refreshToken: 'refresh-token',
@@ -614,13 +607,13 @@ describe('types - practical usage', () => {
       },
     }
 
-    // Create manager from login result
     const manager: Manager = {
       ...loginResult.user,
+      role: UserRole.MANAGER,
       totalCommission: 0,
       managedUserCount: 0,
     }
 
-    expect(manager.role).toBe(UserRole.MANAGER)
+    expect(manager.role).toBe('manager')
   })
 })
