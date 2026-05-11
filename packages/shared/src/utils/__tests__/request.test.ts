@@ -1,107 +1,98 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import axios from 'axios'
+
+vi.mock('axios')
 
 describe('request module', () => {
-  beforeEach(() => {
+  const mockAxios = vi.mocked(axios, true)
+  const mockAxiosInstance = {
+    get: vi.fn(),
+    post: vi.fn(),
+    put: vi.fn(),
+    delete: vi.fn(),
+    interceptors: {
+      request: {
+        use: vi.fn(),
+      },
+      response: {
+        use: vi.fn(),
+      },
+    },
+  }
+
+  let get: any
+  let post: any
+  let put: any
+  let del: any
+  let requestInterceptor: any
+  let requestErrorInterceptor: any
+  let responseSuccessInterceptor: any
+  let responseErrorInterceptor: any
+
+  beforeEach(async () => {
     vi.clearAllMocks()
     vi.resetModules()
+
+    // Setup mocks before importing the module
+    mockAxios.create.mockReturnValue(mockAxiosInstance as any)
+    mockAxiosInstance.interceptors.request.use.mockImplementation((success, error) => {
+      requestInterceptor = success
+      requestErrorInterceptor = error
+      return success
+    })
+    mockAxiosInstance.interceptors.response.use.mockImplementation((success, error) => {
+      responseSuccessInterceptor = success
+      responseErrorInterceptor = error
+      return [success, error] as any
+    })
+
+    // Dynamically import the module after mocks are set up
+    const module = await import('../request')
+    get = module.get
+    post = module.post
+    put = module.put
+    del = module.del
   })
 
   afterEach(() => {
     vi.restoreAllMocks()
   })
 
-  describe('API response types', () => {
-    it('should define success response structure', () => {
-      const successResponse = {
-        code: 0,
-        message: 'success',
-        data: { id: 1, name: 'test' },
-      }
-      
-      expect(successResponse.code).toBe(0)
-      expect(successResponse.data).toBeDefined()
+  describe('request creation', () => {
+    it('should create axios instance with correct config', () => {
+      expect(axios.create).toHaveBeenCalled()
+      expect(mockAxiosInstance.interceptors.request.use).toHaveBeenCalled()
+      expect(mockAxiosInstance.interceptors.response.use).toHaveBeenCalled()
     })
 
-    it('should define error response structure', () => {
-      const errorResponse = {
-        code: 400,
-        message: 'Bad request',
-        data: null,
-      }
-      
-      expect(errorResponse.code).not.toBe(0)
-      expect(errorResponse.message).toBeDefined()
+    it('should use /api as default base URL', () => {
+      expect(axios.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          baseURL: '/api',
+        })
+      )
     })
 
-    it('should define pagination response structure', () => {
-      const paginatedResponse = {
-        code: 0,
-        message: 'success',
-        data: {
-          list: [{ id: 1 }, { id: 2 }],
-          total: 100,
-          page: 1,
-          pageSize: 10,
-        },
-      }
-      
-      expect(paginatedResponse.data.list).toBeInstanceOf(Array)
-      expect(paginatedResponse.data.total).toBeGreaterThan(0)
+    it('should set timeout to 15000ms', () => {
+      expect(axios.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          timeout: 15000,
+        })
+      )
     })
 
-    it('should handle various HTTP status codes', () => {
-      const statusCodes = [
-        { code: 200, description: 'OK' },
-        { code: 201, description: 'Created' },
-        { code: 400, description: 'Bad Request' },
-        { code: 401, description: 'Unauthorized' },
-        { code: 403, description: 'Forbidden' },
-        { code: 404, description: 'Not Found' },
-        { code: 500, description: 'Internal Server Error' },
-      ]
-
-      statusCodes.forEach(({ code, description }) => {
-        expect(code).toBeGreaterThanOrEqual(200)
-        expect(description).toBeDefined()
-      })
+    it('should set correct default headers', () => {
+      expect(axios.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        })
+      )
     })
   })
 
-  describe('request configuration', () => {
-    it('should define base URL configuration', () => {
-      const baseUrl = '/api'
-      expect(baseUrl).toBeDefined()
-      expect(typeof baseUrl).toBe('string')
-    })
-
-    it('should define timeout configuration', () => {
-      const timeout = 15000
-      expect(timeout).toBe(15000)
-      expect(timeout).toBeGreaterThan(0)
-    })
-
-    it('should define default headers', () => {
-      const defaultHeaders = {
-        'Content-Type': 'application/json',
-      }
-      
-      expect(defaultHeaders['Content-Type']).toBe('application/json')
-    })
-
-    it('should support custom configuration', () => {
-      const customConfig = {
-        timeout: 30000,
-        headers: {
-          'X-Custom-Header': 'value',
-        },
-      }
-      
-      expect(customConfig.timeout).toBe(30000)
-      expect(customConfig.headers).toHaveProperty('X-Custom-Header')
-    })
-  })
-
-  describe('token handling', () => {
+  describe('request interceptors', () => {
     beforeEach(() => {
       vi.stubGlobal('localStorage', {
         getItem: vi.fn(),
@@ -111,283 +102,48 @@ describe('request module', () => {
       })
     })
 
-    it('should have token storage keys', () => {
-      const tokenKeys = ['token', 'manager_token', 'admin_token', 'refreshToken']
-      
-      tokenKeys.forEach((key) => {
-        expect(key).toBeDefined()
-        expect(typeof key).toBe('string')
-      })
+    it('should add Authorization header when token exists', async () => {
+      const mockConfig = { headers: {} }
+
+      ;(localStorage.getItem as any).mockReturnValue('test-token')
+      const result = await requestInterceptor(mockConfig)
+
+      expect(result.headers.Authorization).toBe('Bearer test-token')
     })
 
-    it('should handle token as non-empty string', () => {
-      const validToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ'
-      
-      expect(validToken).toBeDefined()
-      expect(typeof validToken).toBe('string')
-      expect(validToken.length).toBeGreaterThan(0)
-      expect(validToken.split('.').length).toBeGreaterThanOrEqual(2)
+    it('should not add Authorization header when token does not exist', async () => {
+      const mockConfig = { headers: {} }
+
+      ;(localStorage.getItem as any).mockReturnValue(null)
+      const result = await requestInterceptor(mockConfig)
+
+      expect(result.headers.Authorization).toBeUndefined()
     })
 
-    it('should handle Bearer token format', () => {
-      const token = 'test-token-123'
-      const bearerToken = `Bearer ${token}`
-      
-      expect(bearerToken).toBe('Bearer test-token-123')
-      expect(bearerToken.startsWith('Bearer ')).toBe(true)
+    it('should preserve existing config', async () => {
+      const mockConfig = { headers: { 'X-Custom': 'value' } }
+
+      ;(localStorage.getItem as any).mockReturnValue(null)
+      const result = await requestInterceptor(mockConfig)
+
+      expect(result.headers['X-Custom']).toBe('value')
     })
 
-    it('should handle missing token gracefully', () => {
-      const token = null
-      const hasToken = !!token
-      
-      expect(hasToken).toBe(false)
-    })
-  })
+    it('should pass through request errors', async () => {
+      const testError = new Error('Test request error')
 
-  describe('error handling', () => {
-    it('should handle network errors', () => {
-      const networkError = new Error('Network Error')
-      expect(networkError.message).toBe('Network Error')
-    })
-
-    it('should handle timeout errors', () => {
-      const timeoutError = new Error('timeout of 15000ms exceeded')
-      expect(timeoutError.message).toContain('timeout')
-    })
-
-    it('should handle server errors', () => {
-      const serverError = {
-        response: {
-          status: 500,
-          data: {
-            message: 'Internal Server Error',
-          },
-        },
-      }
-      
-      expect(serverError.response.status).toBe(500)
-      expect(serverError.response.data.message).toBeDefined()
-    })
-
-    it('should handle validation errors', () => {
-      const validationError = {
-        response: {
-          status: 400,
-          data: {
-            code: 400,
-            message: 'Validation failed',
-          },
-        },
-      }
-      
-      expect(validationError.response.status).toBe(400)
-      expect(validationError.response.data.code).toBe(400)
-    })
-
-    it('should handle unauthorized errors', () => {
-      const unauthorizedError = {
-        response: {
-          status: 401,
-          data: {
-            code: 401,
-            message: 'Unauthorized',
-          },
-        },
-      }
-      
-      expect(unauthorizedError.response.status).toBe(401)
-      expect(unauthorizedError.response.data.code).toBe(401)
-    })
-
-    it('should handle not found errors', () => {
-      const notFoundError = {
-        response: {
-          status: 404,
-          data: {
-            code: 404,
-            message: 'Resource not found',
-          },
-        },
-      }
-      
-      expect(notFoundError.response.status).toBe(404)
-      expect(notFoundError.response.data.message).toContain('not found')
-    })
-
-    it('should extract error message from various formats', () => {
-      const errorMessages = [
-        { value: 'Custom error message' },
-        { value: 'Network error' },
-        { value: '网络错误' },
-      ]
-
-      errorMessages.forEach(({ value }) => {
-        expect(value).toBeDefined()
-        expect(typeof value).toBe('string')
-      })
+      await expect(requestErrorInterceptor(testError)).rejects.toEqual(testError)
     })
   })
 
-  describe('API endpoints structure', () => {
-    it('should define auth endpoints', () => {
-      const authEndpoints = {
-        login: '/auth/login',
-        logout: '/auth/logout',
-        me: '/auth/me',
-        refresh: '/auth/refresh',
-      }
-      
-      expect(authEndpoints.login).toBe('/auth/login')
-      expect(authEndpoints.me).toBe('/auth/me')
-    })
-
-    it('should define product endpoints', () => {
-      const productEndpoints = {
-        list: '/products',
-        detail: '/products/:id',
-        create: '/products',
-        update: '/products/:id',
-        delete: '/products/:id',
-      }
-      
-      expect(productEndpoints.list).toBe('/products')
-      expect(productEndpoints.detail).toContain('/products/')
-    })
-
-    it('should define commission endpoints', () => {
-      const commissionEndpoints = {
-        list: '/commissions',
-        detail: '/commissions/:id',
-        approve: '/commissions/:id/approve',
-        reject: '/commissions/:id/reject',
-      }
-      
-      expect(commissionEndpoints.list).toBe('/commissions')
-      expect(commissionEndpoints.approve).toContain('/commissions/')
-    })
-
-    it('should define upload endpoints', () => {
-      const uploadEndpoints = {
-        image: '/upload/image',
-        file: '/upload/file',
-      }
-      
-      expect(uploadEndpoints.image).toBe('/upload/image')
-      expect(uploadEndpoints.file).toBe('/upload/file')
-    })
-  })
-
-  describe('request methods', () => {
-    it('should define GET method parameters', () => {
-      const getParams = {
-        page: 1,
-        pageSize: 10,
-        keyword: 'search term',
-        status: 'active',
-      }
-      
-      expect(getParams.page).toBe(1)
-      expect(getParams.pageSize).toBe(10)
-      expect(getParams.keyword).toBeDefined()
-    })
-
-    it('should define POST method body', () => {
-      const postBody = {
-        username: 'testuser',
-        password: 'password123',
-      }
-      
-      expect(postBody.username).toBeDefined()
-      expect(postBody.password).toBeDefined()
-    })
-
-    it('should define PUT method body', () => {
-      const putBody = {
-        id: 1,
-        name: 'Updated Name',
-        description: 'Updated description',
-      }
-      
-      expect(putBody.id).toBeDefined()
-      expect(putBody.name).toBeDefined()
-    })
-
-    it('should define DELETE method parameters', () => {
-      const deleteParams = {
-        id: 1,
-        reason: 'Deletion reason',
-      }
-      
-      expect(deleteParams.id).toBeDefined()
-    })
-  })
-
-  describe('response transformation', () => {
-    it('should handle successful response', () => {
-      const response = {
-        code: 0,
-        message: 'success',
-        data: { id: 1 },
-      }
-      
-      expect(response.code).toBe(0)
-      expect(response.data).toBeDefined()
-    })
-
-    it('should handle list response', () => {
-      const listResponse = {
-        code: 0,
-        message: 'success',
-        data: {
-          list: [
-            { id: 1, name: 'Item 1' },
-            { id: 2, name: 'Item 2' },
-          ],
-          total: 2,
-        },
-      }
-      
-      expect(listResponse.data.list.length).toBe(2)
-      expect(listResponse.data.total).toBe(2)
-    })
-
-    it('should handle empty list response', () => {
-      const emptyResponse = {
-        code: 0,
-        message: 'success',
-        data: {
-          list: [],
-          total: 0,
-        },
-      }
-      
-      expect(emptyResponse.data.list.length).toBe(0)
-      expect(emptyResponse.data.total).toBe(0)
-    })
-
-    it('should handle pagination metadata', () => {
-      const paginatedResponse = {
-        code: 0,
-        message: 'success',
-        data: {
-          list: [],
-          total: 100,
-          page: 2,
-          pageSize: 20,
-          totalPages: 5,
-        },
-      }
-      
-      expect(paginatedResponse.data.total).toBe(100)
-      expect(paginatedResponse.data.page).toBe(2)
-      expect(paginatedResponse.data.pageSize).toBe(20)
-      expect(paginatedResponse.data.totalPages).toBe(5)
-    })
-  })
-
-  describe('authorization flow', () => {
+  describe('response interceptors - success', () => {
     beforeEach(() => {
+      vi.stubGlobal('localStorage', {
+        getItem: vi.fn(),
+        setItem: vi.fn(),
+        removeItem: vi.fn(),
+        clear: vi.fn(),
+      })
       vi.stubGlobal('window', {
         location: {
           pathname: '/dashboard',
@@ -396,26 +152,204 @@ describe('request module', () => {
       })
     })
 
-    it('should detect login page', () => {
-      const loginPath = '/login'
-      const isLoginPage = loginPath.includes('/login')
-      
-      expect(isLoginPage).toBe(true)
+    it('should return response when code is 0', async () => {
+      const mockResponse = {
+        data: {
+          code: 0,
+          message: 'success',
+          data: { id: 1 },
+        },
+      }
+
+      const result = await responseSuccessInterceptor(mockResponse)
+      expect(result).toEqual(mockResponse)
     })
 
-    it('should handle non-login page', () => {
-      const dashboardPath = '/dashboard'
-      const isLoginPage = dashboardPath.includes('/login')
-      
-      expect(isLoginPage).toBe(false)
+    it('should reject when code is not 0', async () => {
+      const mockResponse = {
+        data: {
+          code: 400,
+          message: 'Bad request',
+          data: null,
+        },
+      }
+
+      await expect(responseSuccessInterceptor(mockResponse)).rejects.toThrow('Bad request')
     })
 
-    it('should define token removal on 401', () => {
-      const tokenKeys = ['token', 'manager_token', 'admin_token', 'refreshToken']
-      
-      tokenKeys.forEach((key) => {
-        expect(key).toBeDefined()
+    it('should reject with default message when no message provided', async () => {
+      const mockResponse = {
+        data: {
+          code: 400,
+          data: null,
+        },
+      }
+
+      await expect(responseSuccessInterceptor(mockResponse)).rejects.toThrow('请求失败')
+    })
+
+    it('should handle 401 error on non-login page', async () => {
+      const mockResponse = {
+        data: {
+          code: 401,
+          message: 'Unauthorized',
+        },
+      }
+
+      await expect(responseSuccessInterceptor(mockResponse)).rejects.toThrow('Unauthorized')
+      expect(localStorage.removeItem).toHaveBeenCalledWith('token')
+      expect(localStorage.removeItem).toHaveBeenCalledWith('manager_token')
+      expect(localStorage.removeItem).toHaveBeenCalledWith('admin_token')
+      expect(window.location.reload).toHaveBeenCalled()
+    })
+
+    it('should not reload on 401 when on login page', async () => {
+      window.location.pathname = '/login'
+      const mockResponse = {
+        data: {
+          code: 401,
+          message: 'Unauthorized',
+        },
+      }
+
+      await expect(responseSuccessInterceptor(mockResponse)).rejects.toThrow('Unauthorized')
+      expect(window.location.reload).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('response interceptors - error', () => {
+    it('should extract error message from response data', async () => {
+      const mockError = {
+        response: {
+          data: {
+            message: 'Custom error message',
+          },
+        },
+      }
+
+      await expect(responseErrorInterceptor(mockError)).rejects.toThrow('Custom error message')
+    })
+
+    it('should use error message when no response data', async () => {
+      const mockError = {
+        message: 'Network Error',
+      }
+
+      await expect(responseErrorInterceptor(mockError)).rejects.toThrow('Network Error')
+    })
+
+    it('should use default message when no message available', async () => {
+      const mockError = {}
+
+      await expect(responseErrorInterceptor(mockError)).rejects.toThrow('网络错误')
+    })
+  })
+
+  describe('request methods', () => {
+    beforeEach(() => {
+      const mockSuccessResponse = {
+        data: {
+          code: 0,
+          message: 'success',
+          data: { id: 1 },
+        },
+      }
+      mockAxiosInstance.get.mockResolvedValue(mockSuccessResponse)
+      mockAxiosInstance.post.mockResolvedValue(mockSuccessResponse)
+      mockAxiosInstance.put.mockResolvedValue(mockSuccessResponse)
+      mockAxiosInstance.delete.mockResolvedValue(mockSuccessResponse)
+    })
+
+    it('should send GET request with params', async () => {
+      const params = { page: 1, pageSize: 10 }
+      const result = await get('/test', params)
+
+      expect(mockAxiosInstance.get).toHaveBeenCalledWith('/test', { params })
+      expect(result).toEqual({
+        code: 0,
+        message: 'success',
+        data: { id: 1 },
       })
+    })
+
+    it('should send GET request without params', async () => {
+      const result = await get('/test')
+
+      expect(mockAxiosInstance.get).toHaveBeenCalledWith('/test', { params: undefined })
+      expect(result.code).toBe(0)
+    })
+
+    it('should send POST request with data', async () => {
+      const data = { name: 'test' }
+      const result = await post('/test', data)
+
+      expect(mockAxiosInstance.post).toHaveBeenCalledWith('/test', data, undefined)
+      expect(result.code).toBe(0)
+    })
+
+    it('should send POST request with custom config', async () => {
+      const data = { name: 'test' }
+      const config = { headers: { 'X-Custom': 'value' } }
+      const result = await post('/test', data, config)
+
+      expect(mockAxiosInstance.post).toHaveBeenCalledWith('/test', data, config)
+      expect(result.code).toBe(0)
+    })
+
+    it('should send PUT request with data', async () => {
+      const data = { id: 1, name: 'updated' }
+      const result = await put('/test/1', data)
+
+      expect(mockAxiosInstance.put).toHaveBeenCalledWith('/test/1', data)
+      expect(result.code).toBe(0)
+    })
+
+    it('should send PUT request without data', async () => {
+      const result = await put('/test/1')
+
+      expect(mockAxiosInstance.put).toHaveBeenCalledWith('/test/1', undefined)
+      expect(result.code).toBe(0)
+    })
+
+    it('should send DELETE request with data', async () => {
+      const data = { reason: 'deleted' }
+      const result = await del('/test/1', data)
+
+      expect(mockAxiosInstance.delete).toHaveBeenCalledWith('/test/1', { data })
+      expect(result.code).toBe(0)
+    })
+
+    it('should send DELETE request without data', async () => {
+      const result = await del('/test/1')
+
+      expect(mockAxiosInstance.delete).toHaveBeenCalledWith('/test/1', { data: undefined })
+      expect(result.code).toBe(0)
+    })
+  })
+
+  describe('error cases', () => {
+    beforeEach(() => {
+      const mockError = new Error('Network Error')
+      mockAxiosInstance.get.mockRejectedValue(mockError)
+      mockAxiosInstance.post.mockRejectedValue(mockError)
+      mockAxiosInstance.put.mockRejectedValue(mockError)
+      mockAxiosInstance.delete.mockRejectedValue(mockError)
+    })
+
+    it('should reject on GET request error', async () => {
+      await expect(get('/test')).rejects.toThrow()
+    })
+
+    it('should reject on POST request error', async () => {
+      await expect(post('/test')).rejects.toThrow()
+    })
+
+    it('should reject on PUT request error', async () => {
+      await expect(put('/test/1')).rejects.toThrow()
+    })
+
+    it('should reject on DELETE request error', async () => {
+      await expect(del('/test/1')).rejects.toThrow()
     })
   })
 })
