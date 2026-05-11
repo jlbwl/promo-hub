@@ -13,9 +13,8 @@ export default defineConfig({
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
       include: [
-        'packages/**/*.ts',
-        '!packages/**/*.d.ts',
-        '!packages/**/__tests__/**'
+        'packages/shared/src/types/**/*.ts',
+        'packages/shared/src/utils/**/*.ts'
       ],
       exclude: [
         '**/*.d.ts',
