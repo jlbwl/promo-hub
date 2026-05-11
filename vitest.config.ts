@@ -13,16 +13,16 @@ export default defineConfig({
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
       include: [
-        'packages/**/*.{js,ts,tsx,vue}',
-        'apps/admin/src/**/*.{js,ts,tsx,vue}',
-        'apps/manager/src/**/*.{js,ts,tsx,vue}',
-        'apps/user/src/**/*.{js,ts,tsx,vue}'
+        'packages/**/*.ts',
+        '!packages/**/*.d.ts',
+        '!packages/**/__tests__/**'
       ],
       exclude: [
         '**/*.d.ts',
         '**/node_modules/**',
         '**/dist/**',
-        '**/*.test.{js,ts,tsx}'
+        '**/*.test.{js,ts,tsx}',
+        '**/__tests__/**'
       ]
     },
     resolve: {
