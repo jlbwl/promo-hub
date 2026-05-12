@@ -313,6 +313,7 @@ app.post('/api/managers', async (req, res) => {
     name: teamName,
     teamName,
     phone: phone || '',
+    role: 'manager',
     status: 'active',
     createdAt: now,
     updatedAt: now,
