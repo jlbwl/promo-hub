@@ -93,14 +93,6 @@ const getUserId = () => {
   } catch { return '' }
 }
 
-// 获取主账户ID（员工账户使用）
-const getMainUserId = () => {
-  try {
-    const info = JSON.parse(localStorage.getItem('user_info') || '{}')
-    return info.mainUserId || info.id || ''
-  } catch { return '' }
-}
-
 // 获取员工所属经理ID
 const getManagerId = () => {
   try {
