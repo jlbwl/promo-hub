@@ -247,11 +247,10 @@ const handleGoOrder = () => {
 
 // 提交信息表单
 const submitInfoForm = () => {
-  submitGoOrder({
-    userName: product.requireName ? infoForm.name : undefined,
-    userPhone: product.requirePhone ? infoForm.phone : undefined
-  })
+  const userName = product.requireName ? infoForm.name : undefined
+  const userPhone = product.requirePhone ? infoForm.phone : undefined
   infoFormVisible.value = false
+  submitGoOrder({ userName, userPhone })
 }
 
 // 执行做单
