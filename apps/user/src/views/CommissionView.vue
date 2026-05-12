@@ -139,6 +139,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, onActivated } from 'vue'
 import { get, del, post } from '@promo/shared/utils/request'
+import { showToast } from 'vant'
 
 // 当前激活的 Tab
 const activeTab = ref('all')
@@ -374,16 +375,6 @@ const handleRestore = async () => {
 // 滑动操作
 const handleOpen = () => {}
 const handleClose = () => {}
-
-// 显示提示
-const showToast = (message: string) => {
-  // @ts-ignore
-  uni.showToast({
-    title: message,
-    icon: 'none',
-    duration: 2000
-  })
-}
 
 // Tab 切换
 const onTabChange = () => {

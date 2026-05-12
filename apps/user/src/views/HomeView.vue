@@ -92,6 +92,7 @@
 import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { get, post } from '@promo/shared/utils/request'
+import { showToast } from 'vant'
 
 // 路由实例
 const router = useRouter()
@@ -245,16 +246,6 @@ const addToCart = async (product: any) => {
     console.error('加入购物车失败:', error)
     showToast(error.message || '加入失败')
   }
-}
-
-// 显示提示
-const showToast = (message: string) => {
-  // @ts-ignore
-  uni.showToast({
-    title: message,
-    icon: 'none',
-    duration: 2000
-  })
 }
 </script>
 

@@ -75,6 +75,7 @@
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { get, del } from '@promo/shared/utils/request'
+import { showToast } from 'vant'
 
 const router = useRouter()
 
@@ -150,16 +151,6 @@ const handleRemove = async (item: any) => {
     console.error('移除失败:', error)
     showToast(error.message || '移除失败')
   }
-}
-
-// 显示提示
-const showToast = (message: string) => {
-  // @ts-ignore
-  uni.showToast({
-    title: message,
-    icon: 'none',
-    duration: 2000
-  })
 }
 
 onMounted(() => {
