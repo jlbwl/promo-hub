@@ -330,7 +330,7 @@ const handleToggleManagerRole = async (row: any, newRole: string) => {
       cancelButtonText: '取消',
       type: 'warning'
     })
-    await put(`/managers/${row.id}`, { role: newRole })
+    await put(`/users/${row.id}/role`, { role: newRole })
     ElMessage.success(`角色设置成功`)
     loadData()
   } catch (error: any) {
