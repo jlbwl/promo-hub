@@ -1096,6 +1096,7 @@ app.get('/api/users/:id', async (req, res) => {
 
 // 做单（扣减库存）
 app.post('/api/orders', async (req, res) => {
+  console.log('[做单] 收到请求:', JSON.stringify(req.body))
   const { productId, userId, employeeId, optionLabel, redirectUrl, userName, userPhone } = req.body
   if (!productId) {
     res.json({ code: 400, message: '缺少产品ID', data: null })
@@ -1105,14 +1106,17 @@ app.post('/api/orders', async (req, res) => {
   let products = await readProducts()
   const index = products.findIndex((p: any) => p.id === productId)
   if (index === -1) {
+    console.log('[做单] 产品不存在:', productId)
     res.json({ code: 404, message: '产品不存在', data: null })
     return
   }
 
   const product = products[index]
+  console.log('[做单] 产品信息:', { title: product.title, options: product.options, managerId: product.managerId })
 
   // 检查产品状态
   if (product.status !== 'published') {
+    console.log('[做单] 产品未发布:', product.status)
     res.json({ code: 400, message: '该产品已下架', data: null })
     return
   }
@@ -1163,8 +1167,10 @@ app.post('/api/orders', async (req, res) => {
     status: 'pending',
     createdAt: new Date().toISOString(),
   }
+  console.log('[做单] 创建订单:', JSON.stringify(order))
   orders.push(order)
   await writeOrders(orders)
+  console.log('[做单] 订单已保存')
 
   res.json({ code: 0, message: '做单成功', data: { order, remainingStock: product.stock || -1 } })
 })

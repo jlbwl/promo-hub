@@ -186,6 +186,7 @@ const fetchProductDetail = async () => {
       product.options = p.options || []
       product.requireName = p.requireName || false
       product.requirePhone = p.requirePhone || false
+      console.log('[产品详情] options:', JSON.stringify(product.options))
     }
   } catch (error) {
     console.error('获取产品详情失败:', error)
@@ -278,18 +279,23 @@ const submitGoOrder = (userInfo: any) => {
     payload.redirectUrl = chosenOption.redirectUrl || ''
   }
 
-  post('/orders', payload).then(() => {
+  console.log('[做单] 开始提交:', JSON.stringify(payload))
+  post('/orders', payload).then((res: any) => {
+    console.log('[做单] 成功:', JSON.stringify(res))
     fetchProductDetail()
     if (chosenOption?.redirectUrl) {
       let url = chosenOption.redirectUrl.trim()
+      console.log('[做单] 跳转链接:', url)
       if (url) {
         if (!url.startsWith('http://') && !url.startsWith('https://')) {
           url = 'https://' + url
+          console.log('[做单] 自动补充协议:', url)
         }
         window.open(url, '_blank')
       }
     }
   }).catch((error: any) => {
+    console.error('[做单] 失败:', error)
     showToast(error.message || '做单失败')
   })
 }
