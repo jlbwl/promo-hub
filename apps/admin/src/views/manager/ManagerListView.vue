@@ -41,7 +41,7 @@
           <template #default="{ row }">
             <el-button-group>
               <el-button
-                :type="row.role === 'manager' ? 'primary' : ''"
+                :type="(row.role === 'manager' || !row.role) ? 'primary' : ''"
                 size="small"
                 @click="handleToggleManagerRole(row, 'manager')"
               >
