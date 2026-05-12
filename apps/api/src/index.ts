@@ -29,7 +29,7 @@ const {
   readManagers, writeManagers, deleteManager,
   readUsers, writeUsers, readUser, insertUser, updateUser, deleteUser,
   readCartItems, readCartByManagerId, addToCart, removeFromCart, removeFromCartByProductId, isInCart,
-  readOrders, writeOrders, insertOrder, deleteOrder, readOrder, readDeletedOrders, restoreOrder,
+  readOrders, writeOrders, insertOrder, deleteOrder, readOrder, readDeletedOrders, restoreOrder, getOrderStats,
   readCommissions, writeCommissions,
   readAdminByPhone, readAdminById, updateAdmin,
   readEmployeesByUserId, readEmployeeById, readEmployeeByPhone, insertEmployee, deleteEmployee,
@@ -1442,18 +1442,27 @@ app.get('/api/cart/check', async (req, res) => {
 // 获取订单统计
 app.get('/api/orders/stats', async (req, res) => {
   const { userId, managerId } = req.query
-  let orders = await readOrders()
+  try {
+    // 直接获取已删除=0的订单进行统计
+    const stats = await getOrderStats(managerId as string)
 
-  if (userId) orders = orders.filter((o: any) => o.userId === userId)
-  if (managerId) orders = orders.filter((o: any) => o.managerId === managerId)
-
-  const pending = orders.filter((o: any) => o.status === 'pending').length
-  const approved = orders.filter((o: any) => o.status === 'approved').length
-  const pendingPayment = orders.filter((o: any) => o.status === 'pending_payment').length
-  const settled = orders.filter((o: any) => o.status === 'settled').length
-  const rejected = orders.filter((o: any) => o.status === 'rejected').length
-
-  res.json({ code: 0, message: 'success', data: { total: orders.length, pending, approved, pendingPayment, settled, rejected } })
+    // 如果有userId过滤，需要在结果中再次过滤
+    if (userId) {
+      const orders = await readOrders()
+      const filteredOrders = orders.filter((o: any) => o.userId === userId)
+      const pending = filteredOrders.filter((o: any) => o.status === 'pending').length
+      const approved = filteredOrders.filter((o: any) => o.status === 'approved').length
+      const pendingPayment = filteredOrders.filter((o: any) => o.status === 'pending_payment').length
+      const settled = filteredOrders.filter((o: any) => o.status === 'settled').length
+      const rejected = filteredOrders.filter((o: any) => o.status === 'rejected').length
+      res.json({ code: 0, message: 'success', data: { total: filteredOrders.length, pending, approved, pendingPayment, settled, rejected } })
+    } else {
+      res.json({ code: 0, message: 'success', data: stats })
+    }
+  } catch (error: any) {
+    console.error('[订单统计] 错误:', error)
+    res.json({ code: 500, message: '获取失败', data: null })
+  }
 })
 
 // 经理审核订单（通过/驳回）

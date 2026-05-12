@@ -91,6 +91,23 @@ export async function readOrder(id: string): Promise<any> {
   return orders.find((o: any) => o.id === id && !o.deleted) || null
 }
 
+// 优化的订单统计
+export async function getOrderStats(managerId?: string): Promise<any> {
+  const orders = await readOrders()
+  let filtered = orders
+  if (managerId) {
+    filtered = orders.filter((o: any) => o.managerId === managerId)
+  }
+  return {
+    total: filtered.length,
+    pending: filtered.filter((o: any) => o.status === 'pending').length,
+    approved: filtered.filter((o: any) => o.status === 'approved').length,
+    pendingPayment: filtered.filter((o: any) => o.status === 'pending_payment').length,
+    settled: filtered.filter((o: any) => o.status === 'settled').length,
+    rejected: filtered.filter((o: any) => o.status === 'rejected').length,
+  }
+}
+
 export async function readDeletedOrders(userId?: string): Promise<any[]> {
   const orders = await readFileData('orders')
   let filtered = orders.filter((o: any) => o.deleted)

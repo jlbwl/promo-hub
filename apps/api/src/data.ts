@@ -291,6 +291,32 @@ export async function readOrder(id: string): Promise<any> {
   return await queryOne('SELECT * FROM orders WHERE id = ? AND deleted = 0', [id])
 }
 
+// 优化的订单统计（直接用SQL计数）
+export async function getOrderStats(managerId?: string): Promise<any> {
+  let whereClause = 'deleted = 0'
+  const params: any[] = []
+  if (managerId) {
+    whereClause += ' AND managerId = ?'
+    params.push(managerId)
+  }
+
+  const totalRes = await queryOne(`SELECT COUNT(*) as total FROM orders WHERE ${whereClause}`, params)
+  const pendingRes = await queryOne(`SELECT COUNT(*) as count FROM orders WHERE ${whereClause} AND status = ?`, [...params, 'pending'])
+  const approvedRes = await queryOne(`SELECT COUNT(*) as count FROM orders WHERE ${whereClause} AND status = ?`, [...params, 'approved'])
+  const pendingPaymentRes = await queryOne(`SELECT COUNT(*) as count FROM orders WHERE ${whereClause} AND status = ?`, [...params, 'pending_payment'])
+  const settledRes = await queryOne(`SELECT COUNT(*) as count FROM orders WHERE ${whereClause} AND status = ?`, [...params, 'settled'])
+  const rejectedRes = await queryOne(`SELECT COUNT(*) as count FROM orders WHERE ${whereClause} AND status = ?`, [...params, 'rejected'])
+
+  return {
+    total: totalRes?.total || 0,
+    pending: pendingRes?.count || 0,
+    approved: approvedRes?.count || 0,
+    pendingPayment: pendingPaymentRes?.count || 0,
+    settled: settledRes?.count || 0,
+    rejected: rejectedRes?.count || 0,
+  }
+}
+
 export async function readDeletedOrders(userId?: string): Promise<any[]> {
   const params: any[] = []
   let sql = 'SELECT * FROM orders WHERE deleted = 1 ORDER BY deletedAt DESC'
