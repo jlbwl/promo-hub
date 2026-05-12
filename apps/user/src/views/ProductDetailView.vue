@@ -259,6 +259,8 @@ const submitGoOrder = (userInfo: any) => {
   // 获取选中的选项
   const chosenOption = product.options.length > 0 ? product.options[selectedOption.value] : null
 
+  console.log('[做单] 选中的选项:', JSON.stringify(chosenOption))
+
   // 调用做单接口
   const userId = (() => {
     try { return JSON.parse(localStorage.getItem('user_info') || '{}').id || '' } catch { return '' }
@@ -274,26 +276,36 @@ const submitGoOrder = (userInfo: any) => {
   if (isEmployee && employeeId) {
     payload.employeeId = employeeId
   }
+
+  let cleanUrlForJump = ''
   if (chosenOption) {
     payload.optionLabel = chosenOption.label
     // 清理 redirectUrl 中的反引号
     payload.redirectUrl = (chosenOption.redirectUrl || '').replace(/`/g, '')
+    cleanUrlForJump = payload.redirectUrl
+    console.log('[做单] 原始redirectUrl:', chosenOption.redirectUrl)
+    console.log('[做单] 清理后redirectUrl:', payload.redirectUrl)
   }
 
-  console.log('[做单] 开始提交:', JSON.stringify(payload))
+  console.log('[做单] 开始提交, payload:', JSON.stringify(payload))
   post('/orders', payload).then((res: any) => {
-    console.log('[做单] 成功:', JSON.stringify(res))
+    console.log('[做单] 成功, 响应:', JSON.stringify(res))
     fetchProductDetail()
     if (chosenOption?.redirectUrl) {
-      let url = chosenOption.redirectUrl.trim().replace(/`/g, '')
-      console.log('[做单] 跳转链接:', url)
+      let url = cleanUrlForJump.trim()
+      console.log('[做单] 准备跳转链接:', url)
       if (url) {
         if (!url.startsWith('http://') && !url.startsWith('https://')) {
           url = 'https://' + url
-          console.log('[做单] 自动补充协议:', url)
+          console.log('[做单] 自动补充协议后的链接:', url)
         }
+        console.log('[做单] 开始跳转到:', url)
         window.open(url, '_blank')
+      } else {
+        console.log('[做单] 清理后链接为空，不跳转')
       }
+    } else {
+      console.log('[做单] 没有设置redirectUrl，不跳转')
     }
   }).catch((error: any) => {
     console.error('[做单] 失败:', error)

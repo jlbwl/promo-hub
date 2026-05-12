@@ -1108,87 +1108,96 @@ app.get('/api/users/:id', async (req, res) => {
 // 做单（扣减库存）
 app.post('/api/orders', async (req, res) => {
   console.log('[做单] 收到请求:', JSON.stringify(req.body))
-  const { productId, userId, employeeId, optionLabel, redirectUrl, userName, userPhone } = req.body
-  if (!productId) {
-    res.json({ code: 400, message: '缺少产品ID', data: null })
-    return
-  }
-
-  let products = await readProducts()
-  const index = products.findIndex((p: any) => p.id === productId)
-  if (index === -1) {
-    console.log('[做单] 产品不存在:', productId)
-    res.json({ code: 404, message: '产品不存在', data: null })
-    return
-  }
-
-  const product = products[index]
-  console.log('[做单] 产品信息:', { title: product.title, options: product.options, managerId: product.managerId })
-
-  // 检查产品状态
-  if (product.status !== 'published') {
-    console.log('[做单] 产品未发布:', product.status)
-    res.json({ code: 400, message: '该产品已下架', data: null })
-    return
-  }
-
-  // 检查库存（stock 为 0 或未设置表示不限库存）
-  if (product.stock && product.stock > 0) {
-    if (product.stock < 1) {
-      console.log('[做单] 库存不足')
-      res.json({ code: 400, message: '库存不足', data: null })
+  try {
+    const { productId, userId, employeeId, optionLabel, redirectUrl, userName, userPhone } = req.body
+    if (!productId) {
+      console.log('[做单] 缺少productId')
+      res.json({ code: 400, message: '缺少产品ID', data: null })
       return
     }
-    console.log('[做单] 扣减库存, 原库存:', product.stock, '新库存:', product.stock - 1)
-    // 使用 updateProduct 而不是 writeProducts，性能更高
-    await updateProduct(product.id, { stock: product.stock - 1, updatedAt: new Date().toISOString() })
-  }
 
-  // 如果是员工子账户做单，获取主账户ID
-  let finalUserId = userId || 'guest'
-  if (employeeId) {
-    const employee = await readEmployeeById(employeeId)
-    if (employee) {
-      finalUserId = employee.userId
+    let products = await readProducts()
+    const index = products.findIndex((p: any) => p.id === productId)
+    if (index === -1) {
+      console.log('[做单] 产品不存在:', productId)
+      res.json({ code: 404, message: '产品不存在', data: null })
+      return
     }
-  }
 
-  // 获取用户团队名称
-  let teamName = ''
-  if (finalUserId !== 'guest') {
-    const user = await readUser(finalUserId)
-    if (user) {
-      teamName = user.teamName || ''
+    const product = products[index]
+    console.log('[做单] 产品信息:', { title: product.title, options: product.options, managerId: product.managerId })
+
+    // 检查产品状态
+    if (product.status !== 'published') {
+      console.log('[做单] 产品未发布:', product.status)
+      res.json({ code: 400, message: '该产品已下架', data: null })
+      return
     }
+
+    // 检查库存（stock 为 0 或未设置表示不限库存）
+    if (product.stock && product.stock > 0) {
+      if (product.stock < 1) {
+        console.log('[做单] 库存不足')
+        res.json({ code: 400, message: '库存不足', data: null })
+        return
+      }
+      console.log('[做单] 扣减库存, 原库存:', product.stock, '新库存:', product.stock - 1)
+      // 使用 updateProduct 而不是 writeProducts，性能更高
+      await updateProduct(product.id, { stock: product.stock - 1, updatedAt: new Date().toISOString() })
+    }
+
+    // 如果是员工子账户做单，获取主账户ID
+    let finalUserId = userId || 'guest'
+    if (employeeId) {
+      console.log('[做单] 员工做单, employeeId:', employeeId)
+      const employee = await readEmployeeById(employeeId)
+      if (employee) {
+        finalUserId = employee.userId
+        console.log('[做单] 员工主账户ID:', finalUserId)
+      }
+    }
+
+    // 获取用户团队名称
+    let teamName = ''
+    if (finalUserId !== 'guest') {
+      const user = await readUser(finalUserId)
+      if (user) {
+        teamName = user.teamName || ''
+      }
+    }
+
+    // 清理 redirectUrl
+    const cleanRedirectUrl = (redirectUrl || '').replace(/`/g, '')
+    console.log('[做单] 原始redirectUrl:', redirectUrl, '清理后:', cleanRedirectUrl)
+
+    // 记录做单
+    const order = {
+      id: `o_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+      productId,
+      userId: finalUserId,
+      managerId: product.managerId,
+      productName: product.title,
+      productPrice: product.price,
+      optionLabel: optionLabel || '',
+      redirectUrl: cleanRedirectUrl,
+      userName: userName || '',
+      userPhone: userPhone || '',
+      teamName,
+      status: 'pending',
+      createdAt: new Date().toISOString(),
+    }
+    console.log('[做单] 创建订单:', JSON.stringify(order))
+    // 使用 insertOrder 而不是 writeOrders，性能更高
+    await insertOrder(order)
+    console.log('[做单] 订单已保存成功, ID:', order.id)
+
+    const remainingStock = product.stock && product.stock > 0 ? product.stock - 1 : (product.stock || -1)
+    console.log('[做单] 返回成功响应')
+    res.json({ code: 0, message: '做单成功', data: { order, remainingStock } })
+  } catch (error: any) {
+    console.error('[做单] 错误:', error)
+    res.status(500).json({ code: 500, message: '做单失败: ' + error.message, data: null })
   }
-
-  // 清理 redirectUrl
-  const cleanRedirectUrl = (redirectUrl || '').replace(/`/g, '')
-  console.log('[做单] 清理后 redirectUrl:', cleanRedirectUrl)
-
-  // 记录做单
-  const order = {
-    id: `o_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-    productId,
-    userId: finalUserId,
-    managerId: product.managerId,
-    productName: product.title,
-    productPrice: product.price,
-    optionLabel: optionLabel || '',
-    redirectUrl: cleanRedirectUrl,
-    userName: userName || '',
-    userPhone: userPhone || '',
-    teamName,
-    status: 'pending',
-    createdAt: new Date().toISOString(),
-  }
-  console.log('[做单] 创建订单:', JSON.stringify(order))
-  // 使用 insertOrder 而不是 writeOrders，性能更高
-  await insertOrder(order)
-  console.log('[做单] 订单已保存')
-
-  const remainingStock = product.stock && product.stock > 0 ? product.stock - 1 : (product.stock || -1)
-  res.json({ code: 0, message: '做单成功', data: { order, remainingStock } })
 })
 
 // 获取订单列表（用户端按 userId，经理端按 managerId）
