@@ -898,6 +898,36 @@ app.put('/api/users/:id/status', async (req, res) => {
   res.json({ code: 404, message: '用户不存在', data: null })
 })
 
+// 管理后台：切换用户角色
+app.put('/api/users/:id/role', async (req, res) => {
+  const { role } = req.body
+  const userId = req.params.id
+
+  // 先查经理表
+  let managers = await readManagers()
+  const mgrIdx = managers.findIndex((m: any) => m.id === userId)
+  if (mgrIdx !== -1) {
+    managers[mgrIdx].role = role
+    managers[mgrIdx].updatedAt = new Date().toISOString()
+    await writeManagers(managers)
+    res.json({ code: 0, message: '更新成功', data: null })
+    return
+  }
+
+  // 再查用户表
+  let users = await readUsers()
+  const usrIdx = users.findIndex((u: any) => u.id === userId)
+  if (usrIdx !== -1) {
+    users[usrIdx].role = role
+    users[usrIdx].updatedAt = new Date().toISOString()
+    await writeUsers(users)
+    res.json({ code: 0, message: '更新成功', data: null })
+    return
+  }
+
+  res.json({ code: 404, message: '用户不存在', data: null })
+})
+
 // 管理后台修改用户团队名称
 app.put('/api/users/:id/team-name', async (req, res) => {
   const { teamName } = req.body

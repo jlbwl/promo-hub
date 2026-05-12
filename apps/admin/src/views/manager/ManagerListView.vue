@@ -37,18 +37,44 @@
       >
         <el-table-column prop="teamName" label="渠道名称" width="140" show-overflow-tooltip />
         <el-table-column prop="phone" label="手机号" width="140" />
-        <el-table-column prop="role" label="角色" width="120" align="center">
+        <el-table-column prop="role" label="角色" width="220" align="center">
           <template #default="{ row }">
-            <el-tag :type="getRoleTagType(row.role)">
-              {{ getRoleLabel(row.role) }}
-            </el-tag>
+            <el-button-group>
+              <el-button
+                :type="row.role === 'manager' ? 'primary' : ''"
+                size="small"
+                @click="handleToggleManagerRole(row, 'manager')"
+              >
+                普通渠道
+              </el-button>
+              <el-button
+                :type="row.role === 'vip' ? 'success' : ''"
+                size="small"
+                @click="handleToggleManagerRole(row, 'vip')"
+              >
+                vip渠道
+              </el-button>
+            </el-button-group>
           </template>
         </el-table-column>
-        <el-table-column prop="status" label="状态" width="100" align="center">
+        <el-table-column prop="status" label="状态" width="200" align="center">
           <template #default="{ row }">
-            <el-tag :type="row.status === 'active' ? 'success' : 'danger'">
-              {{ row.status === 'active' ? '启用' : '禁用' }}
-            </el-tag>
+            <el-button-group>
+              <el-button
+                :type="row.status === 'active' ? 'success' : ''"
+                size="small"
+                @click="handleToggleManagerStatus(row, 'active')"
+              >
+                启用
+              </el-button>
+              <el-button
+                :type="row.status === 'inactive' ? 'danger' : ''"
+                size="small"
+                @click="handleToggleManagerStatus(row, 'inactive')"
+              >
+                禁用
+              </el-button>
+            </el-button-group>
           </template>
         </el-table-column>
         <el-table-column label="创建时间" width="180">
@@ -56,18 +82,10 @@
             {{ formatTime(row.createdAt) }}
           </template>
         </el-table-column>
-        <el-table-column label="操作" min-width="260" fixed="right">
+        <el-table-column label="操作" min-width="180" fixed="right">
           <template #default="{ row }">
             <el-button type="warning" text size="small" @click="handleEditTeamName(row)">
               修改渠道名称
-            </el-button>
-            <el-button
-              :type="row.status === 'active' ? 'danger' : 'success'"
-              text
-              size="small"
-              @click="handleToggleStatus(row)"
-            >
-              {{ row.status === 'active' ? '禁用' : '启用' }}
             </el-button>
             <el-button type="danger" text size="small" @click="handleDelete(row)">
               删除
@@ -321,16 +339,39 @@ const handleAdd = async () => {
   }
 }
 
-// 切换状态
-const handleToggleStatus = async (row: any) => {
-  const action = row.status === 'active' ? '禁用' : '启用'
+// 切换渠道角色
+const handleToggleManagerRole = async (row: any, newRole: string) => {
+  if (row.role === newRole) return
+  
+  const roleLabel = newRole === 'manager' ? '普通渠道' : 'vip渠道'
+  try {
+    await ElMessageBox.confirm(`确定要将渠道「${row.teamName}」设置为${roleLabel}吗？`, '提示', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning'
+    })
+    await put(`/managers/${row.id}`, { role: newRole })
+    ElMessage.success(`角色设置成功`)
+    loadData()
+  } catch (error: any) {
+    if (error !== 'cancel') {
+      ElMessage.error(error.message || '操作失败')
+    }
+  }
+}
+
+// 切换渠道状态
+const handleToggleManagerStatus = async (row: any, newStatus: string) => {
+  if (row.status === newStatus) return
+  
+  const action = newStatus === 'active' ? '启用' : '禁用'
   try {
     await ElMessageBox.confirm(`确定要${action}渠道「${row.teamName}」吗？`, '提示', {
       confirmButtonText: '确定',
       cancelButtonText: '取消',
       type: 'warning'
     })
-    await put(`/managers/${row.id}`, { status: row.status === 'active' ? 'disabled' : 'active' })
+    await put(`/managers/${row.id}`, { status: newStatus === 'active' ? 'active' : 'inactive' })
     ElMessage.success(`${action}成功`)
     loadData()
   } catch (error: any) {
