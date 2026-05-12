@@ -296,10 +296,14 @@ const handleDelete = async (row: Product) => {
         type: 'error'
       }
     )
-    await del(`/products/${row.id}?managerId=${getManagerId()}`)
+    const url = `/products/${row.id}?managerId=${getManagerId()}`
+    console.log('[删除产品] 发送请求:', url)
+    const res = await del<any>(url)
+    console.log('[删除产品] 响应:', res)
     ElMessage.success('删除成功')
     fetchData()
   } catch (error: any) {
+    console.error('[删除产品] 失败:', error)
     if (error !== 'cancel') {
       ElMessage.error(error.message || '删除失败')
     }

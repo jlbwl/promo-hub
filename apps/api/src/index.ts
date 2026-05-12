@@ -239,22 +239,34 @@ app.put('/api/products/:id', async (req, res) => {
 
 // 删除产品
 app.delete('/api/products/:id', async (req, res) => {
-  const products = await readProducts()
-  const product = products.find((p: any) => p.id === req.params.id)
-  if (!product) {
-    res.json({ code: 404, message: '产品不存在', data: null })
-    return
-  }
+  console.log('[删除产品] 收到请求, ID:', req.params.id, 'ManagerId:', req.query.managerId)
+  try {
+    const products = await readProducts()
+    const product = products.find((p: any) => p.id === req.params.id)
+    if (!product) {
+      console.log('[删除产品] 产品不存在:', req.params.id)
+      res.json({ code: 404, message: '产品不存在', data: null })
+      return
+    }
 
-  // 校验产品归属
-  const managerId = req.query.managerId as string
-  if (managerId && product.managerId !== managerId) {
-    res.json({ code: 403, message: '无权操作此产品', data: null })
-    return
-  }
+    console.log('[删除产品] 找到产品:', product.title, 'managerId:', product.managerId)
 
-  await deleteProduct(req.params.id)
-  res.json({ code: 0, message: '删除成功', data: null })
+    // 校验产品归属
+    const managerId = req.query.managerId as string
+    if (managerId && product.managerId !== managerId) {
+      console.log('[删除产品] 无权删除, 请求者:', managerId, '所有者:', product.managerId)
+      res.json({ code: 403, message: '无权操作此产品', data: null })
+      return
+    }
+
+    console.log('[删除产品] 开始删除, ID:', req.params.id)
+    await deleteProduct(req.params.id)
+    console.log('[删除产品] 删除成功, ID:', req.params.id)
+    res.json({ code: 0, message: '删除成功', data: null })
+  } catch (error: any) {
+    console.error('[删除产品] 错误:', error)
+    res.status(500).json({ code: 500, message: '删除失败: ' + error.message, data: null })
+  }
 })
 
 // ============ 经理白名单接口 ============
