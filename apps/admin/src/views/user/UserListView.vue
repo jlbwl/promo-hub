@@ -15,26 +15,6 @@
         </el-col>
         <el-col :span="4">
           <el-select
-            v-model="searchRole"
-            placeholder="角色筛选"
-            clearable
-            @change="handleSearch"
-          >
-            <el-option label="全部" value="" />
-            <el-option label="普通用户" value="user" />
-          </el-select>
-        </el-col>
-        <el-col :span="4">
-          <el-input
-            v-model="searchTeamName"
-            placeholder="团队名称筛选"
-            clearable
-            @clear="handleSearch"
-            @keyup.enter="handleSearch"
-          />
-        </el-col>
-        <el-col :span="4">
-          <el-select
             v-model="searchStatus"
             placeholder="状态筛选"
             clearable
@@ -209,8 +189,6 @@ const formatTime = (iso: string) => {
 
 // 搜索条件
 const searchKeyword = ref('')
-const searchRole = ref('')
-const searchTeamName = ref('')
 const searchStatus = ref<number | ''>('')
 // 加载状态
 const loading = ref(false)
@@ -271,10 +249,8 @@ const loadData = async () => {
     const res = await get<any>('/users', {
       page: pagination.page,
       pageSize: pagination.pageSize,
-      role: searchRole.value || undefined,
       status: searchStatus.value !== '' ? searchStatus.value : undefined,
       keyword: searchKeyword.value || undefined,
-      teamName: searchTeamName.value || undefined,
     })
     const { list, total } = res.data
     tableData.value = list || []
