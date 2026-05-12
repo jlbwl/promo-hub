@@ -82,13 +82,13 @@ export async function writeProducts(products: any[]): Promise<void> {
     const existing = await queryOne('SELECT id FROM products WHERE id = ?', [p.id])
     if (existing) {
       await query(
-        `UPDATE products SET title=?, description=?, coverImage=?, images=?, price=?, originalPrice=?, category=?, status=?, managerId=?, stock=?, options=?, publishedBy=?, publishedAt=?, offlineReason=?, offlineAt=?, updatedAt=NOW() WHERE id=?`,
-        [p.title || '', p.description || '', p.coverImage || '', serialize(p.images), p.price || 0, p.originalPrice || 0, p.category || '', p.status || 'draft', p.managerId || '', p.stock || 0, serialize(p.options), p.publishedBy || '', formatDateTime(p.publishedAt), p.offlineReason || '', formatDateTime(p.offlineAt), p.id]
+        `UPDATE products SET title=?, description=?, coverImage=?, images=?, price=?, originalPrice=?, category=?, status=?, managerId=?, stock=?, options=?, publishedBy=?, publishedAt=?, offlineReason=?, offlineAt=?, requireName=?, requirePhone=?, updatedAt=NOW() WHERE id=?`,
+        [p.title || '', p.description || '', p.coverImage || '', serialize(p.images), p.price || 0, p.originalPrice || 0, p.category || '', p.status || 'draft', p.managerId || '', p.stock || 0, serialize(p.options), p.publishedBy || '', formatDateTime(p.publishedAt), p.offlineReason || '', formatDateTime(p.offlineAt), p.requireName ? 1 : 0, p.requirePhone ? 1 : 0, p.id]
       )
     } else {
       await query(
-        `INSERT INTO products (id, title, description, coverImage, images, price, originalPrice, category, status, managerId, stock, options, publishedBy, publishedAt, offlineReason, offlineAt, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
-        [p.id, p.title || '', p.description || '', p.coverImage || '', serialize(p.images), p.price || 0, p.originalPrice || 0, p.category || '', p.status || 'draft', p.managerId || '', p.stock || 0, serialize(p.options), p.publishedBy || '', formatDateTime(p.publishedAt), p.offlineReason || '', formatDateTime(p.offlineAt)]
+        `INSERT INTO products (id, title, description, coverImage, images, price, originalPrice, category, status, managerId, stock, options, publishedBy, publishedAt, offlineReason, offlineAt, requireName, requirePhone, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
+        [p.id, p.title || '', p.description || '', p.coverImage || '', serialize(p.images), p.price || 0, p.originalPrice || 0, p.category || '', p.status || 'draft', p.managerId || '', p.stock || 0, serialize(p.options), p.publishedBy || '', formatDateTime(p.publishedAt), p.offlineReason || '', formatDateTime(p.offlineAt), p.requireName ? 1 : 0, p.requirePhone ? 1 : 0]
       )
     }
   }
@@ -96,8 +96,8 @@ export async function writeProducts(products: any[]): Promise<void> {
 
 export async function insertProduct(p: any): Promise<void> {
   await query(
-    `INSERT INTO products (id, title, description, coverImage, images, price, originalPrice, category, status, managerId, stock, options, publishedBy, publishedAt, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
-    [p.id, p.title || '', p.description || '', p.coverImage || '', serialize(p.images), p.price || 0, p.originalPrice || 0, p.category || '', p.status || 'draft', p.managerId || '', p.stock || 0, serialize(p.options), p.publishedBy || '', formatDateTime(p.publishedAt)]
+    `INSERT INTO products (id, title, description, coverImage, images, price, originalPrice, category, status, managerId, stock, options, publishedBy, publishedAt, requireName, requirePhone, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
+    [p.id, p.title || '', p.description || '', p.coverImage || '', serialize(p.images), p.price || 0, p.originalPrice || 0, p.category || '', p.status || 'draft', p.managerId || '', p.stock || 0, serialize(p.options), p.publishedBy || '', formatDateTime(p.publishedAt), p.requireName ? 1 : 0, p.requirePhone ? 1 : 0]
   )
 }
 
@@ -111,7 +111,7 @@ export async function updateProduct(id: string, fields: Record<string, any>): Pr
       values.push(serialize(val))
     } else if (key === 'publishedAt' || key === 'offlineAt') {
       values.push(formatDateTime(val))
-    } else if (typeof val === 'boolean') {
+    } else if (typeof val === 'boolean' || key === 'requireName' || key === 'requirePhone') {
       values.push(val ? 1 : 0)
     } else {
       values.push(val ?? '')
