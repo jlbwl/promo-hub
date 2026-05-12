@@ -132,6 +132,15 @@ export async function updateProduct(id: string, fields: Record<string, any>): Pr
   }
 }
 
+export async function deleteProduct(id: string): Promise<void> {
+  const products = await readProducts()
+  const index = products.findIndex((p: any) => p.id === id)
+  if (index !== -1) {
+    products.splice(index, 1)
+    await writeProducts(products)
+  }
+}
+
 // ============ Managers ============
 
 export async function readManagers(): Promise<any[]> {

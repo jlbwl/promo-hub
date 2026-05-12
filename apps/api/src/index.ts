@@ -25,7 +25,7 @@ try {
 }
 
 const {
-  readProducts, writeProducts, insertProduct, updateProduct, readProduct,
+  readProducts, writeProducts, insertProduct, updateProduct, readProduct, deleteProduct,
   readManagers, writeManagers, deleteManager,
   readUsers, writeUsers, readUser, insertUser, updateUser, deleteUser,
   readOrders, writeOrders, insertOrder, deleteOrder, readOrder,
@@ -239,22 +239,21 @@ app.put('/api/products/:id', async (req, res) => {
 
 // 删除产品
 app.delete('/api/products/:id', async (req, res) => {
-  let products = await readProducts()
-  const index = products.findIndex((p: any) => p.id === req.params.id)
-  if (index === -1) {
+  const products = await readProducts()
+  const product = products.find((p: any) => p.id === req.params.id)
+  if (!product) {
     res.json({ code: 404, message: '产品不存在', data: null })
     return
   }
 
   // 校验产品归属
   const managerId = req.query.managerId as string
-  if (managerId && products[index].managerId !== managerId) {
+  if (managerId && product.managerId !== managerId) {
     res.json({ code: 403, message: '无权操作此产品', data: null })
     return
   }
 
-  products.splice(index, 1)
-  await writeProducts(products)
+  await deleteProduct(req.params.id)
   res.json({ code: 0, message: '删除成功', data: null })
 })
 

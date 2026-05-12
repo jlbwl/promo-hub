@@ -416,7 +416,11 @@ const handleSave = async () => {
       price: form.price,
       stock: form.stock || 0,
       coverImage: form.cover,
-      options: form.options.filter(o => o.label.trim()).map(({ label, limit, redirectUrl }) => ({ label, limit, redirectUrl })), // 只保存有名称的选项
+      options: form.options.filter(o => o.label.trim()).map(({ label, limit, redirectUrl }) => ({ 
+        label, 
+        limit, 
+        redirectUrl: (redirectUrl || '').replace(/`/g, '') // 清理反引号
+      })), // 只保存有名称的选项
       status: 'published',
       managerId,
       publishedBy: localStorage.getItem('manager_token') || 'manager',
