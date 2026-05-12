@@ -14,6 +14,16 @@
       >
         抢单大厅
       </van-tabbar-item>
+      <!-- 购物车（仅主账户显示） -->
+      <van-tabbar-item
+        v-if="!isEmployee"
+        to="/cart"
+        icon="shopping-cart-o"
+        name="cart"
+        :badge="cartCount > 0 ? cartCount : ''"
+      >
+        购物车
+      </van-tabbar-item>
       <!-- 主账户显示佣金页面 -->
       <van-tabbar-item
         v-if="!isEmployee"
@@ -35,11 +45,41 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
+import { get } from '@promo/shared/utils/request'
 
 // 当前激活的 Tab
 const activeTab = ref('home')
+
+// 购物车数量
+const cartCount = ref(0)
+
+// 获取当前用户ID
+const getUserId = () => {
+  try {
+    const info = JSON.parse(localStorage.getItem('user_info') || '{}')
+    return info.id || ''
+  } catch { return '' }
+}
+
+// 获取购物车数量
+const fetchCartCount = async () => {
+  const userId = getUserId()
+  if (!userId) return
+  try {
+    const res = await get<any[]>('/cart', { userId })
+    if (res.code === 0) {
+      cartCount.value = res.data?.length || 0
+    }
+  } catch (error) {
+    console.error('获取购物车数量失败:', error)
+  }
+}
+
+onMounted(() => {
+  fetchCartCount()
+})
 
 // 获取当前路由
 const route = useRoute()

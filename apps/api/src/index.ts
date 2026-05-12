@@ -28,6 +28,7 @@ const {
   readProducts, writeProducts, insertProduct, updateProduct, readProduct, deleteProduct,
   readManagers, writeManagers, deleteManager,
   readUsers, writeUsers, readUser, insertUser, updateUser, deleteUser,
+  readCartItems, readCartByManagerId, addToCart, removeFromCart, removeFromCartByProductId, isInCart,
   readOrders, writeOrders, insertOrder, deleteOrder, readOrder, readDeletedOrders, restoreOrder,
   readCommissions, writeCommissions,
   readAdminByPhone, readAdminById, updateAdmin,
@@ -1353,6 +1354,88 @@ app.post('/api/user/orders/:id/restore', async (req, res) => {
   } catch (error: any) {
     console.error('[恢复订单] 错误:', error)
     res.json({ code: 500, message: '恢复失败', data: null })
+  }
+})
+
+// 获取购物车列表
+app.get('/api/cart', async (req, res) => {
+  const { userId } = req.query
+  if (!userId) {
+    res.json({ code: 400, message: '缺少用户ID', data: null })
+    return
+  }
+  try {
+    const items = await readCartItems(userId as string)
+    res.json({ code: 0, message: 'success', data: items })
+  } catch (error: any) {
+    console.error('[获取购物车] 错误:', error)
+    res.json({ code: 500, message: '获取失败', data: null })
+  }
+})
+
+// 获取经理下所有购物车（主账户的）
+app.get('/api/manager/cart', async (req, res) => {
+  const { managerId } = req.query
+  if (!managerId) {
+    res.json({ code: 400, message: '缺少经理ID', data: null })
+    return
+  }
+  try {
+    const items = await readCartByManagerId(managerId as string)
+    res.json({ code: 0, message: 'success', data: items })
+  } catch (error: any) {
+    console.error('[获取经理购物车] 错误:', error)
+    res.json({ code: 500, message: '获取失败', data: null })
+  }
+})
+
+// 添加到购物车
+app.post('/api/cart', async (req, res) => {
+  const { userId, managerId, productId, productName, productPrice, coverImage, optionLabel, redirectUrl } = req.body
+  if (!userId || !productId) {
+    res.json({ code: 400, message: '缺少必要参数', data: null })
+    return
+  }
+  try {
+    // 检查是否已在购物车
+    const exists = await isInCart(userId, productId)
+    if (exists) {
+      res.json({ code: 400, message: '该产品已在购物车中', data: null })
+      return
+    }
+    await addToCart({ userId, managerId, productId, productName, productPrice, coverImage, optionLabel, redirectUrl })
+    res.json({ code: 0, message: '添加成功', data: null })
+  } catch (error: any) {
+    console.error('[添加购物车] 错误:', error)
+    res.json({ code: 500, message: '添加失败', data: null })
+  }
+})
+
+// 从购物车移除
+app.delete('/api/cart/:id', async (req, res) => {
+  const { id } = req.params
+  try {
+    await removeFromCart(id)
+    res.json({ code: 0, message: '移除成功', data: null })
+  } catch (error: any) {
+    console.error('[移除购物车] 错误:', error)
+    res.json({ code: 500, message: '移除失败', data: null })
+  }
+})
+
+// 检查产品是否在购物车
+app.get('/api/cart/check', async (req, res) => {
+  const { userId, productId } = req.query
+  if (!userId || !productId) {
+    res.json({ code: 400, message: '缺少必要参数', data: null })
+    return
+  }
+  try {
+    const exists = await isInCart(userId as string, productId as string)
+    res.json({ code: 0, message: 'success', data: { inCart: exists } })
+  } catch (error: any) {
+    console.error('[检查购物车] 错误:', error)
+    res.json({ code: 500, message: '检查失败', data: null })
   }
 })
 

@@ -48,6 +48,12 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '我的佣金', requiresAuth: true, requiresUser: true }
       },
       {
+        path: 'cart',
+        name: 'Cart',
+        component: () => import('../views/CartView.vue'),
+        meta: { title: '购物车', requiresAuth: true, requiresUser: true }
+      },
+      {
         path: 'profile',
         name: 'Profile',
         component: () => import('../views/ProfileView.vue'),

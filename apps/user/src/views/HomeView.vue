@@ -67,6 +67,19 @@
                 <span class="product-price">¥{{ product.price }}</span>
                 <span class="product-sales">已售 {{ product.sales }}</span>
               </div>
+              <div class="product-actions">
+                <van-button
+                  size="small"
+                  type="primary"
+                  plain
+                  round
+                  :icon="product.inCart ? 'success' : 'shopping-cart-o'"
+                  :disabled="product.inCart"
+                  @click.stop="addToCart(product)"
+                >
+                  {{ product.inCart ? '已加入' : '加购' }}
+                </van-button>
+              </div>
             </div>
           </div>
         </div>
@@ -78,7 +91,7 @@
 <script setup lang="ts">
 import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
-import { get } from '@promo/shared/utils/request'
+import { get, post } from '@promo/shared/utils/request'
 
 // 路由实例
 const router = useRouter()
@@ -133,17 +146,46 @@ const loadProducts = async () => {
     if (list.length === 0 || products.value.length >= total) {
       finished.value = true
     } else {
-      products.value.push(...list.map((p: any) => ({
+      // 检查产品在购物车中的状态
+      const userId = getUserId()
+      const newProducts = list.map((p: any) => ({
         ...p,
         cover: p.coverImage || '',
-      })))
+        inCart: p.inCart || false
+      }))
+      products.value.push(...newProducts)
       page.value++
+
+      // 如果是第一页且有用户ID，检查购物车状态
+      if (page.value === 2 && userId) {
+        await checkCartStatus()
+      }
     }
   } catch (error) {
     console.error('加载产品失败:', error)
     finished.value = true
   } finally {
     loading.value = false
+  }
+}
+
+// 检查产品在购物车中的状态
+const checkCartStatus = async () => {
+  const userId = getUserId()
+  if (!userId) return
+
+  try {
+    const res = await get<any[]>('/cart', { userId })
+    if (res.code === 0 && res.data) {
+      const cartProductIds = res.data.map((item: any) => item.productId)
+      products.value.forEach(p => {
+        if (cartProductIds.includes(p.id)) {
+          p.inCart = true
+        }
+      })
+    }
+  } catch (error) {
+    console.error('检查购物车状态失败:', error)
   }
 }
 
@@ -165,6 +207,54 @@ const handleSearch = () => {
 // 跳转产品详情
 const goToDetail = (productId: string) => {
   router.push(`/product/${productId}`)
+}
+
+// 获取当前用户ID
+const getUserId = () => {
+  try {
+    const info = JSON.parse(localStorage.getItem('user_info') || '{}')
+    return info.id || ''
+  } catch { return '' }
+}
+
+// 加入购物车
+const addToCart = async (product: any) => {
+  const userId = getUserId()
+  if (!userId) {
+    showToast('请先登录')
+    return
+  }
+  try {
+    const res = await post('/cart', {
+      userId,
+      managerId: product.managerId || '',
+      productId: product.id,
+      productName: product.title || '',
+      productPrice: product.price || 0,
+      coverImage: product.coverImage || '',
+      optionLabel: '',
+      redirectUrl: ''
+    })
+    if (res.code === 0) {
+      showToast('已加入购物车')
+      product.inCart = true
+    } else {
+      showToast(res.message || '加入失败')
+    }
+  } catch (error: any) {
+    console.error('加入购物车失败:', error)
+    showToast(error.message || '加入失败')
+  }
+}
+
+// 显示提示
+const showToast = (message: string) => {
+  // @ts-ignore
+  uni.showToast({
+    title: message,
+    icon: 'none',
+    duration: 2000
+  })
 }
 </script>
 
@@ -302,5 +392,11 @@ const goToDetail = (productId: string) => {
 .product-sales {
   font-size: 11px;
   color: #969799;
+}
+
+.product-actions {
+  margin-top: 8px;
+  display: flex;
+  justify-content: flex-end;
 }
 </style>

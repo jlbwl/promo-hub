@@ -228,6 +228,25 @@ export async function initDatabase(): Promise<void> {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `)
 
+  // 购物车表
+  await pool.execute(\`
+    CREATE TABLE IF NOT EXISTS cart (
+      id VARCHAR(100) PRIMARY KEY,
+      userId VARCHAR(100) NOT NULL COMMENT '用户ID（主账户）',
+      managerId VARCHAR(100) DEFAULT '' COMMENT '所属经理ID',
+      productId VARCHAR(100) NOT NULL COMMENT '产品ID',
+      productName VARCHAR(500) DEFAULT '' COMMENT '产品名称',
+      productPrice DECIMAL(10,2) DEFAULT 0 COMMENT '产品单价',
+      coverImage VARCHAR(1000) DEFAULT '' COMMENT '产品封面图',
+      optionLabel VARCHAR(500) DEFAULT '' COMMENT '选择的选项',
+      redirectUrl VARCHAR(2000) DEFAULT '' COMMENT '跳转链接',
+      addedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '加入购物车时间',
+      INDEX idx_userId (userId),
+      INDEX idx_managerId (managerId),
+      INDEX idx_productId (productId)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  \`)
+
   // 检查是否有管理员账号，没有则创建默认账号
   const [adminRows] = await pool.execute('SELECT COUNT(*) as count FROM admins')
   const adminCount = (adminRows as any[])[0].count
