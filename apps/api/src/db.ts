@@ -23,7 +23,7 @@ const pool = mysql.createPool({
 // 通用查询方法（带超时）
 export async function query(sql: string, params?: any[]): Promise<any> {
   const timeoutPromise = new Promise<never>((_, reject) => {
-    setTimeout(() => reject(new Error('Query timeout')), 8000)
+    setTimeout(() => reject(new Error('Query timeout')), 30000)
   })
   const queryPromise = pool.execute(sql, params)
   const [rows] = await Promise.race([queryPromise, timeoutPromise]) as any
@@ -32,7 +32,7 @@ export async function query(sql: string, params?: any[]): Promise<any> {
 
 export async function queryOne(sql: string, params?: any[]): Promise<any> {
   const timeoutPromise = new Promise<never>((_, reject) => {
-    setTimeout(() => reject(new Error('Query timeout')), 8000)
+    setTimeout(() => reject(new Error('Query timeout')), 30000)
   })
   const queryPromise = pool.execute(sql, params)
   const [rows] = await Promise.race([queryPromise, timeoutPromise]) as any
@@ -46,7 +46,7 @@ export async function initDatabase(): Promise<void> {
     CREATE TABLE IF NOT EXISTS products (
       id VARCHAR(100) PRIMARY KEY,
       title VARCHAR(500) NOT NULL DEFAULT '',
-      description TEXT,
+      description LONGTEXT,
       coverImage VARCHAR(1000) DEFAULT '',
       images JSON DEFAULT NULL,
       price DECIMAL(10,2) NOT NULL DEFAULT 0,
@@ -74,6 +74,12 @@ export async function initDatabase(): Promise<void> {
   try {
     await pool.execute('ALTER TABLE products ADD COLUMN requirePhone TINYINT(1) NOT NULL DEFAULT 0 AFTER requireName')
   } catch (e) { /* 列可能已存在，忽略错误 */ }
+
+  // 修改 description 字段为 LONGTEXT（如果不已经是）
+  try {
+    await pool.execute('ALTER TABLE products MODIFY COLUMN description LONGTEXT')
+    console.log('[DB] description column changed to LONGTEXT')
+  } catch (e) { /* 忽略错误 */ }
 
   // 渠道经理表
   await pool.execute(`
