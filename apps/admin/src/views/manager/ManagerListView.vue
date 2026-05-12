@@ -253,26 +253,6 @@ const teamNameForm = reactive({
 })
 const editRow = ref<any>(null)
 
-// 获取角色标签类型
-const getRoleTagType = (role: string) => {
-  const map: Record<string, string> = {
-    admin: 'danger',
-    manager: '',
-    vip: 'success'
-  }
-  return map[role] || ''
-}
-
-// 获取角色标签文字
-const getRoleLabel = (role: string) => {
-  const map: Record<string, string> = {
-    admin: '管理员',
-    manager: '普通渠道',
-    vip: 'vip渠道'
-  }
-  return map[role] || '普通渠道'
-}
-
 const addFormRules: FormRules = {
   teamName: [
     { required: true, message: '请输入渠道名称', trigger: 'blur' }

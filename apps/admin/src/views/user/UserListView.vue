@@ -240,28 +240,6 @@ const teamNameForm = reactive({
 })
 const editRow = ref<UserItem | null>(null)
 
-// 获取角色标签类型
-const getRoleTagType = (role: string) => {
-  const map: Record<string, string> = {
-    admin: 'danger',
-    manager: 'warning',
-    user: '',
-    vip: 'success'
-  }
-  return map[role] || ''
-}
-
-// 获取角色标签文字
-const getRoleLabel = (role: string) => {
-  const map: Record<string, string> = {
-    admin: '管理员',
-    manager: '渠道经理',
-    user: '普通团队',
-    vip: 'vip团队'
-  }
-  return map[role] || '普通团队'
-}
-
 // 加载数据
 const loadData = async () => {
   loading.value = true
