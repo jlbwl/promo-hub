@@ -155,6 +155,13 @@ export async function initDatabase(): Promise<void> {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `)
 
+  // 新增 deleted 相关列（如果不存在）
+  try {
+    await pool.execute('ALTER TABLE orders ADD COLUMN deleted TINYINT(1) DEFAULT 0')
+  } catch (e) { /* 列可能已存在，忽略错误 */ }
+  try {
+    await pool.execute('ALTER TABLE orders ADD COLUMN deletedAt DATETIME DEFAULT NULL')
+  } catch (e) { /* 列可能已存在，忽略错误 */ }
   // 新增 userName、userPhone 和 teamName 列（如果不存在）
   try {
     await pool.execute('ALTER TABLE orders ADD COLUMN userName VARCHAR(200) DEFAULT "" AFTER redirectUrl')
