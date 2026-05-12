@@ -177,7 +177,7 @@ jobs:
           strip_components: 2
           rm: true
 
-      - name: Restart API and Nginx
+      - name: Restart API, Fix DB and Nginx
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.SERVER_HOST }}
@@ -211,24 +211,95 @@ jobs:
             echo "=== .env 文件内容 ==="
             cat .env | sed 's/ALIBABA_CLOUD_ACCESS_KEY_SECRET=.*/ALIBABA_CLOUD_ACCESS_KEY_SECRET=***/'
 
+            # ===== 自动修复数据库 Schema =====
+            echo "=== 开始自动修复数据库 Schema ==="
+
+            # 检查 MySQL 客户端是否存在
+            if command -v mysql &> /dev/null; then
+              echo "MySQL 客户端已安装，开始修复数据库..."
+
+              # 修复 orders 表缺少的字段
+              echo "--- 修复 orders 表 ---"
+              mysql -h "${{ secrets.DB_HOST }}" \
+                    -P "${{ secrets.DB_PORT }}" \
+                    -u "${{ secrets.DB_USER }}" \
+                    -p"${{ secrets.DB_PASSWORD }}" \
+                    "${{ secrets.DB_NAME }}" \
+                    -e "ALTER TABLE orders ADD COLUMN IF NOT EXISTS teamName VARCHAR(200) DEFAULT '' AFTER userPhone;" \
+                    2>/dev/null && echo "✓ teamName 字段已添加" || echo "⚠ teamName 字段可能已存在或其他错误，继续..."
+
+              mysql -h "${{ secrets.DB_HOST }}" \
+                    -P "${{ secrets.DB_PORT }}" \
+                    -u "${{ secrets.DB_USER }}" \
+                    -p"${{ secrets.DB_PASSWORD }}" \
+                    "${{ secrets.DB_NAME }}" \
+                    -e "ALTER TABLE orders ADD COLUMN IF NOT EXISTS userName VARCHAR(200) DEFAULT '' AFTER redirectUrl;" \
+                    2>/dev/null && echo "✓ userName 字段已添加" || echo "⚠ userName 字段可能已存在或其他错误，继续..."
+
+              mysql -h "${{ secrets.DB_HOST }}" \
+                    -P "${{ secrets.DB_PORT }}" \
+                    -u "${{ secrets.DB_USER }}" \
+                    -p"${{ secrets.DB_PASSWORD }}" \
+                    "${{ secrets.DB_NAME }}" \
+                    -e "ALTER TABLE orders ADD COLUMN IF NOT EXISTS userPhone VARCHAR(50) DEFAULT '' AFTER userName;" \
+                    2>/dev/null && echo "✓ userPhone 字段已添加" || echo "⚠ userPhone 字段可能已存在或其他错误，继续..."
+
+              # 修复 products 表缺少的字段
+              echo "--- 修复 products 表 ---"
+              mysql -h "${{ secrets.DB_HOST }}" \
+                    -P "${{ secrets.DB_PORT }}" \
+                    -u "${{ secrets.DB_USER }}" \
+                    -p"${{ secrets.DB_PASSWORD }}" \
+                    "${{ secrets.DB_NAME }}" \
+                    -e "ALTER TABLE products ADD COLUMN IF NOT EXISTS requireName TINYINT(1) NOT NULL DEFAULT 0 AFTER offlineAt;" \
+                    2>/dev/null && echo "✓ requireName 字段已添加" || echo "⚠ requireName 字段可能已存在或其他错误，继续..."
+
+              mysql -h "${{ secrets.DB_HOST }}" \
+                    -P "${{ secrets.DB_PORT }}" \
+                    -u "${{ secrets.DB_USER }}" \
+                    -p"${{ secrets.DB_PASSWORD }}" \
+                    "${{ secrets.DB_NAME }}" \
+                    -e "ALTER TABLE products ADD COLUMN IF NOT EXISTS requirePhone TINYINT(1) NOT NULL DEFAULT 0 AFTER requireName;" \
+                    2>/dev/null && echo "✓ requirePhone 字段已添加" || echo "⚠ requirePhone 字段可能已存在或其他错误，继续..."
+
+              echo "=== 数据库 Schema 修复完成 ==="
+
+              # 验证修复结果
+              echo "=== 验证 orders 表结构 ==="
+              mysql -h "${{ secrets.DB_HOST }}" \
+                    -P "${{ secrets.DB_PORT }}" \
+                    -u "${{ secrets.DB_USER }}" \
+                    -p"${{ secrets.DB_PASSWORD }}" \
+                    "${{ secrets.DB_NAME }}" \
+                    -e "DESCRIBE orders;" 2>/dev/null | grep -E "teamName|userName|userPhone" || echo "验证完成"
+
+            else
+              echo "⚠️  MySQL 客户端未安装，跳过数据库自动修复"
+              echo "请手动执行以下 SQL 修复数据库："
+              echo "ALTER TABLE orders ADD COLUMN teamName VARCHAR(200) DEFAULT '' AFTER userPhone;"
+              echo "ALTER TABLE orders ADD COLUMN userName VARCHAR(200) DEFAULT '' AFTER redirectUrl;"
+              echo "ALTER TABLE orders ADD COLUMN userPhone VARCHAR(50) DEFAULT '' AFTER userName;"
+            fi
+            # ===== 数据库修复结束 =====
+
             # 先删除旧进程
             pm2 delete promo-api 2>/dev/null || true
-            
+
             # 安装依赖并启动
             npm install --production
             pm2 start dist/index.js --name promo-api --wait-ready
-            
+
             # 等待几秒让服务完全启动
             sleep 3
-            
+
             # 检查服务状态
             pm2 status
             echo "=== API 服务日志 (最近20行) ==="
             pm2 logs promo-api --lines 20 --nostream
-            
+
             echo "=== 文件部署完成 ==="
             echo "Admin files: $(ls ${{ env.DEPLOY_DIR }}/admin/ | wc -l)"
             echo "Manager files: $(ls ${{ env.DEPLOY_DIR }}/manager/ | wc -l)"
             echo "User files: $(ls ${{ env.DEPLOY_DIR }}/user/ | wc -l)"
             nginx -s reload 2>/dev/null || true
-            echo "Deploy done!"
+            echo "🎉 部署完成！"
