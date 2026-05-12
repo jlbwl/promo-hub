@@ -149,7 +149,9 @@ export async function initDatabase(): Promise<void> {
       createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
       updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
       deleted TINYINT(1) DEFAULT 0,
-      deletedAt DATETIME DEFAULT NULL
+      deletedAt DATETIME DEFAULT NULL,
+      INDEX idx_deleted (deleted),
+      INDEX idx_deleted_manager (deleted, managerId)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `)
 
@@ -163,6 +165,13 @@ export async function initDatabase(): Promise<void> {
   try {
     await pool.execute('ALTER TABLE orders ADD COLUMN teamName VARCHAR(200) DEFAULT "" AFTER userPhone')
   } catch (e) { /* 列可能已存在，忽略错误 */ }
+  // 添加 deleted 相关索引（如果不存在）
+  try {
+    await pool.execute('ALTER TABLE orders ADD INDEX idx_deleted (deleted)')
+  } catch (e) { /* 索引可能已存在，忽略错误 */ }
+  try {
+    await pool.execute('ALTER TABLE orders ADD INDEX idx_deleted_manager (deleted, managerId)')
+  } catch (e) { /* 索引可能已存在，忽略错误 */ }
 
   // 佣金表
   await pool.execute(`
