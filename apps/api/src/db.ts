@@ -150,12 +150,15 @@ export async function initDatabase(): Promise<void> {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `)
 
-  // 新增 userName 和 userPhone 列（如果不存在）
+  // 新增 userName、userPhone 和 teamName 列（如果不存在）
   try {
     await pool.execute('ALTER TABLE orders ADD COLUMN userName VARCHAR(200) DEFAULT "" AFTER redirectUrl')
   } catch (e) { /* 列可能已存在，忽略错误 */ }
   try {
     await pool.execute('ALTER TABLE orders ADD COLUMN userPhone VARCHAR(50) DEFAULT "" AFTER userName')
+  } catch (e) { /* 列可能已存在，忽略错误 */ }
+  try {
+    await pool.execute('ALTER TABLE orders ADD COLUMN teamName VARCHAR(200) DEFAULT "" AFTER userPhone')
   } catch (e) { /* 列可能已存在，忽略错误 */ }
 
   // 佣金表

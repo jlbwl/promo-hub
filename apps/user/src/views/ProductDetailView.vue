@@ -280,8 +280,8 @@ const submitGoOrder = (userInfo: any) => {
   let cleanUrlForJump = ''
   if (chosenOption) {
     payload.optionLabel = chosenOption.label
-    // 清理 redirectUrl 中的反引号
-    payload.redirectUrl = (chosenOption.redirectUrl || '').replace(/`/g, '')
+    // 清理 redirectUrl 中的反引号和首尾空格/换行
+    payload.redirectUrl = (chosenOption.redirectUrl || '').replace(/`/g, '').trim()
     cleanUrlForJump = payload.redirectUrl
     console.log('[做单] 原始redirectUrl:', chosenOption.redirectUrl)
     console.log('[做单] 清理后redirectUrl:', payload.redirectUrl)
