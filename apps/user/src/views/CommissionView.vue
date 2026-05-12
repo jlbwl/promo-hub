@@ -90,7 +90,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+import { ref, reactive, onMounted, onActivated } from 'vue'
 import { get } from '@promo/shared/utils/request'
 
 // 当前激活的 Tab
@@ -116,6 +116,9 @@ const overview = reactive({
 
 // 订单记录
 const records = ref<any[]>([])
+
+// 防止重复加载
+let isLoading = false
 
 // 获取当前用户 ID
 const getUserId = () => {
@@ -186,6 +189,11 @@ const loadStats = async () => {
 
 // 加载订单记录
 const loadRecords = async () => {
+  if (isLoading) {
+    loading.value = false
+    return
+  }
+  isLoading = true
   try {
     const params: any = {
       page: page.value,
@@ -214,6 +222,7 @@ const loadRecords = async () => {
     finished.value = true
   } finally {
     loading.value = false
+    isLoading = false
   }
 }
 
@@ -222,11 +231,28 @@ const onTabChange = () => {
   page.value = 1
   records.value = []
   finished.value = false
+  loading.value = true
   loadRecords()
 }
 
 // 初始化加载
-loadStats()
+const initData = () => {
+  page.value = 1
+  records.value = []
+  finished.value = false
+  loading.value = false
+  isLoading = false
+  loadStats()
+  loadRecords()
+}
+
+onMounted(() => {
+  initData()
+})
+
+onActivated(() => {
+  initData()
+})
 </script>
 
 <style scoped lang="scss">
