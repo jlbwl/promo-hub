@@ -73,10 +73,10 @@ describe('request module', () => {
       )
     })
 
-    it('should set timeout to 60000ms', () => {
+    it('should set timeout to 15000ms', () => {
       expect(axios.create).toHaveBeenCalledWith(
         expect.objectContaining({
-          timeout: 60000,
+          timeout: 15000,
         })
       )
     })

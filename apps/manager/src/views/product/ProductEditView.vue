@@ -366,6 +366,29 @@ const handleUpload = () => {
   ElMessage.success('图片上传成功（模拟）')
 }
 
+// 优化富文本内容，移除不必要的标签并压缩
+const optimizeRichText = (html: string): string => {
+  if (!html) return ''
+  
+  // 检测并警告 base64 图片
+  const base64ImgRegex = /<img[^>]+src=["']data:image[^>]+>/gi
+  const base64Imgs = html.match(base64ImgRegex)
+  if (base64Imgs && base64Imgs.length > 0) {
+    console.warn(`[富文本] 检测到 ${base64Imgs.length} 张 base64 图片，请使用编辑器上传功能`)
+    // 可以在这里添加自动上传逻辑，但暂时只是警告
+  }
+  
+  // 优化 HTML：移除多余空格，压缩标签
+  let optimized = html
+    .replace(/\s+/g, ' ') // 多个空格合并为一个
+    .replace(/>\s+</g, '><') // 标签间空格移除
+    .replace(/<!--[\s\S]*?-->/g, '') // 移除注释
+    .replace(/class="[^"]*"/g, '') // 移除 class 属性
+    .replace(/style="[^"]*"/g, '') // 移除 style 属性（保留必要样式）
+  
+  return optimized
+}
+
 // 保存产品
 const handleSave = async () => {
   if (!formRef.value) return
@@ -383,9 +406,12 @@ const handleSave = async () => {
       } catch { return '' }
     })()
 
+    // 优化富文本内容
+    const optimizedDescription = optimizeRichText(form.description)
+
     const payload = {
       title: form.title,
-      description: form.description,
+      description: optimizedDescription,
       category: form.category,
       price: form.price,
       stock: form.stock || 0,

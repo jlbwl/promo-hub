@@ -141,11 +141,18 @@ const handlePaste = async (e: ClipboardEvent) => {
     }
   }
   
-  // 如果是粘贴HTML，清理一下
+  // 如果是粘贴HTML，清理一下并移除base64图片
   if (!hasImage && e.clipboardData?.types.includes('text/html')) {
     const html = e.clipboardData.getData('text/html')
-    const sanitizedHtml = sanitizeHtml(html)
-    if (sanitizedHtml !== html) {
+    let sanitizedHtml = sanitizeHtml(html)
+    // 额外清理base64图片
+    const base64ImgRegex = /<img[^>]+src=["']data:image[^>]+>/gi
+    const hasBase64Img = base64ImgRegex.test(sanitizedHtml)
+    if (hasBase64Img) {
+      sanitizedHtml = sanitizedHtml.replace(base64ImgRegex, '')
+      ElMessage.warning('粘贴内容中的图片已移除，请使用编辑器上传功能插入图片')
+    }
+    if (sanitizedHtml !== html || hasBase64Img) {
       e.preventDefault()
       document.execCommand('insertHTML', false, sanitizedHtml)
     }
@@ -390,6 +397,16 @@ const handleInput = () => {
   if (!editorRef.value) return
   
   let html = editorRef.value.innerHTML
+  
+  // 清理可能存在的 base64 图片
+  const base64ImgRegex = /<img[^>]+src=["']data:image[^>]+>/gi
+  const base64Imgs = html.match(base64ImgRegex)
+  if (base64Imgs && base64Imgs.length > 0) {
+    // 移除 base64 图片并提示
+    html = html.replace(base64ImgRegex, '')
+    ElMessage.warning('检测到未上传的图片，已自动移除，请使用编辑器的上传功能插入图片')
+    editorRef.value.innerHTML = html
+  }
   
   // 限制长度
   const textContent = editorRef.value.textContent || ''

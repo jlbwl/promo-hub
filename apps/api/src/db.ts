@@ -23,7 +23,7 @@ const pool = mysql.createPool({
 // 通用查询方法（带超时）
 export async function query(sql: string, params?: any[]): Promise<any> {
   const timeoutPromise = new Promise<never>((_, reject) => {
-    setTimeout(() => reject(new Error('Query timeout')), 30000)
+    setTimeout(() => reject(new Error('Query timeout')), 8000)
   })
   const queryPromise = pool.execute(sql, params)
   const [rows] = await Promise.race([queryPromise, timeoutPromise]) as any
@@ -32,7 +32,7 @@ export async function query(sql: string, params?: any[]): Promise<any> {
 
 export async function queryOne(sql: string, params?: any[]): Promise<any> {
   const timeoutPromise = new Promise<never>((_, reject) => {
-    setTimeout(() => reject(new Error('Query timeout')), 30000)
+    setTimeout(() => reject(new Error('Query timeout')), 8000)
   })
   const queryPromise = pool.execute(sql, params)
   const [rows] = await Promise.race([queryPromise, timeoutPromise]) as any
