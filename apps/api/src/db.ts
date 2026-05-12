@@ -229,7 +229,7 @@ export async function initDatabase(): Promise<void> {
   `)
 
   // 购物车表
-  await pool.execute(\`
+  await pool.execute(`
     CREATE TABLE IF NOT EXISTS cart (
       id VARCHAR(100) PRIMARY KEY,
       userId VARCHAR(100) NOT NULL COMMENT '用户ID（主账户）',
@@ -245,7 +245,7 @@ export async function initDatabase(): Promise<void> {
       INDEX idx_managerId (managerId),
       INDEX idx_productId (productId)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-  \`)
+  `)
 
   // 检查是否有管理员账号，没有则创建默认账号
   const [adminRows] = await pool.execute('SELECT COUNT(*) as count FROM admins')
