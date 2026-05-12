@@ -146,7 +146,10 @@ export async function initDatabase(): Promise<void> {
       transferredFromManager VARCHAR(200) DEFAULT '',
       transferredAt DATETIME DEFAULT NULL,
       managedBy VARCHAR(50) DEFAULT 'manager',
-      createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+      createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      deleted TINYINT(1) DEFAULT 0,
+      deletedAt DATETIME DEFAULT NULL
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `)
 

@@ -28,7 +28,7 @@ const {
   readProducts, writeProducts, insertProduct, updateProduct, readProduct, deleteProduct,
   readManagers, writeManagers, deleteManager,
   readUsers, writeUsers, readUser, insertUser, updateUser, deleteUser,
-  readOrders, writeOrders, insertOrder, deleteOrder, readOrder,
+  readOrders, writeOrders, insertOrder, deleteOrder, readOrder, readDeletedOrders, restoreOrder,
   readCommissions, writeCommissions,
   readAdminByPhone, readAdminById, updateAdmin,
   readEmployeesByUserId, readEmployeeById, readEmployeeByPhone, insertEmployee, deleteEmployee,
@@ -1283,6 +1283,76 @@ app.delete('/api/orders/:id', async (req, res) => {
   } catch (error: any) {
     console.error('[订单删除] 错误:', error)
     res.json({ code: 500, message: '删除失败', data: null })
+  }
+})
+
+// 用户端删除订单（软删除）
+app.delete('/api/user/orders/:id', async (req, res) => {
+  const { id } = req.params
+  const { userId } = req.body
+  
+  try {
+    const order = await readOrder(id)
+    if (!order) {
+      res.json({ code: 404, message: '订单不存在', data: null })
+      return
+    }
+    
+    // 验证用户权限
+    if (order.userId !== userId) {
+      res.json({ code: 403, message: '无权操作此订单', data: null })
+      return
+    }
+    
+    await deleteOrder(id)
+    
+    res.json({ code: 0, message: '已移至回收站', data: null })
+  } catch (error: any) {
+    console.error('[用户删除订单] 错误:', error)
+    res.json({ code: 500, message: '删除失败', data: null })
+  }
+})
+
+// 获取用户已删除的订单（回收站）
+app.get('/api/user/orders/deleted', async (req, res) => {
+  const { userId } = req.query
+  
+  try {
+    const orders = await readDeletedOrders(userId as string)
+    res.json({ code: 0, message: 'success', data: orders })
+  } catch (error: any) {
+    console.error('[获取已删除订单] 错误:', error)
+    res.json({ code: 500, message: '获取失败', data: null })
+  }
+})
+
+// 恢复订单（从回收站找回）
+app.post('/api/user/orders/:id/restore', async (req, res) => {
+  const { id } = req.params
+  const { userId } = req.body
+  
+  try {
+    // 先检查订单是否存在于回收站
+    const orders = await readDeletedOrders(userId)
+    const order = orders.find((o: any) => o.id === id)
+    
+    if (!order) {
+      res.json({ code: 404, message: '订单不存在或不在回收站', data: null })
+      return
+    }
+    
+    // 验证用户权限
+    if (order.userId !== userId) {
+      res.json({ code: 403, message: '无权操作此订单', data: null })
+      return
+    }
+    
+    await restoreOrder(id)
+    
+    res.json({ code: 0, message: '恢复成功', data: null })
+  } catch (error: any) {
+    console.error('[恢复订单] 错误:', error)
+    res.json({ code: 500, message: '恢复失败', data: null })
   }
 })
 

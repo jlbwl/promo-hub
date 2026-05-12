@@ -78,7 +78,8 @@ export async function deleteUser(id: string): Promise<void> {
 // ============ Orders ============
 
 export async function readOrders(): Promise<any[]> {
-  return readFileData('orders')
+  const orders = await readFileData('orders')
+  return orders.filter((o: any) => !o.deleted)
 }
 
 export async function writeOrders(orders: any[]): Promise<void> {
@@ -86,20 +87,45 @@ export async function writeOrders(orders: any[]): Promise<void> {
 }
 
 export async function readOrder(id: string): Promise<any> {
-  const orders = await readOrders()
-  return orders.find((o: any) => o.id === id) || null
+  const orders = await readFileData('orders')
+  return orders.find((o: any) => o.id === id && !o.deleted) || null
+}
+
+export async function readDeletedOrders(userId?: string): Promise<any[]> {
+  const orders = await readFileData('orders')
+  let filtered = orders.filter((o: any) => o.deleted)
+  if (userId) {
+    filtered = filtered.filter((o: any) => o.userId === userId)
+  }
+  return filtered.sort((a: any, b: any) => new Date(b.deletedAt).getTime() - new Date(a.deletedAt).getTime())
 }
 
 export async function insertOrder(o: any): Promise<void> {
-  const orders = await readOrders()
+  const orders = await readFileData('orders')
   orders.push(o)
   await writeOrders(orders)
 }
 
 export async function deleteOrder(id: string): Promise<void> {
-  const orders = await readOrders()
-  const filtered = orders.filter((o: any) => o.id !== id)
-  await writeOrders(filtered)
+  const orders = await readFileData('orders')
+  const updated = orders.map((o: any) => {
+    if (o.id === id) {
+      return { ...o, deleted: 1, deletedAt: new Date().toISOString() }
+    }
+    return o
+  })
+  await writeOrders(updated)
+}
+
+export async function restoreOrder(id: string): Promise<void> {
+  const orders = await readFileData('orders')
+  const updated = orders.map((o: any) => {
+    if (o.id === id) {
+      return { ...o, deleted: 0, deletedAt: null }
+    }
+    return o
+  })
+  await writeOrders(updated)
 }
 
 // ============ Products ============

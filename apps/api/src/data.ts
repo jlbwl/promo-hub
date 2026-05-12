@@ -244,11 +244,21 @@ export async function deleteUser(id: string): Promise<void> {
 // ============ Orders ============
 
 export async function readOrders(): Promise<any[]> {
-  return await query('SELECT * FROM orders ORDER BY createdAt DESC')
+  return await query('SELECT * FROM orders WHERE deleted = 0 ORDER BY createdAt DESC')
 }
 
 export async function readOrder(id: string): Promise<any> {
-  return await queryOne('SELECT * FROM orders WHERE id = ?', [id])
+  return await queryOne('SELECT * FROM orders WHERE id = ? AND deleted = 0', [id])
+}
+
+export async function readDeletedOrders(userId?: string): Promise<any[]> {
+  const params: any[] = []
+  let sql = 'SELECT * FROM orders WHERE deleted = 1 ORDER BY deletedAt DESC'
+  if (userId) {
+    sql = 'SELECT * FROM orders WHERE deleted = 1 AND userId = ? ORDER BY deletedAt DESC'
+    params.push(userId)
+  }
+  return await query(sql, params)
 }
 
 export async function writeOrders(orders: any[]): Promise<void> {
@@ -289,7 +299,11 @@ export async function updateOrder(id: string, fields: Record<string, any>): Prom
 }
 
 export async function deleteOrder(id: string): Promise<void> {
-  await query('DELETE FROM orders WHERE id = ?', [id])
+  await query('UPDATE orders SET deleted = 1, deletedAt = NOW() WHERE id = ?', [id])
+}
+
+export async function restoreOrder(id: string): Promise<void> {
+  await query('UPDATE orders SET deleted = 0, deletedAt = NULL WHERE id = ?', [id])
 }
 
 // ============ Commissions ============

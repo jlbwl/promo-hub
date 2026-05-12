@@ -5,6 +5,8 @@
       title="我的佣金"
       fixed
       placeholder
+      right-text="回收站"
+      @click-right="openRecycleBin"
     />
 
     <!-- 佣金概览卡片 -->
@@ -53,31 +55,43 @@
       @load="loadRecords"
     >
       <div class="record-list">
-        <div
+        <van-swipe-cell
           v-for="record in records"
           :key="record.id"
-          class="record-card"
+          :right-width="65"
+          @open="handleOpen"
+          @close="handleClose"
         >
-          <div class="record-left">
-            <h4 class="record-title">{{ record.productName }} <van-tag v-if="record.optionLabel" type="primary" plain size="medium" style="vertical-align: middle; margin-left: 4px;">{{ record.optionLabel }}</van-tag></h4>
-            <div class="record-user-info" v-if="record.userName || record.userPhone">
-              <span v-if="record.userName">姓名：{{ maskName(record.userName) }}</span>
-              <span v-if="record.userPhone" style="margin-left: 8px;">手机：{{ maskPhone(record.userPhone) }}</span>
+          <div class="record-card">
+            <div class="record-left">
+              <h4 class="record-title">{{ record.productName }} <van-tag v-if="record.optionLabel" type="primary" plain size="medium" style="vertical-align: middle; margin-left: 4px;">{{ record.optionLabel }}</van-tag></h4>
+              <div class="record-user-info" v-if="record.userName || record.userPhone">
+                <span v-if="record.userName">姓名：{{ maskName(record.userName) }}</span>
+                <span v-if="record.userPhone" style="margin-left: 8px;">手机：{{ maskPhone(record.userPhone) }}</span>
+              </div>
+              <span class="record-time">{{ formatTime(record.createdAt) }}</span>
+              <span v-if="record.rejectReason" class="reject-reason">驳回原因：{{ record.rejectReason }}</span>
             </div>
-            <span class="record-time">{{ formatTime(record.createdAt) }}</span>
-            <span v-if="record.rejectReason" class="reject-reason">驳回原因：{{ record.rejectReason }}</span>
+            <div class="record-right">
+              <span class="record-price">¥{{ record.productPrice }}</span>
+              <van-tag
+                :type="(statusType(record.status) as any)"
+                size="medium"
+                round
+              >
+                {{ statusLabel(record.status) }}
+              </van-tag>
+            </div>
           </div>
-          <div class="record-right">
-            <span class="record-price">¥{{ record.productPrice }}</span>
-            <van-tag
-              :type="(statusType(record.status) as any)"
-              size="medium"
-              round
-            >
-              {{ statusLabel(record.status) }}
-            </van-tag>
-          </div>
-        </div>
+          <template #right>
+            <van-button
+              type="danger"
+              square
+              text="删除"
+              @click="handleDelete(record)"
+            />
+          </template>
+        </van-swipe-cell>
       </div>
 
       <!-- 空状态 -->
@@ -86,12 +100,45 @@
         description="暂无做单记录"
       />
     </van-list>
+
+    <!-- 回收站弹窗 -->
+    <van-action-sheet
+      v-model:show="showRecycleBin"
+      title="回收站"
+      :actions="recycleBinActions"
+      cancel-text="关闭"
+      @select="handleRestore"
+    >
+      <template #description>
+        <div class="recycle-bin-content">
+          <div v-if="deletedOrders.length === 0" class="empty-recycle">
+            <van-icon name="trash-o" size="48" color="#ccc" />
+            <p>回收站是空的</p>
+          </div>
+          <div v-else class="deleted-list">
+            <div
+              v-for="order in deletedOrders"
+              :key="order.id"
+              class="deleted-item"
+              @click="selectOrder(order)"
+              :class="{ active: selectedOrder?.id === order.id }"
+            >
+              <div class="deleted-info">
+                <span class="deleted-title">{{ order.productName }}</span>
+                <span class="deleted-time">删除于 {{ formatTime(order.deletedAt) }}</span>
+              </div>
+              <van-icon name="check" v-if="selectedOrder?.id === order.id" color="#1989fa" />
+            </div>
+          </div>
+        </div>
+      </template>
+    </van-action-sheet>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, onMounted, onActivated } from 'vue'
-import { get } from '@promo/shared/utils/request'
+import { get, del, post } from '@promo/shared/utils/request'
 
 // 当前激活的 Tab
 const activeTab = ref('all')
@@ -119,6 +166,16 @@ const records = ref<any[]>([])
 
 // 防止重复加载
 let isLoading = false
+
+// 回收站相关
+const showRecycleBin = ref(false)
+const deletedOrders = ref<any[]>([])
+const selectedOrder = ref<any>(null)
+
+// 回收站操作按钮
+const recycleBinActions = [
+  { name: '恢复选中', color: '#1989fa', loading: false }
+]
 
 // 获取当前用户 ID
 const getUserId = () => {
@@ -224,6 +281,108 @@ const loadRecords = async () => {
     loading.value = false
     isLoading = false
   }
+}
+
+// 删除订单
+const handleDelete = async (record: any) => {
+  // 仅允许删除待审核状态的订单
+  if (record.status !== 'pending') {
+    showToast('仅支持删除待审核状态的订单')
+    return
+  }
+  
+  try {
+    const res = await del(`/user/orders/${record.id}`, { userId: getUserId() })
+    if (res.code === 0) {
+      showToast('已移至回收站')
+      // 从列表中移除
+      const index = records.value.findIndex(r => r.id === record.id)
+      if (index > -1) {
+        records.value.splice(index, 1)
+      }
+      // 更新统计
+      overview.total--
+      const statusKey = record.status === 'pending_payment' ? 'pendingPayment' : record.status
+      if (overview[statusKey as keyof typeof overview]) {
+        (overview[statusKey as keyof typeof overview] as number)--
+      }
+    } else {
+      showToast(res.message || '删除失败')
+    }
+  } catch (error: any) {
+    console.error('删除订单失败:', error)
+    showToast(error.message || '删除失败')
+  }
+}
+
+// 打开回收站
+const openRecycleBin = async () => {
+  selectedOrder.value = null
+  await loadDeletedOrders()
+  showRecycleBin.value = true
+}
+
+// 加载已删除订单
+const loadDeletedOrders = async () => {
+  try {
+    const res = await get<any>('/user/orders/deleted', { userId: getUserId() })
+    if (res.code === 0) {
+      deletedOrders.value = res.data || []
+    }
+  } catch (error) {
+    console.error('获取已删除订单失败:', error)
+  }
+}
+
+// 选择订单
+const selectOrder = (order: any) => {
+  if (selectedOrder.value?.id === order.id) {
+    selectedOrder.value = null
+  } else {
+    selectedOrder.value = order
+  }
+}
+
+// 恢复订单
+const handleRestore = async () => {
+  if (!selectedOrder.value) {
+    showToast('请选择要恢复的订单')
+    return
+  }
+  
+  try {
+    const res = await post(`/user/orders/${selectedOrder.value.id}/restore`, { userId: getUserId() })
+    if (res.code === 0) {
+      showToast('恢复成功')
+      // 从回收站移除
+      const index = deletedOrders.value.findIndex(o => o.id === selectedOrder.value!.id)
+      if (index > -1) {
+        deletedOrders.value.splice(index, 1)
+      }
+      selectedOrder.value = null
+      // 刷新订单列表
+      initData()
+    } else {
+      showToast(res.message || '恢复失败')
+    }
+  } catch (error: any) {
+    console.error('恢复订单失败:', error)
+    showToast(error.message || '恢复失败')
+  }
+}
+
+// 滑动操作
+const handleOpen = () => {}
+const handleClose = () => {}
+
+// 显示提示
+const showToast = (message: string) => {
+  // @ts-ignore
+  uni.showToast({
+    title: message,
+    icon: 'none',
+    duration: 2000
+  })
 }
 
 // Tab 切换
