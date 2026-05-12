@@ -142,13 +142,13 @@ export async function writeManagers(managers: any[]): Promise<void> {
     const existing = await queryOne('SELECT id FROM managers WHERE id = ?', [m.id])
     if (existing) {
       await query(
-        `UPDATE managers SET username=?, password=?, name=?, phone=?, status=?, teamName=?, updatedAt=NOW() WHERE id=?`,
-        [m.username || '', m.password || '', m.name || '', m.phone || '', m.status || 'active', m.teamName || '', m.id]
+        `UPDATE managers SET username=?, password=?, name=?, phone=?, status=?, teamName=?, role=?, updatedAt=NOW() WHERE id=?`,
+        [m.username || '', m.password || '', m.name || '', m.phone || '', m.status || 'active', m.teamName || '', m.role || 'manager', m.id]
       )
     } else {
       await query(
-        `INSERT INTO managers (id, username, password, name, phone, status, teamName, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, NOW())`,
-        [m.id, m.username || '', m.password || '', m.name || '', m.phone || '', m.status || 'active', m.teamName || '']
+        `INSERT INTO managers (id, username, password, name, phone, status, teamName, role, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
+        [m.id, m.username || '', m.password || '', m.name || '', m.phone || '', m.status || 'active', m.teamName || '', m.role || 'manager']
       )
     }
   }
@@ -156,8 +156,8 @@ export async function writeManagers(managers: any[]): Promise<void> {
 
 export async function insertManager(m: any): Promise<void> {
   await query(
-    `INSERT INTO managers (id, username, password, name, phone, status, teamName, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, NOW())`,
-    [m.id, m.username || '', m.password || '', m.name || '', m.phone || '', m.status || 'active', m.teamName || '']
+    `INSERT INTO managers (id, username, password, name, phone, status, teamName, role, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
+    [m.id, m.username || '', m.password || '', m.name || '', m.phone || '', m.status || 'active', m.teamName || '', m.role || 'manager']
   )
 }
 
