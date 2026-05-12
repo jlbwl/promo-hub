@@ -288,47 +288,46 @@ const submitGoOrder = (userInfo: any) => {
   }
 
   console.log('[做单] 开始提交, payload:', JSON.stringify(payload))
+  
+  // 先执行跳转，避免跳转后刷新详情导致请求被中断
+  let jumpUrl = ''
+  if (chosenOption?.redirectUrl) {
+    jumpUrl = cleanUrlForJump.trim()
+    if (jumpUrl) {
+      if (!jumpUrl.startsWith('http://') && !jumpUrl.startsWith('https://')) {
+        jumpUrl = 'https://' + jumpUrl
+      }
+      console.log('[做单] 准备跳转链接:', jumpUrl)
+      
+      // 微信兼容的跳转方式
+      try {
+        if (navigator.userAgent.includes('MicroMessenger')) {
+          console.log('[做单] 微信环境检测')
+          window.location.href = jumpUrl
+        } else {
+          try {
+            const newWindow = window.open(jumpUrl, '_blank')
+            if (!newWindow || newWindow.closed === false) {
+              throw new Error('window.open 可能被拦截')
+            }
+          } catch (err) {
+            console.log('[做单] window.open 失败，使用 location.href', err)
+            window.location.href = jumpUrl
+          }
+        }
+      } catch (err) {
+        console.error('[做单] 跳转失败:', err)
+        window.location.href = jumpUrl
+      }
+    }
+  }
+  
+  // 提交订单（在跳转之后或不跳转时执行）
   post('/orders', payload).then((res: any) => {
     console.log('[做单] 成功, 响应:', JSON.stringify(res))
-    fetchProductDetail()
-    if (chosenOption?.redirectUrl) {
-      let url = cleanUrlForJump.trim()
-      console.log('[做单] 准备跳转链接:', url)
-      if (url) {
-        if (!url.startsWith('http://') && !url.startsWith('https://')) {
-          url = 'https://' + url
-          console.log('[做单] 自动补充协议后的链接:', url)
-        }
-        console.log('[做单] 开始跳转到:', url)
-        
-        // 微信兼容的跳转方式
-        try {
-          // 尝试多种方式跳转
-          if (navigator.userAgent.includes('MicroMessenger')) {
-            console.log('[做单] 微信环境检测')
-            // 微信内优先使用 location.href
-            window.location.href = url
-          } else {
-            // 其他环境尝试 window.open，失败则使用 location.href
-            try {
-              const newWindow = window.open(url, '_blank')
-              if (!newWindow || newWindow.closed === false) {
-                throw new Error('window.open 可能被拦截')
-              }
-            } catch (err) {
-              console.log('[做单] window.open 失败，使用 location.href', err)
-              window.location.href = url
-            }
-          }
-        } catch (err) {
-          console.error('[做单] 跳转失败:', err)
-          window.location.href = url
-        }
-      } else {
-        console.log('[做单] 清理后链接为空，不跳转')
-      }
-    } else {
-      console.log('[做单] 没有设置redirectUrl，不跳转')
+    // 只有在不跳转的情况下才刷新详情
+    if (!jumpUrl) {
+      fetchProductDetail()
     }
   }).catch((error: any) => {
     console.error('[做单] 失败:', error)
