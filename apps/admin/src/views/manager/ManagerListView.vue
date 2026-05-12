@@ -37,26 +37,6 @@
       >
         <el-table-column prop="teamName" label="渠道名称" width="140" show-overflow-tooltip />
         <el-table-column prop="phone" label="手机号" width="140" />
-        <el-table-column prop="role" label="角色" width="220" align="center">
-          <template #default="{ row }">
-            <el-button-group>
-              <el-button
-                :type="(row.role === 'manager' || !row.role) ? 'primary' : ''"
-                size="small"
-                @click="handleToggleManagerRole(row, 'manager')"
-              >
-                普通渠道
-              </el-button>
-              <el-button
-                :type="row.role === 'vip' ? 'success' : ''"
-                size="small"
-                @click="handleToggleManagerRole(row, 'vip')"
-              >
-                vip渠道
-              </el-button>
-            </el-button-group>
-          </template>
-        </el-table-column>
         <el-table-column prop="status" label="状态" width="200" align="center">
           <template #default="{ row }">
             <el-button-group>
@@ -316,27 +296,6 @@ const handleAdd = async () => {
     ElMessage.error(error.message || '添加失败')
   } finally {
     addLoading.value = false
-  }
-}
-
-// 切换渠道角色
-const handleToggleManagerRole = async (row: any, newRole: string) => {
-  if (row.role === newRole) return
-  
-  const roleLabel = newRole === 'manager' ? '普通渠道' : 'vip渠道'
-  try {
-    await ElMessageBox.confirm(`确定要将渠道「${row.teamName}」设置为${roleLabel}吗？`, '提示', {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      type: 'warning'
-    })
-    await put(`/users/${row.id}/role`, { role: newRole })
-    ElMessage.success(`角色设置成功`)
-    loadData()
-  } catch (error: any) {
-    if (error !== 'cancel') {
-      ElMessage.error(error.message || '操作失败')
-    }
   }
 }
 
