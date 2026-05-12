@@ -282,8 +282,13 @@ const submitGoOrder = (userInfo: any) => {
   post('/orders', payload).then(() => {
     fetchProductDetail()
     if (chosenOption?.redirectUrl) {
-      const url = chosenOption.redirectUrl
-      window.location.href = url
+      let url = chosenOption.redirectUrl.trim()
+      if (url) {
+        if (!url.startsWith('http://') && !url.startsWith('https://')) {
+          url = 'https://' + url
+        }
+        window.open(url, '_blank')
+      }
     }
   }).catch((error: any) => {
     showToast(error.message || '做单失败')
