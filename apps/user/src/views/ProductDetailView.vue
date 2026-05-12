@@ -300,7 +300,30 @@ const submitGoOrder = (userInfo: any) => {
           console.log('[做单] 自动补充协议后的链接:', url)
         }
         console.log('[做单] 开始跳转到:', url)
-        window.open(url, '_blank')
+        
+        // 微信兼容的跳转方式
+        try {
+          // 尝试多种方式跳转
+          if (navigator.userAgent.includes('MicroMessenger')) {
+            console.log('[做单] 微信环境检测')
+            // 微信内优先使用 location.href
+            window.location.href = url
+          } else {
+            // 其他环境尝试 window.open，失败则使用 location.href
+            try {
+              const newWindow = window.open(url, '_blank')
+              if (!newWindow || newWindow.closed === false) {
+                throw new Error('window.open 可能被拦截')
+              }
+            } catch (err) {
+              console.log('[做单] window.open 失败，使用 location.href', err)
+              window.location.href = url
+            }
+          }
+        } catch (err) {
+          console.error('[做单] 跳转失败:', err)
+          window.location.href = url
+        }
       } else {
         console.log('[做单] 清理后链接为空，不跳转')
       }
