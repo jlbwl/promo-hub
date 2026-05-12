@@ -291,7 +291,7 @@ export async function readOrder(id: string): Promise<any> {
   return await queryOne('SELECT * FROM orders WHERE id = ? AND deleted = 0', [id])
 }
 
-// 优化的订单统计（直接用SQL计数）
+// 优化的订单统计（单次查询获取所有统计）
 export async function getOrderStats(managerId?: string): Promise<any> {
   let whereClause = 'deleted = 0'
   const params: any[] = []
@@ -300,20 +300,24 @@ export async function getOrderStats(managerId?: string): Promise<any> {
     params.push(managerId)
   }
 
-  const totalRes = await queryOne(`SELECT COUNT(*) as total FROM orders WHERE ${whereClause}`, params)
-  const pendingRes = await queryOne(`SELECT COUNT(*) as count FROM orders WHERE ${whereClause} AND status = ?`, [...params, 'pending'])
-  const approvedRes = await queryOne(`SELECT COUNT(*) as count FROM orders WHERE ${whereClause} AND status = ?`, [...params, 'approved'])
-  const pendingPaymentRes = await queryOne(`SELECT COUNT(*) as count FROM orders WHERE ${whereClause} AND status = ?`, [...params, 'pending_payment'])
-  const settledRes = await queryOne(`SELECT COUNT(*) as count FROM orders WHERE ${whereClause} AND status = ?`, [...params, 'settled'])
-  const rejectedRes = await queryOne(`SELECT COUNT(*) as count FROM orders WHERE ${whereClause} AND status = ?`, [...params, 'rejected'])
+  const sql = `SELECT
+    COUNT(*) as total,
+    SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending,
+    SUM(CASE WHEN status = 'approved' THEN 1 ELSE 0 END) as approved,
+    SUM(CASE WHEN status = 'pending_payment' THEN 1 ELSE 0 END) as pendingPayment,
+    SUM(CASE WHEN status = 'settled' THEN 1 ELSE 0 END) as settled,
+    SUM(CASE WHEN status = 'rejected' THEN 1 ELSE 0 END) as rejected
+  FROM orders WHERE ${whereClause}`
+
+  const result = await queryOne(sql, params)
 
   return {
-    total: totalRes?.total || 0,
-    pending: pendingRes?.count || 0,
-    approved: approvedRes?.count || 0,
-    pendingPayment: pendingPaymentRes?.count || 0,
-    settled: settledRes?.count || 0,
-    rejected: rejectedRes?.count || 0,
+    total: Number(result?.total) || 0,
+    pending: Number(result?.pending) || 0,
+    approved: Number(result?.approved) || 0,
+    pendingPayment: Number(result?.pendingPayment) || 0,
+    settled: Number(result?.settled) || 0,
+    rejected: Number(result?.rejected) || 0,
   }
 }
 
