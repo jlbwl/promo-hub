@@ -276,7 +276,8 @@ const submitGoOrder = (userInfo: any) => {
   }
   if (chosenOption) {
     payload.optionLabel = chosenOption.label
-    payload.redirectUrl = chosenOption.redirectUrl || ''
+    // 清理 redirectUrl 中的反引号
+    payload.redirectUrl = (chosenOption.redirectUrl || '').replace(/`/g, '')
   }
 
   console.log('[做单] 开始提交:', JSON.stringify(payload))
@@ -284,7 +285,7 @@ const submitGoOrder = (userInfo: any) => {
     console.log('[做单] 成功:', JSON.stringify(res))
     fetchProductDetail()
     if (chosenOption?.redirectUrl) {
-      let url = chosenOption.redirectUrl.trim()
+      let url = chosenOption.redirectUrl.trim().replace(/`/g, '')
       console.log('[做单] 跳转链接:', url)
       if (url) {
         if (!url.startsWith('http://') && !url.startsWith('https://')) {

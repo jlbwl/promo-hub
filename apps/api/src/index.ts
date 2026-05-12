@@ -1124,12 +1124,13 @@ app.post('/api/orders', async (req, res) => {
   // 检查库存（stock 为 0 或未设置表示不限库存）
   if (product.stock && product.stock > 0) {
     if (product.stock < 1) {
+      console.log('[做单] 库存不足')
       res.json({ code: 400, message: '库存不足', data: null })
       return
     }
-    product.stock -= 1
-    products[index] = product
-    await writeProducts(products)
+    console.log('[做单] 扣减库存, 原库存:', product.stock, '新库存:', product.stock - 1)
+    // 使用 updateProduct 而不是 writeProducts，性能更高
+    await updateProduct(product.id, { stock: product.stock - 1, updatedAt: new Date().toISOString() })
   }
 
   // 如果是员工子账户做单，获取主账户ID
@@ -1150,8 +1151,11 @@ app.post('/api/orders', async (req, res) => {
     }
   }
 
+  // 清理 redirectUrl
+  const cleanRedirectUrl = (redirectUrl || '').replace(/`/g, '')
+  console.log('[做单] 清理后 redirectUrl:', cleanRedirectUrl)
+
   // 记录做单
-  const orders = await readOrders()
   const order = {
     id: `o_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
     productId,
@@ -1160,7 +1164,7 @@ app.post('/api/orders', async (req, res) => {
     productName: product.title,
     productPrice: product.price,
     optionLabel: optionLabel || '',
-    redirectUrl: redirectUrl || '',
+    redirectUrl: cleanRedirectUrl,
     userName: userName || '',
     userPhone: userPhone || '',
     teamName,
@@ -1168,11 +1172,12 @@ app.post('/api/orders', async (req, res) => {
     createdAt: new Date().toISOString(),
   }
   console.log('[做单] 创建订单:', JSON.stringify(order))
-  orders.push(order)
-  await writeOrders(orders)
+  // 使用 insertOrder 而不是 writeOrders，性能更高
+  await insertOrder(order)
   console.log('[做单] 订单已保存')
 
-  res.json({ code: 0, message: '做单成功', data: { order, remainingStock: product.stock || -1 } })
+  const remainingStock = product.stock && product.stock > 0 ? product.stock - 1 : (product.stock || -1)
+  res.json({ code: 0, message: '做单成功', data: { order, remainingStock } })
 })
 
 // 获取订单列表（用户端按 userId，经理端按 managerId）
