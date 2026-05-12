@@ -37,6 +37,13 @@
       >
         <el-table-column prop="teamName" label="渠道名称" width="140" show-overflow-tooltip />
         <el-table-column prop="phone" label="手机号" width="140" />
+        <el-table-column prop="role" label="角色" width="120" align="center">
+          <template #default="{ row }">
+            <el-tag :type="getRoleTagType(row.role)">
+              {{ getRoleLabel(row.role) }}
+            </el-tag>
+          </template>
+        </el-table-column>
         <el-table-column prop="status" label="状态" width="100" align="center">
           <template #default="{ row }">
             <el-tag :type="row.status === 'active' ? 'success' : 'danger'">
@@ -227,6 +234,26 @@ const teamNameForm = reactive({
   teamName: ''
 })
 const editRow = ref<any>(null)
+
+// 获取角色标签类型
+const getRoleTagType = (role: string) => {
+  const map: Record<string, string> = {
+    admin: 'danger',
+    manager: 'warning',
+    user: ''
+  }
+  return map[role] || 'info'
+}
+
+// 获取角色标签文字
+const getRoleLabel = (role: string) => {
+  const map: Record<string, string> = {
+    admin: '管理员',
+    manager: '渠道经理',
+    user: '普通用户'
+  }
+  return map[role] || role
+}
 
 const addFormRules: FormRules = {
   teamName: [
