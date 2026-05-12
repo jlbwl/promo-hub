@@ -239,20 +239,20 @@ const editRow = ref<any>(null)
 const getRoleTagType = (role: string) => {
   const map: Record<string, string> = {
     admin: 'danger',
-    manager: 'warning',
-    user: ''
+    manager: '',
+    vip: 'success'
   }
-  return map[role] || 'info'
+  return map[role] || ''
 }
 
 // 获取角色标签文字
 const getRoleLabel = (role: string) => {
   const map: Record<string, string> = {
     admin: '管理员',
-    manager: '渠道经理',
-    user: '普通用户'
+    manager: '普通渠道',
+    vip: 'vip渠道'
   }
-  return map[role] || role
+  return map[role] || '普通渠道'
 }
 
 const addFormRules: FormRules = {

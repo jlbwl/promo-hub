@@ -227,9 +227,10 @@ const getRoleTagType = (role: string) => {
   const map: Record<string, string> = {
     admin: 'danger',
     manager: 'warning',
-    user: ''
+    user: '',
+    vip: 'success'
   }
-  return map[role] || 'info'
+  return map[role] || ''
 }
 
 // 获取角色标签文字
@@ -237,9 +238,10 @@ const getRoleLabel = (role: string) => {
   const map: Record<string, string> = {
     admin: '管理员',
     manager: '渠道经理',
-    user: '普通用户'
+    user: '普通团队',
+    vip: 'vip团队'
   }
-  return map[role] || role
+  return map[role] || '普通团队'
 }
 
 // 加载数据
