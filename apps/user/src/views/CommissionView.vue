@@ -602,4 +602,71 @@ onActivated(() => {
     }
   }
 }
+
+// 回收站样式
+.recycle-bin-content {
+  padding: 8px 0;
+}
+
+.empty-recycle {
+  text-align: center;
+  padding: 32px 0;
+  
+  p {
+    margin-top: 12px;
+    font-size: 14px;
+    color: #969799;
+  }
+}
+
+.deleted-list {
+  padding: 0 8px;
+}
+
+.deleted-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 12px;
+  margin-bottom: 8px;
+  background-color: #ffffff;
+  border-radius: 8px;
+  border: 2px solid transparent;
+  transition: all 0.2s ease;
+  
+  &:active {
+    background-color: #f7f8fa;
+  }
+  
+  &.active {
+    background-color: #e8f4fd;
+    border-color: #1989fa;
+    
+    .deleted-title {
+      color: #1989fa;
+      font-weight: 600;
+    }
+  }
+}
+
+.deleted-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.deleted-title {
+  display: block;
+  font-size: 15px;
+  font-weight: 500;
+  color: #323233;
+  margin-bottom: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.deleted-time {
+  font-size: 12px;
+  color: #969799;
+}
 </style>
