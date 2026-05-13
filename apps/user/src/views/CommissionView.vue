@@ -64,7 +64,7 @@
         >
           <div class="record-card">
             <div class="record-left">
-              <h4 class="record-title">{{ record.productName }} <van-tag v-if="record.optionLabel" type="primary" plain size="medium" style="vertical-align: middle; margin-left: 4px;">{{ record.optionLabel }}</van-tag></h4>
+              <h4 class="record-title">{{ record.productName }} <van-tag v-if="record.optionLabel" type="primary" plain size="medium" style="vertical-align: middle; margin-left: 4px;">{{ record.optionLabel }}</van-tag><van-tag v-if="record.fundAccount" type="primary" plain size="medium" style="vertical-align: middle; margin-left: 4px;">{{ record.fundAccount }}</van-tag></h4>
               <div class="record-user-info" v-if="record.userName || record.userPhone">
                 <span v-if="record.userName">姓名：{{ maskName(record.userName) }}</span>
                 <span v-if="record.userPhone" style="margin-left: 8px;">手机：{{ maskPhone(record.userPhone) }}</span>
@@ -154,6 +154,7 @@
                 <div class="deleted-title-row">
                   <span class="deleted-title">{{ order.productName }}</span>
                   <van-tag v-if="order.optionLabel" type="primary" plain size="medium">{{ order.optionLabel }}</van-tag>
+                  <van-tag v-if="order.fundAccount" type="primary" plain size="medium">{{ order.fundAccount }}</van-tag>
                 </div>
                 <div class="deleted-user-info" v-if="order.userName || order.userPhone">
                   <span v-if="order.userName">姓名：{{ maskName(order.userName) }}</span>
@@ -404,6 +405,8 @@ const submitFundAccount = async (record: any) => {
     })
     if (res.code === 0) {
       showToast('提交成功')
+      // 更新订单记录中的资金号
+      record.fundAccount = fundAccount
       // 重置输入状态
       const index = fundInputIds.value.indexOf(record.id)
       if (index > -1) {
