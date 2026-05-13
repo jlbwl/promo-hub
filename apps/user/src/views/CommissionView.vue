@@ -58,9 +58,7 @@
         <van-swipe-cell
           v-for="record in records"
           :key="record.id"
-          :right-width="200"
-          @open="handleOpen"
-          @close="handleClose"
+          :right-width="65"
         >
           <div class="record-card">
             <div class="record-left">
@@ -84,29 +82,12 @@
             </div>
           </div>
           <template #right>
-            <div class="swipe-actions">
-              <van-button
-                type="default"
-                square
-                text="标为未读"
-                size="large"
-                @click="handleMarkUnread(record)"
-              />
-              <van-button
-                type="warning"
-                square
-                text="不显示"
-                size="large"
-                @click="handleHide(record)"
-              />
-              <van-button
-                type="danger"
-                square
-                text="删除"
-                size="large"
-                @click="handleDelete(record)"
-              />
-            </div>
+            <van-button
+              type="danger"
+              square
+              text="删除"
+              @click="handleDelete(record)"
+            />
           </template>
         </van-swipe-cell>
       </div>
@@ -301,21 +282,6 @@ const loadRecords = async () => {
   }
 }
 
-// 标为未读
-const handleMarkUnread = (record: any) => {
-  showToast('已标为未读')
-}
-
-// 不显示
-const handleHide = (record: any) => {
-  showToast('已隐藏')
-  // 从列表中移除（模拟隐藏效果）
-  const index = records.value.findIndex(r => r.id === record.id)
-  if (index > -1) {
-    records.value.splice(index, 1)
-  }
-}
-
 // 删除订单
 const handleDelete = async (record: any) => {
   // 仅允许删除待审核状态的订单
@@ -403,10 +369,6 @@ const handleRestore = async () => {
     showToast(error.message || '恢复失败')
   }
 }
-
-// 滑动操作
-const handleOpen = () => {}
-const handleClose = () => {}
 
 // Tab 切换
 const onTabChange = () => {
@@ -559,39 +521,5 @@ onActivated(() => {
   font-size: 16px;
   font-weight: 600;
   color: #323233;
-}
-
-// 侧拉菜单样式（微信风格）
-.swipe-actions {
-  display: flex;
-  height: 100%;
-  
-  :deep(.van-button) {
-    flex: 1;
-    height: 100%;
-    border-radius: 0;
-    margin: 0;
-    padding: 0 12px;
-    font-size: 14px;
-    font-weight: 500;
-    
-    &.van-button--default {
-      background-color: #f4f4f5;
-      color: #646566;
-      border: none;
-    }
-    
-    &.van-button--warning {
-      background-color: #ff976a;
-      color: #ffffff;
-      border: none;
-    }
-    
-    &.van-button--danger {
-      background-color: #ee0a24;
-      color: #ffffff;
-      border: none;
-    }
-  }
 }
 </style>
