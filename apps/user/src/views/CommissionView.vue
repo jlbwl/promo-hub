@@ -357,12 +357,12 @@ const handleSwipeClose = (recordId: string) => {
 // 获取侧拉菜单宽度
 const getSwipeWidth = (recordId: string): number => {
   if (fundInputIds.value.includes(recordId)) {
-    return 220
+    return 240
   }
   if (confirmingIds.value.includes(recordId)) {
-    return 130
+    return 200
   }
-  return 130
+  return 140
 }
 
 // 显示资金号输入框
