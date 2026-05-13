@@ -103,6 +103,7 @@
         <template #default="{ row }">
           <span>{{ row.productName }}</span>
           <el-tag v-if="row.optionLabel" size="small" type="info" style="margin-left: 6px;">{{ row.optionLabel }}</el-tag>
+          <el-tag v-if="row.fundAccount" size="small" type="primary" plain style="margin-left: 6px;">{{ row.fundAccount }}</el-tag>
         </template>
       </el-table-column>
       <el-table-column prop="userName" label="用户姓名" width="120" show-overflow-tooltip>
@@ -119,12 +120,6 @@
       <el-table-column prop="userPhone" label="手机号" width="130" show-overflow-tooltip>
         <template #default="{ row }">
           <span>{{ maskPhone(row.userPhone) }}</span>
-        </template>
-      </el-table-column>
-      <el-table-column prop="fundAccount" label="资金号" width="130" show-overflow-tooltip>
-        <template #default="{ row }">
-          <el-tag v-if="row.fundAccount" type="primary" plain>{{ row.fundAccount }}</el-tag>
-          <span v-else>--</span>
         </template>
       </el-table-column>
       <el-table-column prop="productPrice" label="产品售价" width="100" align="right">
@@ -222,6 +217,7 @@
             <template #default="{ row }">
               <span>{{ row.productName }}</span>
               <el-tag v-if="row.optionLabel" size="small" type="info" style="margin-left: 4px;">{{ row.optionLabel }}</el-tag>
+              <el-tag v-if="row.fundAccount" size="small" type="primary" plain style="margin-left: 4px;">{{ row.fundAccount }}</el-tag>
             </template>
           </el-table-column>
           <el-table-column prop="userName" label="用户姓名" width="100" show-overflow-tooltip>
