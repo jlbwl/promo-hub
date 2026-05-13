@@ -58,6 +58,7 @@
         <van-swipe-cell
           v-for="record in records"
           :key="record.id"
+          :ref="el => { if (el) swipeCellRefs[record.id] = el }"
           :right-width="confirmingIds.includes(record.id) ? 180 : 65"
           @close="handleSwipeClose(record.id)"
         >
@@ -86,7 +87,7 @@
             <van-button
               :type="confirmingIds.includes(record.id) ? 'warning' : 'danger'"
               square
-              :text="confirmingIds.includes(record.id) ? '移除记录同时存放到回收站' : '删除'"
+              :text="confirmingIds.includes(record.id) ? '移除记录同时存放回收站' : '删除'"
               @click="handleDelete(record)"
             />
           </template>
@@ -166,6 +167,9 @@ const records = ref<any[]>([])
 
 // 正在确认删除的记录ID列表（两步删除确认）
 const confirmingIds = ref<string[]>([])
+
+// swipe-cell 组件引用，用于控制菜单打开状态
+const swipeCellRefs: Record<string, any> = {}
 
 // 防止重复加载
 let isLoading = false
@@ -337,6 +341,13 @@ const handleDelete = async (record: any) => {
     }
     // 进入确认状态
     confirmingIds.value.push(record.id)
+    // 保持侧拉菜单打开状态（延迟执行确保DOM更新后再打开）
+    setTimeout(() => {
+      const swipeCell = swipeCellRefs[record.id]
+      if (swipeCell && swipeCell.open) {
+        swipeCell.open('right')
+      }
+    }, 50)
   }
 }
 
