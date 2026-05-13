@@ -88,17 +88,20 @@
               <!-- 提交资金号按钮/输入框 -->
               <div class="fund-action" v-if="fundInputIds.includes(record.id)">
                 <input
+                  :ref="(el) => { if (el) fundInputRefs[record.id] = el }"
                   type="text"
                   class="fund-input"
                   v-model="fundAccountNumbers[record.id]"
                   placeholder="请输入资金号"
                   @keyup.enter="submitFundAccount(record)"
+                  @click.stop
+                  @touchend.stop
                 />
                 <van-button
                   type="primary"
                   size="small"
                   text="提交"
-                  @click="submitFundAccount(record)"
+                  @click.stop="submitFundAccount(record)"
                 />
               </div>
               <van-button
@@ -209,14 +212,17 @@ const confirmingIds = ref<string[]>([])
 // swipe-cell 组件引用，用于控制菜单打开状态
 const swipeCellRefs: Record<string, any> = {}
 
+// 资金号输入框引用
+const fundInputRefs: Record<string, HTMLInputElement> = {}
+
 // 标记正在切换状态的记录（用于防止close事件清除确认状态）
 const switchingIds = ref<string[]>([])
 
 // 正在显示资金号输入框的记录ID列表
 const fundInputIds = ref<string[]>([])
 
-// 存储用户输入的资金号
-const fundAccountNumbers: Record<string, string> = {}
+// 存储用户输入的资金号（响应式）
+const fundAccountNumbers = reactive<Record<string, string>>({})
 
 // 防止重复加载
 let isLoading = false
@@ -375,12 +381,19 @@ const handleShowFundInput = (record: any) => {
   if (!fundAccountNumbers[record.id]) {
     fundAccountNumbers[record.id] = ''
   }
-  // 保持侧拉菜单打开状态
+  // 保持侧拉菜单打开状态并聚焦输入框
   setTimeout(() => {
     const swipeCell = swipeCellRefs[record.id]
     if (swipeCell && swipeCell.open) {
       swipeCell.open('right')
     }
+    // 聚焦到输入框
+    setTimeout(() => {
+      const inputEl = fundInputRefs[record.id]
+      if (inputEl) {
+        inputEl.focus()
+      }
+    }, 100)
     // 清除切换状态标记
     const idx = switchingIds.value.indexOf(record.id)
     if (idx > -1) {
