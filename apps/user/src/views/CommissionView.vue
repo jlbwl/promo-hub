@@ -171,6 +171,9 @@ const confirmingIds = ref<string[]>([])
 // swipe-cell 组件引用，用于控制菜单打开状态
 const swipeCellRefs: Record<string, any> = {}
 
+// 标记正在切换状态的记录（用于防止close事件清除确认状态）
+const switchingIds = ref<string[]>([])
+
 // 防止重复加载
 let isLoading = false
 
@@ -292,6 +295,10 @@ const loadRecords = async () => {
 
 // 侧拉菜单关闭时，重置确认状态
 const handleSwipeClose = (recordId: string) => {
+  // 如果正在切换状态，则不清除确认状态
+  if (switchingIds.value.includes(recordId)) {
+    return
+  }
   const index = confirmingIds.value.indexOf(recordId)
   if (index > -1) {
     confirmingIds.value.splice(index, 1)
@@ -339,6 +346,8 @@ const handleDelete = async (record: any) => {
       showToast('仅支持删除待审核状态的订单')
       return
     }
+    // 标记正在切换状态，防止close事件清除确认状态
+    switchingIds.value.push(record.id)
     // 进入确认状态
     confirmingIds.value.push(record.id)
     // 保持侧拉菜单打开状态（延迟执行确保DOM更新后再打开）
@@ -346,6 +355,11 @@ const handleDelete = async (record: any) => {
       const swipeCell = swipeCellRefs[record.id]
       if (swipeCell && swipeCell.open) {
         swipeCell.open('right')
+      }
+      // 清除切换状态标记
+      const idx = switchingIds.value.indexOf(record.id)
+      if (idx > -1) {
+        switchingIds.value.splice(idx, 1)
       }
     }, 50)
   }
