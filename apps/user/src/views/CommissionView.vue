@@ -85,40 +85,53 @@
           </div>
           <template #right>
             <div class="swipe-actions">
-              <!-- 提交资金号按钮/输入框 -->
-              <div class="fund-action" v-if="fundInputIds.includes(record.id)">
-                <input
-                  :ref="(el) => { if (el) fundInputRefs[record.id] = el }"
-                  type="text"
-                  class="fund-input"
-                  v-model="fundAccountNumbers[record.id]"
-                  placeholder="请输入资金号"
-                  @keyup.enter="submitFundAccount(record)"
-                  @click.stop
-                  @touchend.stop
+              <!-- 确认删除状态：只显示删除确认按钮 -->
+              <template v-if="confirmingIds.includes(record.id)">
+                <van-button
+                  type="warning"
+                  square
+                  text="移除记录同时存放回收站"
+                  @click="handleDelete(record)"
                 />
+              </template>
+              
+              <!-- 输入资金号状态：只显示输入框和提交按钮 -->
+              <template v-else-if="fundInputIds.includes(record.id)">
+                <div class="fund-action">
+                  <input
+                    :ref="(el) => { if (el) fundInputRefs[record.id] = el as HTMLInputElement }"
+                    type="text"
+                    class="fund-input"
+                    v-model="fundAccountNumbers[record.id]"
+                    placeholder="请输入资金号"
+                    @keyup.enter="submitFundAccount(record)"
+                    @click.stop
+                    @touchend.stop
+                  />
+                  <van-button
+                    type="primary"
+                    size="small"
+                    text="提交"
+                    @click.stop="submitFundAccount(record)"
+                  />
+                </div>
+              </template>
+              
+              <!-- 正常状态：显示提交资金号和删除按钮 -->
+              <template v-else>
                 <van-button
                   type="primary"
-                  size="small"
-                  text="提交"
-                  @click.stop="submitFundAccount(record)"
+                  square
+                  text="提交资金号"
+                  @click="handleShowFundInput(record)"
                 />
-              </div>
-              <van-button
-                v-else
-                type="primary"
-                square
-                text="提交资金号"
-                @click="handleShowFundInput(record)"
-              />
-              
-              <!-- 删除按钮 -->
-              <van-button
-                :type="confirmingIds.includes(record.id) ? 'warning' : 'danger'"
-                square
-                :text="confirmingIds.includes(record.id) ? '移除记录同时存放回收站' : '删除'"
-                @click="handleDelete(record)"
-              />
+                <van-button
+                  type="danger"
+                  square
+                  text="删除"
+                  @click="handleDelete(record)"
+                />
+              </template>
             </div>
           </template>
         </van-swipe-cell>
@@ -362,11 +375,11 @@ const handleSwipeClose = (recordId: string) => {
 
 // 获取侧拉菜单宽度
 const getSwipeWidth = (recordId: string): number => {
-  if (fundInputIds.value.includes(recordId)) {
-    return 240
-  }
   if (confirmingIds.value.includes(recordId)) {
     return 200
+  }
+  if (fundInputIds.value.includes(recordId)) {
+    return 240
   }
   return 140
 }
