@@ -522,4 +522,25 @@ onActivated(() => {
   font-weight: 600;
   color: #323233;
 }
+
+// 侧拉删除按钮样式（微信风格 - 高度填满）
+:deep(.van-swipe-cell__right) {
+  display: flex;
+  align-items: stretch;
+  
+  .van-button {
+    flex: 1;
+    height: 100%;
+    border-radius: 0;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #ee0a24;
+    color: #ffffff;
+    border: none;
+    font-size: 15px;
+    font-weight: 500;
+  }
+}
 </style>
