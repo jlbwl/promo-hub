@@ -124,8 +124,18 @@
               :class="{ active: selectedOrder?.id === order.id }"
             >
               <div class="deleted-info">
-                <span class="deleted-title">{{ order.productName }}</span>
-                <span class="deleted-time">删除于 {{ formatTime(order.deletedAt) }}</span>
+                <div class="deleted-title-row">
+                  <span class="deleted-title">{{ order.productName }}</span>
+                  <van-tag v-if="order.optionLabel" type="primary" plain size="medium">{{ order.optionLabel }}</van-tag>
+                </div>
+                <div class="deleted-user-info" v-if="order.userName || order.userPhone">
+                  <span v-if="order.userName">姓名：{{ maskName(order.userName) }}</span>
+                  <span v-if="order.userPhone" class="phone-span">手机：{{ maskPhone(order.userPhone) }}</span>
+                </div>
+                <div class="deleted-price-row">
+                  <span class="deleted-price">¥{{ order.productPrice }}</span>
+                  <span class="deleted-time">删除于 {{ formatTime(order.deletedAt) }}</span>
+                </div>
               </div>
               <van-icon name="check" v-if="selectedOrder?.id === order.id" color="#1989fa" />
             </div>
@@ -627,7 +637,7 @@ onActivated(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 12px;
+  padding: 14px 16px;
   margin-bottom: 8px;
   background-color: #ffffff;
   border-radius: 8px;
@@ -644,7 +654,6 @@ onActivated(() => {
     
     .deleted-title {
       color: #1989fa;
-      font-weight: 600;
     }
   }
 }
@@ -654,15 +663,42 @@ onActivated(() => {
   min-width: 0;
 }
 
+.deleted-title-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
 .deleted-title {
-  display: block;
   font-size: 15px;
   font-weight: 500;
   color: #323233;
-  margin-bottom: 4px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.deleted-user-info {
+  font-size: 13px;
+  color: #646566;
+  margin-bottom: 6px;
+  
+  .phone-span {
+    margin-left: 12px;
+  }
+}
+
+.deleted-price-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.deleted-price {
+  font-size: 16px;
+  font-weight: 600;
+  color: #323233;
 }
 
 .deleted-time {
