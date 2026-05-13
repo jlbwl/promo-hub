@@ -121,6 +121,12 @@
           <span>{{ maskPhone(row.userPhone) }}</span>
         </template>
       </el-table-column>
+      <el-table-column prop="fundAccount" label="资金号" width="130" show-overflow-tooltip>
+        <template #default="{ row }">
+          <el-tag v-if="row.fundAccount" type="primary" plain>{{ row.fundAccount }}</el-tag>
+          <span v-else>--</span>
+        </template>
+      </el-table-column>
       <el-table-column prop="productPrice" label="产品售价" width="100" align="right">
         <template #default="{ row }">
           <span style="font-weight: 500;">¥{{ row.productPrice }}</span>
