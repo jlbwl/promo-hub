@@ -59,6 +59,7 @@
           v-for="record in records"
           :key="record.id"
           :right-width="confirmingIds.includes(record.id) ? 180 : 65"
+          @close="handleSwipeClose(record.id)"
         >
           <div class="record-card">
             <div class="record-left">
@@ -282,6 +283,14 @@ const loadRecords = async () => {
   } finally {
     loading.value = false
     isLoading = false
+  }
+}
+
+// 侧拉菜单关闭时，重置确认状态
+const handleSwipeClose = (recordId: string) => {
+  const index = confirmingIds.value.indexOf(recordId)
+  if (index > -1) {
+    confirmingIds.value.splice(index, 1)
   }
 }
 
