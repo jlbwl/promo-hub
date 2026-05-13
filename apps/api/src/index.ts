@@ -29,7 +29,7 @@ const {
   readManagers, writeManagers, deleteManager,
   readUsers, writeUsers, readUser, insertUser, updateUser, deleteUser,
   readCartItems, readCartByManagerId, addToCart, removeFromCart, removeFromCartByProductId, isInCart,
-  readOrders, writeOrders, insertOrder, deleteOrder, readOrder, readDeletedOrders, restoreOrder, getOrderStats,
+  readOrders, writeOrders, insertOrder, updateOrder, deleteOrder, readOrder, readDeletedOrders, restoreOrder, getOrderStats,
   readCommissions, writeCommissions,
   readAdminByPhone, readAdminById, updateAdmin,
   readEmployeesByUserId, readEmployeeById, readEmployeeByPhone, insertEmployee, deleteEmployee,
@@ -1354,6 +1354,36 @@ app.post('/api/user/orders/:id/restore', async (req, res) => {
   } catch (error: any) {
     console.error('[恢复订单] 错误:', error)
     res.json({ code: 500, message: '恢复失败', data: null })
+  }
+})
+
+// 提交资金号
+app.post('/api/user/orders/fund-account', async (req, res) => {
+  const { userId, orderId, fundAccount } = req.body
+  
+  if (!userId || !orderId || !fundAccount) {
+    res.json({ code: 400, message: '缺少必要参数', data: null })
+    return
+  }
+  
+  try {
+    const order = await readOrder(orderId)
+    if (!order) {
+      res.json({ code: 404, message: '订单不存在', data: null })
+      return
+    }
+    
+    if (order.userId !== userId) {
+      res.json({ code: 403, message: '无权操作此订单', data: null })
+      return
+    }
+    
+    await updateOrder(orderId, { fundAccount })
+    
+    res.json({ code: 0, message: '提交成功', data: null })
+  } catch (error: any) {
+    console.error('[提交资金号] 错误:', error)
+    res.json({ code: 500, message: '提交失败', data: null })
   }
 })
 

@@ -145,6 +145,17 @@ export async function restoreOrder(id: string): Promise<void> {
   await writeOrders(updated)
 }
 
+export async function updateOrder(id: string, fields: Record<string, any>): Promise<void> {
+  const orders = await readFileData('orders')
+  const updated = orders.map((o: any) => {
+    if (o.id === id) {
+      return { ...o, ...fields }
+    }
+    return o
+  })
+  await writeOrders(updated)
+}
+
 // ============ Cart ============
 
 export async function readCartItems(userId: string): Promise<any[]> {
