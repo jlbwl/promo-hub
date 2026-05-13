@@ -58,7 +58,7 @@
         <van-swipe-cell
           v-for="record in records"
           :key="record.id"
-          :right-width="65"
+          :right-width="200"
           @open="handleOpen"
           @close="handleClose"
         >
@@ -84,12 +84,29 @@
             </div>
           </div>
           <template #right>
-            <van-button
-              type="danger"
-              square
-              text="删除"
-              @click="handleDelete(record)"
-            />
+            <div class="swipe-actions">
+              <van-button
+                type="default"
+                square
+                text="标为未读"
+                size="large"
+                @click="handleMarkUnread(record)"
+              />
+              <van-button
+                type="warning"
+                square
+                text="不显示"
+                size="large"
+                @click="handleHide(record)"
+              />
+              <van-button
+                type="danger"
+                square
+                text="删除"
+                size="large"
+                @click="handleDelete(record)"
+              />
+            </div>
           </template>
         </van-swipe-cell>
       </div>
@@ -281,6 +298,21 @@ const loadRecords = async () => {
   } finally {
     loading.value = false
     isLoading = false
+  }
+}
+
+// 标为未读
+const handleMarkUnread = (record: any) => {
+  showToast('已标为未读')
+}
+
+// 不显示
+const handleHide = (record: any) => {
+  showToast('已隐藏')
+  // 从列表中移除（模拟隐藏效果）
+  const index = records.value.findIndex(r => r.id === record.id)
+  if (index > -1) {
+    records.value.splice(index, 1)
   }
 }
 
@@ -527,5 +559,39 @@ onActivated(() => {
   font-size: 16px;
   font-weight: 600;
   color: #323233;
+}
+
+// 侧拉菜单样式（微信风格）
+.swipe-actions {
+  display: flex;
+  height: 100%;
+  
+  :deep(.van-button) {
+    flex: 1;
+    height: 100%;
+    border-radius: 0;
+    margin: 0;
+    padding: 0 12px;
+    font-size: 14px;
+    font-weight: 500;
+    
+    &.van-button--default {
+      background-color: #f4f4f5;
+      color: #646566;
+      border: none;
+    }
+    
+    &.van-button--warning {
+      background-color: #ff976a;
+      color: #ffffff;
+      border: none;
+    }
+    
+    &.van-button--danger {
+      background-color: #ee0a24;
+      color: #ffffff;
+      border: none;
+    }
+  }
 }
 </style>
