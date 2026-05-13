@@ -138,6 +138,7 @@ export async function initDatabase(): Promise<void> {
       userName VARCHAR(200) DEFAULT '',
       userPhone VARCHAR(50) DEFAULT '',
       teamName VARCHAR(200) DEFAULT '',
+      fundAccount VARCHAR(200) DEFAULT '',
       status VARCHAR(50) NOT NULL DEFAULT 'pending',
       reviewedAt DATETIME DEFAULT NULL,
       rejectReason TEXT DEFAULT NULL,
@@ -171,6 +172,10 @@ export async function initDatabase(): Promise<void> {
   } catch (e) { /* 列可能已存在，忽略错误 */ }
   try {
     await pool.execute('ALTER TABLE orders ADD COLUMN teamName VARCHAR(200) DEFAULT "" AFTER userPhone')
+  } catch (e) { /* 列可能已存在，忽略错误 */ }
+  // 新增 fundAccount 列（如果不存在）
+  try {
+    await pool.execute('ALTER TABLE orders ADD COLUMN fundAccount VARCHAR(200) DEFAULT "" AFTER teamName')
   } catch (e) { /* 列可能已存在，忽略错误 */ }
   // 添加 deleted 相关索引（如果不存在）
   try {
