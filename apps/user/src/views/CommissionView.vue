@@ -59,7 +59,7 @@
           v-for="record in records"
           :key="record.id"
           :ref="el => { if (el) swipeCellRefs[record.id] = el }"
-          :right-width="confirmingIds.includes(record.id) ? 180 : 65"
+          :right-width="getSwipeWidth(record.id)"
           @close="handleSwipeClose(record.id)"
         >
           <div class="record-card">
@@ -84,12 +84,39 @@
             </div>
           </div>
           <template #right>
-            <van-button
-              :type="confirmingIds.includes(record.id) ? 'warning' : 'danger'"
-              square
-              :text="confirmingIds.includes(record.id) ? '移除记录同时存放回收站' : '删除'"
-              @click="handleDelete(record)"
-            />
+            <div class="swipe-actions">
+              <!-- 提交资金号按钮/输入框 -->
+              <div class="fund-action" v-if="fundInputIds.includes(record.id)">
+                <input
+                  type="text"
+                  class="fund-input"
+                  v-model="fundAccountNumbers[record.id]"
+                  placeholder="请输入资金号"
+                  @keyup.enter="submitFundAccount(record)"
+                />
+                <van-button
+                  type="primary"
+                  size="small"
+                  text="提交"
+                  @click="submitFundAccount(record)"
+                />
+              </div>
+              <van-button
+                v-else
+                type="primary"
+                square
+                text="提交资金号"
+                @click="handleShowFundInput(record)"
+              />
+              
+              <!-- 删除按钮 -->
+              <van-button
+                :type="confirmingIds.includes(record.id) ? 'warning' : 'danger'"
+                square
+                :text="confirmingIds.includes(record.id) ? '移除记录同时存放回收站' : '删除'"
+                @click="handleDelete(record)"
+              />
+            </div>
           </template>
         </van-swipe-cell>
       </div>
@@ -183,6 +210,12 @@ const swipeCellRefs: Record<string, any> = {}
 
 // 标记正在切换状态的记录（用于防止close事件清除确认状态）
 const switchingIds = ref<string[]>([])
+
+// 正在显示资金号输入框的记录ID列表
+const fundInputIds = ref<string[]>([])
+
+// 存储用户输入的资金号
+const fundAccountNumbers: Record<string, string> = {}
 
 // 防止重复加载
 let isLoading = false
@@ -303,7 +336,7 @@ const loadRecords = async () => {
   }
 }
 
-// 侧拉菜单关闭时，重置确认状态
+// 侧拉菜单关闭时，重置确认状态和资金号输入状态
 const handleSwipeClose = (recordId: string) => {
   // 如果正在切换状态，则不清除确认状态
   if (switchingIds.value.includes(recordId)) {
@@ -312,6 +345,77 @@ const handleSwipeClose = (recordId: string) => {
   const index = confirmingIds.value.indexOf(recordId)
   if (index > -1) {
     confirmingIds.value.splice(index, 1)
+  }
+  // 重置资金号输入状态
+  const fundIndex = fundInputIds.value.indexOf(recordId)
+  if (fundIndex > -1) {
+    fundInputIds.value.splice(fundIndex, 1)
+  }
+}
+
+// 获取侧拉菜单宽度
+const getSwipeWidth = (recordId: string): number => {
+  if (fundInputIds.value.includes(recordId)) {
+    return 220
+  }
+  if (confirmingIds.value.includes(recordId)) {
+    return 130
+  }
+  return 130
+}
+
+// 显示资金号输入框
+const handleShowFundInput = (record: any) => {
+  // 标记正在切换状态
+  switchingIds.value.push(record.id)
+  // 进入资金号输入状态
+  fundInputIds.value.push(record.id)
+  // 初始化输入框值
+  if (!fundAccountNumbers[record.id]) {
+    fundAccountNumbers[record.id] = ''
+  }
+  // 保持侧拉菜单打开状态
+  setTimeout(() => {
+    const swipeCell = swipeCellRefs[record.id]
+    if (swipeCell && swipeCell.open) {
+      swipeCell.open('right')
+    }
+    // 清除切换状态标记
+    const idx = switchingIds.value.indexOf(record.id)
+    if (idx > -1) {
+      switchingIds.value.splice(idx, 1)
+    }
+  }, 50)
+}
+
+// 提交资金号
+const submitFundAccount = async (record: any) => {
+  const fundAccount = fundAccountNumbers[record.id]?.trim()
+  if (!fundAccount) {
+    showToast('请输入资金号')
+    return
+  }
+  
+  try {
+    const res = await post('/user/orders/fund-account', {
+      userId: getUserId(),
+      orderId: record.id,
+      fundAccount
+    })
+    if (res.code === 0) {
+      showToast('提交成功')
+      // 重置输入状态
+      const index = fundInputIds.value.indexOf(record.id)
+      if (index > -1) {
+        fundInputIds.value.splice(index, 1)
+      }
+      fundAccountNumbers[record.id] = ''
+    } else {
+      showToast(res.message || '提交失败')
+    }
+  } catch (error: any) {
+    console.error('提交资金号失败:', error)
+    showToast(error.message || '提交失败')
   }
 }
 
@@ -584,12 +688,20 @@ onActivated(() => {
   color: #323233;
 }
 
-// 侧拉删除按钮样式（微信风格 - 高度填满）
+// 侧拉菜单样式（微信风格）
 :deep(.van-swipe-cell__right) {
   display: flex;
   align-items: stretch;
+  height: 100%;
+}
+
+.swipe-actions {
+  display: flex;
+  align-items: stretch;
+  height: 100%;
+  width: 100%;
   
-  .van-button {
+  :deep(.van-button) {
     flex: 1;
     height: 100%;
     border-radius: 0;
@@ -598,7 +710,7 @@ onActivated(() => {
     align-items: center;
     justify-content: center;
     border: none;
-    font-size: 15px;
+    font-size: 14px;
     font-weight: 500;
     
     &.van-button--danger {
@@ -610,7 +722,38 @@ onActivated(() => {
       background-color: #ff976a;
       color: #ffffff;
     }
+    
+    &.van-button--primary {
+      background-color: #1989fa;
+      color: #ffffff;
+    }
   }
+}
+
+// 资金号输入框区域
+.fund-action {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 8px;
+  background-color: #1989fa;
+}
+
+.fund-input {
+  flex: 1;
+  height: 32px;
+  padding: 0 12px;
+  border: none;
+  border-radius: 4px;
+  font-size: 13px;
+  background-color: #ffffff;
+  color: #323233;
+  outline: none;
+}
+
+.fund-input::placeholder {
+  color: #969799;
 }
 
 // 回收站样式
