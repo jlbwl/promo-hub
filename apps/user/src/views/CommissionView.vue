@@ -58,7 +58,7 @@
         <van-swipe-cell
           v-for="record in records"
           :key="record.id"
-          :right-width="65"
+          :right-width="confirmingIds.includes(record.id) ? 180 : 65"
         >
           <div class="record-card">
             <div class="record-left">
@@ -83,9 +83,9 @@
           </div>
           <template #right>
             <van-button
-              type="danger"
+              :type="confirmingIds.includes(record.id) ? 'warning' : 'danger'"
               square
-              text="删除"
+              :text="confirmingIds.includes(record.id) ? '移除记录同时存放到回收站' : '删除'"
               @click="handleDelete(record)"
             />
           </template>
@@ -162,6 +162,9 @@ const overview = reactive({
 
 // 订单记录
 const records = ref<any[]>([])
+
+// 正在确认删除的记录ID列表（两步删除确认）
+const confirmingIds = ref<string[]>([])
 
 // 防止重复加载
 let isLoading = false
@@ -282,35 +285,49 @@ const loadRecords = async () => {
   }
 }
 
-// 删除订单
+// 删除订单（两步确认）
 const handleDelete = async (record: any) => {
-  // 仅允许删除待审核状态的订单
-  if (record.status !== 'pending') {
-    showToast('仅支持删除待审核状态的订单')
-    return
-  }
+  // 检查是否已处于确认状态
+  const isConfirming = confirmingIds.value.includes(record.id)
   
-  try {
-    const res = await del(`/user/orders/${record.id}`, { userId: getUserId() })
-    if (res.code === 0) {
-      showToast('已移至回收站')
-      // 从列表中移除
-      const index = records.value.findIndex(r => r.id === record.id)
-      if (index > -1) {
-        records.value.splice(index, 1)
+  if (isConfirming) {
+    // 第二步：确认删除，执行软删除
+    try {
+      const res = await del(`/user/orders/${record.id}`, { userId: getUserId() })
+      if (res.code === 0) {
+        showToast('已移至回收站')
+        // 从列表中移除
+        const index = records.value.findIndex(r => r.id === record.id)
+        if (index > -1) {
+          records.value.splice(index, 1)
+        }
+        // 更新统计
+        overview.total--
+        const statusKey = record.status === 'pending_payment' ? 'pendingPayment' : record.status
+        if (overview[statusKey as keyof typeof overview]) {
+          (overview[statusKey as keyof typeof overview] as number)--
+        }
+      } else {
+        showToast(res.message || '删除失败')
       }
-      // 更新统计
-      overview.total--
-      const statusKey = record.status === 'pending_payment' ? 'pendingPayment' : record.status
-      if (overview[statusKey as keyof typeof overview]) {
-        (overview[statusKey as keyof typeof overview] as number)--
+    } catch (error: any) {
+      console.error('删除订单失败:', error)
+      showToast(error.message || '删除失败')
+    } finally {
+      // 移除确认状态
+      const idx = confirmingIds.value.indexOf(record.id)
+      if (idx > -1) {
+        confirmingIds.value.splice(idx, 1)
       }
-    } else {
-      showToast(res.message || '删除失败')
     }
-  } catch (error: any) {
-    console.error('删除订单失败:', error)
-    showToast(error.message || '删除失败')
+  } else {
+    // 第一步：仅允许删除待审核状态的订单
+    if (record.status !== 'pending') {
+      showToast('仅支持删除待审核状态的订单')
+      return
+    }
+    // 进入确认状态
+    confirmingIds.value.push(record.id)
   }
 }
 
@@ -536,11 +553,19 @@ onActivated(() => {
     display: flex;
     align-items: center;
     justify-content: center;
-    background-color: #ee0a24;
-    color: #ffffff;
     border: none;
     font-size: 15px;
     font-weight: 500;
+    
+    &.van-button--danger {
+      background-color: #ee0a24;
+      color: #ffffff;
+    }
+    
+    &.van-button--warning {
+      background-color: #ff976a;
+      color: #ffffff;
+    }
   }
 }
 </style>
