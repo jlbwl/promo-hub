@@ -782,13 +782,13 @@ onActivated(() => {
   justify-content: space-between;
   padding: 14px 16px;
   margin-bottom: 8px;
-  background-color: #ffffff;
+  background-color: #f5f5f5;
   border-radius: 8px;
   border: 2px solid transparent;
   transition: all 0.2s ease;
   
   &:active {
-    background-color: #f7f8fa;
+    background-color: #ebebeb;
   }
   
   &.active {
