@@ -65,26 +65,26 @@ const form = reactive({
 
 const handleSubmit = async () => {
   loading.value = true
-  
+
   try {
     const res: any = await post('/employees/login', {
       phone: form.phone,
       password: form.password
     })
-    
-    if (res.code === 0) {
+
+    if (res.data.code === 0) {
       // 保存员工信息到 localStorage
-      localStorage.setItem('employee_info', JSON.stringify(res.data.employee))
-      localStorage.setItem('user_info', JSON.stringify(res.data.user))
-      localStorage.setItem('user_token', `employee_${res.data.employee.id}`)
+      localStorage.setItem('employee_info', JSON.stringify(res.data.data.employee))
+      localStorage.setItem('user_info', JSON.stringify(res.data.data.user))
+      localStorage.setItem('user_token', `employee_${res.data.data.employee.id}`)
       localStorage.setItem('login_type', 'employee')
-      
+
       showToast('登录成功')
       setTimeout(() => {
         router.replace('/home')
       }, 1000)
     } else {
-      showToast(res.message || '登录失败')
+      showToast(res.data.message || '登录失败')
     }
   } catch (err: any) {
     showToast(err.message || '登录失败')
