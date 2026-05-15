@@ -2,7 +2,7 @@
   <div class="cart-page">
     <!-- 顶部导航栏 -->
     <van-nav-bar
-      title="购物车"
+      title="收藏"
       fixed
       placeholder
     />
@@ -51,7 +51,7 @@
       <!-- 空状态 -->
       <van-empty
         v-else
-        description="购物车是空的"
+        description="收藏是空的"
         image="https://fastly.jsdelivr.net/npm/@vant/assets/custom-empty-image.png"
         image-size="100"
       >
@@ -66,7 +66,7 @@
     <!-- 底部提示（子账户） -->
     <div v-if="isEmployee" class="employee-tip">
       <van-icon name="info-o" />
-      <span>此购物车属于主账户，您可以在做单时快速访问</span>
+      <span>此收藏属于主账户，您可以在做单时快速访问</span>
     </div>
   </div>
 </template>

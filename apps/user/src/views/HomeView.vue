@@ -73,11 +73,11 @@
                   type="primary"
                   plain
                   round
-                  :icon="product.inCart ? 'success' : 'shopping-cart-o'"
+                  :icon="product.inCart ? 'star' : 'star-o'"
                   :disabled="product.inCart"
                   @click.stop="addToCart(product)"
                 >
-                  {{ product.inCart ? '已加入' : '加购' }}
+                  {{ product.inCart ? '已收藏' : '加入收藏' }}
                 </van-button>
               </div>
             </div>
@@ -237,7 +237,7 @@ const addToCart = async (product: any) => {
       redirectUrl: ''
     })
     if (res.code === 0) {
-      showToast('已加入购物车')
+      showToast('已收藏')
       product.inCart = true
     } else {
       showToast(res.message || '加入失败')

@@ -14,15 +14,15 @@
       >
         抢单大厅
       </van-tabbar-item>
-      <!-- 购物车（仅主账户显示） -->
+      <!-- 收藏（仅主账户显示） -->
       <van-tabbar-item
         v-if="!isEmployee"
         to="/cart"
-        icon="shopping-cart-o"
+        icon="star-o"
         name="cart"
         :badge="cartCount > 0 ? cartCount : ''"
       >
-        购物车
+        收藏
       </van-tabbar-item>
       <!-- 主账户显示佣金页面 -->
       <van-tabbar-item
