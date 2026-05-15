@@ -356,8 +356,19 @@ let smsTimer: ReturnType<typeof setInterval> | null = null
 // 加载用户信息
 const loadUserInfo = async () => {
   try {
-    const info = JSON.parse(localStorage.getItem('user_info') || '{}')
-    userInfo.id = info.id || ''
+    const infoStr = localStorage.getItem('user_info')
+    if (!infoStr) {
+      console.warn('localStorage 中没有用户信息')
+      return
+    }
+    
+    const info = JSON.parse(infoStr)
+    if (!info.id) {
+      console.warn('localStorage 中的用户信息不完整，缺少 id')
+      return
+    }
+    
+    userInfo.id = info.id
     userInfo.nickname = info.nickname || info.phone || '用户'
     userInfo.avatar = info.avatar || ''
     userInfo.phone = info.phone || ''
@@ -376,6 +387,8 @@ const loadUserInfo = async () => {
           ...info,
           teamName: userInfo.teamName
         }))
+      } else {
+        console.warn('获取用户信息失败，API 返回错误:', res.message)
       }
     }
   } catch (e) {
@@ -404,21 +417,31 @@ watch(showEmployeeList, (val) => {
 // 等待用户信息加载完成的函数
 const waitForUserInfo = (): Promise<void> => {
   return new Promise((resolve) => {
+    console.log('[waitForUserInfo] 开始等待用户信息，当前 userInfo.id:', userInfo.id)
+    
     if (userInfo.id) {
+      console.log('[waitForUserInfo] 用户ID已存在，立即 resolve')
       resolve()
       return
     }
+    
     const interval = setInterval(() => {
+      console.log('[waitForUserInfo] 检查用户信息，当前 userInfo.id:', userInfo.id)
       if (userInfo.id) {
         clearInterval(interval)
+        console.log('[waitForUserInfo] 获取到用户ID，resolve')
         resolve()
       }
-    }, 50)
-    // 最多等待3秒
+    }, 100)
+    
+    // 最多等待5秒
     setTimeout(() => {
-      clearInterval(interval)
+      if (interval) {
+        clearInterval(interval)
+      }
+      console.log('[waitForUserInfo] 等待超时，强制 resolve')
       resolve()
-    }, 3000)
+    }, 5000)
   })
 }
 
@@ -555,26 +578,40 @@ const editEmployee = (emp: any) => {
 
 // 加载员工列表
 const loadEmployees = async () => {
-  if (loadingEmployees.value) return
+  if (loadingEmployees.value) {
+    console.log('[员工列表] 正在加载中，跳过本次请求')
+    return
+  }
   
   loadingEmployees.value = true
+  employeesFinished.value = false
   
   try {
     // 等待用户信息加载完成
     await waitForUserInfo()
     
+    console.log('[员工列表] 当前用户ID:', userInfo.id)
+    
     if (!userInfo.id) {
+      console.warn('[员工列表] 用户ID为空，无法加载员工列表')
       showToast('获取用户信息失败')
       return
     }
     
+    console.log('[员工列表] 开始加载员工列表，userId:', userInfo.id)
     const res: any = await get('/employees', { userId: userInfo.id })
+    console.log('[员工列表] API 返回结果:', res)
     
     if (res.code === 0) {
       employees.value = res.data as any[]
       employeeCount.value = (res.data as any[]).length
+      console.log('[员工列表] 加载成功，共', employeeCount.value, '条记录')
+    } else {
+      console.error('[员工列表] API 返回错误:', res.message)
+      showToast(res.message || '获取员工列表失败')
     }
   } catch (e: any) {
+    console.error('[员工列表] 加载失败:', e)
     showToast(e.message || '获取员工列表失败')
   } finally {
     loadingEmployees.value = false

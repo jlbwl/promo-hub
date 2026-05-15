@@ -32,7 +32,7 @@ const {
   readOrders, writeOrders, insertOrder, updateOrder, deleteOrder, readOrder, readDeletedOrders, restoreOrder, getOrderStats,
   readCommissions, writeCommissions,
   readAdminByPhone, readAdminById, updateAdmin,
-  readEmployeesByUserId, readEmployeeById, readEmployeeByPhone, insertEmployee, deleteEmployee, validateEmployee,
+  readEmployeesByUserId, readEmployeeById, readEmployeeByPhone, insertEmployee, updateEmployee, deleteEmployee, validateEmployee,
   insertOperationLog, readOperationLogs,
   queryOne,
 } = dataModule
@@ -2036,11 +2036,18 @@ app.post('/api/employees', async (req, res) => {
 app.get('/api/employees', async (req, res) => {
   try {
     const { userId } = req.query
-    if (!userId) return res.json({ code: 1, message: '缺少用户ID' })
+    console.log('[API] 获取员工列表，userId:', userId)
+    
+    if (!userId) {
+      console.warn('[API] userId 为空')
+      return res.json({ code: 1, message: '缺少用户ID' })
+    }
     
     const employees = await readEmployeesByUserId(userId as string)
+    console.log('[API] 查询到员工数量:', employees.length)
     res.json({ code: 0, message: 'success', data: employees })
   } catch (err: any) {
+    console.error('[API] 获取员工列表失败:', err)
     res.json({ code: 1, message: err.message || '获取失败' })
   }
 })

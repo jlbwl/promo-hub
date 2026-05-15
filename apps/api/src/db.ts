@@ -219,6 +219,43 @@ export async function initDatabase(): Promise<void> {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `)
 
+  // 确保 employees 表的所有列都存在
+  try {
+    await pool.execute('ALTER TABLE employees ADD COLUMN userId VARCHAR(100) NOT NULL AFTER id')
+  } catch (e) { /* 忽略错误 */ }
+  try {
+    await pool.execute('ALTER TABLE employees ADD COLUMN phone VARCHAR(50) NOT NULL AFTER userId')
+  } catch (e) { /* 忽略错误 */ }
+  try {
+    await pool.execute('ALTER TABLE employees ADD COLUMN password VARCHAR(500) NOT NULL AFTER phone')
+  } catch (e) { /* 忽略错误 */ }
+  try {
+    await pool.execute('ALTER TABLE employees ADD COLUMN nickname VARCHAR(200) DEFAULT "" AFTER password')
+  } catch (e) { /* 忽略错误 */ }
+  try {
+    await pool.execute('ALTER TABLE employees ADD COLUMN expiresAt DATETIME NOT NULL AFTER nickname')
+  } catch (e) { /* 忽略错误 */ }
+  try {
+    await pool.execute('ALTER TABLE employees ADD COLUMN status VARCHAR(50) NOT NULL DEFAULT "active" AFTER expiresAt')
+  } catch (e) { /* 忽略错误 */ }
+  try {
+    await pool.execute('ALTER TABLE employees ADD COLUMN createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP AFTER status')
+  } catch (e) { /* 忽略错误 */ }
+  try {
+    await pool.execute('ALTER TABLE employees ADD COLUMN updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP AFTER createdAt')
+  } catch (e) { /* 忽略错误 */ }
+
+  // 确保索引存在
+  try {
+    await pool.execute('ALTER TABLE employees ADD INDEX idx_userId (userId)')
+  } catch (e) { /* 忽略错误 */ }
+  try {
+    await pool.execute('ALTER TABLE employees ADD INDEX idx_phone (phone)')
+  } catch (e) { /* 忽略错误 */ }
+  try {
+    await pool.execute('ALTER TABLE employees ADD INDEX idx_expiresAt (expiresAt)')
+  } catch (e) { /* 忽略错误 */ }
+
   // 管理员表
   await pool.execute(`
     CREATE TABLE IF NOT EXISTS admins (
