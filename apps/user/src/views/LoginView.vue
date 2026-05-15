@@ -117,7 +117,7 @@ const handlePasswordLogin = async () => {
   loading.value = true
   try {
     const res = await post<any>('/users/login', { phone: pwdForm.phone, password: pwdForm.password })
-    if (res.data?.token) onLoginSuccess(res.data)
+    onLoginSuccess(res.data)
   } catch (e: any) {
     showToast(e.message || '登录失败')
   } finally {
@@ -156,7 +156,7 @@ const handleSmsLogin = async () => {
   loading.value = true
   try {
     const res = await post<any>('/users/sms/login', { phone: smsForm.phone, code: smsForm.code, teamName: smsForm.teamName })
-    if (res.data?.token) onLoginSuccess(res.data)
+    onLoginSuccess(res.data)
   } catch (e: any) {
     showToast(e.message || '登录失败')
   } finally {
