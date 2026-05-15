@@ -54,7 +54,7 @@
       />
       <van-cell
         title="累计积分"
-        icon="coins"
+        icon="gold-coin"
         is-link
         :value="stats.totalCommission"
         @click="goTo('/commissions')"
