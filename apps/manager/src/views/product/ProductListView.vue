@@ -56,7 +56,16 @@
           </el-image>
         </template>
       </el-table-column>
-      <el-table-column prop="title" label="标题" min-width="180" show-overflow-tooltip />
+      <el-table-column prop="title" label="标题" min-width="220">
+        <template #default="{ row }">
+          <div class="title-with-category">
+            <span class="title-text">{{ row.title }}</span>
+            <el-tag v-if="row.category" type="primary" size="small" class="category-tag">
+              {{ row.category }}
+            </el-tag>
+          </div>
+        </template>
+      </el-table-column>
       <el-table-column prop="price" label="积分值" width="100" align="right">
         <template #default="{ row }">
           <span style="color: #f56c6c; font-weight: 500;">{{ Number(row.price || 0).toFixed(2) }}</span>
@@ -329,6 +338,23 @@ onMounted(() => {
     display: flex;
     justify-content: flex-end;
     margin-top: 16px;
+  }
+
+  .title-with-category {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+
+    .title-text {
+      font-size: 14px;
+      color: #303133;
+    }
+
+    .category-tag {
+      font-size: 12px;
+      padding: 2px 8px;
+      border-radius: 2px;
+    }
   }
 }
 </style>
