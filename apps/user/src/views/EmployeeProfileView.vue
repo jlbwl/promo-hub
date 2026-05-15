@@ -136,7 +136,7 @@ onMounted(() => {
 const handleAbout = () => {
   showDialog({
     title: '关于我们',
-    message: '推广联盟 v1.0.0\n\n分享好物，赚取佣金。我们致力于为用户提供优质的推广平台，让每一次分享都有价值。',
+    message: '推广联盟 v1.0.0\n\n分享好物，赚取积分。我们致力于为用户提供优质的推广平台，让每一次分享都有价值。',
     confirmButtonText: '确定'
   })
 }

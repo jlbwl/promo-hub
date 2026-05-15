@@ -24,14 +24,14 @@
       >
         收藏
       </van-tabbar-item>
-      <!-- 主账户显示佣金页面 -->
+      <!-- 主账户显示积分页面 -->
       <van-tabbar-item
         v-if="!isEmployee"
         to="/commissions"
-        icon="balance-o"
+        icon="coins"
         name="commissions"
       >
-        佣金
+        积分
       </van-tabbar-item>
       <van-tabbar-item
         :to="isEmployee ? '/employee-profile' : '/profile'"

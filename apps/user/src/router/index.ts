@@ -45,7 +45,7 @@ const routes: RouteRecordRaw[] = [
         path: 'commissions',
         name: 'Commissions',
         component: () => import('../views/CommissionView.vue'),
-        meta: { title: '我的佣金', requiresAuth: true, requiresUser: true }
+        meta: { title: '积分', requiresAuth: true, requiresUser: true }
       },
       {
         path: 'cart',

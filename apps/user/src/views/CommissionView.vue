@@ -2,14 +2,14 @@
   <div class="commission-page">
     <!-- 顶部导航栏 -->
     <van-nav-bar
-      title="我的佣金"
+      title="我的积分"
       fixed
       placeholder
       right-text="回收站"
       @click-right="openRecycleBin"
     />
 
-    <!-- 佣金概览卡片 -->
+    <!-- 积分概览卡片 -->
     <div class="commission-overview">
       <div class="overview-card">
         <div class="total-commission">
@@ -27,11 +27,11 @@
           </div>
           <div class="detail-item">
             <span class="value">{{ overview.pendingPayment }}</span>
-            <span class="label">待付款</span>
+            <span class="label">待发放</span>
           </div>
           <div class="detail-item">
             <span class="value">{{ overview.settled }}</span>
-            <span class="label">已结算</span>
+            <span class="label">已发放</span>
           </div>
         </div>
       </div>
@@ -42,8 +42,8 @@
       <van-tab title="全部" name="all" />
       <van-tab title="待审核" name="pending" />
       <van-tab title="已通过" name="approved" />
-      <van-tab title="待付款" name="pending_payment" />
-      <van-tab title="已结算" name="settled" />
+      <van-tab title="待发放" name="pending_payment" />
+      <van-tab title="已发放" name="settled" />
       <van-tab title="已驳回" name="rejected" />
     </van-tabs>
 
@@ -274,8 +274,8 @@ const statusLabel = (status: string) => {
   const map: Record<string, string> = {
     pending: '待审核',
     approved: '已通过',
-    pending_payment: '待付款',
-    settled: '已结算',
+    pending_payment: '待发放',
+    settled: '已发放',
     rejected: '已驳回',
   }
   return map[status] || status
