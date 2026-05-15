@@ -32,22 +32,10 @@ const {
   readOrders, writeOrders, insertOrder, updateOrder, deleteOrder, readOrder, readDeletedOrders, restoreOrder, getOrderStats,
   readCommissions, writeCommissions,
   readAdminByPhone, readAdminById, updateAdmin,
-  readEmployeesByUserId, readEmployeeById, readEmployeeByPhone, insertEmployee, deleteEmployee,
+  readEmployeesByUserId, readEmployeeById, readEmployeeByPhone, insertEmployee, deleteEmployee, validateEmployee,
   insertOperationLog, readOperationLogs,
   queryOne,
 } = dataModule
-
-// 初始化验证函数（内存模式下需要自定义）
-let validateEmployee: (phone: string, password: string) => Promise<any>
-try {
-  const { validateEmployee: dbValidate } = await import('./data.js')
-  validateEmployee = dbValidate
-} catch {
-  validateEmployee = async (phone: string, password: string) => {
-    const employees = await readEmployeesByUserId('')
-    return employees.find((e: any) => e.phone === phone && e.password === password && e.status === 'active') || null
-  }
-}
 
 import { sendSmsCode } from './sms.js'
 

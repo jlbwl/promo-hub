@@ -330,6 +330,19 @@ export async function deleteEmployee(id: string): Promise<void> {
   await writeEmployees(filtered)
 }
 
+export async function validateEmployee(phone: string, password: string): Promise<any> {
+  const employees = await readEmployees()
+  const employee = employees.find((e: any) => e.phone === phone && e.password === password && e.status === 'active')
+  if (!employee) return null
+  
+  // 检查是否过期
+  const now = new Date()
+  const expiresAt = new Date(employee.expiresAt)
+  if (expiresAt < now) return null
+  
+  return employee
+}
+
 export async function insertEmployee(employee: any): Promise<void> {
   const employees = await readEmployees()
   employees.push(employee)
