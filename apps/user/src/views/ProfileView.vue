@@ -278,7 +278,7 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref, onMounted } from 'vue'
+import { reactive, ref, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { showDialog, showToast } from 'vant'
 import { get, post } from '@promo/shared/utils/request'
@@ -371,6 +371,19 @@ const loadUserInfo = async () => {
 
 onMounted(() => {
   loadUserInfo()
+})
+
+// 监听员工列表弹窗打开
+watch(showEmployeeList, (val) => {
+  if (val) {
+    // 弹窗打开时重置状态并加载数据
+    employeesFinished.value = false
+    employees.value = []
+    // 延迟执行，等待弹窗渲染完成后再加载
+    setTimeout(() => {
+      loadEmployees()
+    }, 100)
+  }
 })
 
 // 页面跳转
