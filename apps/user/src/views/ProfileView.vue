@@ -539,7 +539,7 @@ const loadEmployees = async () => {
   loadingEmployees.value = true
   
   try {
-    const res: any = await get(`/employees?userId=${userInfo.id}`)
+    const res: any = await get('/employees', { userId: userInfo.id })
     
     if (res.code === 0) {
       employees.value = res.data as any[]
