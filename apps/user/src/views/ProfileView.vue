@@ -401,6 +401,27 @@ watch(showEmployeeList, (val) => {
   }
 })
 
+// 等待用户信息加载完成的函数
+const waitForUserInfo = (): Promise<void> => {
+  return new Promise((resolve) => {
+    if (userInfo.id) {
+      resolve()
+      return
+    }
+    const interval = setInterval(() => {
+      if (userInfo.id) {
+        clearInterval(interval)
+        resolve()
+      }
+    }, 50)
+    // 最多等待3秒
+    setTimeout(() => {
+      clearInterval(interval)
+      resolve()
+    }, 3000)
+  })
+}
+
 // 页面跳转
 const goTo = (path: string) => {
   router.push(path)
@@ -539,6 +560,14 @@ const loadEmployees = async () => {
   loadingEmployees.value = true
   
   try {
+    // 等待用户信息加载完成
+    await waitForUserInfo()
+    
+    if (!userInfo.id) {
+      showToast('获取用户信息失败')
+      return
+    }
+    
     const res: any = await get('/employees', { userId: userInfo.id })
     
     if (res.code === 0) {
