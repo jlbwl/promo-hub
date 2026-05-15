@@ -62,11 +62,7 @@
           <span style="color: #f56c6c; font-weight: 500;">{{ Number(row.price || 0).toFixed(2) }}</span>
         </template>
       </el-table-column>
-      <el-table-column prop="commission" label="积分" width="100" align="right">
-        <template #default="{ row }">
-          <span style="color: #67c23a; font-weight: 500;">{{ Number(row.commission || 0).toFixed(2) }}</span>
-        </template>
-      </el-table-column>
+
       <el-table-column prop="status" label="状态" width="130" align="center">
         <template #default="{ row }">
           <el-tag :type="statusTagType(row.status)">
