@@ -21,15 +21,14 @@
           />
         </el-form-item>
 
-        <!-- 最低提现金额 -->
-        <el-form-item label="最低提现金额" prop="minWithdrawAmount">
+        <!-- 最低兑换积分量 -->
+        <el-form-item label="最低兑换积分量" prop="minWithdrawAmount">
           <el-input-number
             v-model="settingsForm.minWithdrawAmount"
             :min="0"
             :precision="2"
             :step="100"
           />
-          <span style="margin-left: 8px; color: #909399;">元</span>
         </el-form-item>
 
         <!-- 每页显示条数 -->
