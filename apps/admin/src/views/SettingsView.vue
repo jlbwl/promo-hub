@@ -2,69 +2,6 @@
   <div class="settings-view">
     <el-card shadow="never" class="settings-card">
       <template #header>
-        <span>基本设置</span>
-      </template>
-
-      <el-form
-        ref="settingsFormRef"
-        :model="settingsForm"
-        :rules="settingsRules"
-        label-width="140px"
-        style="max-width: 600px;"
-      >
-        <!-- 系统名称 -->
-        <el-form-item label="系统名称" prop="systemName">
-          <el-input
-            v-model="settingsForm.systemName"
-            placeholder="请输入系统名称"
-            clearable
-          />
-        </el-form-item>
-
-        <!-- 最低兑换积分量 -->
-        <el-form-item label="最低兑换积分量" prop="minWithdrawAmount">
-          <el-input-number
-            v-model="settingsForm.minWithdrawAmount"
-            :min="0"
-            :precision="2"
-            :step="100"
-          />
-        </el-form-item>
-
-        <!-- 每页显示条数 -->
-        <el-form-item label="每页显示条数" prop="pageSize">
-          <el-select v-model="settingsForm.pageSize" placeholder="请选择">
-            <el-option label="10 条/页" :value="10" />
-            <el-option label="20 条/页" :value="20" />
-            <el-option label="50 条/页" :value="50" />
-            <el-option label="100 条/页" :value="100" />
-          </el-select>
-        </el-form-item>
-
-        <!-- 系统公告 -->
-        <el-form-item label="系统公告" prop="announcement">
-          <el-input
-            v-model="settingsForm.announcement"
-            type="textarea"
-            :rows="4"
-            placeholder="请输入系统公告内容"
-          />
-        </el-form-item>
-
-        <!-- 操作按钮 -->
-        <el-form-item>
-          <el-button type="primary" :loading="saving" @click="handleSave">
-            保存设置
-          </el-button>
-          <el-button @click="handleReset">
-            重置
-          </el-button>
-        </el-form-item>
-      </el-form>
-    </el-card>
-
-    <el-card shadow="never" class="settings-card" style="margin-top: 20px;">
-      <template #header>
         <span>账户安全</span>
       </template>
 
@@ -147,21 +84,11 @@ import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import { post } from '@promo/shared/utils/request'
 
-const settingsFormRef = ref<FormInstance>()
 const securityFormRef = ref<FormInstance>()
-const saving = ref(false)
 const securitySaving = ref(false)
 
 // 当前登录的手机号
 const currentPhone = ref('')
-
-// 设置表单数据
-const settingsForm = reactive({
-  systemName: '',
-  minWithdrawAmount: 100,
-  pageSize: 20,
-  announcement: ''
-})
 
 // 账户安全表单
 const securityForm = reactive({
@@ -196,17 +123,6 @@ const securityRules: FormRules = {
   confirmPassword: [
     { required: true, message: '请再次输入新密码', trigger: 'blur' },
     { validator: validateConfirmPassword, trigger: 'blur' }
-  ]
-}
-
-// 表单校验规则
-const settingsRules: FormRules = {
-  systemName: [
-    { required: true, message: '请输入系统名称', trigger: 'blur' },
-    { min: 2, max: 50, message: '系统名称长度为 2 到 50 个字符', trigger: 'blur' }
-  ],
-  minWithdrawAmount: [
-    { required: true, message: '请设置最低提现金额', trigger: 'change' }
   ]
 }
 
@@ -267,48 +183,7 @@ const handleSecurityReset = () => {
   securityFormRef.value.resetFields()
 }
 
-// 保存设置
-const handleSave = async () => {
-  if (!settingsFormRef.value) return
-
-  await settingsFormRef.value.validate(async (valid) => {
-    if (!valid) return
-
-    saving.value = true
-    try {
-      localStorage.setItem('admin_settings', JSON.stringify(settingsForm))
-      ElMessage.success('设置保存成功')
-    } catch (error: any) {
-      ElMessage.error(error.message || '保存失败，请重试')
-    } finally {
-      saving.value = false
-    }
-  })
-}
-
-// 重置表单
-const handleReset = () => {
-  if (!settingsFormRef.value) return
-  settingsFormRef.value.resetFields()
-  ElMessage.info('已重置为默认值')
-}
-
-// 页面加载时读取设置
 onMounted(() => {
-  const saved = localStorage.getItem('admin_settings')
-  if (saved) {
-    try {
-      const data = JSON.parse(saved)
-      Object.assign(settingsForm, data)
-    } catch {
-    }
-  } else {
-    settingsForm.systemName = '推广管理系统'
-    settingsForm.minWithdrawAmount = 100
-    settingsForm.pageSize = 20
-    settingsForm.announcement = '欢迎使用推广管理系统！'
-  }
-
   const adminInfo = localStorage.getItem('admin_info')
   if (adminInfo) {
     try {
