@@ -313,7 +313,7 @@
         <div class="payment-summary">
           <span>共 <strong>{{ statDialogOrders.length }}</strong> 条记录</span>
           <span class="payment-total">
-            合计金额：<strong>¥{{ statDialogTotal }}</strong>
+            合计积分值：<strong>{{ statDialogTotal }}</strong>
           </span>
         </div>
 
@@ -336,9 +336,9 @@
               <span>{{ maskPhone(row.userPhone) }}</span>
             </template>
           </el-table-column>
-          <el-table-column prop="productPrice" label="金额" width="90" align="right">
+          <el-table-column prop="productPrice" label="积分值" width="90" align="right">
             <template #default="{ row }">
-              <span style="font-weight: 600;">¥{{ row.productPrice }}</span>
+              <span style="font-weight: 600;">{{ row.productPrice }}</span>
             </template>
           </el-table-column>
           <el-table-column prop="status" label="状态" width="80" align="center">
