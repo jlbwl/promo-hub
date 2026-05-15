@@ -60,8 +60,8 @@
         <template #default="{ row }">
           <div class="title-with-category">
             <span class="title-text">{{ row.title }}</span>
-            <el-tag v-if="row.category" type="primary" size="small" class="category-tag">
-              {{ row.category }}
+            <el-tag v-if="row.category && getCategoryLabel(row.category)" type="primary" size="small" class="category-tag">
+              {{ getCategoryLabel(row.category) }}
             </el-tag>
           </div>
         </template>
@@ -176,6 +176,26 @@ interface Product {
   createdAt: string
   publishedAt: string
   offlineReason?: string
+  category?: string
+}
+
+// 分类名称映射（英文 -> 中文）
+const categoryMap: Record<string, string> = {
+  'comprehensive-cashback': '综合-立返',
+  'comprehensive-data': '综合-数据',
+  'individual-pension': '个养和加挂',
+  'limited-three-cashback': '限三-立返',
+  'limited-three-data': '限三-数据',
+  'unlimited-three-cashback': '不限三-立返',
+  'unlimited-three-data': '不限三-数据',
+  'third-party-cashback': '三方-立返',
+  'third-party-data': '三方-数据'
+}
+
+// 获取分类中文名称
+const getCategoryLabel = (category: string | undefined): string => {
+  if (!category) return ''
+  return categoryMap[category] || category
 }
 
 // 表格数据
