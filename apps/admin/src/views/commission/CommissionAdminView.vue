@@ -42,7 +42,7 @@
         <el-card shadow="hover" class="stat-card clickable" @click="openStatDialog('pending_payment', '待付款')">
           <div class="stat-content">
             <div class="stat-info">
-              <span class="stat-label">待付款</span>
+              <span class="stat-label">待发放</span>
               <el-statistic :value="stats.pendingPayment" />
             </div>
             <el-icon class="stat-icon" style="color: #409eff; background: #ecf5ff;"><Wallet /></el-icon>
@@ -54,7 +54,7 @@
         <el-card shadow="hover" class="stat-card clickable" @click="openStatDialog('settled', '已结算')">
           <div class="stat-content">
             <div class="stat-info">
-              <span class="stat-label">已结算</span>
+              <span class="stat-label">已发放</span>
               <el-statistic :value="stats.settled" />
             </div>
             <el-icon class="stat-icon" style="color: #67c23a; background: #f0f9eb;"><SuccessFilled /></el-icon>
@@ -82,8 +82,8 @@
         <el-option label="全部" value="" />
         <el-option label="待审核" value="pending" />
         <el-option label="已通过" value="approved" />
-        <el-option label="待付款" value="pending_payment" />
-        <el-option label="已结算" value="settled" />
+        <el-option label="待发放" value="pending_payment" />
+        <el-option label="已发放" value="settled" />
         <el-option label="已驳回" value="rejected" />
       </el-select>
       <el-select v-model="filterManager" placeholder="筛选经理" clearable style="width: 160px; margin-left: 12px;" @change="fetchData">
@@ -122,9 +122,9 @@
           <span>{{ maskPhone(row.userPhone) }}</span>
         </template>
       </el-table-column>
-      <el-table-column prop="productPrice" label="产品售价" width="100" align="right">
+      <el-table-column prop="productPrice" label="积分值" width="100" align="right">
         <template #default="{ row }">
-          <span style="font-weight: 500;">¥{{ row.productPrice }}</span>
+          <span style="font-weight: 500;">{{ row.productPrice }}</span>
         </template>
       </el-table-column>
       <el-table-column prop="status" label="状态" width="100" align="center">
@@ -142,7 +142,7 @@
           <span style="color: #f56c6c;">{{ row.rejectReason || '--' }}</span>
         </template>
       </el-table-column>
-      <el-table-column prop="settledAt" label="结算日期" width="170" align="center">
+      <el-table-column prop="settledAt" label="发放日期" width="170" align="center">
         <template #default="{ row }">
           <span>{{ row.settledAt ? formatTime(row.settledAt) : '--' }}</span>
         </template>
@@ -209,7 +209,7 @@
       <div class="stat-dialog-content">
         <div class="payment-summary">
           <span>共 <strong>{{ statDialogOrders.length }}</strong> 条记录</span>
-          <span class="payment-total">合计金额：<strong>¥{{ statDialogTotal }}</strong></span>
+          <span class="payment-total">合计积分：<strong>{{ statDialogTotal }}</strong></span>
         </div>
         <el-table :data="statDialogOrders" border size="small" max-height="450">
           <el-table-column type="index" label="#" width="40" />
@@ -230,8 +230,8 @@
           <el-table-column prop="userPhone" label="手机号" width="110" show-overflow-tooltip>
             <template #default="{ row }"><span>{{ maskPhone(row.userPhone) }}</span></template>
           </el-table-column>
-          <el-table-column prop="productPrice" label="金额" width="80" align="right">
-            <template #default="{ row }"><span style="font-weight: 600;">¥{{ row.productPrice }}</span></template>
+          <el-table-column prop="productPrice" label="积分值" width="80" align="right">
+            <template #default="{ row }"><span style="font-weight: 600;">{{ row.productPrice }}</span></template>
           </el-table-column>
           <el-table-column label="做单时间" width="140" align="center">
             <template #default="{ row }">
@@ -273,7 +273,7 @@ const statDialogOrders = ref<any[]>([])
 const statDialogTotal = computed(() => statDialogOrders.value.reduce((s: number, o: any) => s + (Number(o.productPrice) || 0), 0).toFixed(2))
 
 const statusTagType = (s: string) => ({ pending: 'warning', approved: 'success', pending_payment: '', settled: 'success', rejected: 'danger' }[s] || 'info')
-const statusText = (s: string) => ({ pending: '待审核', approved: '已通过', pending_payment: '待付款', settled: '已结算', rejected: '已驳回' }[s] || s)
+const statusText = (s: string) => ({ pending: '待审核', approved: '已通过', pending_payment: '待发放', settled: '已发放', rejected: '已驳回' }[s] || s)
 
 const formatTime = (iso: string) => {
   if (!iso) return ''

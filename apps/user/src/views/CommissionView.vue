@@ -73,7 +73,7 @@
               <span v-if="record.rejectReason" class="reject-reason">驳回原因：{{ record.rejectReason }}</span>
             </div>
             <div class="record-right">
-              <span class="record-price">¥{{ record.productPrice }}</span>
+              <span class="record-price">{{ record.productPrice }}</span>
               <van-tag
                 :type="(statusType(record.status) as any)"
                 size="medium"
@@ -177,7 +177,7 @@
                   <span v-if="order.userPhone" class="phone-span">手机：{{ maskPhone(order.userPhone) }}</span>
                 </div>
                 <div class="deleted-price-row">
-                  <span class="deleted-price">¥{{ order.productPrice }}</span>
+                  <span class="deleted-price">{{ order.productPrice }}</span>
                   <span class="deleted-time">删除于 {{ formatTime(order.deletedAt) }}</span>
                 </div>
               </div>

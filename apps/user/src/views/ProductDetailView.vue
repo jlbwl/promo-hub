@@ -30,7 +30,7 @@
     <!-- 产品基本信息 -->
     <div class="product-info">
       <div class="price-row">
-        <span class="price">¥{{ product.price }}</span>
+        <span class="price">{{ product.price }}</span>
         <span v-if="product.stock > 0" class="stock-badge">
           库存 {{ product.stock }} 件
         </span>

@@ -25,7 +25,7 @@
         </el-menu-item>
         <el-menu-item index="/commissions">
           <el-icon><Money /></el-icon>
-          <template #title>佣金管理</template>
+          <template #title>积分管理</template>
         </el-menu-item>
         <el-menu-item index="/profile">
           <el-icon><User /></el-icon>

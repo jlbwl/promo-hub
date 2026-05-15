@@ -33,7 +33,7 @@
       </el-col>
       <el-col :span="6">
         <el-card shadow="hover" class="stat-card">
-          <el-statistic title="佣金总额" :value="stats.totalCommission" :precision="2" prefix="¥">
+          <el-statistic title="积分总额" :value="stats.totalCommission" :precision="2">
             <template #prefix>
               <el-icon style="color: #f56c6c;"><Money /></el-icon>
             </template>
@@ -87,9 +87,9 @@
             </template>
           </el-table-column>
           <el-table-column prop="title" label="产品名称" min-width="140" show-overflow-tooltip />
-          <el-table-column prop="price" label="售价" width="80" align="right">
+          <el-table-column prop="price" label="积分值" width="80" align="right">
             <template #default="{ row }">
-              <span style="font-weight: 600;">¥{{ row.price }}</span>
+              <span style="font-weight: 600;">{{ row.price }}</span>
             </template>
           </el-table-column>
           <el-table-column prop="stock" label="库存" width="70" align="center">

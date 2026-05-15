@@ -24,9 +24,9 @@
               <el-descriptions-item label="手机号">
                 {{ managerInfo.phone }}
               </el-descriptions-item>
-              <el-descriptions-item label="累计佣金">
+              <el-descriptions-item label="累计积分">
                 <span style="color: #f56c6c; font-weight: 600; font-size: 16px;">
-                  ¥{{ managerInfo.totalCommission.toFixed(2) }}
+                  {{ managerInfo.totalCommission.toFixed(2) }}
                 </span>
               </el-descriptions-item>
               <el-descriptions-item label="注册时间">

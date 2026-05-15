@@ -43,7 +43,7 @@
         <el-card shadow="hover" class="stat-card clickable" :class="{ 'has-items': stats.pendingPayment > 0 }" @click="openPaymentDialog">
           <div class="stat-content">
             <div class="stat-info">
-              <span class="stat-label">待付款</span>
+              <span class="stat-label">待发放</span>
               <el-statistic :value="stats.pendingPayment" />
             </div>
             <el-icon class="stat-icon" style="color: #409eff; background: #ecf5ff;"><Wallet /></el-icon>
@@ -55,7 +55,7 @@
         <el-card shadow="hover" class="stat-card clickable" @click="openStatDialog('settled', '已结算')">
           <div class="stat-content">
             <div class="stat-info">
-              <span class="stat-label">已结算</span>
+              <span class="stat-label">已发放</span>
               <el-statistic :value="stats.settled" />
             </div>
             <el-icon class="stat-icon" style="color: #67c23a; background: #f0f9eb;"><SuccessFilled /></el-icon>
@@ -89,8 +89,8 @@
         <el-option label="全部" value="" />
         <el-option label="待审核" value="pending" />
         <el-option label="已通过" value="approved" />
-        <el-option label="待付款" value="pending_payment" />
-        <el-option label="已结算" value="settled" />
+        <el-option label="待发放" value="pending_payment" />
+        <el-option label="已发放" value="settled" />
         <el-option label="已驳回" value="rejected" />
       </el-select>
       <el-button icon="Refresh" @click="handleReset">重置</el-button>
@@ -121,9 +121,9 @@
           <span>{{ maskPhone(row.userPhone) }}</span>
         </template>
       </el-table-column>
-      <el-table-column prop="productPrice" label="产品售价" width="100" align="right">
+      <el-table-column prop="productPrice" label="积分值" width="100" align="right">
         <template #default="{ row }">
-          <span style="font-weight: 500;">¥{{ row.productPrice }}</span>
+          <span style="font-weight: 500;">{{ row.productPrice }}</span>
         </template>
       </el-table-column>
       <el-table-column prop="status" label="状态" width="100" align="center">
@@ -143,7 +143,7 @@
           <span style="color: #f56c6c;">{{ row.rejectReason || '--' }}</span>
         </template>
       </el-table-column>
-      <el-table-column prop="settledAt" label="结算日期" width="170" align="center">
+      <el-table-column prop="settledAt" label="发放日期" width="170" align="center">
         <template #default="{ row }">
           <span>{{ row.settledAt ? formatTime(row.settledAt) : '--' }}</span>
         </template>
@@ -161,7 +161,7 @@
             </template>
             <template v-else-if="row.status === 'approved'">
               <el-button type="primary" text size="small" @click="handleAddToPayment(row)">
-                添加到待付款
+                添加到待发放
               </el-button>
             </template>
             <template v-else>
@@ -186,19 +186,19 @@
       />
     </div>
 
-    <!-- ====== 待付款结算模态框 ====== -->
+    <!-- ====== 待发放发放模态框 ====== -->
     <el-dialog
       v-model="paymentDialogVisible"
-      title="待付款结算"
+      title="待发放发放"
       width="700px"
       destroy-on-close
     >
       <!-- 待付款列表 -->
       <div v-if="paymentStep === 'list'" class="payment-dialog-content">
         <div class="payment-summary">
-          <span>共 <strong>{{ paymentOrders.length }}</strong> 笔待付款</span>
+          <span>共 <strong>{{ paymentOrders.length }}</strong> 笔待发放</span>
           <span class="payment-total">
-            合计：<strong>¥{{ paymentTotal }}</strong>
+            合计：<strong>{{ paymentTotal }}</strong>
           </span>
         </div>
 
@@ -221,9 +221,9 @@
               <span>{{ maskPhone(row.userPhone) }}</span>
             </template>
           </el-table-column>
-          <el-table-column prop="productPrice" label="金额" width="90" align="right">
+          <el-table-column prop="productPrice" label="积分值" width="90" align="right">
             <template #default="{ row }">
-              <span style="font-weight: 600; color: #409eff;">¥{{ row.productPrice }}</span>
+              <span style="font-weight: 600; color: #409eff;">{{ row.productPrice }}</span>
             </template>
           </el-table-column>
           <el-table-column prop="createdAt" label="做单时间" width="150" align="center" />
@@ -236,17 +236,17 @@
             :disabled="paymentOrders.length === 0"
             @click="paymentStep = 'method'"
           >
-            一键结算（{{ paymentOrders.length }}笔）
+            一键发放（{{ paymentOrders.length }}笔）
           </el-button>
         </div>
       </div>
 
-      <!-- 选择付款方式 -->
+      <!-- 选择发放方式 -->
       <div v-else-if="paymentStep === 'method'" class="payment-dialog-content">
         <div class="payment-summary">
           <span>共 <strong>{{ paymentOrders.length }}</strong> 笔</span>
           <span class="payment-total">
-            合计：<strong>¥{{ paymentTotal }}</strong>
+            合计：<strong>{{ paymentTotal }}</strong>
           </span>
         </div>
 
@@ -281,12 +281,12 @@
             :loading="settleLoading"
             @click="handleBatchSettle"
           >
-            确认付款 ¥{{ paymentTotal }}
+            确认发放 {{ paymentTotal }}
           </el-button>
         </div>
       </div>
 
-      <!-- 结算成功 -->
+      <!-- 发放成功 -->
       <div v-else-if="paymentStep === 'success'" class="payment-dialog-content">
         <div class="success-result">
           <el-icon class="success-icon" style="color: #67c23a; font-size: 64px;">
@@ -477,8 +477,8 @@ const statusText = (status: string) => {
   const map: Record<string, string> = {
     pending: '待审核',
     approved: '已通过',
-    pending_payment: '待付款',
-    settled: '已结算',
+    pending_payment: '待发放',
+    settled: '已发放',
     rejected: '已驳回',
   }
   return map[status] || status

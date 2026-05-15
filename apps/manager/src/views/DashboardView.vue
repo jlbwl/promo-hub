@@ -32,8 +32,8 @@
         <el-card shadow="hover" class="stat-card">
           <div class="stat-content">
             <div class="stat-info">
-              <span class="stat-label">待审核佣金</span>
-              <el-statistic :value="stats.pendingCommissions" prefix="¥" />
+              <span class="stat-label">待审核积分</span>
+              <el-statistic :value="stats.pendingCommissions" />
             </div>
             <el-icon class="stat-icon" style="color: #e6a23c; background: #fdf6ec;">
               <Clock />
@@ -45,8 +45,8 @@
         <el-card shadow="hover" class="stat-card">
           <div class="stat-content">
             <div class="stat-info">
-              <span class="stat-label">累计佣金</span>
-              <el-statistic :value="stats.totalCommissions" prefix="¥" />
+              <span class="stat-label">累计积分</span>
+              <el-statistic :value="stats.totalCommissions" />
             </div>
             <el-icon class="stat-icon" style="color: #f56c6c; background: #fef0f0;">
               <Money />
@@ -74,7 +74,7 @@
             </el-button>
             <el-button type="warning" @click="$router.push('/commissions')">
               <el-icon><Money /></el-icon>
-              佣金管理
+              积分管理
             </el-button>
           </div>
         </el-card>

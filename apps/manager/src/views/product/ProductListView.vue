@@ -57,14 +57,14 @@
         </template>
       </el-table-column>
       <el-table-column prop="title" label="标题" min-width="180" show-overflow-tooltip />
-      <el-table-column prop="price" label="价格" width="100" align="right">
+      <el-table-column prop="price" label="积分值" width="100" align="right">
         <template #default="{ row }">
-          <span style="color: #f56c6c; font-weight: 500;">¥{{ Number(row.price || 0).toFixed(2) }}</span>
+          <span style="color: #f56c6c; font-weight: 500;">{{ Number(row.price || 0).toFixed(2) }}</span>
         </template>
       </el-table-column>
-      <el-table-column prop="commission" label="佣金" width="100" align="right">
+      <el-table-column prop="commission" label="积分" width="100" align="right">
         <template #default="{ row }">
-          <span style="color: #67c23a; font-weight: 500;">¥{{ Number(row.commission || 0).toFixed(2) }}</span>
+          <span style="color: #67c23a; font-weight: 500;">{{ Number(row.commission || 0).toFixed(2) }}</span>
         </template>
       </el-table-column>
       <el-table-column prop="status" label="状态" width="130" align="center">

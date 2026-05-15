@@ -57,7 +57,7 @@
         <!-- 价格与库存 -->
         <el-row :gutter="20">
           <el-col :span="12">
-            <el-form-item label="售价" prop="price">
+            <el-form-item label="积分值" prop="price">
               <el-input-number
                 v-model="form.price"
                 :min="0"
