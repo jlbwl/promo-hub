@@ -28,7 +28,7 @@
       <van-tabbar-item
         v-if="!isEmployee"
         to="/commissions"
-        icon="coins"
+        icon="gold-coin"
         name="commissions"
       >
         积分

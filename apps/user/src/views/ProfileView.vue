@@ -26,16 +26,19 @@
     <!-- 数据统计 -->
     <div class="stats-card">
       <div class="stat-item" @click="goTo('/commissions')">
+        <van-icon name="coins" size="20" color="#1989fa" />
         <span class="stat-value">{{ stats.totalCommission }}</span>
         <span class="stat-label">累计积分</span>
       </div>
       <div class="stat-divider"></div>
       <div class="stat-item" @click="showEmployeeList = true">
+        <van-icon name="users" size="20" color="#1989fa" />
         <span class="stat-value">{{ employeeCount }}</span>
         <span class="stat-label">我的团队</span>
       </div>
       <div class="stat-divider"></div>
       <div class="stat-item" @click="goTo('/commissions')">
+        <van-icon name="gift-o" size="20" color="#1989fa" />
         <span class="stat-value">{{ stats.withdrawCount }}</span>
         <span class="stat-label">兑换记录</span>
       </div>
