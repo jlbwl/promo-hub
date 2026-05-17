@@ -404,13 +404,12 @@ onMounted(() => {
 // 监听员工列表弹窗打开
 watch(showEmployeeList, (val) => {
   if (val) {
+    console.log('[员工列表] 弹窗打开，开始加载数据')
     // 弹窗打开时重置状态并加载数据
     employeesFinished.value = false
     employees.value = []
-    // 延迟执行，等待弹窗渲染完成后再加载
-    setTimeout(() => {
-      loadEmployees()
-    }, 100)
+    // 直接加载，不延迟
+    loadEmployees()
   }
 })
 
@@ -578,6 +577,8 @@ const editEmployee = (emp: any) => {
 
 // 加载员工列表
 const loadEmployees = async () => {
+  console.log('[员工列表] loadEmployees 被调用，当前 loading 状态:', loadingEmployees.value)
+  
   if (loadingEmployees.value) {
     console.log('[员工列表] 正在加载中，跳过本次请求')
     return
@@ -587,35 +588,54 @@ const loadEmployees = async () => {
   employeesFinished.value = false
   
   try {
-    // 等待用户信息加载完成
-    await waitForUserInfo()
+    // 直接从 localStorage 获取用户ID，不依赖 userInfo 状态
+    let userId = userInfo.id
+    if (!userId) {
+      const infoStr = localStorage.getItem('user_info')
+      if (infoStr) {
+        try {
+          const info = JSON.parse(infoStr)
+          userId = info.id
+          console.log('[员工列表] 从 localStorage 获取到 userId:', userId)
+        } catch (e) {
+          console.error('[员工列表] 解析 localStorage 中的用户信息失败:', e)
+        }
+      }
+    }
     
-    console.log('[员工列表] 当前用户ID:', userInfo.id)
+    console.log('[员工列表] 最终使用的 userId:', userId)
     
-    if (!userInfo.id) {
+    if (!userId) {
       console.warn('[员工列表] 用户ID为空，无法加载员工列表')
-      showToast('获取用户信息失败')
+      showToast('请先登录')
+      employees.value = []
+      employeeCount.value = 0
       return
     }
     
-    console.log('[员工列表] 开始加载员工列表，userId:', userInfo.id)
-    const res: any = await get('/employees', { userId: userInfo.id })
+    console.log('[员工列表] 开始请求 API，userId:', userId)
+    const res: any = await get('/employees', { userId })
     console.log('[员工列表] API 返回结果:', res)
     
     if (res.code === 0) {
-      employees.value = res.data as any[]
-      employeeCount.value = (res.data as any[]).length
+      employees.value = Array.isArray(res.data) ? res.data : []
+      employeeCount.value = employees.value.length
       console.log('[员工列表] 加载成功，共', employeeCount.value, '条记录')
     } else {
       console.error('[员工列表] API 返回错误:', res.message)
       showToast(res.message || '获取员工列表失败')
+      employees.value = []
+      employeeCount.value = 0
     }
   } catch (e: any) {
     console.error('[员工列表] 加载失败:', e)
     showToast(e.message || '获取员工列表失败')
+    employees.value = []
+    employeeCount.value = 0
   } finally {
     loadingEmployees.value = false
     employeesFinished.value = true
+    console.log('[员工列表] 加载完成，loading 状态已重置')
   }
 }
 
