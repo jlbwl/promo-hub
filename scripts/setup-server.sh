@@ -40,11 +40,16 @@ server {
     gzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript image/svg+xml;
     gzip_min_length 1024;
 
+    # 根路径跳转到用户端
+    location = / {
+        return 302 /user/;
+    }
+
     # 管理员后台
-    location / {
-        root /www/wwwroot/promo-hub/admin;
+    location /admin/ {
+        alias /www/wwwroot/promo-hub/admin/;
         index index.html;
-        try_files $uri $uri/ /index.html;
+        try_files $uri $uri/ /admin/index.html;
     }
 
     # 渠道经理后台
