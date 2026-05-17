@@ -413,37 +413,6 @@ watch(showEmployeeList, (val) => {
   }
 })
 
-// 等待用户信息加载完成的函数
-const waitForUserInfo = (): Promise<void> => {
-  return new Promise((resolve) => {
-    console.log('[waitForUserInfo] 开始等待用户信息，当前 userInfo.id:', userInfo.id)
-    
-    if (userInfo.id) {
-      console.log('[waitForUserInfo] 用户ID已存在，立即 resolve')
-      resolve()
-      return
-    }
-    
-    const interval = setInterval(() => {
-      console.log('[waitForUserInfo] 检查用户信息，当前 userInfo.id:', userInfo.id)
-      if (userInfo.id) {
-        clearInterval(interval)
-        console.log('[waitForUserInfo] 获取到用户ID，resolve')
-        resolve()
-      }
-    }, 100)
-    
-    // 最多等待5秒
-    setTimeout(() => {
-      if (interval) {
-        clearInterval(interval)
-      }
-      console.log('[waitForUserInfo] 等待超时，强制 resolve')
-      resolve()
-    }, 5000)
-  })
-}
-
 // 页面跳转
 const goTo = (path: string) => {
   router.push(path)
