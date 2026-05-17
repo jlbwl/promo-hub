@@ -195,7 +195,7 @@
             @load="loadEmployees"
             class="employee-list"
           >
-            <van-cell v-for="emp in employees" :key="emp.id" clickable @click="editEmployee(emp)" class="employee-item">
+            <van-cell v-for="emp in employees" :key="emp.id" class="employee-item">
               <template #icon>
                 <div class="employee-avatar">
                   <van-icon name="user-o" size="20" />
@@ -206,7 +206,10 @@
                 <div class="employee-phone">{{ maskPhone(emp.phone) }}</div>
               </template>
               <template #right-icon>
-                <van-icon name="arrow-right" size="18" color="#c8c9cc" />
+                <div class="employee-actions">
+                  <van-icon name="edit" size="18" color="#1989fa" @click="editEmployee(emp)" />
+                  <van-icon name="delete" size="18" color="#ee0a24" @click="handleDeleteEmployee(emp)" />
+                </div>
               </template>
             </van-cell>
           </van-list>
@@ -296,7 +299,7 @@
 import { reactive, ref, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { showDialog, showToast } from 'vant'
-import { get, post } from '@promo/shared/utils/request'
+import { get, post, del } from '@promo/shared/utils/request'
 
 // 路由实例
 const router = useRouter()
@@ -542,6 +545,31 @@ const editEmployee = (emp: any) => {
   employeeForm.nickname = emp.nickname
   showEmployeeList.value = false
   showCreateEmployee.value = true
+}
+
+// 删除员工
+const handleDeleteEmployee = async (emp: any) => {
+  try {
+    await showDialog({
+      title: '确认删除',
+      message: `确定要删除员工「${emp.nickname}」吗？`,
+      confirmButtonText: '确定删除',
+      cancelButtonText: '取消',
+      confirmButtonColor: '#ee0a24'
+    })
+    
+    const res: any = await del(`/employees/${emp.id}`)
+    if (res.code === 0) {
+      showToast('删除成功')
+      loadEmployees()
+    } else {
+      showToast(res.message || '删除失败')
+    }
+  } catch (e: any) {
+    if (e.message !== 'cancel') {
+      showToast(e.message || '删除失败')
+    }
+  }
 }
 
 // 加载员工列表
@@ -958,8 +986,21 @@ const maskPhone = (phone: string) => {
         color: #969799;
       }
 
-      :deep(.van-cell__right-icon) {
-        font-size: 16px;
+      .employee-actions {
+        display: flex;
+        gap: 16px;
+        
+        :deep(.van-icon) {
+          cursor: pointer;
+          padding: 6px;
+          border-radius: 6px;
+          transition: all 0.2s;
+          
+          &:active {
+            transform: scale(0.95);
+            background: rgba(0, 0, 0, 0.05);
+          }
+        }
       }
     }
 
