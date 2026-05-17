@@ -98,6 +98,12 @@ jobs:
             apps/api/dist
             apps/api/package.json
             apps/api/node_modules
+            
+      - name: Upload Nginx config
+        uses: actions/upload-artifact@v5
+        with:
+          name: nginx-config
+          path: config/nginx.conf
 
   deploy:
     name: Deploy to Server
@@ -128,6 +134,12 @@ jobs:
         with:
           name: api-dist
           path: api-dist
+          
+      - name: Download Nginx config
+        uses: actions/download-artifact@v5
+        with:
+          name: nginx-config
+          path: nginx-config
 
       - name: Upload Admin to server
         uses: appleboy/scp-action@v0.1.7
@@ -424,52 +436,11 @@ jobs:
             # 更新 Nginx 配置
             echo "=== 更新 Nginx 配置 ==="
             NGINX_CONF="/etc/nginx/conf.d/promo-hub.conf"
-            cat > "${NGINX_CONF}" << 'NGINXEOF'
-server {
-    listen 80;
-    server_name _;
-
-    # Gzip 压缩
-    gzip on;
-    gzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript image/svg+xml;
-    gzip_min_length 1024;
-
-    # 根路径跳转到用户端
-    location = / {
-        return 302 /user/;
-    }
-
-    # 管理员后台
-    location /admin/ {
-        alias /www/wwwroot/promo-hub/admin/;
-        index index.html;
-        try_files $uri $uri/ /admin/index.html;
-    }
-
-    # 渠道经理后台
-    location /manager/ {
-        alias /www/wwwroot/promo-hub/manager/;
-        index index.html;
-        try_files $uri $uri/ /manager/index.html;
-    }
-
-    # 用户端
-    location /user/ {
-        alias /www/wwwroot/promo-hub/user/;
-        index index.html;
-        try_files $uri $uri/ /user/index.html;
-    }
-
-    # API 反向代理
-    location /api/ {
-        proxy_pass http://127.0.0.1:8080/;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-}
-NGINXEOF
+            mkdir -p "${{ env.DEPLOY_DIR }}/nginx"
+            if [ -f nginx-config/nginx.conf ]; then
+                cp nginx-config/nginx.conf "${NGINX_CONF}"
+                echo "Nginx配置已复制"
+            fi
 
             # 测试并重载 Nginx
             nginx -t
