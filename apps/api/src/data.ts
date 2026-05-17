@@ -1,7 +1,21 @@
 import { query, queryOne } from './db.js'
+import bcrypt from 'bcrypt'
 export { query, queryOne }
 
 // ============ 通用辅助函数 ============
+
+// 密码验证函数
+async function verifyPassword(password: string, hash: string): Promise<boolean> {
+  // 如果是明文密码，直接比较（用于兼容旧数据）
+  if (password === hash) {
+    return true
+  }
+  try {
+    return await bcrypt.compare(password, hash)
+  } catch {
+    return false
+  }
+}
 
 function serialize(val: any): string | null {
   if (val === null || val === undefined) return null
@@ -506,7 +520,8 @@ export async function validateEmployee(phone: string, password: string): Promise
   if (!row) return null
   
   // 检查密码是否匹配
-  if (row.password !== password) return null
+  const passwordValid = await verifyPassword(password, row.password)
+  if (!passwordValid) return null
   
   // 检查是否过期
   const now = new Date()

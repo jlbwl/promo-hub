@@ -1,6 +1,7 @@
 import 'dotenv/config'
 import express from 'express'
 import cors from 'cors'
+import bcrypt from 'bcrypt'
 import { existsSync, mkdirSync } from 'fs'
 import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
@@ -8,10 +9,28 @@ import { smsLimiter, loginLimiter } from './middleware/rateLimit.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const DATA_DIR = process.env.DATA_DIR || join(__dirname, '..', 'data')
+const SALT_ROUNDS = 12
 
 // 确保数据目录存在
 if (!existsSync(DATA_DIR)) {
   mkdirSync(DATA_DIR, { recursive: true })
+}
+
+// 密码加密和验证工具
+const hashPassword = async (password: string): Promise<string> => {
+  return await bcrypt.hash(password, SALT_ROUNDS)
+}
+
+const verifyPassword = async (password: string, hash: string): Promise<boolean> => {
+  // 如果是明文密码，直接比较（用于兼容旧数据）
+  if (password === hash) {
+    return true
+  }
+  try {
+    return await bcrypt.compare(password, hash)
+  } catch {
+    return false
+  }
 }
 
 // 导入数据访问层（先尝试数据库，如果失败则使用文件存储）
@@ -306,10 +325,11 @@ app.post('/api/managers', async (req, res) => {
   }
 
   const now = new Date().toISOString()
+  const hashedPassword = await hashPassword(password)
   const manager = {
     id: `m_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
     username: teamName,
-    password,
+    password: hashedPassword,
     name: teamName,
     teamName,
     phone: phone || '',
@@ -474,9 +494,14 @@ app.post('/api/managers/login', loginLimiter, async (req, res) => {
   }
   const managers = await readManagers()
   const manager = managers.find(
-    (m: any) => m.phone === phone && m.password === password && m.status === 'active'
+    (m: any) => m.phone === phone && m.status === 'active'
   )
   if (!manager) {
+    res.json({ code: 401, message: '手机号或密码错误，或账号已被禁用', data: null })
+    return
+  }
+  const passwordValid = await verifyPassword(password, manager.password)
+  if (!passwordValid) {
     res.json({ code: 401, message: '手机号或密码错误，或账号已被禁用', data: null })
     return
   }
@@ -591,7 +616,8 @@ app.post('/api/managers/password/set', async (req, res) => {
     return
   }
 
-  managers[index].password = password
+  const hashedPassword = await hashPassword(password)
+  managers[index].password = hashedPassword
   managers[index].updatedAt = new Date().toISOString()
   await writeManagers(managers)
 
@@ -632,10 +658,11 @@ app.post('/api/users/register', async (req, res) => {
   }
 
   const now = new Date().toISOString()
+  const hashedPassword = await hashPassword(password)
   const user = {
     id: `u_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
     phone,
-    password,
+    password: hashedPassword,
     nickname: nickname || `用户${phone.slice(-4)}`,
     teamName: teamName || '',
     role: 'user',
@@ -660,9 +687,14 @@ app.post('/api/users/login', loginLimiter, async (req, res) => {
   }
   const users = await readUsers()
   const user = users.find(
-    (u: any) => u.phone === phone && u.password === password && u.status === 'active'
+    (u: any) => u.phone === phone && u.status === 'active'
   )
   if (!user) {
+    res.json({ code: 401, message: '手机号或密码错误，或账号已被禁用', data: null })
+    return
+  }
+  const passwordValid = await verifyPassword(password, user.password)
+  if (!passwordValid) {
     res.json({ code: 401, message: '手机号或密码错误，或账号已被禁用', data: null })
     return
   }
@@ -800,7 +832,8 @@ app.post('/api/users/password/set', async (req, res) => {
     return
   }
 
-  users[index].password = password
+  const hashedPassword = await hashPassword(password)
+  users[index].password = hashedPassword
   users[index].updatedAt = new Date().toISOString()
   await writeUsers(users)
 
@@ -1658,7 +1691,12 @@ app.post('/api/admin/login', loginLimiter, async (req, res) => {
     return
   }
   const admin = await readAdminByPhone(phone)
-  if (!admin || admin.password !== password) {
+  if (!admin) {
+    res.json({ code: 401, message: '手机号或密码错误', data: null })
+    return
+  }
+  const passwordValid = await verifyPassword(password, admin.password)
+  if (!passwordValid) {
     res.json({ code: 401, message: '手机号或密码错误', data: null })
     return
   }
@@ -1746,7 +1784,8 @@ app.post('/api/admin/update', async (req, res) => {
     return
   }
 
-  if (oldPassword !== admin.password) {
+  const passwordValid = await verifyPassword(oldPassword, admin.password)
+  if (!passwordValid) {
     res.json({ code: 401, message: '旧密码错误', data: null })
     return
   }
@@ -1770,7 +1809,8 @@ app.post('/api/admin/update', async (req, res) => {
       res.json({ code: 400, message: '新密码长度需在6-20位之间', data: null })
       return
     }
-    await updateAdmin(admin.id, { password: newPassword })
+    const hashedPassword = await hashPassword(newPassword)
+    await updateAdmin(admin.id, { password: hashedPassword })
   }
 
   const updatedAdmin = await readAdminByPhone(newPhone || admin.phone)
@@ -1801,7 +1841,8 @@ app.post('/api/admin/password/update', async (req, res) => {
     return
   }
 
-  if (oldPassword !== admin.password) {
+  const passwordValid = await verifyPassword(oldPassword, admin.password)
+  if (!passwordValid) {
     res.json({ code: 401, message: '旧密码错误', data: null })
     return
   }
@@ -1813,7 +1854,8 @@ app.post('/api/admin/password/update', async (req, res) => {
   }
   smsCodes.delete(phone)
 
-  await updateAdmin(admin.id, { password: newPassword })
+  const hashedPassword = await hashPassword(newPassword)
+  await updateAdmin(admin.id, { password: hashedPassword })
 
   res.json({ code: 0, message: '密码修改成功', data: null })
 })
@@ -2013,12 +2055,13 @@ app.post('/api/employees', async (req, res) => {
     const expiresAt = new Date()
     expiresAt.setHours(expiresAt.getHours() + expiresHours)
     
-    // 创建员工
+    // 创建员工（密码哈希）
+    const hashedPassword = await hashPassword(password)
     const employee = {
       id: `emp_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
       userId,
       phone,
-      password,
+      password: hashedPassword,
       nickname: nickname || `员工${phone.slice(-4)}`,
       expiresAt: expiresAt.toISOString().slice(0, 19).replace('T', ' '),
       status: 'active',

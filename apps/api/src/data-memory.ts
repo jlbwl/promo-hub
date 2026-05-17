@@ -1,6 +1,7 @@
 import fs from 'fs'
 import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
+import bcrypt from 'bcrypt'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const DATA_DIR = join(__dirname, '..', 'data')
@@ -8,6 +9,19 @@ const DATA_DIR = join(__dirname, '..', 'data')
 // 确保数据目录存在
 if (!fs.existsSync(DATA_DIR)) {
   fs.mkdirSync(DATA_DIR, { recursive: true })
+}
+
+// 密码验证函数
+async function verifyPassword(password: string, hash: string): Promise<boolean> {
+  // 如果是明文密码，直接比较（用于兼容旧数据）
+  if (password === hash) {
+    return true
+  }
+  try {
+    return await bcrypt.compare(password, hash)
+  } catch {
+    return false
+  }
 }
 
 // 通用读写函数
@@ -332,8 +346,12 @@ export async function deleteEmployee(id: string): Promise<void> {
 
 export async function validateEmployee(phone: string, password: string): Promise<any> {
   const employees = await readEmployees()
-  const employee = employees.find((e: any) => e.phone === phone && e.password === password && e.status === 'active')
+  const employee = employees.find((e: any) => e.phone === phone && e.status === 'active')
   if (!employee) return null
+  
+  // 检查密码是否匹配
+  const passwordValid = await verifyPassword(password, employee.password)
+  if (!passwordValid) return null
   
   // 检查是否过期
   const now = new Date()
