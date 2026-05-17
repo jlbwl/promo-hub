@@ -262,6 +262,130 @@ jobs:
                     -e "ALTER TABLE products ADD COLUMN IF NOT EXISTS requirePhone TINYINT(1) NOT NULL DEFAULT 0 AFTER requireName;" \
                     2>/dev/null && echo "✓ requirePhone 字段已添加" || echo "⚠ requirePhone 字段可能已存在或其他错误，继续..."
 
+              # 修复 employees 表
+              echo "--- 修复 employees 表 ---"
+              
+              # 检查 employees 表是否存在，如果不存在则创建
+              mysql -h "${{ secrets.DB_HOST }}" \
+                    -P "${{ secrets.DB_PORT }}" \
+                    -u "${{ secrets.DB_USER }}" \
+                    -p"${{ secrets.DB_PASSWORD }}" \
+                    "${{ secrets.DB_NAME }}" \
+                    -e "CREATE TABLE IF NOT EXISTS employees (
+                      id VARCHAR(100) PRIMARY KEY,
+                      userId VARCHAR(100) NOT NULL,
+                      phone VARCHAR(50) NOT NULL,
+                      password VARCHAR(500) NOT NULL,
+                      nickname VARCHAR(200) DEFAULT '',
+                      expiresAt DATETIME NOT NULL,
+                      status VARCHAR(50) NOT NULL DEFAULT 'active',
+                      createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                      updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                      INDEX idx_userId (userId),
+                      INDEX idx_phone (phone),
+                      INDEX idx_expiresAt (expiresAt)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;" \
+                    2>/dev/null && echo "✓ employees 表已创建或已存在" || echo "⚠ employees 表创建可能失败，继续..."
+
+              # 确保 employees 表的所有字段都存在
+              mysql -h "${{ secrets.DB_HOST }}" \
+                    -P "${{ secrets.DB_PORT }}" \
+                    -u "${{ secrets.DB_USER }}" \
+                    -p"${{ secrets.DB_PASSWORD }}" \
+                    "${{ secrets.DB_NAME }}" \
+                    -e "ALTER TABLE employees ADD COLUMN IF NOT EXISTS userId VARCHAR(100) NOT NULL AFTER id;" \
+                    2>/dev/null && echo "✓ userId 字段已添加" || echo "⚠ userId 字段可能已存在或其他错误，继续..."
+
+              mysql -h "${{ secrets.DB_HOST }}" \
+                    -P "${{ secrets.DB_PORT }}" \
+                    -u "${{ secrets.DB_USER }}" \
+                    -p"${{ secrets.DB_PASSWORD }}" \
+                    "${{ secrets.DB_NAME }}" \
+                    -e "ALTER TABLE employees ADD COLUMN IF NOT EXISTS phone VARCHAR(50) NOT NULL AFTER userId;" \
+                    2>/dev/null && echo "✓ phone 字段已添加" || echo "⚠ phone 字段可能已存在或其他错误，继续..."
+
+              mysql -h "${{ secrets.DB_HOST }}" \
+                    -P "${{ secrets.DB_PORT }}" \
+                    -u "${{ secrets.DB_USER }}" \
+                    -p"${{ secrets.DB_PASSWORD }}" \
+                    "${{ secrets.DB_NAME }}" \
+                    -e "ALTER TABLE employees ADD COLUMN IF NOT EXISTS password VARCHAR(500) NOT NULL AFTER phone;" \
+                    2>/dev/null && echo "✓ password 字段已添加" || echo "⚠ password 字段可能已存在或其他错误，继续..."
+
+              mysql -h "${{ secrets.DB_HOST }}" \
+                    -P "${{ secrets.DB_PORT }}" \
+                    -u "${{ secrets.DB_USER }}" \
+                    -p"${{ secrets.DB_PASSWORD }}" \
+                    "${{ secrets.DB_NAME }}" \
+                    -e "ALTER TABLE employees ADD COLUMN IF NOT EXISTS nickname VARCHAR(200) DEFAULT '' AFTER password;" \
+                    2>/dev/null && echo "✓ nickname 字段已添加" || echo "⚠ nickname 字段可能已存在或其他错误，继续..."
+
+              mysql -h "${{ secrets.DB_HOST }}" \
+                    -P "${{ secrets.DB_PORT }}" \
+                    -u "${{ secrets.DB_USER }}" \
+                    -p"${{ secrets.DB_PASSWORD }}" \
+                    "${{ secrets.DB_NAME }}" \
+                    -e "ALTER TABLE employees ADD COLUMN IF NOT EXISTS expiresAt DATETIME NOT NULL AFTER nickname;" \
+                    2>/dev/null && echo "✓ expiresAt 字段已添加" || echo "⚠ expiresAt 字段可能已存在或其他错误，继续..."
+
+              mysql -h "${{ secrets.DB_HOST }}" \
+                    -P "${{ secrets.DB_PORT }}" \
+                    -u "${{ secrets.DB_USER }}" \
+                    -p"${{ secrets.DB_PASSWORD }}" \
+                    "${{ secrets.DB_NAME }}" \
+                    -e "ALTER TABLE employees ADD COLUMN IF NOT EXISTS status VARCHAR(50) NOT NULL DEFAULT 'active' AFTER expiresAt;" \
+                    2>/dev/null && echo "✓ status 字段已添加" || echo "⚠ status 字段可能已存在或其他错误，继续..."
+
+              mysql -h "${{ secrets.DB_HOST }}" \
+                    -P "${{ secrets.DB_PORT }}" \
+                    -u "${{ secrets.DB_USER }}" \
+                    -p"${{ secrets.DB_PASSWORD }}" \
+                    "${{ secrets.DB_NAME }}" \
+                    -e "ALTER TABLE employees ADD COLUMN IF NOT EXISTS createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP AFTER status;" \
+                    2>/dev/null && echo "✓ createdAt 字段已添加" || echo "⚠ createdAt 字段可能已存在或其他错误，继续..."
+
+              mysql -h "${{ secrets.DB_HOST }}" \
+                    -P "${{ secrets.DB_PORT }}" \
+                    -u "${{ secrets.DB_USER }}" \
+                    -p"${{ secrets.DB_PASSWORD }}" \
+                    "${{ secrets.DB_NAME }}" \
+                    -e "ALTER TABLE employees ADD COLUMN IF NOT EXISTS updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP AFTER createdAt;" \
+                    2>/dev/null && echo "✓ updatedAt 字段已添加" || echo "⚠ updatedAt 字段可能已存在或其他错误，继续..."
+
+              # 添加索引
+              mysql -h "${{ secrets.DB_HOST }}" \
+                    -P "${{ secrets.DB_PORT }}" \
+                    -u "${{ secrets.DB_USER }}" \
+                    -p"${{ secrets.DB_PASSWORD }}" \
+                    "${{ secrets.DB_NAME }}" \
+                    -e "ALTER TABLE employees ADD INDEX IF NOT EXISTS idx_userId (userId);" \
+                    2>/dev/null && echo "✓ idx_userId 索引已添加" || echo "⚠ idx_userId 索引可能已存在或其他错误，继续..."
+
+              mysql -h "${{ secrets.DB_HOST }}" \
+                    -P "${{ secrets.DB_PORT }}" \
+                    -u "${{ secrets.DB_USER }}" \
+                    -p"${{ secrets.DB_PASSWORD }}" \
+                    "${{ secrets.DB_NAME }}" \
+                    -e "ALTER TABLE employees ADD INDEX IF NOT EXISTS idx_phone (phone);" \
+                    2>/dev/null && echo "✓ idx_phone 索引已添加" || echo "⚠ idx_phone 索引可能已存在或其他错误，继续..."
+
+              mysql -h "${{ secrets.DB_HOST }}" \
+                    -P "${{ secrets.DB_PORT }}" \
+                    -u "${{ secrets.DB_USER }}" \
+                    -p"${{ secrets.DB_PASSWORD }}" \
+                    "${{ secrets.DB_NAME }}" \
+                    -e "ALTER TABLE employees ADD INDEX IF NOT EXISTS idx_expiresAt (expiresAt);" \
+                    2>/dev/null && echo "✓ idx_expiresAt 索引已添加" || echo "⚠ idx_expiresAt 索引可能已存在或其他错误，继续..."
+
+              # 验证 employees 表
+              echo "=== 验证 employees 表结构 ==="
+              mysql -h "${{ secrets.DB_HOST }}" \
+                    -P "${{ secrets.DB_PORT }}" \
+                    -u "${{ secrets.DB_USER }}" \
+                    -p"${{ secrets.DB_PASSWORD }}" \
+                    "${{ secrets.DB_NAME }}" \
+                    -e "DESCRIBE employees;" 2>/dev/null || echo "employees 表验证完成"
+
               echo "=== 数据库 Schema 修复完成 ==="
 
               # 验证修复结果
