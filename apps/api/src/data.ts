@@ -425,6 +425,31 @@ export async function updateCommission(id: string, fields: Record<string, any>):
 
 // ============ Employees (员工子账户) ============
 
+export async function readEmployees(): Promise<any[]> {
+  const rows = await query('SELECT * FROM employees ORDER BY createdAt DESC')
+  return (rows as any[]).map(row => ({
+    ...row,
+    expiresAt: row.expiresAt ? new Date(row.expiresAt).toISOString() : null,
+  }))
+}
+
+export async function writeEmployees(employees: any[]): Promise<void> {
+  for (const e of employees) {
+    const existing = await queryOne('SELECT id FROM employees WHERE id = ?', [e.id])
+    if (existing) {
+      await query(
+        `UPDATE employees SET userId=?, phone=?, password=?, nickname=?, expiresAt=?, status=?, updatedAt=NOW() WHERE id=?`,
+        [e.userId || '', e.phone || '', e.password || '', e.nickname || '', e.expiresAt || null, e.status || 'active', e.id]
+      )
+    } else {
+      await query(
+        `INSERT INTO employees (id, userId, phone, password, nickname, expiresAt, status, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, NOW())`,
+        [e.id, e.userId || '', e.phone || '', e.password || '', e.nickname || '', e.expiresAt || null, e.status || 'active']
+      )
+    }
+  }
+}
+
 export async function readEmployeesByUserId(userId: string): Promise<any[]> {
   const rows = await query('SELECT * FROM employees WHERE userId = ? ORDER BY createdAt DESC', [userId])
   return (rows as any[]).map(row => ({
@@ -561,3 +586,5 @@ export async function readOperationLogs(params?: {
     total: totalCount,
   }
 }
+
+
