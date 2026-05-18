@@ -6,6 +6,7 @@ import { existsSync, mkdirSync } from 'fs'
 import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
 import { smsLimiter, loginLimiter } from './middleware/rateLimit.js'
+import { sessionMiddleware, login as sessionLogin, logout as sessionLogout, requireAdmin, requireManager, requireUser, requireEmployee } from './middleware/auth.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const DATA_DIR = process.env.DATA_DIR || join(__dirname, '..', 'data')
@@ -64,6 +65,7 @@ const PORT = process.env.PORT || 3000
 // 中间件
 app.use(cors())
 app.use(express.json())
+app.use(sessionMiddleware)
 
 // ============ 产品接口 ============
 
@@ -346,7 +348,7 @@ app.post('/api/managers', async (req, res) => {
 })
 
 // 删除经理（同时下架其所有产品，转移佣金数据给管理后台）
-app.delete('/api/managers/:id', async (req, res) => {
+app.delete('/api/managers/:id', requireAdmin, async (req, res) => {
   const smsCode = req.query.smsCode as string
   // 从 localStorage 获取管理员信息（这里简化处理，实际需要从 token 获取管理员）
   // 这里假设管理员的手机号需要验证
@@ -420,7 +422,7 @@ app.delete('/api/managers/:id', async (req, res) => {
 })
 
 // 删除用户
-app.delete('/api/users/:id', async (req, res) => {
+app.delete('/api/users/:id', requireAdmin, async (req, res) => {
   const smsCode = req.query.smsCode as string
   // 验证验证码
   if (!smsCode) {
@@ -505,9 +507,11 @@ app.post('/api/managers/login', loginLimiter, async (req, res) => {
     res.json({ code: 401, message: '手机号或密码错误，或账号已被禁用', data: null })
     return
   }
+  
+  sessionLogin(req, { id: manager.id, phone: manager.phone, role: 'manager', nickname: manager.name, teamName: manager.teamName })
+  
   const { password: _, ...safeManager } = manager
-  const token = `mgr_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
-  res.json({ code: 0, message: '登录成功', data: { token, manager: safeManager } })
+  res.json({ code: 0, message: '登录成功', data: { manager: safeManager } })
 })
 
 // 经理短信验证码发送
@@ -552,9 +556,11 @@ app.post('/api/managers/sms/login', async (req, res) => {
     res.json({ code: 404, message: '该手机号未注册或已被禁用', data: null })
     return
   }
+  
+  sessionLogin(req, { id: manager.id, phone: manager.phone, role: 'manager', nickname: manager.name, teamName: manager.teamName })
+  
   const { password: _, ...safeManager } = manager
-  const token = `mgr_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
-  res.json({ code: 0, message: '登录成功', data: { token, manager: safeManager } })
+  res.json({ code: 0, message: '登录成功', data: { manager: safeManager } })
 })
 
 // 经理身份验证（检查经理是否仍存在且启用）
@@ -698,9 +704,11 @@ app.post('/api/users/login', loginLimiter, async (req, res) => {
     res.json({ code: 401, message: '手机号或密码错误，或账号已被禁用', data: null })
     return
   }
+  
+  sessionLogin(req, { id: user.id, phone: user.phone, role: 'user', nickname: user.nickname, teamName: user.teamName })
+  
   const { password: _, ...safeUser } = user
-  const token = `usr_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
-  res.json({ code: 0, message: '登录成功', data: { token, user: safeUser } })
+  res.json({ code: 0, message: '登录成功', data: { user: safeUser } })
 })
 
 // ============ 短信验证码登录 ============
@@ -801,9 +809,10 @@ app.post('/api/users/sms/login', async (req, res) => {
     await writeUsers(users)
   }
 
+  sessionLogin(req, { id: user.id, phone: user.phone, role: 'user', nickname: user.nickname, teamName: user.teamName })
+
   const { password: _, ...safeUser } = user
-  const token = `usr_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
-  res.json({ code: 0, message: '登录成功', data: { token, user: safeUser, isNew: !users.find((u: any) => u.phone === phone && u.id !== user.id) } })
+  res.json({ code: 0, message: '登录成功', data: { user: safeUser } })
 })
 
 // 用户：通过短信验证码设置/修改密码
@@ -893,7 +902,7 @@ app.get('/api/users', async (req, res) => {
 })
 
 // 管理后台：切换用户状态
-app.put('/api/users/:id/status', async (req, res) => {
+app.put('/api/users/:id/status', requireAdmin, async (req, res) => {
   const { status } = req.body
   const userId = req.params.id
 
@@ -933,7 +942,7 @@ app.put('/api/users/:id/status', async (req, res) => {
 })
 
 // 管理后台：切换用户角色
-app.put('/api/users/:id/role', async (req, res) => {
+app.put('/api/users/:id/role', requireAdmin, async (req, res) => {
   const { role } = req.body
   const userId = req.params.id
 
@@ -963,7 +972,7 @@ app.put('/api/users/:id/role', async (req, res) => {
 })
 
 // 管理后台修改用户团队名称
-app.put('/api/users/:id/team-name', async (req, res) => {
+app.put('/api/users/:id/team-name', requireAdmin, async (req, res) => {
   const { teamName } = req.body
   const userId = req.params.id
 
@@ -1034,7 +1043,7 @@ app.put('/api/users/:id/team-name', async (req, res) => {
 })
 
 // 管理后台：修改渠道经理团队名称
-app.put('/api/managers/:id/team-name', async (req, res) => {
+app.put('/api/managers/:id/team-name', requireAdmin, async (req, res) => {
   const { teamName } = req.body
   const managerId = req.params.id
 
@@ -1273,7 +1282,7 @@ app.get('/api/orders', async (req, res) => {
 })
 
 // 删除订单（管理后台）
-app.delete('/api/orders/:id', async (req, res) => {
+app.delete('/api/orders/:id', requireAdmin, async (req, res) => {
   const { id } = req.params
   const { reason, adminId, adminPhone, adminName } = req.body
   
@@ -1700,12 +1709,13 @@ app.post('/api/admin/login', loginLimiter, async (req, res) => {
     res.json({ code: 401, message: '手机号或密码错误', data: null })
     return
   }
-  const token = `adm_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+  
+  sessionLogin(req, { id: admin.id, phone: admin.phone, role: 'admin', nickname: admin.name })
+  
   res.json({
     code: 0,
     message: '登录成功',
     data: {
-      token,
       admin: { id: admin.id, phone: admin.phone, name: admin.name }
     }
   })
@@ -1764,12 +1774,13 @@ app.post('/api/admin/sms/login', async (req, res) => {
     res.json({ code: 404, message: '该手机号不是管理员', data: null })
     return
   }
-  const token = `adm_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+  
+  sessionLogin(req, { id: admin.id, phone: admin.phone, role: 'admin', nickname: admin.name })
+  
   res.json({
     code: 0,
     message: '登录成功',
     data: {
-      token,
       admin: { id: admin.id, phone: admin.phone, name: admin.name }
     }
   })
@@ -1862,7 +1873,7 @@ app.post('/api/admin/password/update', async (req, res) => {
 
 // ============ 管理后台全局统计 ============
 
-app.get('/api/admin/stats', async (_req, res) => {
+app.get('/api/admin/stats', requireAdmin, async (_req, res) => {
   const managers = await readManagers()
   const users = await readUsers()
   const products = await readProducts()
@@ -1895,7 +1906,7 @@ app.get('/api/admin/stats', async (_req, res) => {
 })
 
 // 管理后台下架产品
-app.put('/api/admin/products/:id/offline', async (req, res) => {
+app.put('/api/admin/products/:id/offline', requireAdmin, async (req, res) => {
   const { reason } = req.body
   if (!reason || !reason.trim()) {
     res.json({ code: 400, message: '请填写下架理由', data: null })
@@ -1986,7 +1997,7 @@ app.put('/api/commissions/:id', async (req, res) => {
 // ============ 操作日志接口 ============
 
 // 获取操作日志列表
-app.get('/api/admin/operation-logs', async (req, res) => {
+app.get('/api/admin/operation-logs', requireAdmin, async (req, res) => {
   const { page = '1', pageSize = '20', operationType, targetType, adminId } = req.query
   
   try {
