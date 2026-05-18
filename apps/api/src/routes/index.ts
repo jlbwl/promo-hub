@@ -2,6 +2,7 @@ import { Router } from 'express'
 import adminRoutes from './admin.routes.js'
 import managerRoutes from './manager.routes.js'
 import userRoutes from './user.routes.js'
+import employeeRoutes from './employee.routes.js'
 
 const router: Router = Router()
 
@@ -9,5 +10,6 @@ const router: Router = Router()
 router.use(adminRoutes)
 router.use(managerRoutes)
 router.use(userRoutes)
+router.use(employeeRoutes)
 
 export default router
