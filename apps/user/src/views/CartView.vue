@@ -10,42 +10,14 @@
     <!-- 购物车列表 -->
     <div class="cart-content">
       <div v-if="cartItems.length > 0" class="cart-list">
-        <div
+        <CartItem
           v-for="item in cartItems"
           :key="item.id"
-          class="cart-item"
-        >
-          <div class="item-info" @click="goToProduct(item)">
-            <van-image
-              v-if="item.coverImage"
-              :src="item.coverImage"
-              width="80"
-              height="80"
-              fit="cover"
-              round
-            />
-            <div v-else class="no-image">无图</div>
-            <div class="item-detail">
-              <h4 class="item-name">{{ item.productName }}</h4>
-              <p v-if="item.optionLabel" class="item-option">{{ item.optionLabel }}</p>
-              <p class="item-price">¥{{ item.productPrice }}</p>
-            </div>
-          </div>
-          <div class="item-actions">
-            <!-- 主账户可以移除，子账户只能查看 -->
-            <van-button
-              v-if="!isEmployee"
-              type="danger"
-              size="small"
-              plain
-              round
-              @click="handleRemove(item)"
-            >
-              移除
-            </van-button>
-            <van-tag v-else type="warning" size="medium">主账户加入</van-tag>
-          </div>
-        </div>
+          :item="item"
+          :is-employee="isEmployee"
+          @click="goToProduct"
+          @remove="handleRemove"
+        />
       </div>
 
       <!-- 空状态 -->
@@ -76,33 +48,32 @@ import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { get, del } from '@promo/shared/utils/request'
 import { showToast } from 'vant'
+import CartItem from '../components/CartItem.vue'
+import { useUser } from '../composables/useLocalStorage'
 
+/**
+ * 路由实例
+ */
 const router = useRouter()
 
+/**
+ * 用户信息 composable
+ */
+const { getUserId, getManagerId, isEmployee: checkIsEmployee } = useUser()
+
+/**
+ * 购物车数据
+ */
 const cartItems = ref<any[]>([])
 
-// 是否为员工账户
-const isEmployee = computed(() => {
-  return localStorage.getItem('login_type') === 'employee'
-})
+/**
+ * 是否为员工账户
+ */
+const isEmployee = computed(() => checkIsEmployee())
 
-// 获取当前用户ID
-const getUserId = () => {
-  try {
-    const info = JSON.parse(localStorage.getItem('user_info') || '{}')
-    return info.id || ''
-  } catch { return '' }
-}
-
-// 获取员工所属经理ID
-const getManagerId = () => {
-  try {
-    const info = JSON.parse(localStorage.getItem('user_info') || '{}')
-    return info.managerId || ''
-  } catch { return '' }
-}
-
-// 加载购物车数据
+/**
+ * 加载购物车数据
+ */
 const loadCart = async () => {
   try {
     let items: any[] = []
@@ -124,16 +95,20 @@ const loadCart = async () => {
     }
     cartItems.value = items
   } catch (error) {
-    console.error('获取购物车失败:', error)
+    console.error('[CartView] 获取购物车失败:', error)
   }
 }
 
-// 跳转到产品详情
+/**
+ * 跳转到产品详情
+ */
 const goToProduct = (item: any) => {
   router.push(`/product/${item.productId}`)
 }
 
-// 移除购物车项
+/**
+ * 移除购物车项
+ */
 const handleRemove = async (item: any) => {
   try {
     const res = await del(`/cart/${item.id}`)
@@ -148,11 +123,14 @@ const handleRemove = async (item: any) => {
       showToast(res.message || '移除失败')
     }
   } catch (error: any) {
-    console.error('移除失败:', error)
+    console.error('[CartView] 移除失败:', error)
     showToast(error.message || '移除失败')
   }
 }
 
+/**
+ * 组件挂载时加载数据
+ */
 onMounted(() => {
   loadCart()
 })
@@ -172,68 +150,6 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 12px;
-}
-
-.cart-item {
-  background: #fff;
-  border-radius: 12px;
-  padding: 12px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.item-info {
-  display: flex;
-  gap: 12px;
-  flex: 1;
-  .no-image {
-    width: 80px;
-    height: 80px;
-    border-radius: 8px;
-    background: #f5f5f5;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: #999;
-    font-size: 12px;
-  }
-}
-
-.item-detail {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 4px;
-
-  .item-name {
-    font-size: 14px;
-    font-weight: 600;
-    color: #333;
-    margin: 0;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-  }
-
-  .item-option {
-    font-size: 12px;
-    color: #666;
-    margin: 0;
-  }
-
-  .item-price {
-    font-size: 16px;
-    font-weight: 700;
-    color: #ee0a24;
-    margin: 0;
-  }
-}
-
-.item-actions {
-  display: flex;
-  align-items: center;
 }
 
 .employee-tip {

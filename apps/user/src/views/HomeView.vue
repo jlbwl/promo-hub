@@ -11,19 +11,11 @@
     </div>
 
     <!-- 产品分类横向滚动 -->
-    <div class="category-scroll">
-      <div class="category-list">
-        <div
-          v-for="category in categories"
-          :key="category.id"
-          class="category-item"
-          :class="{ active: activeCategory === category.id }"
-          @click="selectCategory(category.id)"
-        >
-          <span class="category-name">{{ category.name }}</span>
-        </div>
-      </div>
-    </div>
+    <CategoryList
+      :categories="categories"
+      :active-category="activeCategory"
+      @select="selectCategory"
+    />
 
     <!-- 产品列表 -->
     <div class="product-list">
@@ -34,54 +26,14 @@
         @load="loadProducts"
       >
         <div class="product-grid">
-          <div
+          <ProductCard
             v-for="product in products"
             :key="product.id"
-            class="product-card"
-            @click="goToDetail(product.id)"
-          >
-            <!-- 产品封面图 -->
-            <div class="product-image">
-              <van-image
-                width="100%"
-                height="160"
-                fit="cover"
-                :src="product.cover"
-                lazy-load
-              >
-                <template #error>
-                  <div class="image-error">
-                    <van-icon name="photo-fail" size="32" />
-                  </div>
-                </template>
-              </van-image>
-              <!-- 分类标签 -->
-              <div v-if="getCategoryName(product.category)" class="category-tag">
-                {{ getCategoryName(product.category) }}
-              </div>
-            </div>
-            <!-- 产品信息 -->
-            <div class="product-info">
-              <h3 class="product-title">{{ product.title }}</h3>
-              <div class="product-bottom">
-                <span class="product-price">¥{{ product.price }}</span>
-                <span class="product-sales">已售 {{ product.sales }}</span>
-              </div>
-              <div class="product-actions">
-                <van-button
-                  size="small"
-                  type="primary"
-                  plain
-                  round
-                  :icon="product.inCart ? 'star' : 'star-o'"
-                  :disabled="product.inCart"
-                  @click.stop="addToCart(product)"
-                >
-                  {{ product.inCart ? '已收藏' : '加入收藏' }}
-                </van-button>
-              </div>
-            </div>
-          </div>
+            :product="product"
+            :category-name="getCategoryName(product.category)"
+            @click="goToDetail"
+            @add-to-cart="addToCart"
+          />
         </div>
       </van-list>
     </div>
@@ -89,52 +41,60 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { get, post } from '@promo/shared/utils/request'
 import { showToast } from 'vant'
+import ProductCard from '../components/ProductCard.vue'
+import CategoryList from '../components/CategoryList.vue'
+import { useUser } from '../composables/useLocalStorage'
+import { useProductCategories } from '../composables/useProductCategories'
 
-// 路由实例
+/**
+ * 路由实例
+ */
 const router = useRouter()
 
-// 搜索关键词
+/**
+ * 用户信息 composable
+ */
+const { getUserId } = useUser()
+
+/**
+ * 产品分类 composable
+ */
+const { categories, getCategoryName } = useProductCategories()
+
+/**
+ * 搜索关键词
+ */
 const searchKeyword = ref('')
 
-// 当前激活的分类
+/**
+ * 当前激活的分类
+ */
 const activeCategory = ref(0)
 
-// 产品列表数据
+/**
+ * 产品列表数据
+ */
 const products = ref<any[]>([])
 
-// 加载状态
+/**
+ * 加载状态
+ */
 const loading = ref(false)
 const finished = ref(false)
 
-// 分页
+/**
+ * 分页
+ */
 const page = ref(1)
 const pageSize = 10
 
-// 分类数据（id 对应 API 的 category value）
-const categories = reactive([
-  { id: 0, name: '全部', value: '' },
-  { id: 1, name: '综合-立返', value: 'comprehensive-instant' },
-  { id: 2, name: '综合-数据', value: 'comprehensive-data' },
-  { id: 3, name: '个养和加挂', value: 'personal-insurance' },
-  { id: 4, name: '限三-立返', value: 'limit3-instant' },
-  { id: 5, name: '限三-数据', value: 'limit3-data' },
-  { id: 6, name: '不限三-立返', value: 'no-limit3-instant' },
-  { id: 7, name: '不限三-数据', value: 'no-limit3-data' },
-  { id: 8, name: '三方-立返', value: 'third-party-instant' },
-  { id: 9, name: '三方-数据', value: 'third-party-data' },
-  { id: 10, name: '其它', value: 'other' }
-])
-
-// 根据 category value 获取分类名称
-const getCategoryName = (categoryValue: string) => {
-  return categories.find(c => c.value === categoryValue)?.name || ''
-}
-
-// 加载产品列表
+/**
+ * 加载产品列表
+ */
 const loadProducts = async () => {
   try {
     const categoryValue = categories.find(c => c.id === activeCategory.value)?.value
@@ -148,7 +108,6 @@ const loadProducts = async () => {
       finished.value = true
     } else {
       // 检查产品在购物车中的状态
-      const userId = getUserId()
       const newProducts = list.map((p: any) => ({
         ...p,
         cover: p.coverImage || '',
@@ -158,19 +117,21 @@ const loadProducts = async () => {
       page.value++
 
       // 如果是第一页且有用户ID，检查购物车状态
-      if (page.value === 2 && userId) {
+      if (page.value === 2 && getUserId()) {
         await checkCartStatus()
       }
     }
   } catch (error) {
-    console.error('加载产品失败:', error)
+    console.error('[HomeView] 加载产品失败:', error)
     finished.value = true
   } finally {
     loading.value = false
   }
 }
 
-// 检查产品在购物车中的状态
+/**
+ * 检查产品在购物车中的状态
+ */
 const checkCartStatus = async () => {
   const userId = getUserId()
   if (!userId) return
@@ -186,11 +147,13 @@ const checkCartStatus = async () => {
       })
     }
   } catch (error) {
-    console.error('检查购物车状态失败:', error)
+    console.error('[HomeView] 检查购物车状态失败:', error)
   }
 }
 
-// 选择分类
+/**
+ * 选择分类
+ */
 const selectCategory = (categoryId: number) => {
   activeCategory.value = categoryId
   products.value = []
@@ -198,27 +161,25 @@ const selectCategory = (categoryId: number) => {
   page.value = 1
 }
 
-// 搜索产品
+/**
+ * 搜索产品
+ */
 const handleSearch = () => {
   products.value = []
   finished.value = false
   page.value = 1
 }
 
-// 跳转产品详情
-const goToDetail = (productId: string) => {
-  router.push(`/product/${productId}`)
+/**
+ * 跳转产品详情
+ */
+const goToDetail = (product: any) => {
+  router.push(`/product/${product.id}`)
 }
 
-// 获取当前用户ID
-const getUserId = () => {
-  try {
-    const info = JSON.parse(localStorage.getItem('user_info') || '{}')
-    return info.id || ''
-  } catch { return '' }
-}
-
-// 加入购物车
+/**
+ * 加入购物车
+ */
 const addToCart = async (product: any) => {
   const userId = getUserId()
   if (!userId) {
@@ -243,10 +204,17 @@ const addToCart = async (product: any) => {
       showToast(res.message || '加入失败')
     }
   } catch (error: any) {
-    console.error('加入购物车失败:', error)
+    console.error('[HomeView] 加入购物车失败:', error)
     showToast(error.message || '加入失败')
   }
 }
+
+/**
+ * 组件挂载时初始化
+ */
+onMounted(() => {
+  loadProducts()
+})
 </script>
 
 <style scoped lang="scss">
@@ -255,7 +223,6 @@ const addToCart = async (product: any) => {
   background-color: #f7f8fa;
 }
 
-// 搜索栏
 .search-bar {
   position: sticky;
   top: 0;
@@ -267,42 +234,6 @@ const addToCart = async (product: any) => {
   }
 }
 
-// 分类横向滚动
-.category-scroll {
-  background-color: #ffffff;
-  padding-bottom: 12px;
-  border-bottom: 1px solid #f0f0f0;
-}
-
-.category-list {
-  display: flex;
-  overflow-x: auto;
-  padding: 0 12px;
-  -webkit-overflow-scrolling: touch;
-
-  &::-webkit-scrollbar {
-    display: none;
-  }
-}
-
-.category-item {
-  flex-shrink: 0;
-  padding: 8px 16px;
-  margin-right: 8px;
-  border-radius: 20px;
-  font-size: 13px;
-  color: #666;
-  background-color: #f5f5f5;
-  cursor: pointer;
-  transition: all 0.3s;
-
-  &.active {
-    color: #ffffff;
-    background-color: #1989fa;
-  }
-}
-
-// 产品列表
 .product-list {
   padding: 12px;
 }
@@ -311,83 +242,5 @@ const addToCart = async (product: any) => {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 10px;
-}
-
-// 产品卡片
-.product-card {
-  background-color: #ffffff;
-  border-radius: 8px;
-  overflow: hidden;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
-  cursor: pointer;
-  transition: transform 0.2s;
-
-  &:active {
-    transform: scale(0.98);
-  }
-}
-
-.product-image {
-  position: relative;
-  overflow: hidden;
-
-  .image-error {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    height: 100%;
-    background-color: #f5f5f5;
-    color: #ccc;
-  }
-}
-
-.category-tag {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  padding: 2px 8px;
-  border-radius: 4px;
-  font-size: 11px;
-  color: #ffffff;
-  background: linear-gradient(135deg, #1989fa, #4fc3f7);
-}
-
-.product-info {
-  padding: 10px;
-}
-
-.product-title {
-  font-size: 13px;
-  font-weight: 400;
-  color: #323233;
-  line-height: 1.4;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  margin-bottom: 8px;
-}
-
-.product-bottom {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.product-price {
-  font-size: 16px;
-  font-weight: 600;
-  color: #ee0a24;
-}
-
-.product-sales {
-  font-size: 11px;
-  color: #969799;
-}
-
-.product-actions {
-  margin-top: 8px;
-  display: flex;
-  justify-content: flex-end;
 }
 </style>
