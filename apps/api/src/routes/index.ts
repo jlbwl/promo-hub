@@ -6,6 +6,7 @@ import employeeRoutes from './employee.routes.js'
 import productRoutes from './product.routes.js'
 import orderRoutes from './order.routes.js'
 import cartRoutes from './cart.routes.js'
+import statsRoutes from './stats.routes.js'
 
 const router: Router = Router()
 
@@ -16,6 +17,6 @@ router.use(managerRoutes)
 router.use(userRoutes)
 router.use(employeeRoutes)
 router.use(productRoutes)
-router.use(orderRoutes)
+router.use(statsRoutes)
 
 export default router
