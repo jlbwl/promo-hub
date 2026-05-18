@@ -15,10 +15,14 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function login(params: LoginParams) {
     const res = await post<LoginResult>('/auth/login', params)
-    token.value = res.data.token
+    token.value = res.data.token || ''
     user.value = res.data.user
-    localStorage.setItem('token', res.data.token)
-    localStorage.setItem('refreshToken', res.data.refreshToken)
+    if (res.data.token) {
+      localStorage.setItem('token', res.data.token)
+    }
+    if (res.data.refreshToken) {
+      localStorage.setItem('refreshToken', res.data.refreshToken)
+    }
     return res.data
   }
 
