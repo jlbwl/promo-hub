@@ -80,5 +80,5 @@ src/
 - [x] 创建 order controller & routes
 - [x] 创建 cart controller & routes
 - [x] 创建 stats controller & routes
-- [ ] 重构 index.ts 为入口文件
-- [ ] 删除旧代码
+- [x] 重构 index.ts 为入口文件
+- [x] 删除旧代码
