@@ -20,7 +20,7 @@ declare module 'express-session' {
   }
 }
 
-export const sessionMiddleware = session({
+export const sessionMiddleware: RequestHandler = session({
   secret: SESSION_SECRET,
   resave: false,
   saveUninitialized: false,
