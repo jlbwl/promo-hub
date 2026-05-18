@@ -7,11 +7,11 @@ import {
   AppError,
   HttpStatus,
   ErrorCode,
-} from '../response'
-import logger from '../logger'
+} from '../response.js'
+import logger from '../logger.js'
 
 // Mock logger
-vi.mock('../logger', () => ({
+vi.mock('../logger.js', () => ({
   default: {
     error: vi.fn(),
     logError: vi.fn(),

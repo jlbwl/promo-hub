@@ -7,7 +7,7 @@ import logger, {
   logRequest,
   logError,
   LogLevel,
-} from '../logger'
+} from '../logger.js'
 
 // Mock console methods
 const originalConsole = {

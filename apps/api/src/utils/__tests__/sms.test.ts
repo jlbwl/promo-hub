@@ -4,7 +4,7 @@ import {
   saveSmsCode,
   verifySmsCode,
   deleteSmsCode,
-} from '../sms'
+} from '../sms.js'
 
 describe('sms utils', () => {
   describe('generateSmsCode', () => {
