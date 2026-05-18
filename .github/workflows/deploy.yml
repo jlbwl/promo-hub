@@ -97,7 +97,7 @@ jobs:
           path: |
             apps/api/dist
             apps/api/package.json
-            apps/api/node_modules
+            pnpm-lock.yaml
             
       - name: Upload Nginx config
         uses: actions/upload-artifact@v5
@@ -177,17 +177,17 @@ jobs:
           strip_components: 1
           rm: true
 
-      - name: Upload API dist to server
+      - name: Upload API files to server
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: ${{ secrets.SERVER_PORT || 22 }}
-          source: "api-dist/dist/*"
-          target: "${{ env.DEPLOY_DIR }}/api/dist"
-          strip_components: 2
-          rm: true
+          source: "api-dist/dist,api-dist/package.json,api-dist/pnpm-lock.yaml"
+          target: "${{ env.DEPLOY_DIR }}/api"
+          strip_components: 1
+          rm: false
 
       - name: Restart API, Fix DB and Nginx
         uses: appleboy/ssh-action@v1.2.0
@@ -200,6 +200,9 @@ jobs:
             set -e
             mkdir -p ${{ env.DEPLOY_DIR }}/api/data/uploads
             cd ${{ env.DEPLOY_DIR }}/api
+            
+            # 确保 package.json 和 pnpm-lock.yaml 在正确位置
+            ls -la
 
             # 输出当前环境变量（不包含敏感信息）检查配置
             echo "=== 检查环境变量 ==="
@@ -421,8 +424,29 @@ jobs:
             # 先删除旧进程
             pm2 delete promo-api 2>/dev/null || true
 
-            # 安装依赖并启动
+            # 清理旧的 node_modules
+            rm -rf node_modules
+            
+            # 确保 package.json 是最新的
+            echo "=== package.json 内容 ==="
+            cat package.json
+            
+            # 尝试使用 npm 安装
+            echo "=== 使用 npm 安装依赖 ==="
             npm install --production
+            
+            # 如果 npm 失败，尝试安装 bcrypt 及其他依赖
+            echo "=== 验证依赖 ==="
+            if [ ! -d "node_modules/bcrypt" ]; then
+                echo "bcrypt 未安装，尝试单独安装..."
+                npm install bcrypt@^5.1.1 --save
+                npm install @types/bcrypt@^5.0.2 --save-dev || true
+            fi
+            
+            echo "=== 已安装的依赖 ==="
+            ls -la node_modules/ 2>/dev/null || true
+            ls -la node_modules/bcrypt 2>/dev/null || true
+            
             pm2 start dist/index.js --name promo-api --wait-ready
 
             # 等待几秒让服务完全启动
