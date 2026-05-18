@@ -96,8 +96,6 @@ jobs:
           name: api-dist
           path: |
             apps/api/dist
-            apps/api/package.json
-            pnpm-lock.yaml
             
       - name: Upload Nginx config
         uses: actions/upload-artifact@v5
@@ -184,7 +182,7 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: ${{ secrets.SERVER_PORT || 22 }}
-          source: "api-dist/dist,api-dist/package.json,api-dist/pnpm-lock.yaml"
+          source: "api-dist/dist"
           target: "${{ env.DEPLOY_DIR }}/api"
           strip_components: 1
           rm: false
@@ -201,7 +199,41 @@ jobs:
             mkdir -p ${{ env.DEPLOY_DIR }}/api/data/uploads
             cd ${{ env.DEPLOY_DIR }}/api
             
-            # 确保 package.json 和 pnpm-lock.yaml 在正确位置
+            # 直接在服务器上创建 package.json
+            cat > package.json << 'EOF'
+{
+  "name": "@promo/api",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "bcrypt": "^5.1.1",
+    "cors": "^2.8.5",
+    "dotenv": "^17.4.2",
+    "express": "^4.21.0",
+    "express-rate-limit": "^8.5.1",
+    "multer": "^1.4.5-lts.1",
+    "mysql2": "^3.22.3",
+    "uuid": "^11.0.0"
+  },
+  "devDependencies": {
+    "@types/bcrypt": "^5.0.2",
+    "@types/cors": "^2.8.17",
+    "@types/express": "^5.0.0",
+    "@types/multer": "^1.4.12",
+    "@types/uuid": "^10.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0"
+  }
+}
+EOF
+            
+            echo "=== 已创建 package.json ==="
             ls -la
 
             # 输出当前环境变量（不包含敏感信息）检查配置
