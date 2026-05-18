@@ -49,8 +49,6 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
-
 /**
  * 产品数据接口
  */
@@ -79,7 +77,7 @@ interface Emits {
   (e: 'add-to-cart', product: ProductCardProps['product']): void
 }
 
-const props = withDefaults(defineProps<ProductCardProps>(), {
+const { product, categoryName, showActions } = withDefaults(defineProps<ProductCardProps>(), {
   showActions: true
 })
 
@@ -89,14 +87,14 @@ const emit = defineEmits<Emits>()
  * 点击产品卡片
  */
 const handleCardClick = () => {
-  emit('click', props.product)
+  emit('click', product)
 }
 
 /**
  * 添加到购物车
  */
 const handleAddToCart = () => {
-  emit('add-to-cart', props.product)
+  emit('add-to-cart', product)
 }
 </script>
 

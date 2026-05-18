@@ -58,6 +58,7 @@ import { ElMessage } from 'element-plus'
 import { PictureFilled, InfoFilled, Loading } from '@element-plus/icons-vue'
 import { post } from '@promo/shared/utils/request'
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const props = withDefaults(defineProps<{
   modelValue: string
   placeholder?: string
@@ -89,14 +90,14 @@ const COMPRESS_CONFIG = {
     maxWidth: 1920,
     maxHeight: 1920,
     quality: 0.85,
-    maxFileSize: 10 * 1024 * 1024, // 10MB
+    maxFileSize: 10 * 1024 * 1024,
     mimeType: 'image/jpeg'
   },
   mobile: {
     maxWidth: 1080,
     maxHeight: 1080,
     quality: 0.7,
-    maxFileSize: 5 * 1024 * 1024, // 5MB
+    maxFileSize: 5 * 1024 * 1024,
     mimeType: 'image/jpeg'
   }
 }
@@ -296,7 +297,7 @@ const processImage = async (file: File) => {
     uploading.value = true
     
     // 检查文件大小
-    if (file.size > config.maxFileSize * 2) { // 允许原图稍大，压缩后会变小
+    if (file.size > config.maxFileSize * 2) {
       ElMessage.error(`图片大小不能超过 ${(config.maxFileSize / 1024 / 1024).toFixed(0)}MB`)
       return
     }
@@ -651,7 +652,7 @@ defineExpose({
     top: 0;
     left: 0;
     right: 0;
-    bottom: 46px; // 留出工具栏高度
+    bottom: 46px;
     background: rgba(255, 255, 255, 0.95);
     display: flex;
     align-items: center;
@@ -687,7 +688,6 @@ defineExpose({
   }
 }
 
-// 响应式适配
 @media (max-width: 768px) {
   .rich-text-editor-wrapper {
     .rich-text-editor {
@@ -714,7 +714,7 @@ defineExpose({
         justify-content: space-between;
         
         .editor-tip {
-          display: none; // 手机端隐藏提示
+          display: none;
         }
       }
     }

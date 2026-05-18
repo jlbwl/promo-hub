@@ -40,7 +40,7 @@ interface Emits {
   (e: 'select', id: number): void
 }
 
-const props = defineProps<CategoryListProps>()
+const { categories, activeCategory } = defineProps<CategoryListProps>()
 const emit = defineEmits<Emits>()
 
 /**

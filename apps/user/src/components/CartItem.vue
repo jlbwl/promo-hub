@@ -34,8 +34,6 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
-
 /**
  * 购物车项数据接口
  */
@@ -60,7 +58,7 @@ interface Emits {
   (e: 'remove', item: CartItemProps['item']): void
 }
 
-const props = withDefaults(defineProps<CartItemProps>(), {
+const { item, isEmployee } = withDefaults(defineProps<CartItemProps>(), {
   isEmployee: false
 })
 
@@ -70,14 +68,14 @@ const emit = defineEmits<Emits>()
  * 点击购物车项
  */
 const handleItemClick = () => {
-  emit('click', props.item)
+  emit('click', item)
 }
 
 /**
  * 移除购物车项
  */
 const handleRemove = () => {
-  emit('remove', props.item)
+  emit('remove', item)
 }
 </script>
 
