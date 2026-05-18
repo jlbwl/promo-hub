@@ -4,17 +4,16 @@ import {
   readProducts,
   readProduct,
   updateProduct,
-  readUsers,
   readEmployeeById,
   readUser,
-  readOrders,
-  insertOrder,
-  deleteOrder,
   readOrder,
   readDeletedOrders,
   restoreOrder,
   updateOrder,
   insertOperationLog,
+  getOrdersPaginated,
+  insertOrder,
+  deleteOrder,
 } from '../data.js'
 
 /**
@@ -104,48 +103,23 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
 
 /**
  * 获取订单列表
+ * 优化版本：使用数据库级别的筛选和分页
  */
 export const getOrders = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { userId, managerId, status, page = '1', pageSize = '20' } = req.query
-    let orders = await readOrders()
-
-    if (userId) {
-      orders = orders.filter((o: any) => o.userId === userId)
-    }
-    if (managerId) {
-      orders = orders.filter((o: any) => o.managerId === managerId)
-    }
-    if (status) {
-      orders = orders.filter((o: any) => o.status === status)
-    }
-    if (req.query.managedBy) {
-      orders = orders.filter((o: any) => o.managedBy === req.query.managedBy)
-    }
-
-    orders.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-
-    const users = await readUsers()
-
-    const total = orders.length
-    const pageNum = parseInt(page as string, 10)
-    const pageSizeNum = parseInt(pageSize as string, 10)
-    const start = (pageNum - 1) * pageSizeNum
-    const list = orders.slice(start, start + pageSizeNum).map(order => {
-      let currentTeamName = order.teamName || ''
-      if (order.userId && order.userId !== 'guest') {
-        const user = users.find((u: any) => u.id === order.userId)
-        if (user && user.teamName) {
-          currentTeamName = user.teamName
-        }
-      }
-      return {
-        ...order,
-        teamName: currentTeamName
-      }
+    const { userId, managerId, status, page = '1', pageSize = '20', keyword, managedBy } = req.query
+    
+    const { list, total } = await getOrdersPaginated({
+      userId: userId as string,
+      managerId: managerId as string,
+      status: status as string,
+      managedBy: managedBy as string,
+      keyword: keyword as string,
+      page: parseInt(page as string, 10),
+      pageSize: parseInt(pageSize as string, 10),
     })
 
-    sendPagination(res, list, total, pageNum, pageSizeNum)
+    sendPagination(res, list, total, parseInt(page as string, 10), parseInt(pageSize as string, 10))
   } catch (error: any) {
     sendError(res, error.message || '获取失败', 500)
   }

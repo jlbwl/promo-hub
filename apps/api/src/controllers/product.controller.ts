@@ -1,74 +1,32 @@
 import { Request, Response } from 'express'
 import { sendSuccess, sendError, sendPagination } from '../utils/response.js'
 import {
-  readProducts,
   readProduct,
   insertProduct,
   updateProduct,
   deleteProduct,
-  readManagers,
-  readOrders,
+  getProductsPaginated,
   queryOne
 } from '../data.js'
 
 /**
  * 获取产品列表（用户端只看已发布的且经理在白名单中的，经理端看自己的）
+ * 优化版本：使用数据库级别的筛选和分页
  */
 export const getProducts = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { page = '1', pageSize = '10', category, status, managerId } = req.query
-    let products = await readProducts()
-
-    // 用户端：过滤掉经理不在白名单或已被禁用的产品
-    if (!managerId) {
-      const managers = await readManagers()
-      const activeManagerIds = new Set(
-        managers.filter((m: any) => m.status === 'active').map((m: any) => m.id)
-      )
-      products = products.filter((p: any) => activeManagerIds.has(p.managerId))
-    }
-
-    // 经理端：只看自己的产品
-    if (managerId) {
-      products = products.filter((p: any) => p.managerId === managerId)
-    }
-
-    // 按分类筛选
-    if (category && category !== '0') {
-      products = products.filter((p: any) => p.category === category)
-    }
-
-    // 按状态筛选（manager 端可传 status 参数）
-    if (status) {
-      products = products.filter((p: any) => p.status === status)
-    } else if (!managerId) {
-      // 用户端默认只返回已发布的产品
-      products = products.filter((p: any) => p.status === 'published')
-    }
-
-    // 按发布时间倒序
-    products.sort((a: any, b: any) => new Date(b.publishedAt || b.createdAt).getTime() - new Date(a.publishedAt || a.createdAt).getTime())
-
-    // 统计每个产品的做单量（已售）
-    const orders = await readOrders()
-    const salesMap = new Map<string, number>()
-    orders.forEach((o: any) => {
-      if (o.productId) {
-        salesMap.set(o.productId, (salesMap.get(o.productId) || 0) + 1)
-      }
-    })
-    // 附加 sales 字段到每个产品
-    products.forEach((p: any) => {
-      p.sales = salesMap.get(p.id) || 0
+    const { page = '1', pageSize = '10', category, status, managerId, keyword } = req.query
+    
+    const { list, total } = await getProductsPaginated({
+      page: parseInt(page as string, 10),
+      pageSize: parseInt(pageSize as string, 10),
+      category: category as string,
+      status: status as string,
+      managerId: managerId as string,
+      keyword: keyword as string,
     })
 
-    const total = products.length
-    const pageNum = parseInt(page as string, 10)
-    const pageSizeNum = parseInt(pageSize as string, 10)
-    const start = (pageNum - 1) * pageSizeNum
-    const list = products.slice(start, start + pageSizeNum)
-
-    sendPagination(res, list, total, pageNum, pageSizeNum)
+    sendPagination(res, list, total, parseInt(page as string, 10), parseInt(pageSize as string, 10))
   } catch (error: any) {
     sendError(res, error.message || '获取失败', 500)
   }

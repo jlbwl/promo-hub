@@ -79,6 +79,15 @@
 
     <!-- 筛选栏 -->
     <div class="search-bar">
+      <el-input
+        v-model="filterKeyword"
+        placeholder="搜索产品名称、用户姓名、手机号"
+        prefix-icon="Search"
+        clearable
+        style="width: 300px;"
+        @clear="fetchData"
+        @keyup.enter="fetchData"
+      />
       <el-select
         v-model="filterStatus"
         placeholder="订单状态"
@@ -382,6 +391,7 @@ const loading = ref(false)
 
 // 筛选状态
 const filterStatus = ref('')
+const filterKeyword = ref('')
 
 // 分页数据
 const pagination = reactive({
@@ -541,6 +551,7 @@ const fetchData = async () => {
       pageSize: pagination.pageSize,
       managerId: getManagerId() || undefined,
       status: filterStatus.value || undefined,
+      keyword: filterKeyword.value || undefined,
     })
     if (res.data) {
       const { list, total } = res.data
@@ -557,6 +568,7 @@ const fetchData = async () => {
 // 重置筛选
 const handleReset = () => {
   filterStatus.value = ''
+  filterKeyword.value = ''
   pagination.page = 1
   fetchData()
 }

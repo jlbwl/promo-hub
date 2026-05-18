@@ -181,6 +181,90 @@ export async function deleteProduct(id: string): Promise<void> {
   await query('DELETE FROM products WHERE id = ?', [id])
 }
 
+// ============ 优化的产品查询方法 ============
+
+export async function getProductsPaginated(params: {
+  managerId?: string
+  category?: string
+  status?: string
+  page?: number
+  pageSize?: number
+  keyword?: string
+}): Promise<{ list: any[]; total: number }> {
+  const whereConditions: string[] = []
+  const values: any[] = []
+
+  if (params.managerId) {
+    whereConditions.push('managerId = ?')
+    values.push(params.managerId)
+  } else {
+    // 用户端只显示活跃经理的产品
+    whereConditions.push('managerId IN (SELECT id FROM managers WHERE status = "active")')
+  }
+
+  if (params.category && params.category !== '0') {
+    whereConditions.push('category = ?')
+    values.push(params.category)
+  }
+
+  if (params.status) {
+    whereConditions.push('status = ?')
+    values.push(params.status)
+  } else if (!params.managerId) {
+    // 用户端默认只返回已发布的产品
+    whereConditions.push('status = "published"')
+  }
+
+  if (params.keyword) {
+    whereConditions.push('(title LIKE ? OR description LIKE ?)')
+    values.push(`%${params.keyword}%`, `%${params.keyword}%`)
+  }
+
+  const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : ''
+
+  // 计算总数
+  const countResult = await queryOne(`SELECT COUNT(*) as total FROM products ${whereClause}`, values)
+  const total = Number(countResult?.total) || 0
+
+  // 分页
+  const page = params.page || 1
+  const pageSize = params.pageSize || 10
+  const offset = (page - 1) * pageSize
+
+  // 查询产品列表
+  let products = await query(
+    `SELECT * FROM products ${whereClause} ORDER BY COALESCE(publishedAt, createdAt) DESC LIMIT ? OFFSET ?`,
+    [...values, pageSize, offset]
+  )
+
+  // 获取销售数量
+  const salesResult = await query(`
+    SELECT productId, COUNT(*) as salesCount
+    FROM orders
+    WHERE deleted = 0
+    GROUP BY productId
+  `)
+  const salesMap = new Map()
+  ;(salesResult as any[]).forEach(item => {
+    salesMap.set(item.productId, Number(item.salesCount) || 0)
+  })
+
+  return {
+    list: (products as any[]).map(product => ({
+      ...product,
+      price: Number(product.price) || 0,
+      originalPrice: Number(product.originalPrice) || 0,
+      stock: Number(product.stock) || 0,
+      requireName: Boolean(Number(product.requireName)),
+      requirePhone: Boolean(Number(product.requirePhone)),
+      images: deserialize(product.images),
+      options: deserialize(product.options),
+      sales: salesMap.get(product.id) || 0,
+    })),
+    total,
+  }
+}
+
 // ============ Managers ============
 
 export async function readManagers(): Promise<any[]> {
@@ -388,6 +472,84 @@ export async function deleteOrder(id: string): Promise<void> {
 
 export async function restoreOrder(id: string): Promise<void> {
   await query('UPDATE orders SET deleted = 0, deletedAt = NULL WHERE id = ?', [id])
+}
+
+// ============ 优化的订单查询方法 ============
+
+export async function getOrdersPaginated(params: {
+  userId?: string
+  managerId?: string
+  status?: string
+  managedBy?: string
+  keyword?: string
+  page?: number
+  pageSize?: number
+}): Promise<{ list: any[]; total: number }> {
+  const whereConditions: string[] = ['deleted = 0']
+  const values: any[] = []
+
+  if (params.userId) {
+    whereConditions.push('userId = ?')
+    values.push(params.userId)
+  }
+  if (params.managerId) {
+    whereConditions.push('managerId = ?')
+    values.push(params.managerId)
+  }
+  if (params.status) {
+    whereConditions.push('status = ?')
+    values.push(params.status)
+  }
+  if (params.managedBy) {
+    whereConditions.push('managedBy = ?')
+    values.push(params.managedBy)
+  }
+  if (params.keyword) {
+    whereConditions.push('(productName LIKE ? OR userName LIKE ? OR userPhone LIKE ?)')
+    values.push(`%${params.keyword}%`, `%${params.keyword}%`, `%${params.keyword}%`)
+  }
+
+  const whereClause = whereConditions.join(' AND ')
+
+  // 计算总数
+  const countResult = await queryOne(
+    `SELECT COUNT(*) as total FROM orders WHERE ${whereClause}`,
+    values
+  )
+  const total = Number(countResult?.total) || 0
+
+  // 分页
+  const page = params.page || 1
+  const pageSize = params.pageSize || 20
+  const offset = (page - 1) * pageSize
+
+  // 查询订单列表
+  const orders = await query(
+    `SELECT * FROM orders WHERE ${whereClause} ORDER BY createdAt DESC LIMIT ? OFFSET ?`,
+    [...values, pageSize, offset]
+  )
+
+  // 获取用户信息
+  const userIds = Array.from(new Set((orders as any[]).map(o => o.userId).filter(Boolean)))
+  let usersMap = new Map()
+  if (userIds.length > 0) {
+    const users = await query(
+      `SELECT id, teamName FROM users WHERE id IN (${userIds.map(() => '?').join(',')})`,
+      userIds
+    )
+    ;(users as any[]).forEach(user => {
+      usersMap.set(user.id, user.teamName)
+    })
+  }
+
+  return {
+    list: (orders as any[]).map(order => ({
+      ...order,
+      productPrice: Number(order.productPrice) || 0,
+      teamName: order.teamName || usersMap.get(order.userId) || '',
+    })),
+    total,
+  }
 }
 
 // ============ Commissions ============

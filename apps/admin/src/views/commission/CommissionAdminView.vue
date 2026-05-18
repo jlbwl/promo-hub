@@ -78,7 +78,16 @@
 
     <!-- 筛选栏 -->
     <div class="search-bar">
-      <el-select v-model="filterStatus" placeholder="订单状态" clearable style="width: 140px;" @change="fetchData">
+      <el-input
+        v-model="filterKeyword"
+        placeholder="搜索产品名称、用户姓名、手机号"
+        prefix-icon="Search"
+        clearable
+        style="width: 300px;"
+        @clear="fetchData"
+        @keyup.enter="fetchData"
+      />
+      <el-select v-model="filterStatus" placeholder="订单状态" clearable style="width: 140px; margin-left: 12px;" @change="fetchData">
         <el-option label="全部" value="" />
         <el-option label="待审核" value="pending" />
         <el-option label="已通过" value="approved" />
@@ -257,6 +266,7 @@ const loading = ref(false)
 const filterStatus = ref('')
 const filterManager = ref('')
 const filterUser = ref('')
+const filterKeyword = ref('')
 const pagination = reactive({ page: 1, pageSize: 10, total: 0 })
 const tableData = ref<any[]>([])
 
@@ -344,13 +354,14 @@ const fetchData = async () => {
     if (filterStatus.value) params.status = filterStatus.value
     if (filterManager.value) params.managerId = filterManager.value
     if (filterUser.value) params.userId = filterUser.value
+    if (filterKeyword.value) params.keyword = filterKeyword.value
     const res = await get<any>('/orders', params)
     if (res.data) { tableData.value = res.data.list || []; pagination.total = res.data.total || 0 }
   } catch (e: any) { ElMessage.error(e.message || '获取失败') }
   finally { loading.value = false }
 }
 
-const handleReset = () => { filterStatus.value = ''; filterManager.value = ''; filterUser.value = ''; pagination.page = 1; fetchData() }
+const handleReset = () => { filterStatus.value = ''; filterManager.value = ''; filterUser.value = ''; filterKeyword.value = ''; pagination.page = 1; fetchData() }
 
 const openStatDialog = async (status: string, title: string) => {
   statDialogTitle.value = title + '明细'

@@ -242,6 +242,7 @@ const fetchData = async () => {
       pageSize: pagination.pageSize,
       status: searchStatus.value || undefined,
       managerId: getManagerId() || undefined,
+      keyword: searchKeyword.value || undefined,
     })
     const { list, total } = res.data
     // 映射字段：coverImage -> cover

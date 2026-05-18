@@ -102,6 +102,7 @@ const loadProducts = async () => {
       page: page.value,
       pageSize,
       category: categoryValue || undefined,
+      keyword: searchKeyword.value || undefined,
     })
     const { list, total } = res.data
     if (list.length === 0 || products.value.length >= total) {
