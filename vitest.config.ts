@@ -14,7 +14,8 @@ export default defineConfig({
       reporter: ['text', 'json', 'html'],
       include: [
         'packages/shared/src/types/**/*.ts',
-        'packages/shared/src/utils/**/*.ts'
+        'packages/shared/src/utils/**/*.ts',
+        'apps/api/src/utils/**/*.ts'
       ],
       exclude: [
         '**/*.d.ts',
