@@ -76,7 +76,7 @@ src/
 - [x] 创建 manager controller & routes
 - [x] 创建 user controller & routes
 - [x] 创建 employee controller & routes
-- [ ] 创建 product controller & routes
+- [x] 创建 product controller & routes
 - [ ] 创建 order controller & routes
 - [ ] 创建 cart controller & routes
 - [ ] 创建 stats controller & routes
