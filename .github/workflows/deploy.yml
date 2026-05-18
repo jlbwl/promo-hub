@@ -182,8 +182,8 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: ${{ secrets.SERVER_PORT || 22 }}
-          source: "api-dist/dist"
-          target: "${{ env.DEPLOY_DIR }}/api"
+          source: "api-dist/*"
+          target: ${{ env.DEPLOY_DIR }}/api
           strip_components: 1
           rm: false
 
