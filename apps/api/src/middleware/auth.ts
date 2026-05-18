@@ -1,5 +1,5 @@
-import { Request, Response, NextFunction } from 'express'
-import session from 'express-session'
+import { Request, Response, NextFunction, RequestHandler } from 'express'
+import session, { Session } from 'express-session'
 import MongoStore from 'connect-mongo'
 
 const SESSION_SECRET = process.env.SESSION_SECRET || 'promo-hub-secret-key-change-in-production'

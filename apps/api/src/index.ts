@@ -446,12 +446,13 @@ app.delete('/api/users/:id', requireAdmin, async (req, res) => {
   }
   
   let users = await readUsers()
-  const index = users.findIndex((u: any) => u.id === req.params.id)
+  const userId = req.params.id as string
+  const index = users.findIndex((u: any) => u.id === userId)
   if (index === -1) {
     res.json({ code: 404, message: '用户不存在', data: null })
     return
   }
-  await deleteUser(req.params.id)
+  await deleteUser(userId)
   
   res.json({ code: 0, message: '删除成功', data: null })
 })
@@ -1283,19 +1284,19 @@ app.get('/api/orders', async (req, res) => {
 
 // 删除订单（管理后台）
 app.delete('/api/orders/:id', requireAdmin, async (req, res) => {
-  const { id } = req.params
+  const orderId = req.params.id as string
   const { reason, adminId, adminPhone, adminName } = req.body
   
   try {
     // 先读取订单数据用于日志记录
-    const order = await readOrder(id)
+    const order = await readOrder(orderId)
     if (!order) {
       res.json({ code: 404, message: '订单不存在', data: null })
       return
     }
     
     // 执行删除
-    await deleteOrder(id)
+    await deleteOrder(orderId)
     
     // 记录操作日志
     await insertOperationLog({
@@ -1304,7 +1305,7 @@ app.delete('/api/orders/:id', requireAdmin, async (req, res) => {
       adminName: adminName || '未知管理员',
       operationType: 'delete',
       targetType: 'order',
-      targetId: id,
+      targetId: orderId,
       targetName: order.productName || '订单',
       reason: reason || '',
       detail: JSON.stringify(order),
