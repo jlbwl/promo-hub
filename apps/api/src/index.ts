@@ -8,6 +8,8 @@ import { fileURLToPath } from 'url'
 import multer from 'multer'
 import { sessionMiddleware } from './middleware/auth.js'
 import routes from './routes/index.js'
+import { errorHandler } from './utils/response.js'
+import logger, { logRequest } from './utils/logger.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const DATA_DIR = process.env.DATA_DIR || join(__dirname, '..', 'data')
@@ -33,9 +35,21 @@ const verifyPassword = async (password: string, hash: string): Promise<boolean> 
 const app = express()
 const PORT = process.env.PORT || 3000
 
+// 中间件
 app.use(cors())
 app.use(express.json())
 app.use(sessionMiddleware)
+
+// 请求日志中间件
+app.use((req, _res, next) => {
+  logRequest(
+    req.method,
+    req.originalUrl,
+    req.ip,
+    (req.session as any)?.user?.id
+  )
+  next()
+})
 
 const UPLOAD_DIR = join(DATA_DIR, 'uploads')
 if (!existsSync(UPLOAD_DIR)) mkdirSync(UPLOAD_DIR, { recursive: true })
@@ -65,7 +79,11 @@ app.get('/api/health', (_req, res) => {
   res.json({ code: 0, message: 'ok', data: { uptime: process.uptime() } })
 })
 
+// 路由
 app.use(routes)
+
+// 全局错误处理 - 必须在路由之后注册
+app.use(errorHandler)
 
 async function start() {
   const isDatabaseMode = process.env.DB_HOST && process.env.DB_NAME
@@ -73,13 +91,13 @@ async function start() {
     try {
       const { initDatabase } = await import('./db.js')
       await initDatabase()
-      console.log(`API server running on port ${PORT} (MySQL)`)
+      logger.info(`API server running on port ${PORT} (MySQL)`)
     } catch (err) {
-      console.log(`[INFO] MySQL connection failed, falling back to file storage: ${err}`)
-      console.log(`API server running on port ${PORT} (File Storage)`)
+      logger.warn(`[INFO] MySQL connection failed, falling back to file storage`, { error: err })
+      logger.info(`API server running on port ${PORT} (File Storage)`)
     }
   } else {
-    console.log(`API server running on port ${PORT} (File Storage)`)
+    logger.info(`API server running on port ${PORT} (File Storage)`)
   }
   app.listen(PORT)
 }
