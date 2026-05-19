@@ -8,14 +8,15 @@ export default defineConfig({
     environment: 'happy-dom',
     globals: true,
     include: ['**/*.{test,spec}.{js,ts,tsx}'],
-    exclude: ['**/node_modules/**', '**/dist/**'],
+    exclude: ['**/node_modules/**', '**/dist/**', '**/e2e/**'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
       include: [
         'packages/shared/src/types/**/*.ts',
         'packages/shared/src/utils/**/*.ts',
-        'apps/api/src/utils/**/*.ts'
+        'apps/api/src/utils/**/*.ts',
+        'apps/api/src/services/**/*.ts'
       ],
       exclude: [
         '**/*.d.ts',
