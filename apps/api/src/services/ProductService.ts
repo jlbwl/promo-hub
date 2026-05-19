@@ -1,6 +1,7 @@
 /**
  * ProductService - 产品业务逻辑层
  * 负责处理产品相关的所有业务逻辑，包括创建、更新、删除、查询等
+ * 集成了Redis缓存以提升性能
  */
 import {
   readProduct,
@@ -12,6 +13,7 @@ import {
   getProductsPaginated,
   queryOne
 } from '../data.js'
+import { CacheService, CacheKeys, CacheTTL } from '../cache/index.js'
 
 /**
  * 产品服务接口
@@ -61,6 +63,27 @@ export interface ProductService {
   deleteProduct(id: string, managerId: string): Promise<void>
 }
 
+// 缓存服务实例（延迟初始化）
+let cacheService: CacheService | null = null
+
+/**
+ * 获取缓存服务实例
+ */
+function getCacheService(): CacheService {
+  if (!cacheService) {
+    cacheService = new CacheService()
+  }
+  return cacheService
+}
+
+/**
+ * 生成产品列表缓存键
+ */
+function getProductListCacheKey(params: any): string {
+  const { page, pageSize, category, status, managerId, keyword } = params
+  return `list:${page}:${pageSize}:${category || 'all'}:${status || 'all'}:${managerId || 'all'}:${keyword || 'none'}`
+}
+
 /**
  * 产品服务实现
  */
@@ -68,13 +91,23 @@ export const productService: ProductService = {
   /**
    * 获取产品列表
    * 支持分页、分类筛选、状态筛选、经理筛选和关键词搜索
+   * 使用Redis缓存提升性能
    * @param params - 查询参数，包含分页和筛选条件
    * @returns 分页的产品列表和总数
    */
   async getProducts(params) {
     const { page = 1, pageSize = 10, category, status, managerId, keyword } = params
+    const cacheKey = getProductListCacheKey(params)
+    const cache = getCacheService()
 
-    return await getProductsPaginated({
+    // 尝试从缓存获取
+    const cached = await cache.get<{ list: any[]; total: number }>(CacheKeys.PRODUCT_LIST + cacheKey)
+    if (cached) {
+      return cached
+    }
+
+    // 缓存未命中，从数据库获取
+    const result = await getProductsPaginated({
       page,
       pageSize,
       category,
@@ -82,16 +115,32 @@ export const productService: ProductService = {
       managerId,
       keyword,
     })
+
+    // 设置缓存
+    await cache.set(CacheKeys.PRODUCT_LIST + cacheKey, result, CacheTTL.MEDIUM)
+
+    return result
   },
 
   /**
    * 获取单个产品详情
    * 根据产品ID查询产品信息，并统计该产品的做单量
+   * 使用Redis缓存提升性能
    * @param id - 产品ID
    * @returns 产品详细信息和销售数量
    * @throws 产品不存在时抛出错误
    */
   async getProductById(id) {
+    const cache = getCacheService()
+    const cacheKey = CacheKeys.PRODUCT_DETAIL(id)
+
+    // 尝试从缓存获取
+    const cached = await cache.get<{ product: any; sales: number }>(cacheKey)
+    if (cached) {
+      return cached
+    }
+
+    // 缓存未命中
     const products = await readProducts()
     const product = products.find((p: any) => p.id === id)
 
@@ -105,7 +154,12 @@ export const productService: ProductService = {
     const orders = await readOrders()
     const sales = orders.filter((o: any) => o.productId === product.id).length
 
-    return { product, sales }
+    const result = { product, sales }
+
+    // 设置缓存
+    await cache.set(cacheKey, result, CacheTTL.MEDIUM)
+
+    return result
   },
 
   /**
@@ -146,6 +200,10 @@ export const productService: ProductService = {
 
     await insertProduct(product)
     const savedProduct = await readProduct(product.id)
+
+    // 清除产品列表缓存
+    const cache = getCacheService()
+    await cache.deletePattern('product:list:*')
 
     return savedProduct
   },
@@ -197,6 +255,11 @@ export const productService: ProductService = {
     await updateProduct(id, updatedFields)
     const updated = await readProduct(id)
 
+    // 清除相关缓存
+    const cache = getCacheService()
+    await cache.delete(CacheKeys.PRODUCT_DETAIL(id))
+    await cache.deletePattern('product:list:*')
+
     return updated
   },
 
@@ -230,6 +293,31 @@ export const productService: ProductService = {
 
     console.log('[ProductService] 开始删除, ID:', id)
     await deleteProduct(id)
+
+    // 清除相关缓存
+    const cache = getCacheService()
+    await cache.delete(CacheKeys.PRODUCT_DETAIL(id))
+    await cache.deletePattern('product:list:*')
+
     console.log('[ProductService] 删除成功, ID:', id)
   },
+}
+
+/**
+ * 初始化缓存服务
+ */
+export async function initializeCache(): Promise<void> {
+  const cache = getCacheService()
+  await cache.connect()
+  console.log('[ProductService] 缓存服务初始化完成')
+}
+
+/**
+ * 关闭缓存服务
+ */
+export async function closeCache(): Promise<void> {
+  if (cacheService) {
+    await cacheService.disconnect()
+    cacheService = null
+  }
 }
