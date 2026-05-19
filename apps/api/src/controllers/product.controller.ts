@@ -2,6 +2,8 @@ import { Request, Response } from 'express'
 import { sendSuccess, sendError, sendPagination } from '../utils/response.js'
 import {
   readProduct,
+  readProducts,
+  readOrders,
   insertProduct,
   updateProduct,
   deleteProduct,
