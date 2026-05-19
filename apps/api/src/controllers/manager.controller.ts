@@ -40,6 +40,10 @@ async function verifyPassword(password: string, hash: string): Promise<boolean> 
 
 /**
  * 获取经理列表
+ * 返回所有渠道经理的基本信息（不包含密码）
+ * @param _req - HTTP请求对象
+ * @param res - HTTP响应对象
+ * @returns 经理列表
  */
 export const getManagers = async (_req: Request, res: Response): Promise<void> => {
   const managers = await readManagers()
@@ -48,6 +52,10 @@ export const getManagers = async (_req: Request, res: Response): Promise<void> =
 
 /**
  * 获取单个经理信息
+ * 根据经理ID查询详细信息（不包含密码）
+ * @param req - HTTP请求对象，包含经理ID（req.params.id）
+ * @param res - HTTP响应对象
+ * @returns 经理详细信息
  */
 export const getManagerById = async (req: Request, res: Response): Promise<void> => {
   const managerId = req.params.id
@@ -63,7 +71,11 @@ export const getManagerById = async (req: Request, res: Response): Promise<void>
 }
 
 /**
- * 添加经理
+ * 添加经理（创建新渠道经理账号）
+ * 验证渠道名称唯一性，加密密码，保存经理信息
+ * @param req - HTTP请求对象，包含渠道名称、密码、手机号等信息
+ * @param res - HTTP响应对象
+ * @returns 新创建的经理信息
  */
 export const createManager = async (req: Request, res: Response): Promise<void> => {
   const managers = await readManagers()

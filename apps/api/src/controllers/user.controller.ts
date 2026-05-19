@@ -47,6 +47,10 @@ async function verifyPassword(password: string, hash: string): Promise<boolean> 
 
 /**
  * 用户注册
+ * 验证手机号格式和密码强度，检查手机号和团队名称唯一性
+ * @param req - HTTP请求对象，包含手机号、密码、昵称、团队名称
+ * @param res - HTTP响应对象
+ * @returns 新用户信息
  */
 export const registerUser = asyncHandler(
   async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
@@ -105,6 +109,10 @@ export const registerUser = asyncHandler(
 
 /**
  * 用户密码登录
+ * 验证手机号和密码，创建会话
+ * @param req - HTTP请求对象，包含手机号和密码
+ * @param res - HTTP响应对象
+ * @returns 登录用户信息
  */
 export const userLogin = asyncHandler(
   async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
@@ -150,6 +158,10 @@ export const userLogin = asyncHandler(
 
 /**
  * 发送短信验证码
+ * 验证手机号格式，生成6位验证码，有效期5分钟
+ * @param req - HTTP请求对象，包含手机号
+ * @param res - HTTP响应对象
+ * @returns 验证码有效期
  */
 export const sendUserSmsCode = asyncHandler(
   async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
@@ -169,6 +181,10 @@ export const sendUserSmsCode = asyncHandler(
 
 /**
  * 短信验证码登录/注册
+ * 验证短信验证码，新用户自动注册，老用户直接登录
+ * @param req - HTTP请求对象，包含手机号、验证码和团队名称
+ * @param res - HTTP响应对象
+ * @returns 用户信息
  */
 export const userSmsLogin = asyncHandler(
   async (req: Request, res: Response, _next: NextFunction): Promise<void> => {

@@ -12,8 +12,10 @@ import {
 } from '../data.js'
 
 /**
- * 获取产品列表（用户端只看已发布的且经理在白名单中的，经理端看自己的）
- * 优化版本：使用数据库级别的筛选和分页
+ * 获取产品列表
+ * 支持分页、分类筛选、状态筛选、经理筛选和关键词搜索
+ * @param req - HTTP请求对象，包含查询参数（page, pageSize, category, status, managerId, keyword）
+ * @param res - HTTP响应对象
  */
 export const getProducts = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -36,6 +38,10 @@ export const getProducts = async (req: Request, res: Response): Promise<void> =>
 
 /**
  * 获取单个产品详情
+ * 根据产品ID查询产品信息，并统计该产品的做单量
+ * @param req - HTTP请求对象，包含产品ID（req.params.id）
+ * @param res - HTTP响应对象
+ * @returns 产品详细信息，包含销售数量
  */
 export const getProductById = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -56,6 +62,10 @@ export const getProductById = async (req: Request, res: Response): Promise<void>
 
 /**
  * 创建产品
+ * 验证产品标题唯一性，生成产品ID，并保存到数据库
+ * @param req - HTTP请求对象，包含产品数据（title, description, price等）
+ * @param res - HTTP响应对象
+ * @returns 新创建的产品信息
  */
 export const createProduct = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -88,7 +98,11 @@ export const createProduct = async (req: Request, res: Response): Promise<void> 
 }
 
 /**
- * 更新产品
+ * 更新产品信息
+ * 验证产品存在性和归属权限，检查标题唯一性，更新产品数据
+ * @param req - HTTP请求对象，包含产品ID（req.params.id）和更新数据
+ * @param res - HTTP响应对象
+ * @returns 更新后的产品信息
  */
 export const updateProductById = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -127,6 +141,10 @@ export const updateProductById = async (req: Request, res: Response): Promise<vo
 
 /**
  * 删除产品
+ * 验证产品存在性和归属权限，只有产品所有者才能删除
+ * @param req - HTTP请求对象，包含产品ID（req.params.id）和经理ID（req.query.managerId）
+ * @param res - HTTP响应对象
+ * @returns 删除操作结果
  */
 export const deleteProductById = async (req: Request, res: Response): Promise<void> => {
   try {

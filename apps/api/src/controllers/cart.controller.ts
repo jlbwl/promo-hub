@@ -10,6 +10,10 @@ import {
 
 /**
  * 获取购物车列表
+ * 查询指定用户的购物车项目列表
+ * @param req - HTTP请求对象，包含用户ID（req.query.userId）
+ * @param res - HTTP响应对象
+ * @returns 购物车项目列表
  */
 export const getCartItems = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -34,7 +38,11 @@ export const getCartItems = async (req: Request, res: Response): Promise<void> =
 }
 
 /**
- * 获取经理下所有购物车（主账户的）
+ * 获取经理下所有购物车
+ * 查询指定经理下所有主账户的购物车项目
+ * @param req - HTTP请求对象，包含经理ID（req.query.managerId）
+ * @param res - HTTP响应对象
+ * @returns 购物车项目列表
  */
 export const getManagerCart = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -60,6 +68,10 @@ export const getManagerCart = async (req: Request, res: Response): Promise<void>
 
 /**
  * 添加到购物车
+ * 检查产品是否已在购物车中，将产品添加到购物车
+ * @param req - HTTP请求对象，包含用户ID、产品ID、产品信息等
+ * @param res - HTTP响应对象
+ * @returns 添加结果
  */
 export const addItemToCart = async (req: Request, res: Response): Promise<void> => {
   try {

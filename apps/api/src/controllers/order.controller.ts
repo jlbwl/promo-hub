@@ -18,6 +18,11 @@ import {
 
 /**
  * 做单（创建订单）
+ * 验证产品存在性和状态，检查库存，扣减库存，创建订单记录
+ * 支持用户做单和员工代做单两种模式
+ * @param req - HTTP请求对象，包含产品ID、用户ID、员工ID、产品选项等信息
+ * @param res - HTTP响应对象
+ * @returns 订单信息及剩余库存
  */
 export const createOrder = async (req: Request, res: Response): Promise<void> => {
   console.log('[做单] 收到请求:', JSON.stringify(req.body))
@@ -103,7 +108,11 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
 
 /**
  * 获取订单列表
- * 优化版本：使用数据库级别的筛选和分页
+ * 支持分页、用户筛选、经理筛选、状态筛选和管理类型筛选
+ * 使用数据库级别的分页和筛选优化性能
+ * @param req - HTTP请求对象，包含查询参数（page, pageSize, userId, managerId, status, keyword, managedBy）
+ * @param res - HTTP响应对象
+ * @returns 分页的订单列表和总数
  */
 export const getOrders = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -127,6 +136,10 @@ export const getOrders = async (req: Request, res: Response): Promise<void> => {
 
 /**
  * 管理后台删除订单
+ * 管理员可删除任意订单，记录操作日志
+ * @param req - HTTP请求对象，包含订单ID（req.params.id）和删除原因
+ * @param res - HTTP响应对象
+ * @returns 删除操作结果
  */
 export const adminDeleteOrder = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -161,6 +174,10 @@ export const adminDeleteOrder = async (req: Request, res: Response): Promise<voi
 
 /**
  * 用户端删除订单（软删除）
+ * 验证订单归属权限，将订单移入回收站
+ * @param req - HTTP请求对象，包含订单ID（req.params.id）和用户ID（req.body.userId）
+ * @param res - HTTP响应对象
+ * @returns 删除操作结果
  */
 export const deleteUserOrder = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -187,6 +204,10 @@ export const deleteUserOrder = async (req: Request, res: Response): Promise<void
 
 /**
  * 获取用户已删除的订单（回收站）
+ * 查询指定用户的回收站订单列表
+ * @param req - HTTP请求对象，包含用户ID（req.query.userId）
+ * @param res - HTTP响应对象
+ * @returns 回收站订单列表
  */
 export const getDeletedOrders = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -201,6 +222,10 @@ export const getDeletedOrders = async (req: Request, res: Response): Promise<voi
 
 /**
  * 恢复订单（从回收站找回）
+ * 验证订单归属权限，将订单从回收站恢复到正常状态
+ * @param req - HTTP请求对象，包含订单ID（req.params.id）和用户ID（req.body.userId）
+ * @param res - HTTP响应对象
+ * @returns 恢复操作结果
  */
 export const restoreUserOrder = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -229,6 +254,10 @@ export const restoreUserOrder = async (req: Request, res: Response): Promise<voi
 
 /**
  * 提交资金号
+ * 用户为订单提交资金账户信息，用于资金追踪
+ * @param req - HTTP请求对象，包含用户ID、订单ID和资金号
+ * @param res - HTTP响应对象
+ * @returns 提交结果
  */
 export const submitFundAccount = async (req: Request, res: Response): Promise<void> => {
   try {

@@ -11,6 +11,11 @@ import {
 
 /**
  * 获取订单统计
+ * 统计订单总数、各状态数量（待审核、已通过、待发放、已发放、已驳回）
+ * 支持按用户或经理筛选
+ * @param req - HTTP请求对象，包含用户ID或经理ID
+ * @param res - HTTP响应对象
+ * @returns 订单统计数据
  */
 export const getStats = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -52,6 +57,11 @@ export const getStats = async (req: Request, res: Response): Promise<void> => {
 
 /**
  * 经理审核订单（通过/驳回）
+ * 验证订单状态，更新订单状态，记录审核时间
+ * 审核通过时创建佣金记录，审核驳回时恢复库存
+ * @param req - HTTP请求对象，包含订单ID、审核动作（approve/reject）和驳回原因
+ * @param res - HTTP响应对象
+ * @returns 审核结果
  */
 export const reviewOrder = async (req: Request, res: Response): Promise<void> => {
   try {
