@@ -1,4 +1,5 @@
 /**
- * 缓存服务模块导出
+ * Cache Module Exports
+ * 缓存模块统一导出
  */
-export { CacheService, CacheKeys, CacheTTL } from './CacheService.js'
+export { CacheService, CacheKeys, CacheTTL, type RedisConfig, type CacheConfig } from './CacheService.js'

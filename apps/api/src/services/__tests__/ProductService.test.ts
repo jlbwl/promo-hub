@@ -1,6 +1,29 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { productService } from '../ProductService.js'
 
+// Mock cache module
+vi.mock('../cache/index.js', () => ({
+  CacheService: class {
+    get = vi.fn().mockResolvedValue(null)
+    set = vi.fn().mockResolvedValue(undefined)
+    delete = vi.fn().mockResolvedValue(undefined)
+    deletePattern = vi.fn().mockResolvedValue(undefined)
+    connect = vi.fn().mockResolvedValue(undefined)
+    disconnect = vi.fn().mockResolvedValue(undefined)
+    getStats = vi.fn().mockReturnValue({ redisConnected: false, memoryCacheSize: 0, memoryCacheKeys: [] })
+  },
+  CacheKeys: {
+    PRODUCT: 'product',
+    PRODUCT_LIST: 'product:list',
+    PRODUCT_DETAIL: (id: string) => `product:${id}`
+  },
+  CacheTTL: {
+    SHORT: 60,
+    MEDIUM: 300,
+    LONG: 1800
+  }
+}))
+
 // Mock data module
 vi.mock('../../data.js', () => ({
   readProducts: vi.fn(),

@@ -13,7 +13,7 @@ import {
   getProductsPaginated,
   queryOne
 } from '../data.js'
-import { CacheService, CacheKeys, CacheTTL } from '../cache/index.js'
+import { CacheService, CacheKeys, CacheTTL } from './cache/index.js'
 
 /**
  * 产品服务接口
