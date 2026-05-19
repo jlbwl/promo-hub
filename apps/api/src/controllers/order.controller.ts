@@ -1,20 +1,7 @@
 import { Request, Response } from 'express'
 import { sendSuccess, sendError, sendPagination } from '../utils/response.js'
-import {
-  readProducts,
-  readProduct,
-  updateProduct,
-  readEmployeeById,
-  readUser,
-  readOrder,
-  readDeletedOrders,
-  restoreOrder,
-  updateOrder,
-  insertOperationLog,
-  getOrdersPaginated,
-  insertOrder,
-  deleteOrder,
-} from '../data.js'
+import { orderService } from '../services/index.js'
+import { insertOperationLog } from '../data.js'
 
 /**
  * 做单（创建订单）
@@ -25,84 +12,26 @@ import {
  * @returns 订单信息及剩余库存
  */
 export const createOrder = async (req: Request, res: Response): Promise<void> => {
-  console.log('[做单] 收到请求:', JSON.stringify(req.body))
   try {
     const { productId, userId, employeeId, optionLabel, redirectUrl, userName, userPhone } = req.body
+
     if (!productId) {
-      console.log('[做单] 缺少productId')
       return sendError(res, '缺少产品ID', 400)
     }
 
-    const products = await readProducts()
-    const index = products.findIndex((p: any) => p.id === productId)
-    if (index === -1) {
-      console.log('[做单] 产品不存在:', productId)
-      return sendError(res, '产品不存在', 404)
-    }
-
-    const product = products[index]
-    console.log('[做单] 产品信息:', { title: product.title, options: product.options, managerId: product.managerId })
-
-    if (product.status !== 'published') {
-      console.log('[做单] 产品未发布:', product.status)
-      return sendError(res, '该产品已下架', 400)
-    }
-
-    if (product.stock && product.stock > 0) {
-      if (product.stock < 1) {
-        console.log('[做单] 库存不足')
-        return sendError(res, '库存不足', 400)
-      }
-      console.log('[做单] 扣减库存, 原库存:', product.stock, '新库存:', product.stock - 1)
-      await updateProduct(product.id, { stock: product.stock - 1, updatedAt: new Date().toISOString() })
-    }
-
-    let finalUserId = userId || 'guest'
-    if (employeeId) {
-      console.log('[做单] 员工做单, employeeId:', employeeId)
-      const employee = await readEmployeeById(employeeId)
-      if (employee) {
-        finalUserId = employee.userId
-        console.log('[做单] 员工主账户ID:', finalUserId)
-      }
-    }
-
-    let teamName = ''
-    if (finalUserId !== 'guest') {
-      const user = await readUser(finalUserId)
-      if (user) {
-        teamName = user.teamName || ''
-      }
-    }
-
-    const cleanRedirectUrl = (redirectUrl || '').replace(/`/g, '')
-    console.log('[做单] 原始redirectUrl:', redirectUrl, '清理后:', cleanRedirectUrl)
-
-    const order = {
-      id: `o_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+    const { order, remainingStock } = await orderService.createOrder({
       productId,
-      userId: finalUserId,
-      managerId: product.managerId,
-      productName: product.title,
-      productPrice: product.price,
-      optionLabel: optionLabel || '',
-      redirectUrl: cleanRedirectUrl,
-      userName: userName || '',
-      userPhone: userPhone || '',
-      teamName,
-      status: 'pending',
-      createdAt: new Date().toISOString(),
-    }
-    console.log('[做单] 创建订单:', JSON.stringify(order))
-    await insertOrder(order)
-    console.log('[做单] 订单已保存成功, ID:', order.id)
+      userId,
+      employeeId,
+      optionLabel,
+      redirectUrl,
+      userName,
+      userPhone,
+    })
 
-    const remainingStock = product.stock && product.stock > 0 ? product.stock - 1 : (product.stock || -1)
-    console.log('[做单] 返回成功响应')
     sendSuccess(res, { order, remainingStock }, '做单成功')
   } catch (error: any) {
-    console.error('[做单] 错误:', error)
-    sendError(res, error.message || '做单失败', 500)
+    sendError(res, error.message || '做单失败', error.code || 500)
   }
 }
 
@@ -117,8 +46,8 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
 export const getOrders = async (req: Request, res: Response): Promise<void> => {
   try {
     const { userId, managerId, status, page = '1', pageSize = '20', keyword, managedBy } = req.query
-    
-    const { list, total } = await getOrdersPaginated({
+
+    const { list, total } = await orderService.getOrders({
       userId: userId as string,
       managerId: managerId as string,
       status: status as string,
@@ -130,7 +59,7 @@ export const getOrders = async (req: Request, res: Response): Promise<void> => {
 
     sendPagination(res, list, total, parseInt(page as string, 10), parseInt(pageSize as string, 10))
   } catch (error: any) {
-    sendError(res, error.message || '获取失败', 500)
+    sendError(res, error.message || '获取失败', error.code || 500)
   }
 }
 
@@ -146,13 +75,9 @@ export const adminDeleteOrder = async (req: Request, res: Response): Promise<voi
     const orderId = req.params.id as string
     const { reason, adminId, adminPhone, adminName } = req.body
 
-    const order = await readOrder(orderId)
-    if (!order) {
-      return sendError(res, '订单不存在', 404)
-    }
+    await orderService.adminDeleteOrder(orderId, { reason, adminId, adminPhone, adminName })
 
-    await deleteOrder(orderId)
-
+    // 记录操作日志
     await insertOperationLog({
       adminId: adminId || '',
       adminPhone: adminPhone || '',
@@ -160,15 +85,14 @@ export const adminDeleteOrder = async (req: Request, res: Response): Promise<voi
       operationType: 'delete',
       targetType: 'order',
       targetId: orderId,
-      targetName: order.productName || '订单',
+      targetName: '订单',
       reason: reason || '',
-      detail: JSON.stringify(order),
+      detail: '',
     })
 
     sendSuccess(res, null, '删除成功')
   } catch (error: any) {
-    console.error('[订单删除] 错误:', error)
-    sendError(res, error.message || '删除失败', 500)
+    sendError(res, error.message || '删除失败', error.code || 500)
   }
 }
 
@@ -184,21 +108,11 @@ export const deleteUserOrder = async (req: Request, res: Response): Promise<void
     const id = req.params.id as string
     const { userId } = req.body
 
-    const order = await readOrder(id)
-    if (!order) {
-      return sendError(res, '订单不存在', 404)
-    }
-
-    if (order.userId !== userId) {
-      return sendError(res, '无权操作此订单', 403)
-    }
-
-    await deleteOrder(id)
+    await orderService.deleteUserOrder(id, userId)
 
     sendSuccess(res, null, '已移至回收站')
   } catch (error: any) {
-    console.error('[用户删除订单] 错误:', error)
-    sendError(res, error.message || '删除失败', 500)
+    sendError(res, error.message || '删除失败', error.code || 500)
   }
 }
 
@@ -212,11 +126,10 @@ export const deleteUserOrder = async (req: Request, res: Response): Promise<void
 export const getDeletedOrders = async (req: Request, res: Response): Promise<void> => {
   try {
     const { userId } = req.query
-    const orders = await readDeletedOrders(userId as string)
+    const orders = await orderService.getDeletedOrders(userId as string)
     sendSuccess(res, orders)
   } catch (error: any) {
-    console.error('[获取已删除订单] 错误:', error)
-    sendError(res, error.message || '获取失败', 500)
+    sendError(res, error.message || '获取失败', error.code || 500)
   }
 }
 
@@ -232,23 +145,11 @@ export const restoreUserOrder = async (req: Request, res: Response): Promise<voi
     const id = req.params.id as string
     const { userId } = req.body
 
-    const orders = await readDeletedOrders(userId)
-    const order = orders.find((o: any) => o.id === id)
-
-    if (!order) {
-      return sendError(res, '订单不存在或不在回收站', 404)
-    }
-
-    if (order.userId !== userId) {
-      return sendError(res, '无权操作此订单', 403)
-    }
-
-    await restoreOrder(id)
+    await orderService.restoreOrder(id, userId)
 
     sendSuccess(res, null, '恢复成功')
   } catch (error: any) {
-    console.error('[恢复订单] 错误:', error)
-    sendError(res, error.message || '恢复失败', 500)
+    sendError(res, error.message || '恢复失败', error.code || 500)
   }
 }
 
@@ -267,20 +168,10 @@ export const submitFundAccount = async (req: Request, res: Response): Promise<vo
       return sendError(res, '缺少必要参数', 400)
     }
 
-    const order = await readOrder(orderId)
-    if (!order) {
-      return sendError(res, '订单不存在', 404)
-    }
-
-    if (order.userId !== userId) {
-      return sendError(res, '无权操作此订单', 403)
-    }
-
-    await updateOrder(orderId, { fundAccount })
+    await orderService.submitFundAccount(orderId, userId, fundAccount)
 
     sendSuccess(res, null, '提交成功')
   } catch (error: any) {
-    console.error('[提交资金号] 错误:', error)
-    sendError(res, error.message || '提交失败', 500)
+    sendError(res, error.message || '提交失败', error.code || 500)
   }
 }
