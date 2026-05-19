@@ -1,13 +1,21 @@
 #!/usr/bin/env node
 
+/**
+ * 数据库连接测试脚本
+ * 
+ * 使用方法：
+ * 1. 确保 apps/api/.env 文件存在并配置了数据库信息
+ * 2. 运行: node scripts/test-db-connection.js
+ */
+
 const mysql = require('mysql2/promise');
 
 const config = {
-  host: process.env.DB_HOST || 'rm-2zed47q2696h20ai9.mysql.rds.aliyuncs.com',
+  host: process.env.DB_HOST,
   port: parseInt(process.env.DB_PORT || '3306', 10),
-  user: process.env.DB_USER || 'promo_admin',
-  password: process.env.DB_PASSWORD || '',
-  database: process.env.DB_NAME || 'promo_hub',
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME,
   connectTimeout: 10000,
 };
 
@@ -20,8 +28,21 @@ async function testConnection() {
   console.log(`   Database: ${config.database}`);
   console.log(`   Password: ${config.password ? '******' : '❌ 未设置'}\n`);
 
-  if (!config.password || config.password === 'your_database_password_here') {
-    console.error('❌ 错误: 数据库密码未设置或为占位符');
+  // 验证必需的配置
+  if (!config.host) {
+    console.error('❌ 错误: DB_HOST 未设置');
+    console.error('\n请确保 apps/api/.env 文件存在并配置了正确的数据库信息');
+    return;
+  }
+  
+  if (!config.user) {
+    console.error('❌ 错误: DB_USER 未设置');
+    console.error('\n请确保 apps/api/.env 文件存在并配置了正确的数据库信息');
+    return;
+  }
+
+  if (!config.password) {
+    console.error('❌ 错误: 数据库密码未设置');
     console.error('\n请编辑 apps/api/.env 文件，设置正确的数据库密码:');
     console.error('   DB_PASSWORD=您的实际数据库密码\n');
     return;

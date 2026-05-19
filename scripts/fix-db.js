@@ -20,11 +20,11 @@ process.argv.forEach((arg) => {
 });
 
 const config = {
-  host: process.env.DB_HOST || 'rm-2zed47q2696h20ai9.mysql.rds.aliyuncs.com',
+  host: process.env.DB_HOST,
   port: parseInt(process.env.DB_PORT || '3306'),
-  user: process.env.DB_USER || 'promo_admin',
+  user: process.env.DB_USER,
   password: dbPassword,
-  database: process.env.DB_NAME || 'promo_hub',
+  database: process.env.DB_NAME,
   connectTimeout: 10000,
 };
 
