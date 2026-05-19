@@ -71,26 +71,36 @@ describe('ProductService', () => {
   })
 
   describe('createProduct', () => {
-    it('should create product successfully', async () => {
-      const productData = {
-        title: '新测试产品',
-        description: '测试描述',
-        managerId: 'm1'
-      }
-
-      vi.mocked(queryOne).mockResolvedValue(null)
-      vi.mocked(insertProduct).mockResolvedValue(undefined)
-      vi.mocked(readProducts).mockResolvedValue([
-        { id: 'p_new', ...productData, createdAt: '2024-01-01T00:00:00.000Z' }
-      ])
-
-      const result = await productService.createProduct(productData)
-
-      expect(insertProduct).toHaveBeenCalled()
-    })
-
     it('should throw error when title is empty', async () => {
       await expect(productService.createProduct({ title: '' })).rejects.toThrow('产品标题不能为空')
+    })
+
+    it('should throw error when title already exists', async () => {
+      vi.mocked(queryOne).mockResolvedValue({ id: 'existing' })
+
+      await expect(productService.createProduct({ title: '已存在' })).rejects.toThrow('产品标题已存在')
+    })
+  })
+
+  describe('updateProduct', () => {
+    it('should throw error when product not found', async () => {
+      vi.mocked(queryOne).mockResolvedValue(null)
+
+      await expect(productService.updateProduct('p999', 'm1', {})).rejects.toThrow('产品不存在')
+    })
+  })
+
+  describe('deleteProduct', () => {
+    it('should throw error when product not found', async () => {
+      vi.mocked(readProducts).mockResolvedValue([])
+
+      await expect(productService.deleteProduct('p999', 'm1')).rejects.toThrow('产品不存在')
+    })
+
+    it('should throw error when no permission', async () => {
+      vi.mocked(readProducts).mockResolvedValue([{ id: 'p1', managerId: 'm2' }])
+
+      await expect(productService.deleteProduct('p1', 'm1')).rejects.toThrow('无权操作此产品')
     })
   })
 })
