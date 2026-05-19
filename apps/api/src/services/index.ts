@@ -2,7 +2,7 @@
  * Services - 业务逻辑层
  * 统一导出所有Service模块
  */
-export { productService, type ProductService } from './ProductService'
-export { orderService, type OrderService } from './OrderService'
-export { userService, type UserService } from './UserService'
-export { managerService, type ManagerService } from './ManagerService'
+export { productService, type ProductService } from './ProductService.js'
+export { orderService, type OrderService } from './OrderService.js'
+export { userService, type UserService } from './UserService.js'
+export { managerService, type ManagerService } from './ManagerService.js'
