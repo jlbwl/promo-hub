@@ -131,7 +131,7 @@ export class CacheService {
           console.log(`[Cache] Redis命中: ${key}`)
           return JSON.parse(value) as T
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error(`[Cache] Redis GET错误: ${error.message}`)
       }
     }
@@ -163,7 +163,7 @@ export class CacheService {
       try {
         await this.client.setEx(fullKey, expiryTime, serialized)
         console.log(`[Cache] Redis设置成功: ${key} (TTL: ${expiryTime}s)`)
-      } catch (error) {
+      } catch (error: any) {
         console.error(`[Cache] Redis SET错误: ${error.message}`)
       }
     }
@@ -186,7 +186,7 @@ export class CacheService {
       try {
         await this.client.del(fullKey)
         console.log(`[Cache] Redis删除: ${key}`)
-      } catch (error) {
+      } catch (error: any) {
         console.error(`[Cache] Redis DEL错误: ${error.message}`)
       }
     }
@@ -209,7 +209,7 @@ export class CacheService {
           await this.client.del(keys)
           console.log(`[Cache] Redis批量删除: ${keys.length}个键`)
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error(`[Cache] Redis DEL模式错误: ${error.message}`)
       }
     }
@@ -230,7 +230,7 @@ export class CacheService {
       try {
         await this.client.flushDb()
         console.log('[Cache] Redis清空成功')
-      } catch (error) {
+      } catch (error: any) {
         console.error(`[Cache] Redis FLUSH错误: ${error.message}`)
       }
     }
