@@ -86,7 +86,7 @@
         <el-form-item label="单选框组">
           <div class="option-group-config">
             <div class="option-group-header">
-              <span style="font-size: 13px; color: #606266;">用户做单时需选择的选项（如套餐、规格等）</span>
+              <span style="font-size: 13px; color: #606266;">用户使用时需选择的选项（如套餐、规格等）</span>
               <div>
                 <el-button type="primary" size="small" @click="handleBatchAddOptions">批量添加</el-button>
                 <el-button size="small" @click="handleClearOptions">清空</el-button>
@@ -121,7 +121,7 @@
                           accept="image/*"
                           @change="(file: any) => handleQrUpload(file, idx)"
                         >
-                          <el-button type="primary" text size="small" :loading="opt._qrLoading" title="上传推广码识别链接">
+                          <el-button type="primary" text size="small" :loading="opt._qrLoading" title="上传二维码识别链接">
                             <el-icon><PictureFilled /></el-icon>
                           </el-button>
                         </el-upload>
@@ -264,7 +264,7 @@ const formRules: FormRules = {
     { required: true, message: '请选择产品分类', trigger: 'change' }
   ],
   price: [
-    { required: true, message: '请输入售价', trigger: 'blur' }
+    { required: true, message: '请输入积分值', trigger: 'blur' }
   ]
 }
 
@@ -273,7 +273,7 @@ const handleAddOption = () => {
   form.options.push({ label: '', limit: '', redirectUrl: '' })
 }
 
-// 上传推广码识别链接
+// 上传二维码识别链接
 const handleQrUpload = async (uploadFile: any, idx: number) => {
   const file = uploadFile.raw || uploadFile
   if (!file) return
@@ -314,7 +314,7 @@ const handleQrUpload = async (uploadFile: any, idx: number) => {
         ElMessage.warning(`已识别内容：${url.slice(0, 50)}${url.length > 50 ? '...' : ''}，请确认是否为有效链接`)
       }
     } else {
-      ElMessage.error('未识别到二维码，请确认图片中包含有效的推广码')
+      ElMessage.error('未识别到二维码，请确认图片中包含有效的二维码')
     }
   } catch (error: any) {
     console.error('二维码识别失败:', error)

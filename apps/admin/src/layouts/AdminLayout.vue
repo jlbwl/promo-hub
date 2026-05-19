@@ -54,10 +54,13 @@
         </div>
       </el-header>
 
-      <!-- 主内容区 -->
+      <!-- 主内容区（可滚动） -->
       <el-main class="admin-main">
         <router-view />
       </el-main>
+
+      <!-- ICP 备案信息 -->
+      <IcpFooter :icp-number="icpNumber" />
     </el-container>
   </el-container>
 </template>
@@ -67,9 +70,13 @@ import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Odometer, User, UserFilled, Setting, Wallet, Files } from '@element-plus/icons-vue'
 import { ElMessageBox } from 'element-plus'
+import IcpFooter from '../components/IcpFooter.vue'
 
 const route = useRoute()
 const router = useRouter()
+
+// 从环境变量读取 ICP 备案号
+const icpNumber = import.meta.env.VITE_ICP_NUMBER || ''
 
 // 当前激活的菜单项
 const activeMenu = computed(() => route.path)

@@ -53,7 +53,7 @@
 
     <!-- 单选框组（渠道经理设置的选项） -->
     <div v-if="product.options && product.options.length > 0" class="option-section">
-      <h3 class="section-title">选择推广选项</h3>
+      <h3 class="section-title">选择产品配置</h3>
       <van-radio-group v-model="selectedOption" class="option-radio-group">
         <van-cell-group inset>
           <van-cell
@@ -86,7 +86,7 @@
       <van-action-bar-icon icon="chat-o" text="客服" />
       <van-action-bar-button
         type="primary"
-        text="去做单"
+        text="了解详情"
         @click="handleGoOrder"
       />
     </van-action-bar>

@@ -3,6 +3,8 @@
     <!-- 主内容区域 -->
     <div class="tabbar-content">
       <router-view />
+      <!-- ICP 备案信息（产品详情页也显示） -->
+      <IcpFooter :icp-number="icpNumber" />
     </div>
 
     <!-- 底部 Tab 导航（产品详情页隐藏） -->
@@ -12,7 +14,7 @@
         icon="home-o"
         name="home"
       >
-        抢单大厅
+        产品大厅
       </van-tabbar-item>
       <!-- 收藏（仅主账户显示） -->
       <van-tabbar-item
@@ -48,6 +50,10 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { get } from '@promo/shared/utils/request'
+import IcpFooter from '../components/IcpFooter.vue'
+
+// 从环境变量读取 ICP 备案号
+const icpNumber = import.meta.env.VITE_ICP_NUMBER || ''
 
 // 当前激活的 Tab
 const activeTab = ref('home')

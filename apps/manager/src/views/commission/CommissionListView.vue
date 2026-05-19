@@ -577,12 +577,12 @@ const handleReset = () => {
 const handleApprove = async (row: any) => {
   try {
     await ElMessageBox.confirm(
-      `确认「${row.productName}」推广有效，发放佣金 ¥${row.productPrice}？`,
+      `确认「${row.productName}」记录有效，发放记录 ¥${row.productPrice}？`,
       '审核确认',
       { confirmButtonText: '通过', cancelButtonText: '取消', type: 'success' }
     )
     await put(`/orders/${row.id}/review`, { action: 'approve' })
-    ElMessage.success('已确认推广有效，佣金待发放')
+    ElMessage.success('已确认记录有效，记录待发放')
     fetchStats()
     fetchData()
   } catch (error: any) {
@@ -624,12 +624,12 @@ const handleReject = async (row: any) => {
 const handleAddToPayment = async (row: any) => {
   try {
     await ElMessageBox.confirm(
-      `确认将「${row.productName}」添加到待付款列表？`,
-      '添加到待付款',
+      `确认将「${row.productName}」添加到待发放列表？`,
+      '添加到待发放',
       { confirmButtonText: '确定', cancelButtonText: '取消', type: 'info' }
     )
     await put(`/orders/${row.id}/settle`, { action: 'pending_payment' })
-    ElMessage.success('已添加到待付款')
+    ElMessage.success('已添加到待发放')
     fetchStats()
     fetchData()
   } catch (error: any) {

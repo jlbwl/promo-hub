@@ -5,8 +5,8 @@
       <div class="logo">
         <van-icon name="shop-o" size="64" color="#1989fa" />
       </div>
-      <h2 class="app-name">推广联盟</h2>
-      <p class="app-desc">分享好物，赚取积分</p>
+      <h2 class="app-name">产品展示系统</h2>
+      <p class="app-desc">产品展示与管理平台</p>
     </div>
 
     <!-- 登录方式 Tabs -->

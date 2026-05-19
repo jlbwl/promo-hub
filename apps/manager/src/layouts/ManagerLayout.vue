@@ -3,8 +3,8 @@
     <!-- 左侧导航栏 -->
     <el-aside :width="isCollapse ? '64px' : '220px'" class="layout-aside">
       <div class="logo-container">
-        <h2 v-show="!isCollapse">渠道经理后台</h2>
-        <h2 v-show="isCollapse">渠道</h2>
+        <h2 v-if="!isCollapse">渠道经理后台</h2>
+        <h2 v-if="isCollapse">渠道</h2>
       </div>
       <el-menu
         :default-active="activeMenu"
@@ -61,6 +61,9 @@
       <el-main class="layout-main">
         <router-view />
       </el-main>
+
+      <!-- ICP 备案信息 -->
+      <IcpFooter :icp-number="icpNumber" />
     </el-container>
   </el-container>
 </template>
@@ -78,9 +81,13 @@ import {
   Expand,
   SwitchButton
 } from '@element-plus/icons-vue'
+import IcpFooter from '../components/IcpFooter.vue'
 
 const route = useRoute()
 const router = useRouter()
+
+// 从环境变量读取 ICP 备案号
+const icpNumber = import.meta.env.VITE_ICP_NUMBER || ''
 
 // 侧边栏折叠状态
 const isCollapse = ref(false)
