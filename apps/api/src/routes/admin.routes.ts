@@ -5,6 +5,7 @@ import {
   adminLogin,
   adminSmsLogin,
   adminChangePassword,
+  getAdminStats,
 } from '../controllers/admin.controller.js'
 
 const router: Router = Router()
@@ -13,5 +14,6 @@ const router: Router = Router()
 router.post('/admin/login', loginLimiter, adminLogin)
 router.post('/admin/sms-login', smsLimiter, adminSmsLogin)
 router.post('/admin/change-password', requireAdmin, adminChangePassword)
+router.get('/admin/stats', requireAdmin, getAdminStats)
 
 export default router

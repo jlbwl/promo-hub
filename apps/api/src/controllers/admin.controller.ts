@@ -4,6 +4,10 @@ import { sendSuccess, sendError } from '../utils/response.js'
 import {
   readAdminByPhone,
   updateAdmin,
+  readUsers,
+  readManagers,
+  readProducts,
+  readCommissions,
 } from '../data.js'
 import { login as sessionLogin } from '../middleware/auth.js'
 
@@ -77,6 +81,35 @@ export const adminChangePassword = async (req: Request, res: Response): Promise<
   await updateAdmin(admin.id, { password: hashedPassword })
 
   sendSuccess(res, null, '密码修改成功')
+}
+
+/**
+ * 获取管理员仪表盘统计数据
+ */
+export const getAdminStats = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const users = await readUsers()
+    const managers = await readManagers()
+    const products = await readProducts()
+    const commissions = await readCommissions()
+
+    const managerCount = managers.length
+    const userCount = users.length
+    const publishedProductCount = products.filter((p: any) => p.status === 'published').length
+    const totalCommission = commissions
+      .filter((c: any) => c.status === 'paid')
+      .reduce((sum: number, c: any) => sum + (c.amount || 0), 0)
+
+    sendSuccess(res, {
+      managerCount,
+      userCount,
+      publishedProductCount,
+      totalCommission: Math.round(totalCommission * 100) / 100,
+    })
+  } catch (error: any) {
+    console.error('[管理员统计] 错误:', error)
+    sendError(res, error.message || '获取失败', 500)
+  }
 }
 
 // 密码验证辅助函数
