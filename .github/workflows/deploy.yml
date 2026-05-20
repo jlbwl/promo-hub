@@ -209,7 +209,7 @@ jobs:
             cd ${{ env.DEPLOY_DIR }}/api
             
             # 直接在服务器上创建 package.json，用简单的单行避免 YAML 问题
-            echo '{"name":"@promo/api","version":"1.0.0","private":true,"type":"module","scripts":{"dev":"tsx watch src/index.ts","build":"tsc","start":"node dist/index.js"},"dependencies":{"bcryptjs":"^2.4.3","connect-mongo":"^5.1.0","cors":"^2.8.5","dotenv":"^17.4.2","express":"^4.21.0","express-rate-limit":"^8.5.1","express-session":"^1.18.1","multer":"^1.4.5-lts.1","mysql2":"^3.22.3","redis":"^5.12.1","uuid":"^11.0.0"},"devDependencies":{"@types/cors":"^2.8.17","@types/express":"^5.0.0","@types/multer":"^1.4.12","@types/uuid":"^10.0.0","tsx":"^4.19.0","typescript":"^5.7.0"}}' > package.json
+            echo '{"name":"@promo/api","version":"1.0.0","private":true,"type":"module","scripts":{"dev":"tsx watch src/index.ts","build":"tsc","start":"node index.js"},"dependencies":{"bcryptjs":"^2.4.3","connect-mongo":"^5.1.0","cors":"^2.8.5","dotenv":"^17.4.2","express":"^4.21.0","express-rate-limit":"^8.5.1","express-session":"^1.18.1","multer":"^1.4.5-lts.1","mysql2":"^3.22.3","redis":"^5.12.1","uuid":"^11.0.0"},"devDependencies":{"@types/cors":"^2.8.17","@types/express":"^5.0.0","@types/multer":"^1.4.12","@types/uuid":"^10.0.0","tsx":"^4.19.0","typescript":"^5.7.0"}}' > package.json
             
             echo "=== 已创建 package.json ==="
             ls -la
@@ -534,11 +534,9 @@ jobs:
             # 先删除旧进程
             pm2 delete promo-api 2>/dev/null || true
 
-            # 检查上传的 dist 目录
+            # 检查上传的文件
             echo "=== 检查上传的文件 ==="
             ls -la
-            echo "=== dist 目录内容 ==="
-            ls -la dist
 
             # 确保 package.json 是最新的
             echo "=== package.json 内容 ==="
@@ -558,11 +556,11 @@ jobs:
 
             # 尝试直接启动服务并查看输出
             echo "=== 测试 API 启动 ==="
-            timeout 10 node dist/index.js 2>&1 || true
+            timeout 10 node index.js 2>&1 || true
 
             # 启动服务
             echo "=== 启动 API 服务 ==="
-            pm2 start dist/index.js --name promo-api --wait-ready
+            pm2 start index.js --name promo-api --wait-ready
 
             # 等待几秒让服务完全启动
             sleep 3
