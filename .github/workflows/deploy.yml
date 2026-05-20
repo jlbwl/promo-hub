@@ -555,12 +555,13 @@ jobs:
             ls -la node_modules/bcryptjs 2>/dev/null && echo "✓ bcryptjs 已安装" || echo "✗ bcryptjs 未安装"
 
             # 尝试直接启动服务并查看输出
+            pkill -f "node index.js" 2>/dev/null || true
             echo "=== 测试 API 启动 ==="
             timeout 10 node index.js 2>&1 || true
 
             # 启动服务
             echo "=== 启动 API 服务 ==="
-            pm2 start index.js --name promo-api --wait-ready
+            pm2 start index.js --name promo-api -f
 
             # 等待几秒让服务完全启动
             sleep 3
