@@ -537,6 +537,7 @@ jobs:
             ls -la
 
             # 先删除旧进程
+            cd ${{ env.DEPLOY_DIR }}/api
             pm2 delete promo-api 2>/dev/null || true
 
             # 检查上传的文件
@@ -550,8 +551,9 @@ jobs:
             # 强制安装依赖，确保 native 模块正确编译
             echo "=== 强制安装依赖 ==="
             rm -rf node_modules package-lock.json
-            npm install --production --no-audit 2>&1 | tail -30
+            npm install --production --no-audit 2>&1
             echo "✓ 依赖安装完成"
+            ls -la node_modules  # 检查整个 node_modules
 
             # 检查关键模块是否存在
             echo "=== 检查关键模块 ==="
@@ -559,14 +561,21 @@ jobs:
             ls -la node_modules/mysql2 2>/dev/null && echo "✓ mysql2 已安装" || echo "✗ mysql2 未安装"
             ls -la node_modules/bcryptjs 2>/dev/null && echo "✓ bcryptjs 已安装" || echo "✗ bcryptjs 未安装"
 
-            # 启动服务
+            # 直接用 node 测试启动（不通过 PM2）
+            echo "=== 直接测试 Node 启动 ==="
+            timeout 3 node index.js 2>&1 || true
+            echo "测试完成"
+
+            # 启动服务 - 确保在正确目录下
             echo "=== 启动 API 服务 ==="
+            cd ${{ env.DEPLOY_DIR }}/api
             pm2 start index.js --name promo-api -f
 
             # 等待几秒让服务完全启动
             sleep 3
 
             # 检查服务状态
+            cd ${{ env.DEPLOY_DIR }}/api
             pm2 status
             echo "=== API 服务日志 (最近20行) ==="
             pm2 logs promo-api --lines 20 --nostream
