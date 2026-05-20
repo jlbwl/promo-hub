@@ -536,7 +536,14 @@ jobs:
 
             # 检查上传的 dist 目录
             echo "=== 检查上传的文件 ==="
-            mkdir -p dist
+            ls -la
+            # 如果 api-dist 目录存在，说明需要移动文件
+            if [ -d "api-dist" ]; then
+                echo "✓ 发现 api-dist 目录，移动内容..."
+                mv api-dist/* . 2>/dev/null || true
+                mv api-dist/*/* . 2>/dev/null || true
+                rm -rf api-dist
+            fi
             echo "=== dist 目录内容 ==="
             ls -la dist
 
