@@ -191,9 +191,9 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: ${{ secrets.SERVER_PORT || 22 }}
-          source: "api-dist/"
-          target: "${{ env.DEPLOY_DIR }}/api/dist/"
-          strip_components: 0
+          source: "api-dist/*"
+          target: "${{ env.DEPLOY_DIR }}/api/dist"
+          strip_components: 1
           rm: true
 
       - name: Restart API, Fix DB and Nginx
@@ -537,13 +537,6 @@ jobs:
             # 检查上传的 dist 目录
             echo "=== 检查上传的文件 ==="
             ls -la
-            # 如果 api-dist 目录存在，说明需要移动文件
-            if [ -d "api-dist" ]; then
-                echo "✓ 发现 api-dist 目录，移动内容..."
-                mv api-dist/* . 2>/dev/null || true
-                mv api-dist/*/* . 2>/dev/null || true
-                rm -rf api-dist
-            fi
             echo "=== dist 目录内容 ==="
             ls -la dist
 
@@ -551,24 +544,12 @@ jobs:
             echo "=== package.json 内容 ==="
             cat package.json
 
-            # 验证依赖是否存在
-            echo "=== 检查 node_modules ==="
-            if [ -d "node_modules" ] && [ -f "node_modules/bcrypt/lib/binding/napi-v3/bcrypt_lib.node" ]; then
-              echo "✓ bcrypt 依赖已存在，跳过安装"
-            elif [ -d "node_modules" ]; then
-              echo "⚠ bcrypt 依赖不完整，尝试修复..."
-              npm install bcrypt@^5.1.1 --save --ignore-scripts || true
-              npm install @types/bcrypt@^5.0.2 --save-dev || true
-            else
-              echo "⚠ node_modules 不存在，使用 pnpm 安装"
-              # 先安装 pnpm
-              npm install -g pnpm || true
-              pnpm install --prod || npm install --production || echo "依赖安装可能失败，但继续..."
+            # 直接跳过 npm 安装，直接尝试启动服务
+            echo "=== 跳过 npm 安装，直接启动服务 ==="
+            if [ -d "node_modules" ]; then
+              echo "✓ node_modules 已存在，继续"
             fi
-            
-            echo "=== 已安装的依赖 ==="
-            ls -la node_modules/ 2>/dev/null | head -20 || true
-            
+
             pm2 start dist/index.js --name promo-api --wait-ready
 
             # 等待几秒让服务完全启动
@@ -584,8 +565,8 @@ jobs:
             NGINX_CONF="/etc/nginx/conf.d/promo-hub.conf"
             mkdir -p "${{ env.DEPLOY_DIR }}/nginx"
             if [ -f nginx-config/nginx.conf ]; then
-                cp nginx-config/nginx.conf "${NGINX_CONF}"
-                echo "Nginx配置已复制"
+              cp nginx-config/nginx.conf "${NGINX_CONF}"
+              echo "Nginx配置已复制"
             fi
 
             # 测试并重载 Nginx
