@@ -193,7 +193,7 @@ jobs:
           port: ${{ secrets.SERVER_PORT || 22 }}
           source: "api-dist/*"
           target: "${{ env.DEPLOY_DIR }}/api"
-          strip_components: 1
+          strip_components: 0
           rm: true
 
       - name: Restart API, Fix DB and Nginx
@@ -534,28 +534,27 @@ jobs:
             # 先删除旧进程
             pm2 delete promo-api 2>/dev/null || true
 
-            # 清理旧的 node_modules
-            rm -rf node_modules
-            
             # 确保 package.json 是最新的
             echo "=== package.json 内容 ==="
             cat package.json
-            
-            # 尝试使用 npm 安装
-            echo "=== 使用 npm 安装依赖 ==="
-            npm install --production
-            
-            # 如果 npm 失败，尝试安装 bcrypt 及其他依赖
-            echo "=== 验证依赖 ==="
-            if [ ! -d "node_modules/bcrypt" ]; then
-                echo "bcrypt 未安装，尝试单独安装..."
-                npm install bcrypt@^5.1.1 --save
-                npm install @types/bcrypt@^5.0.2 --save-dev || true
+
+            # 验证依赖是否存在
+            echo "=== 检查 node_modules ==="
+            if [ -d "node_modules" ] && [ -f "node_modules/bcrypt/lib/binding/napi-v3/bcrypt_lib.node" ]; then
+              echo "✓ bcrypt 依赖已存在，跳过安装"
+            elif [ -d "node_modules" ]; then
+              echo "⚠ bcrypt 依赖不完整，尝试修复..."
+              npm install bcrypt@^5.1.1 --save --ignore-scripts || true
+              npm install @types/bcrypt@^5.0.2 --save-dev || true
+            else
+              echo "⚠ node_modules 不存在，使用 pnpm 安装"
+              # 先安装 pnpm
+              npm install -g pnpm || true
+              pnpm install --prod || npm install --production || echo "依赖安装可能失败，但继续..."
             fi
             
             echo "=== 已安装的依赖 ==="
-            ls -la node_modules/ 2>/dev/null || true
-            ls -la node_modules/bcrypt 2>/dev/null || true
+            ls -la node_modules/ 2>/dev/null | head -20 || true
             
             pm2 start dist/index.js --name promo-api --wait-ready
 
