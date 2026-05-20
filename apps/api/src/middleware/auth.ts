@@ -1,6 +1,5 @@
 import { Request, Response, NextFunction, RequestHandler } from 'express'
 import session, { Session } from 'express-session'
-import MongoStore from 'connect-mongo'
 
 const SESSION_SECRET = process.env.SESSION_SECRET || 'promo-hub-secret-key-change-in-production'
 
@@ -20,22 +19,39 @@ declare module 'express-session' {
   }
 }
 
-export const sessionMiddleware: RequestHandler = session({
-  secret: SESSION_SECRET,
-  resave: false,
-  saveUninitialized: false,
-  store: MongoStore.create({
-    mongoUrl: process.env.MONGODB_URI || `mongodb://localhost:27017/promo-hub-sessions`,
-    ttl: 7 * 24 * 60 * 60,
-    touchAfter: 24 * 60 * 60,
-  }),
-  cookie: {
-    secure: process.env.NODE_ENV === 'production',
-    httpOnly: true,
-    maxAge: 7 * 24 * 60 * 60 * 1000,
-    sameSite: 'lax',
-  },
-})
+// 创建 session 中间件（支持 MongoDB 降级到内存存储）
+export const sessionMiddleware: RequestHandler = (() => {
+  let store: any = undefined
+  
+  if (process.env.MONGODB_URI) {
+    try {
+      const MongoStore = require('connect-mongo').default
+      store = MongoStore.create({
+        mongoUrl: process.env.MONGODB_URI,
+        ttl: 7 * 24 * 60 * 60,
+        touchAfter: 24 * 60 * 60,
+      })
+      console.log('[Session] 使用 MongoDB 存储')
+    } catch (err) {
+      console.warn('[Session] MongoDB 连接失败，降级到内存存储:', err)
+    }
+  } else {
+    console.log('[Session] 未配置 MongoDB，使用内存存储')
+  }
+  
+  return session({
+    secret: SESSION_SECRET,
+    resave: false,
+    saveUninitialized: false,
+    store,
+    cookie: {
+      secure: process.env.NODE_ENV === 'production',
+      httpOnly: true,
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+      sameSite: 'lax',
+    },
+  })
+})()
 
 export const authMiddleware = (allowedRoles?: Array<'admin' | 'manager' | 'user' | 'employee'>) => {
   return (req: Request, res: Response, next: NextFunction) => {

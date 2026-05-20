@@ -2,7 +2,7 @@
  * ManagerService - 经理业务逻辑层
  * 负责处理渠道经理相关的所有业务逻辑，包括注册、登录、产品管理、订单审核等
  */
-import bcrypt from 'bcrypt'
+import bcrypt from 'bcryptjs'
 import {
   readManagers,
   insertManager,

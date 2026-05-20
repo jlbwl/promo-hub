@@ -1,7 +1,7 @@
 import fs from 'fs'
 import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
-import bcrypt from 'bcrypt'
+import bcrypt from 'bcryptjs'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const DATA_DIR = join(__dirname, '..', 'data')

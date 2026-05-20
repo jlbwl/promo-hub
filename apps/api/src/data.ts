@@ -1,16 +1,7 @@
 import { query, queryOne } from './db.js'
 export { query, queryOne }
 
-// 尝试导入 bcrypt，如果失败则使用纯 JS 实现
-let bcrypt: any = null
-try {
-  bcrypt = require('bcrypt')
-} catch (err) {
-  console.warn('[API] bcrypt 模块加载失败，使用纯 JS 实现:', err)
-  bcrypt = {
-    compare: async (password: string, hash: string) => password === hash
-  }
-}
+import bcrypt from 'bcryptjs'
 
 // ============ 通用辅助函数 ============
 

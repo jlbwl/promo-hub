@@ -1,5 +1,5 @@
 import { Request, Response } from 'express'
-import bcrypt from 'bcrypt'
+import bcrypt from 'bcryptjs'
 import { sendSuccess, sendError } from '../utils/response.js'
 import {
   readAdminByPhone,

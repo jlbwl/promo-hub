@@ -2,7 +2,7 @@
  * UserService - 用户业务逻辑层
  * 负责处理用户相关的所有业务逻辑，包括注册、登录、密码管理等
  */
-import bcrypt from 'bcrypt'
+import bcrypt from 'bcryptjs'
 import {
   readUsers,
   writeUsers,
