@@ -170,6 +170,67 @@ export async function updateOrder(id: string, fields: Record<string, any>): Prom
   await writeOrders(updated)
 }
 
+// ============ 优化的订单查询方法 ============
+
+export async function getOrdersPaginated(params: {
+  userId?: string
+  managerId?: string
+  status?: string
+  managedBy?: string
+  keyword?: string
+  page?: number
+  pageSize?: number
+}): Promise<{ list: any[]; total: number }> {
+  let orders = await readOrders()
+
+  if (params.userId) {
+    orders = orders.filter((o: any) => o.userId === params.userId)
+  }
+  if (params.managerId) {
+    orders = orders.filter((o: any) => o.managerId === params.managerId)
+  }
+  if (params.status) {
+    orders = orders.filter((o: any) => o.status === params.status)
+  }
+  if (params.managedBy) {
+    orders = orders.filter((o: any) => o.managedBy === params.managedBy)
+  }
+  if (params.keyword) {
+    const keyword = params.keyword.toLowerCase()
+    orders = orders.filter((o: any) =>
+      (o.productName?.toLowerCase()?.includes(keyword)) ||
+      (o.userName?.toLowerCase()?.includes(keyword)) ||
+      (o.userPhone?.includes(keyword))
+    )
+  }
+
+  orders.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+
+  const total = orders.length
+  const page = Math.max(1, params.page || 1)
+  const pageSize = Math.min(100, Math.max(1, params.pageSize || 20))
+  const start = (page - 1) * pageSize
+  const list = orders.slice(start, start + pageSize)
+
+  const userIds = Array.from(new Set(list.map((o: any) => o.userId).filter(Boolean)))
+  const usersMap = new Map()
+  if (userIds.length > 0) {
+    const users = await readUsers()
+    users.forEach((user: any) => {
+      usersMap.set(user.id, user.teamName)
+    })
+  }
+
+  return {
+    list: list.map((order: any) => ({
+      ...order,
+      productPrice: Number(order.productPrice) || 0,
+      teamName: order.teamName || usersMap.get(order.userId) || '',
+    })),
+    total,
+  }
+}
+
 // ============ Cart ============
 
 export async function readCartItems(userId: string): Promise<any[]> {

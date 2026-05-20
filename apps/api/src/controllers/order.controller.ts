@@ -57,17 +57,32 @@ export const getOrders = async (req: Request, res: Response): Promise<void> => {
       return sendError(res, 'pageSize参数无效', 400)
     }
 
-    const { list, total } = await orderService.getOrders({
-      userId: userId as string,
-      managerId: managerId as string,
-      status: status as string,
-      managedBy: managedBy as string,
-      keyword: keyword as string,
-      page: pageNum,
-      pageSize: pageSizeNum,
-    })
+    let result: { list: any[]; total: number }
+    try {
+      result = await orderService.getOrders({
+        userId: userId as string,
+        managerId: managerId as string,
+        status: status as string,
+        managedBy: managedBy as string,
+        keyword: keyword as string,
+        page: pageNum,
+        pageSize: pageSizeNum,
+      })
+    } catch (dbError: any) {
+      console.warn('[获取订单] 数据库查询失败，尝试降级到内存:', dbError)
+      const { getOrdersPaginated } = await import('../data-memory.js')
+      result = await getOrdersPaginated({
+        userId: userId as string,
+        managerId: managerId as string,
+        status: status as string,
+        managedBy: managedBy as string,
+        keyword: keyword as string,
+        page: pageNum,
+        pageSize: pageSizeNum,
+      })
+    }
 
-    sendPagination(res, list, total, pageNum, pageSizeNum)
+    sendPagination(res, result.list, result.total, pageNum, pageSizeNum)
   } catch (error: any) {
     console.error('[获取订单] 错误:', error)
     sendError(res, error.message || '获取失败', 500)
