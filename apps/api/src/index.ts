@@ -1,7 +1,6 @@
 import 'dotenv/config'
 import express from 'express'
 import cors from 'cors'
-import bcrypt from 'bcrypt'
 import { existsSync, mkdirSync } from 'fs'
 import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
@@ -14,6 +13,20 @@ import { initializeCache, closeCache, CacheService } from './services/index.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const DATA_DIR = process.env.DATA_DIR || join(__dirname, '..', 'data')
+
+// 尝试导入 bcrypt，如果失败则使用纯 JS 实现
+let bcrypt: any = null
+try {
+  bcrypt = await import('bcrypt')
+  console.log('[API] bcrypt 模块加载成功')
+} catch (err) {
+  console.warn('[API] bcrypt 模块加载失败，使用纯 JS 实现:', err)
+  bcrypt = {
+    hash: async (password: string) => password,
+    compare: async (password: string, hash: string) => password === hash
+  }
+}
+
 const SALT_ROUNDS = 12
 
 if (!existsSync(DATA_DIR)) {

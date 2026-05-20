@@ -544,15 +544,21 @@ jobs:
             echo "=== package.json 内容 ==="
             cat package.json
 
-            # 检查并安装依赖
-            echo "=== 检查并安装依赖 ==="
-            if [ -d "node_modules" ]; then
-              echo "✓ node_modules 已存在，跳过安装"
-            else
-              echo "⚠ node_modules 不存在，开始安装依赖..."
-              npm install --production --prefer-offline --no-audit
-              echo "✓ 依赖安装完成"
-            fi
+            # 强制安装依赖，确保 native 模块正确编译
+            echo "=== 强制安装依赖 ==="
+            rm -rf node_modules package-lock.json
+            npm install --production --no-audit 2>&1 | tail -30
+            echo "✓ 依赖安装完成"
+
+            # 检查关键模块是否存在
+            echo "=== 检查关键模块 ==="
+            ls -la node_modules/express 2>/dev/null && echo "✓ express 已安装" || echo "✗ express 未安装"
+            ls -la node_modules/mysql2 2>/dev/null && echo "✓ mysql2 已安装" || echo "✗ mysql2 未安装"
+            ls -la node_modules/bcrypt 2>/dev/null && echo "✓ bcrypt 已安装" || echo "✗ bcrypt 未安装"
+
+            # 尝试直接启动服务并查看输出
+            echo "=== 测试 API 启动 ==="
+            timeout 10 node dist/index.js 2>&1 || true
 
             # 启动服务
             echo "=== 启动 API 服务 ==="
