@@ -10,15 +10,15 @@ import { requireAdmin } from '../middleware/auth.js'
 const router: ExpressRouter = Router()
 
 // 获取所有分类（无需认证）
-router.get('/', getCategories)
+router.get('/categories', getCategories)
 
 // 创建分类（仅管理员）
-router.post('/', requireAdmin, createCategory)
+router.post('/categories', requireAdmin, createCategory)
 
 // 更新分类（仅管理员）
-router.put('/:id', requireAdmin, updateCategory)
+router.put('/categories/:id', requireAdmin, updateCategory)
 
 // 归档分类（仅管理员）
-router.delete('/:id', requireAdmin, archiveCategory)
+router.delete('/categories/:id', requireAdmin, archiveCategory)
 
 export default router

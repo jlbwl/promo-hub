@@ -12,7 +12,7 @@ import categoryRoutes from './category.routes.js'
 const router: Router = Router()
 
 // 挂载各个模块路由
-router.use('/api/categories', categoryRoutes)
+router.use(categoryRoutes)
 router.use(orderRoutes)
 router.use(cartRoutes)
 router.use(managerRoutes)
