@@ -192,9 +192,9 @@ jobs:
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: ${{ secrets.SERVER_PORT || 22 }}
           source: "api-dist/*"
-          target: ${{ env.DEPLOY_DIR }}/api
+          target: "${{ env.DEPLOY_DIR }}/api"
           strip_components: 1
-          rm: false
+          rm: true
 
       - name: Restart API, Fix DB and Nginx
         uses: appleboy/ssh-action@v1.2.0
