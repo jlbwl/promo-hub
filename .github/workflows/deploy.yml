@@ -191,9 +191,9 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: ${{ secrets.SERVER_PORT || 22 }}
-          source: "api-dist/"
+          source: "api-dist"
           target: "${{ env.DEPLOY_DIR }}/api/"
-          strip_components: 1
+          strip_components: 0
           rm: true
 
       - name: Restart API, Fix DB and Nginx
@@ -541,14 +541,22 @@ jobs:
             mkdir -p dist
             if [ -d "api-dist" ]; then
                 echo "✓ 发现 api-dist 目录，移动内容..."
-                # 移动所有文件到 dist 目录
+                # 检查是否有嵌套的 dist 目录
                 if [ -d "api-dist/dist" ]; then
+                    echo "  - 找到嵌套的 dist 目录"
                     cp -rf api-dist/dist/* dist/
+                elif [ -f "api-dist/index.js" ]; then
+                    echo "  - 直接找到编译后的文件"
+                    cp -rf api-dist/* dist/
                 else
-                    # 如果没有嵌套的 dist 目录，直接移动所有文件
-                    cp -rf api-dist/* dist/ 2>/dev/null || cp -rf api-dist/* . 2>/dev/null
+                    echo "  - 尝试其他方式移动"
+                    cp -rf api-dist/* dist/ 2>/dev/null || true
                 fi
                 rm -rf api-dist
+            elif ls *.js 1>/dev/null 2>&1; then
+                echo "✓ 直接找到编译后的 .js 文件，移动到 dist"
+                mv -f *.js *.d.ts dist/ 2>/dev/null || true
+                mv -f controllers data middleware routes services utils dist/ 2>/dev/null || true
             fi
             echo "=== dist 目录内容 ==="
             ls -la dist
