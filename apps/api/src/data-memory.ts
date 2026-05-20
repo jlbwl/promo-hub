@@ -488,3 +488,81 @@ export async function readOperationLogs(params?: {
   
   return { list, total }
 }
+
+// ============ Product Categories (产品分类) ============
+
+const defaultCategories = [
+  { id: 'cat_1', name: '综合-立返', value: 'comprehensive-instant', sort: 1, status: 'active', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+  { id: 'cat_2', name: '综合-数据', value: 'comprehensive-data', sort: 2, status: 'active', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+  { id: 'cat_3', name: '个养和加挂', value: 'personal-insurance', sort: 3, status: 'active', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+  { id: 'cat_4', name: '限三-立返', value: 'limit3-instant', sort: 4, status: 'active', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+  { id: 'cat_5', name: '限三-数据', value: 'limit3-data', sort: 5, status: 'active', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+  { id: 'cat_6', name: '不限三-立返', value: 'unlimit3-instant', sort: 6, status: 'active', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+  { id: 'cat_7', name: '不限三-数据', value: 'unlimit3-data', sort: 7, status: 'active', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+]
+
+export async function readCategories(includeArchived = false): Promise<any[]> {
+  let categories = readFileData('categories')
+  if (categories.length === 0) {
+    categories = [...defaultCategories]
+    writeFileData('categories', categories)
+  }
+  if (!includeArchived) {
+    categories = categories.filter((c: any) => c.status === 'active')
+  }
+  categories.sort((a: any, b: any) => a.sort - b.sort || a.id.localeCompare(b.id))
+  return categories
+}
+
+export async function readCategoryById(id: string): Promise<any> {
+  const categories = readFileData('categories')
+  return categories.find((c: any) => c.id === id) || null
+}
+
+export async function createCategory(name: string, value: string, sort?: number): Promise<any> {
+  const categories = readFileData('categories')
+  const id = `cat_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+  const now = new Date().toISOString()
+  const category = {
+    id,
+    name,
+    value,
+    sort: sort || 0,
+    status: 'active',
+    createdAt: now,
+    updatedAt: now
+  }
+  categories.push(category)
+  writeFileData('categories', categories)
+  return category
+}
+
+export async function updateCategory(id: string, data: Partial<{ name: string; sort: number; status: 'active' | 'archived' }>): Promise<any | null> {
+  const categories = readFileData('categories')
+  const index = categories.findIndex((c: any) => c.id === id)
+  if (index === -1) {
+    return null
+  }
+  categories[index] = {
+    ...categories[index],
+    ...data,
+    updatedAt: new Date().toISOString()
+  }
+  writeFileData('categories', categories)
+  return categories[index]
+}
+
+export async function archiveCategory(id: string): Promise<boolean> {
+  const categories = readFileData('categories')
+  const index = categories.findIndex((c: any) => c.id === id)
+  if (index === -1) {
+    return false
+  }
+  categories[index] = {
+    ...categories[index],
+    status: 'archived',
+    updatedAt: new Date().toISOString()
+  }
+  writeFileData('categories', categories)
+  return true
+}
