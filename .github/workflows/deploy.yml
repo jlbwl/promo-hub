@@ -544,12 +544,18 @@ jobs:
             echo "=== package.json 内容 ==="
             cat package.json
 
-            # 直接跳过 npm 安装，直接尝试启动服务
-            echo "=== 跳过 npm 安装，直接启动服务 ==="
+            # 检查并安装依赖
+            echo "=== 检查并安装依赖 ==="
             if [ -d "node_modules" ]; then
-              echo "✓ node_modules 已存在，继续"
+              echo "✓ node_modules 已存在，跳过安装"
+            else
+              echo "⚠ node_modules 不存在，开始安装依赖..."
+              npm install --production --prefer-offline --no-audit
+              echo "✓ 依赖安装完成"
             fi
 
+            # 启动服务
+            echo "=== 启动 API 服务 ==="
             pm2 start dist/index.js --name promo-api --wait-ready
 
             # 等待几秒让服务完全启动
