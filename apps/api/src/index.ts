@@ -102,6 +102,9 @@ app.post('/api/cache/clear', async (_req, res) => {
   }
 })
 
+// 调试信息 - 输出已注册的路由
+console.log('[API] 路由已注册完成')
+
 // 路由
 app.use(routes)
 
