@@ -196,7 +196,7 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: ${{ secrets.SERVER_PORT || 22 }}
-          source: "api-dist"
+          source: "api-dist/*"
           target: "${{ env.DEPLOY_DIR }}/api"
           strip_components: 1
           rm: true
@@ -541,13 +541,18 @@ jobs:
             pwd
             ls -la
 
-            # 先删除旧进程
+            # 先停止旧进程，完全清理
             cd ${{ env.DEPLOY_DIR }}/api
+            pm2 stop promo-api 2>/dev/null || true
             pm2 delete promo-api 2>/dev/null || true
+            pm2 save --force 2>/dev/null || true
 
             # 检查上传的文件
             echo "=== 检查上传的文件 ==="
             ls -la
+            echo "=== Routes 文件内容 ==="
+            ls -la routes/
+            cat routes/category.routes.js || echo "category.routes.js not found"
 
             # 确保 package.json 是最新的
             echo "=== package.json 内容 ==="
@@ -566,24 +571,18 @@ jobs:
             ls -la node_modules/mysql2 2>/dev/null && echo "✓ mysql2 已安装" || echo "✗ mysql2 未安装"
             ls -la node_modules/bcryptjs 2>/dev/null && echo "✓ bcryptjs 已安装" || echo "✗ bcryptjs 未安装"
 
-            # 直接用 node 测试启动（不通过 PM2）
-            echo "=== 直接测试 Node 启动 ==="
-            timeout 3 node index.js 2>&1 || true
-            echo "测试完成"
-
-            # 启动服务 - 确保在正确目录下
+            # 启动服务 - 使用 --cwd 明确指定目录
             echo "=== 启动 API 服务 ==="
             cd ${{ env.DEPLOY_DIR }}/api
-            pm2 start index.js --name promo-api -f
+            pm2 start index.js --name promo-api --cwd ${{ env.DEPLOY_DIR }}/api -f
 
             # 等待几秒让服务完全启动
-            sleep 3
+            sleep 5
 
             # 检查服务状态
-            cd ${{ env.DEPLOY_DIR }}/api
             pm2 status
-            echo "=== API 服务日志 (最近20行) ==="
-            pm2 logs promo-api --lines 20 --nostream
+            echo "=== API 服务日志 (最近50行) ==="
+            pm2 logs promo-api --lines 50 --nostream
 
             # 更新 Nginx 配置
             echo "=== 更新 Nginx 配置 ==="
