@@ -531,6 +531,11 @@ jobs:
             fi
             # ===== 数据库修复结束 =====
 
+            # 确保在正确的工作目录下
+            cd ${{ env.DEPLOY_DIR }}/api || true
+            pwd
+            ls -la
+
             # 先删除旧进程
             pm2 delete promo-api 2>/dev/null || true
 
