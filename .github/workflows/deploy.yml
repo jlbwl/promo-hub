@@ -191,8 +191,8 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: ${{ secrets.SERVER_PORT || 22 }}
-          source: "api-dist"
-          target: "${{ env.DEPLOY_DIR }}/api/"
+          source: "api-dist/dist/"
+          target: "${{ env.DEPLOY_DIR }}/api/dist/"
           strip_components: 0
           rm: true
 
@@ -534,30 +534,9 @@ jobs:
             # 先删除旧进程
             pm2 delete promo-api 2>/dev/null || true
 
-            # 检查和处理上传的文件
+            # 检查上传的 dist 目录
             echo "=== 检查上传的文件 ==="
-            ls -la
-            # 创建 dist 目录并移动所有编译后的文件
             mkdir -p dist
-            if [ -d "api-dist" ]; then
-                echo "✓ 发现 api-dist 目录，移动内容..."
-                # 检查是否有嵌套的 dist 目录
-                if [ -d "api-dist/dist" ]; then
-                    echo "  - 找到嵌套的 dist 目录"
-                    cp -rf api-dist/dist/* dist/
-                elif [ -f "api-dist/index.js" ]; then
-                    echo "  - 直接找到编译后的文件"
-                    cp -rf api-dist/* dist/
-                else
-                    echo "  - 尝试其他方式移动"
-                    cp -rf api-dist/* dist/ 2>/dev/null || true
-                fi
-                rm -rf api-dist
-            elif ls *.js 1>/dev/null 2>&1; then
-                echo "✓ 直接找到编译后的 .js 文件，移动到 dist"
-                mv -f *.js *.d.ts dist/ 2>/dev/null || true
-                mv -f controllers data middleware routes services utils dist/ 2>/dev/null || true
-            fi
             echo "=== dist 目录内容 ==="
             ls -la dist
 
