@@ -12,7 +12,7 @@
 
     <!-- 产品分类横向滚动 -->
     <CategoryList
-      :categories="categories"
+      :categories="displayCategories"
       :active-category="activeCategory"
       @select="selectCategory"
     />
@@ -30,7 +30,7 @@
             v-for="product in products"
             :key="product.id"
             :product="product"
-            :category-name="getCategoryName(product.category)"
+            :category-name="getCategoryName(product.category, product.categoryNameSnapshot)"
             @click="goToDetail"
             @add-to-cart="addToCart"
           />
@@ -41,7 +41,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { get, post } from '@promo/shared/utils/request'
 import { showToast } from 'vant'
@@ -66,6 +66,14 @@ const { getUserId } = useUser()
 const { categories, getCategoryName } = useProductCategories()
 
 /**
+ * 显示的分类，添加全部选项
+ */
+const displayCategories = computed(() => [
+  { id: 'all', name: '全部', value: '' },
+  ...categories.value
+])
+
+/**
  * 搜索关键词
  */
 const searchKeyword = ref('')
@@ -73,7 +81,7 @@ const searchKeyword = ref('')
 /**
  * 当前激活的分类
  */
-const activeCategory = ref(0)
+const activeCategory = ref('all')
 
 /**
  * 产品列表数据
@@ -97,7 +105,7 @@ const pageSize = 10
  */
 const loadProducts = async () => {
   try {
-    const categoryValue = categories.find(c => c.id === activeCategory.value)?.value
+    const categoryValue = displayCategories.value.find(c => c.id === activeCategory.value)?.value
     const res = await get<any>('/products', {
       page: page.value,
       pageSize,
@@ -155,7 +163,7 @@ const checkCartStatus = async () => {
 /**
  * 选择分类
  */
-const selectCategory = (categoryId: number) => {
+const selectCategory = (categoryId: string) => {
   activeCategory.value = categoryId
   products.value = []
   finished.value = false

@@ -11,7 +11,8 @@ import {
   updateProduct,
   deleteProduct,
   getProductsPaginated,
-  queryOne
+  queryOne,
+  query
 } from '../data.js'
 import { CacheService, CacheKeys, CacheTTL } from './cache/index.js'
 
@@ -44,6 +45,8 @@ export interface ProductService {
     description?: string
     price?: number
     category?: string
+    categoryId?: string
+    categoryNameSnapshot?: string
     status?: string
     managerId?: string
     coverImage?: string
@@ -82,6 +85,25 @@ function getCacheService(): CacheService {
 function getProductListCacheKey(params: any): string {
   const { page, pageSize, category, status, managerId, keyword } = params
   return `list:${page}:${pageSize}:${category || 'all'}:${status || 'all'}:${managerId || 'all'}:${keyword || 'none'}`
+}
+
+/**
+ * 根据分类值或分类ID获取分类信息
+ */
+async function getCategoryInfo(categoryValue?: string, categoryId?: string) {
+  if (categoryId) {
+    const category = await queryOne('SELECT * FROM product_categories WHERE id = ?', [categoryId])
+    if (category) {
+      return category
+    }
+  }
+  if (categoryValue) {
+    const category = await queryOne('SELECT * FROM product_categories WHERE value = ? AND status = ?', [categoryValue, 'active'])
+    if (category) {
+      return category
+    }
+  }
+  return null
 }
 
 /**
@@ -187,11 +209,16 @@ export const productService: ProductService = {
       throw error
     }
 
+    // 获取分类信息
+    const categoryInfo = await getCategoryInfo(productData.category, productData.categoryId)
+    
     // 创建产品对象
     const now = new Date().toISOString()
     const product = {
       id: `p_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
       ...productData,
+      categoryId: categoryInfo?.id || productData.categoryId || '',
+      categoryNameSnapshot: categoryInfo?.name || productData.categoryNameSnapshot || '',
       status: productData.status || 'published',
       publishedAt: productData.status === 'published' ? now : undefined,
       createdAt: now,
@@ -244,13 +271,23 @@ export const productService: ProductService = {
       }
     }
 
+    // 如果更新了分类，更新分类快照
+    let updatedFields = { ...updateData }
+    if (updateData.category || updateData.categoryId) {
+      const categoryInfo = await getCategoryInfo(updateData.category, updateData.categoryId)
+      if (categoryInfo) {
+        updatedFields.categoryId = categoryInfo.id
+        updatedFields.categoryNameSnapshot = categoryInfo.name
+        if (!updateData.category) {
+          updatedFields.category = categoryInfo.value
+        }
+      }
+    }
+
     // 构建更新字段
     const now = new Date()
     const nowStr = now.toISOString().replace('T', ' ').substring(0, 19)
-    const updatedFields: Record<string, any> = {
-      ...updateData,
-      publishedAt: updateData.status === 'published' && !existing.publishedAt ? nowStr : existing.publishedAt,
-    }
+    updatedFields.publishedAt = updateData.status === 'published' && !existing.publishedAt ? nowStr : existing.publishedAt
 
     await updateProduct(id, updatedFields)
     const updated = await readProduct(id)

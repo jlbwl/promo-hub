@@ -305,6 +305,62 @@ export async function initDatabase(): Promise<void> {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `)
 
+  // 产品分类表
+  await pool.execute(`
+    CREATE TABLE IF NOT EXISTS product_categories (
+      id VARCHAR(100) PRIMARY KEY,
+      name VARCHAR(200) NOT NULL COMMENT '分类名称',
+      value VARCHAR(200) NOT NULL COMMENT '分类值（兼容旧数据）',
+      sort INT NOT NULL DEFAULT 0 COMMENT '排序',
+      status VARCHAR(50) NOT NULL DEFAULT 'active' COMMENT '状态：active/archived',
+      createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      INDEX idx_status (status),
+      INDEX idx_sort (sort)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+  `)
+
+  // 修改产品表，添加分类ID和分类快照字段
+  try {
+    await pool.execute('ALTER TABLE products ADD COLUMN categoryId VARCHAR(100) DEFAULT "" AFTER category')
+  } catch (e) { /* 列可能已存在，忽略错误 */ }
+  try {
+    await pool.execute('ALTER TABLE products ADD COLUMN categoryNameSnapshot VARCHAR(200) DEFAULT "" AFTER categoryId')
+  } catch (e) { /* 列可能已存在，忽略错误 */ }
+
+  // 初始化默认分类数据
+  const [existingCategories] = await pool.execute('SELECT COUNT(*) as count FROM product_categories')
+  const categoryCount = (existingCategories as any[])[0].count
+  if (categoryCount === 0) {
+    const defaultCategories = [
+      { id: 'cat_1', name: '综合-立返', value: 'comprehensive-instant', sort: 1 },
+      { id: 'cat_2', name: '综合-数据', value: 'comprehensive-data', sort: 2 },
+      { id: 'cat_3', name: '个养和加挂', value: 'personal-insurance', sort: 3 },
+      { id: 'cat_4', name: '限三-立返', value: 'limit3-instant', sort: 4 },
+      { id: 'cat_5', name: '限三-数据', value: 'limit3-data', sort: 5 },
+      { id: 'cat_6', name: '不限三-立返', value: 'unlimit3-instant', sort: 6 },
+      { id: 'cat_7', name: '不限三-数据', value: 'unlimit3-data', sort: 7 },
+      { id: 'cat_8', name: '三方-立返', value: 'third-party-instant', sort: 8 },
+      { id: 'cat_9', name: '三方-数据', value: 'third-party-data', sort: 9 },
+      { id: 'cat_10', name: '其它', value: 'other', sort: 10 }
+    ]
+    for (const cat of defaultCategories) {
+      await pool.execute(
+        'INSERT INTO product_categories (id, name, value, sort, status) VALUES (?, ?, ?, ?, ?)',
+        [cat.id, cat.name, cat.value, cat.sort, 'active']
+      )
+    }
+    console.log('[DB] Default product categories created')
+
+    // 将现有产品的分类关联到新分类表，并同步快照
+    await pool.execute(`
+      UPDATE products p
+      INNER JOIN product_categories c ON p.category = c.value
+      SET p.categoryId = c.id, p.categoryNameSnapshot = c.name
+    `)
+    console.log('[DB] Existing products linked to categories')
+  }
+
   // 检查是否有管理员账号，没有则创建默认账号
   const [adminRows] = await pool.execute('SELECT COUNT(*) as count FROM admins')
   const adminCount = (adminRows as any[])[0].count

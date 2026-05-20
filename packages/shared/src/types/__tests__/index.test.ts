@@ -229,25 +229,34 @@ describe('types - interfaces', () => {
   describe('ProductCategory', () => {
     it('should accept valid category object', () => {
       const category: ProductCategory = {
-        id: '1',
-        name: 'Electronics',
+        id: 'cat_1',
+        name: '综合-立返',
+        value: 'comprehensive-instant',
         sort: 1,
+        status: 'active',
+        createdAt: '2024-01-01T00:00:00Z',
+        updatedAt: '2024-01-01T00:00:00Z',
       }
 
-      expect(category.id).toBe('1')
-      expect(category.name).toBe('Electronics')
+      expect(category.id).toBe('cat_1')
+      expect(category.name).toBe('综合-立返')
+      expect(category.value).toBe('comprehensive-instant')
       expect(category.sort).toBe(1)
+      expect(category.status).toBe('active')
     })
 
-    it('should accept optional icon', () => {
+    it('should accept archived status', () => {
       const category: ProductCategory = {
-        id: '1',
-        name: 'Electronics',
-        icon: 'laptop',
-        sort: 1,
+        id: 'cat_2',
+        name: '综合-数据',
+        value: 'comprehensive-data',
+        sort: 2,
+        status: 'archived',
+        createdAt: '2024-01-01T00:00:00Z',
+        updatedAt: '2024-01-01T00:00:00Z',
       }
 
-      expect(category.icon).toBe('laptop')
+      expect(category.status).toBe('archived')
     })
   })
 

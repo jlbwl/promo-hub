@@ -19,7 +19,7 @@
  * 分类项接口
  */
 interface Category {
-  id: number
+  id: string
   name: string
   value: string
 }
@@ -29,15 +29,15 @@ interface Category {
  */
 interface CategoryListProps {
   categories: Category[]
-  activeCategory: number
+  activeCategory: string
 }
 
 /**
  * 分类列表组件事件
  */
 interface Emits {
-  (e: 'update:activeCategory', id: number): void
-  (e: 'select', id: number): void
+  (e: 'update:activeCategory', id: string): void
+  (e: 'select', id: string): void
 }
 
 const { categories, activeCategory } = defineProps<CategoryListProps>()
@@ -46,7 +46,7 @@ const emit = defineEmits<Emits>()
 /**
  * 选择分类
  */
-const selectCategory = (categoryId: number) => {
+const selectCategory = (categoryId: string) => {
   emit('update:activeCategory', categoryId)
   emit('select', categoryId)
 }

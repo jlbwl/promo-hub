@@ -29,6 +29,10 @@
           <el-icon><Wallet /></el-icon>
           <span>积分管理</span>
         </el-menu-item>
+        <el-menu-item index="/categories">
+          <el-icon><Grid /></el-icon>
+          <span>分类管理</span>
+        </el-menu-item>
         <el-menu-item index="/settings">
           <el-icon><Setting /></el-icon>
           <span>系统设置</span>
@@ -68,7 +72,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Odometer, User, UserFilled, Setting, Wallet, Files } from '@element-plus/icons-vue'
+import { Odometer, User, UserFilled, Setting, Wallet, Files, Grid } from '@element-plus/icons-vue'
 import { ElMessageBox } from 'element-plus'
 import IcpFooter from '../components/IcpFooter.vue'
 

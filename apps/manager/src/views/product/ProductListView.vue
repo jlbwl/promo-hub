@@ -60,8 +60,8 @@
         <template #default="{ row }">
           <div class="title-with-category">
             <span class="title-text">{{ row.title }}</span>
-            <el-tag v-if="row.category && getCategoryLabel(row.category)" type="primary" size="small" class="category-tag">
-              {{ getCategoryLabel(row.category) }}
+            <el-tag v-if="getCategoryLabel(row)" type="primary" size="small" class="category-tag">
+              {{ getCategoryLabel(row) }}
             </el-tag>
           </div>
         </template>
@@ -144,15 +144,20 @@ import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Picture } from '@element-plus/icons-vue'
 import { get, put, del } from '@promo/shared/utils/request'
+import type { ProductCategory } from '@promo/shared/types'
 
 const router = useRouter()
 
 // 加载状态
 const loading = ref(false)
+const categoriesLoading = ref(false)
 
 // 搜索条件
 const searchKeyword = ref('')
 const searchStatus = ref('')
+
+// 分类数据
+const categories = ref<ProductCategory[]>([])
 
 // 分页数据
 const pagination = reactive({
@@ -177,25 +182,22 @@ interface Product {
   publishedAt: string
   offlineReason?: string
   category?: string
-}
-
-// 分类名称映射（英文 -> 中文）
-const categoryMap: Record<string, string> = {
-  'comprehensive-cashback': '综合-立返',
-  'comprehensive-data': '综合-数据',
-  'individual-pension': '个养和加挂',
-  'limited-three-cashback': '限三-立返',
-  'limited-three-data': '限三-数据',
-  'unlimited-three-cashback': '不限三-立返',
-  'unlimited-three-data': '不限三-数据',
-  'third-party-cashback': '三方-立返',
-  'third-party-data': '三方-数据'
+  categoryId?: string
+  categoryNameSnapshot?: string
 }
 
 // 获取分类中文名称
-const getCategoryLabel = (category: string | undefined): string => {
-  if (!category) return ''
-  return categoryMap[category] || category
+const getCategoryLabel = (product: Product): string => {
+  // 优先使用分类名称快照
+  if (product.categoryNameSnapshot) {
+    return product.categoryNameSnapshot
+  }
+  // 其次查找分类数据
+  if (product.category) {
+    const category = categories.value.find(c => c.value === product.category)
+    if (category) return category.name
+  }
+  return ''
 }
 
 // 表格数据
@@ -230,6 +232,21 @@ const getManagerId = () => {
     return info.id || ''
   } catch {
     return ''
+  }
+}
+
+// 获取分类列表
+const fetchCategories = async () => {
+  categoriesLoading.value = true
+  try {
+    const res = await get<{ list: ProductCategory[] }>('/categories')
+    if (res.data?.list) {
+      categories.value = res.data.list
+    }
+  } catch (error) {
+    console.error('获取分类失败:', error)
+  } finally {
+    categoriesLoading.value = false
   }
 }
 
@@ -337,6 +354,7 @@ const handleDelete = async (row: Product) => {
 }
 
 onMounted(() => {
+  fetchCategories()
   fetchData()
 })
 </script>

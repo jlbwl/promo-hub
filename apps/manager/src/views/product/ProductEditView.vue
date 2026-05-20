@@ -40,17 +40,8 @@
 
         <!-- 产品分类 -->
         <el-form-item label="产品分类" prop="category">
-          <el-select v-model="form.category" placeholder="请选择分类" style="width: 100%;">
-            <el-option label="综合-立返" value="comprehensive-instant" />
-            <el-option label="综合-数据" value="comprehensive-data" />
-            <el-option label="个养和加挂" value="personal-insurance" />
-            <el-option label="限三-立返" value="limit3-instant" />
-            <el-option label="限三-数据" value="limit3-data" />
-            <el-option label="不限三-立返" value="no-limit3-instant" />
-            <el-option label="不限三-数据" value="no-limit3-data" />
-            <el-option label="三方-立返" value="third-party-instant" />
-            <el-option label="三方-数据" value="third-party-data" />
-            <el-option label="其它" value="other" />
+          <el-select v-model="form.category" placeholder="请选择分类" style="width: 100%;" :loading="categoriesLoading">
+            <el-option v-for="category in categories" :key="category.id" :label="category.name" :value="category.value" />
           </el-select>
         </el-form-item>
 
@@ -211,6 +202,7 @@ import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'elem
 import { ArrowLeft, Plus, PictureFilled } from '@element-plus/icons-vue'
 import { get, post, put } from '@promo/shared/utils/request'
 import RichTextEditor from '@/components/RichTextEditor.vue'
+import type { ProductCategory } from '@promo/shared/types'
 
 const route = useRoute()
 const router = useRouter()
@@ -223,6 +215,10 @@ const richTextRef = ref<InstanceType<typeof RichTextEditor>>()
 
 // 保存状态
 const saving = ref(false)
+
+// 分类数据
+const categories = ref<ProductCategory[]>([])
+const categoriesLoading = ref(false)
 
 // 是否为编辑模式
 const isEdit = computed(() => !!route.params.id)
@@ -444,6 +440,21 @@ const handleSave = async () => {
   }
 }
 
+// 获取分类列表
+const fetchCategories = async () => {
+  categoriesLoading.value = true
+  try {
+    const res = await get<{ list: ProductCategory[] }>('/categories')
+    if (res.data?.list) {
+      categories.value = res.data.list
+    }
+  } catch (error) {
+    console.error('获取分类失败:', error)
+  } finally {
+    categoriesLoading.value = false
+  }
+}
+
 // 获取产品详情（编辑模式）
 const fetchProductDetail = async () => {
   if (!isEdit.value) return
@@ -471,6 +482,7 @@ const fetchProductDetail = async () => {
 }
 
 onMounted(() => {
+  fetchCategories()
   fetchProductDetail()
 })
 </script>

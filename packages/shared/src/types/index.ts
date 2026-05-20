@@ -19,6 +19,8 @@ export interface Product {
   price: number
   originalPrice?: number
   category: string
+  categoryId?: string
+  categoryNameSnapshot?: string
   status: 'draft' | 'published' | 'archived'
   managerId?: string
   stock?: number
@@ -36,8 +38,11 @@ export interface Product {
 export interface ProductCategory {
   id: string
   name: string
-  icon?: string
+  value: string
   sort: number
+  status: 'active' | 'archived'
+  createdAt: string
+  updatedAt: string
 }
 
 // ============ 用户相关 ============
