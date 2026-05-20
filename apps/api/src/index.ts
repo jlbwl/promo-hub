@@ -107,8 +107,8 @@ app.post('/api/cache/clear', async (_req, res) => {
 // 调试信息 - 输出已注册的路由
 console.log('[API] 路由已注册完成')
 
-// 路由
-app.use(routes)
+// 路由（添加 /api 前缀）
+app.use('/api', routes)
 
 // 全局错误处理 - 必须在路由之后注册
 app.use(errorHandler)
