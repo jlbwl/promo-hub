@@ -189,11 +189,10 @@ jobs:
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SERVER_SSH_KEY }}
-          port: ${{ secrets.SERVER_PORT || 22 }}
-          source: "api-dist/*"
-          target: "${{ env.DEPLOY_DIR }}/api"
-          strip_components: 0
+          key: ${{ secrets.SERVER_PORT || 22 }}
+          source: "api-dist/"
+          target: "${{ env.DEPLOY_DIR }}/api/"
+          strip_components: 1
           rm: true
 
       - name: Restart API, Fix DB and Nginx
@@ -533,6 +532,16 @@ jobs:
 
             # 先删除旧进程
             pm2 delete promo-api 2>/dev/null || true
+
+            # 检查和处理上传的文件
+            echo "=== 检查上传的文件 ==="
+            ls -la
+            if [ -d "api-dist" ]; then
+                echo "✓ 发现 api-dist 目录，移动内容..."
+                cp -rf api-dist/* .
+                rm -rf api-dist
+            fi
+            ls -la dist 2>/dev/null || echo "dist 目录内容："
 
             # 确保 package.json 是最新的
             echo "=== package.json 内容 ==="
