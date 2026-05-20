@@ -13,6 +13,7 @@ function createRequest(): AxiosInstance {
     headers: {
       'Content-Type': 'application/json',
     },
+    withCredentials: true,
   })
 
   // 请求拦截器 — 自动携带 token
