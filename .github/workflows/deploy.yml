@@ -209,7 +209,7 @@ jobs:
             cd ${{ env.DEPLOY_DIR }}/api
             
             # 直接在服务器上创建 package.json，用简单的单行避免 YAML 问题
-            echo '{"name":"@promo/api","version":"1.0.0","private":true,"type":"module","scripts":{"dev":"tsx watch src/index.ts","build":"tsc","start":"node dist/index.js"},"dependencies":{"bcrypt":"^5.1.1","cors":"^2.8.5","dotenv":"^17.4.2","express":"^4.21.0","express-rate-limit":"^8.5.1","multer":"^1.4.5-lts.1","mysql2":"^3.22.3","redis":"^5.12.1","uuid":"^11.0.0"},"devDependencies":{"@types/bcrypt":"^5.0.2","@types/cors":"^2.8.17","@types/express":"^5.0.0","@types/multer":"^1.4.12","@types/uuid":"^10.0.0","tsx":"^4.19.0","typescript":"^5.7.0"}}' > package.json
+            echo '{"name":"@promo/api","version":"1.0.0","private":true,"type":"module","scripts":{"dev":"tsx watch src/index.ts","build":"tsc","start":"node dist/index.js"},"dependencies":{"bcryptjs":"^2.4.3","cors":"^2.8.5","dotenv":"^17.4.2","express":"^4.21.0","express-rate-limit":"^8.5.1","multer":"^1.4.5-lts.1","mysql2":"^3.22.3","redis":"^5.12.1","uuid":"^11.0.0"},"devDependencies":{"@types/cors":"^2.8.17","@types/express":"^5.0.0","@types/multer":"^1.4.12","@types/uuid":"^10.0.0","tsx":"^4.19.0","typescript":"^5.7.0"}}' > package.json
             
             echo "=== 已创建 package.json ==="
             ls -la
@@ -554,7 +554,7 @@ jobs:
             echo "=== 检查关键模块 ==="
             ls -la node_modules/express 2>/dev/null && echo "✓ express 已安装" || echo "✗ express 未安装"
             ls -la node_modules/mysql2 2>/dev/null && echo "✓ mysql2 已安装" || echo "✗ mysql2 未安装"
-            ls -la node_modules/bcrypt 2>/dev/null && echo "✓ bcrypt 已安装" || echo "✗ bcrypt 未安装"
+            ls -la node_modules/bcryptjs 2>/dev/null && echo "✓ bcryptjs 已安装" || echo "✗ bcryptjs 未安装"
 
             # 尝试直接启动服务并查看输出
             echo "=== 测试 API 启动 ==="
