@@ -39,10 +39,13 @@ const app = express()
 const PORT = process.env.PORT || 3000
 
 // 中间件
-app.use(cors({
-  origin: true,
+const corsOptions: cors.CorsOptions = {
+  origin: process.env.CORS_ORIGIN?.split(',').map(o => o.trim()) || ['http://localhost:5173', 'http://localhost:5174'],
   credentials: true,
-}))
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+}
+app.use(cors(corsOptions))
 app.use(express.json())
 app.use(sessionMiddleware)
 

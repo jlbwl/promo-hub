@@ -47,19 +47,30 @@ export const getOrders = async (req: Request, res: Response): Promise<void> => {
   try {
     const { userId, managerId, status, page = '1', pageSize = '20', keyword, managedBy } = req.query
 
+    const pageNum = parseInt(page as string, 10)
+    const pageSizeNum = parseInt(pageSize as string, 10)
+
+    if (isNaN(pageNum) || pageNum < 1) {
+      return sendError(res, 'page参数无效', 400)
+    }
+    if (isNaN(pageSizeNum) || pageSizeNum < 1 || pageSizeNum > 100) {
+      return sendError(res, 'pageSize参数无效', 400)
+    }
+
     const { list, total } = await orderService.getOrders({
       userId: userId as string,
       managerId: managerId as string,
       status: status as string,
       managedBy: managedBy as string,
       keyword: keyword as string,
-      page: parseInt(page as string, 10),
-      pageSize: parseInt(pageSize as string, 10),
+      page: pageNum,
+      pageSize: pageSizeNum,
     })
 
-    sendPagination(res, list, total, parseInt(page as string, 10), parseInt(pageSize as string, 10))
+    sendPagination(res, list, total, pageNum, pageSizeNum)
   } catch (error: any) {
-    sendError(res, error.message || '获取失败', error.code || 500)
+    console.error('[获取订单] 错误:', error)
+    sendError(res, error.message || '获取失败', 500)
   }
 }
 

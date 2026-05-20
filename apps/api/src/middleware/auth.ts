@@ -10,6 +10,7 @@ export interface AuthUser {
   nickname?: string
   teamName?: string
   userId?: string
+  token?: string
 }
 
 declare module 'express-session' {
@@ -55,28 +56,46 @@ export const sessionMiddleware: RequestHandler = (() => {
 
 export const authMiddleware = (allowedRoles?: Array<'admin' | 'manager' | 'user' | 'employee'>) => {
   return (req: Request, res: Response, next: NextFunction) => {
-    if (!req.session || !req.session.isAuthenticated || !req.session.user) {
-      res.status(401).json({
-        code: 401,
-        message: '未登录或会话已过期，请重新登录',
-        data: null
-      })
+    const authHeader = req.headers.authorization
+    const bearerToken = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null
+
+    if (req.session && req.session.isAuthenticated && req.session.user) {
+      if (allowedRoles && allowedRoles.length > 0) {
+        const userRole = req.session.user.role
+        if (!allowedRoles.includes(userRole)) {
+          res.status(403).json({
+            code: 403,
+            message: '您没有权限执行此操作',
+            data: null
+          })
+          return
+        }
+      }
+      next()
       return
     }
 
-    if (allowedRoles && allowedRoles.length > 0) {
-      const userRole = req.session.user.role
-      if (!allowedRoles.includes(userRole)) {
-        res.status(403).json({
-          code: 403,
-          message: '您没有权限执行此操作',
-          data: null
-        })
-        return
+    if (bearerToken && req.session?.user?.token === bearerToken) {
+      if (allowedRoles && allowedRoles.length > 0) {
+        const userRole = req.session.user.role
+        if (!allowedRoles.includes(userRole)) {
+          res.status(403).json({
+            code: 403,
+            message: '您没有权限执行此操作',
+            data: null
+          })
+          return
+        }
       }
+      next()
+      return
     }
 
-    next()
+    res.status(401).json({
+      code: 401,
+      message: '未登录或会话已过期，请重新登录',
+      data: null
+    })
   }
 }
 

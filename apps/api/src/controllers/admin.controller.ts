@@ -10,8 +10,36 @@ import {
   readCommissions,
 } from '../data.js'
 import { login as sessionLogin } from '../middleware/auth.js'
+import crypto from 'crypto'
+import { generateSmsCode, saveSmsCode, verifySmsCode, deleteSmsCode } from '../utils/sms.js'
+import { sendSmsCode } from '../sms.js'
 
 const SALT_ROUNDS = 12
+
+function generateToken(): string {
+  return crypto.randomBytes(32).toString('hex')
+}
+
+/**
+ * 管理员短信验证码发送
+ */
+export const sendAdminSmsCode = async (req: Request, res: Response): Promise<void> => {
+  const { phone } = req.body
+  if (!phone || !/^1[3-9]\d{9}$/.test(phone)) {
+    return sendError(res, '请输入正确的手机号', 400)
+  }
+
+  const admin = await readAdminByPhone(phone)
+  if (!admin) {
+    return sendError(res, '该手机号未注册', 404)
+  }
+
+  const code = generateSmsCode()
+  saveSmsCode(phone, code)
+  
+  await sendSmsCode(phone, code)
+  sendSuccess(res, null, '验证码已发送')
+}
 
 /**
  * 管理员密码登录
@@ -32,9 +60,11 @@ export const adminLogin = async (req: Request, res: Response): Promise<void> => 
     return sendError(res, '手机号或密码错误', 401)
   }
 
-  sessionLogin(req, { id: admin.id, phone: admin.phone, role: 'admin', nickname: admin.name })
+  const token = generateToken()
+  sessionLogin(req, { id: admin.id, phone: admin.phone, role: 'admin', nickname: admin.name, token })
 
   sendSuccess(res, {
+    token,
     admin: { id: admin.id, phone: admin.phone, name: admin.name }
   }, '登录成功')
 }
@@ -43,8 +73,29 @@ export const adminLogin = async (req: Request, res: Response): Promise<void> => 
  * 管理员短信登录
  */
 export const adminSmsLogin = async (req: Request, res: Response): Promise<void> => {
-  // 待实现
-  sendError(res, '功能开发中', 501)
+  const { phone, code } = req.body
+  if (!phone || !code) {
+    return sendError(res, '手机号和验证码不能为空', 400)
+  }
+
+  const valid = verifySmsCode(phone, code)
+  if (!valid) {
+    return sendError(res, '验证码错误或已过期', 400)
+  }
+  deleteSmsCode(phone)
+
+  const admin = await readAdminByPhone(phone)
+  if (!admin) {
+    return sendError(res, '该手机号未注册', 404)
+  }
+
+  const token = generateToken()
+  sessionLogin(req, { id: admin.id, phone: admin.phone, role: 'admin', nickname: admin.name, token })
+
+  sendSuccess(res, {
+    token,
+    admin: { id: admin.id, phone: admin.phone, name: admin.name }
+  }, '登录成功')
 }
 
 /**

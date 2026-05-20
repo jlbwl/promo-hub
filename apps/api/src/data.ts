@@ -512,44 +512,54 @@ export async function getOrdersPaginated(params: {
 
   const whereClause = whereConditions.join(' AND ')
 
-  // 计算总数
-  const countResult = await queryOne(
-    `SELECT COUNT(*) as total FROM orders WHERE ${whereClause}`,
-    values
-  )
-  const total = Number(countResult?.total) || 0
-
-  // 分页
-  const page = params.page || 1
-  const pageSize = params.pageSize || 20
+  const page = Math.max(1, params.page || 1)
+  const pageSize = Math.min(100, Math.max(1, params.pageSize || 20))
   const offset = (page - 1) * pageSize
 
-  // 查询订单列表
-  const orders = await query(
-    `SELECT * FROM orders WHERE ${whereClause} ORDER BY createdAt DESC LIMIT ? OFFSET ?`,
-    [...values, pageSize, offset]
-  )
-
-  // 获取用户信息
-  const userIds = Array.from(new Set((orders as any[]).map(o => o.userId).filter(Boolean)))
-  let usersMap = new Map()
-  if (userIds.length > 0) {
-    const users = await query(
-      `SELECT id, teamName FROM users WHERE id IN (${userIds.map(() => '?').join(',')})`,
-      userIds
+  try {
+    const countResult = await queryOne(
+      `SELECT COUNT(*) as total FROM orders WHERE ${whereClause}`,
+      values
     )
-    ;(users as any[]).forEach(user => {
-      usersMap.set(user.id, user.teamName)
-    })
-  }
+    const total = Number(countResult?.total) || 0
 
-  return {
-    list: (orders as any[]).map(order => ({
-      ...order,
-      productPrice: Number(order.productPrice) || 0,
-      teamName: order.teamName || usersMap.get(order.userId) || '',
-    })),
-    total,
+    let orders: any[] = []
+    if (total > 0) {
+      orders = await query(
+        `SELECT * FROM orders WHERE ${whereClause} ORDER BY createdAt DESC LIMIT ? OFFSET ?`,
+        [...values, pageSize, offset]
+      )
+    }
+
+    const userIds = Array.from(new Set((orders as any[]).map(o => o.userId).filter(Boolean)))
+    const usersMap = new Map()
+    if (userIds.length > 0) {
+      try {
+        const users = await query(
+          `SELECT id, teamName FROM users WHERE id IN (${userIds.map(() => '?').join(',')})`,
+          userIds
+        )
+        ;(users as any[]).forEach(user => {
+          usersMap.set(user.id, user.teamName)
+        })
+      } catch (e) {
+        console.warn('[订单查询] 获取用户信息失败:', e)
+      }
+    }
+
+    return {
+      list: (orders as any[]).map(order => ({
+        ...order,
+        productPrice: Number(order.productPrice) || 0,
+        teamName: order.teamName || usersMap.get(order.userId) || '',
+      })),
+      total,
+    }
+  } catch (error: any) {
+    console.error('[订单查询] 数据库错误:', error)
+    const err = new Error('获取订单列表失败')
+    ;(err as any).code = 500
+    throw err
   }
 }
 
