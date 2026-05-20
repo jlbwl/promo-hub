@@ -537,12 +537,21 @@ jobs:
             # 检查和处理上传的文件
             echo "=== 检查上传的文件 ==="
             ls -la
+            # 创建 dist 目录并移动所有编译后的文件
+            mkdir -p dist
             if [ -d "api-dist" ]; then
                 echo "✓ 发现 api-dist 目录，移动内容..."
-                cp -rf api-dist/* .
+                # 移动所有文件到 dist 目录
+                if [ -d "api-dist/dist" ]; then
+                    cp -rf api-dist/dist/* dist/
+                else
+                    # 如果没有嵌套的 dist 目录，直接移动所有文件
+                    cp -rf api-dist/* dist/ 2>/dev/null || cp -rf api-dist/* . 2>/dev/null
+                fi
                 rm -rf api-dist
             fi
-            ls -la dist 2>/dev/null || echo "dist 目录内容："
+            echo "=== dist 目录内容 ==="
+            ls -la dist
 
             # 确保 package.json 是最新的
             echo "=== package.json 内容 ==="
