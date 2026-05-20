@@ -4,16 +4,31 @@ import { sendSuccess, sendError } from '../utils/response.js'
 
 const categoryService = new CategoryService()
 
+// 默认分类数据（用于降级）
+const defaultCategories = [
+  { id: 'cat_1', name: '综合-立返', value: 'comprehensive-instant', sort: 1, status: 'active', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+  { id: 'cat_2', name: '综合-数据', value: 'comprehensive-data', sort: 2, status: 'active', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+  { id: 'cat_3', name: '个养和加挂', value: 'personal-insurance', sort: 3, status: 'active', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+  { id: 'cat_4', name: '限三-立返', value: 'limit3-instant', sort: 4, status: 'active', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+  { id: 'cat_5', name: '限三-数据', value: 'limit3-data', sort: 5, status: 'active', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+  { id: 'cat_6', name: '不限三-立返', value: 'unlimit3-instant', sort: 6, status: 'active', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+  { id: 'cat_7', name: '不限三-数据', value: 'unlimit3-data', sort: 7, status: 'active', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+]
+
 /**
  * 获取所有分类
  */
 export async function getCategories(req: Request, res: Response) {
   try {
     const includeArchived = req.query.includeArchived === 'true'
-    const categories = await categoryService.getAllCategories(includeArchived)
+    let categories = await categoryService.getAllCategories(includeArchived)
     sendSuccess(res, { list: categories })
-  } catch (err) {
-    sendError(res, '获取分类失败')
+  } catch (dbError: any) {
+    console.warn('[获取分类] 数据库查询失败，使用默认数据:', dbError)
+    // 降级到默认分类数据
+    const includeArchived = req.query.includeArchived === 'true'
+    const categories = includeArchived ? defaultCategories : defaultCategories.filter(c => c.status === 'active')
+    sendSuccess(res, { list: categories })
   }
 }
 
