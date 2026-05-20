@@ -5,6 +5,11 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# 防止同时运行多个部署任务
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   DEPLOY_DIR: /www/wwwroot/promo-hub
 
