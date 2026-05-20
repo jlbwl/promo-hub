@@ -112,6 +112,45 @@ export const getAdminStats = async (req: Request, res: Response): Promise<void> 
   }
 }
 
+/**
+ * 获取操作日志列表
+ */
+export const getOperationLogs = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const page = parseInt(req.query.page as string) || 1
+    const pageSize = parseInt(req.query.pageSize as string) || 10
+    const operationType = req.query.operationType as string
+    const targetType = req.query.targetType as string
+    const adminId = req.query.adminId as string
+
+    // 模拟操作日志数据（实际项目中应从数据库读取）
+    const allLogs: any[] = []
+
+    // 过滤日志
+    let filteredLogs = allLogs
+    if (operationType) {
+      filteredLogs = filteredLogs.filter(log => log.operationType === operationType)
+    }
+    if (targetType) {
+      filteredLogs = filteredLogs.filter(log => log.targetType === targetType)
+    }
+    if (adminId) {
+      filteredLogs = filteredLogs.filter(log => log.adminId === adminId)
+    }
+
+    // 分页
+    const total = filteredLogs.length
+    const start = (page - 1) * pageSize
+    const end = start + pageSize
+    const list = filteredLogs.slice(start, end)
+
+    sendSuccess(res, { list, total })
+  } catch (error: any) {
+    console.error('[获取操作日志] 错误:', error)
+    sendError(res, error.message || '获取失败', 500)
+  }
+}
+
 // 密码验证辅助函数
 async function verifyPassword(password: string, hash: string): Promise<boolean> {
   if (password === hash) return true
