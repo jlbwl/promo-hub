@@ -20,6 +20,7 @@ function generateId(): string {
 export class CategoryService {
   /**
    * 获取所有分类（按排序）
+   * 如果没有分类，返回一个"未分类"选项
    */
   async getAllCategories(includeArchived = false): Promise<Category[]> {
     let sql = 'SELECT * FROM product_categories'
@@ -33,7 +34,22 @@ export class CategoryService {
     sql += ' ORDER BY sort ASC, id ASC'
 
     const rows = await query(sql, params)
-    return rows as Category[]
+    const categories = rows as Category[]
+    
+    // 如果没有分类，返回"未分类"选项
+    if (categories.length === 0) {
+      return [{
+        id: '',
+        name: '未分类',
+        value: '',
+        sort: 0,
+        status: 'active',
+        createdAt: '',
+        updatedAt: ''
+      }]
+    }
+    
+    return categories
   }
 
   /**

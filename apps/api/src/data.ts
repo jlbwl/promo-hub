@@ -334,8 +334,13 @@ export async function getProductsPaginated(params: {
     }
 
     if (params.category && params.category !== '0') {
-      whereConditions.push('category = ?')
-      values.push(params.category)
+      if (params.category === 'uncategorized') {
+        // 未分类：category 为空或 null
+        whereConditions.push('(category IS NULL OR category = "" OR categoryId IS NULL OR categoryId = "")')
+      } else {
+        whereConditions.push('category = ?')
+        values.push(params.category)
+      }
     }
 
     if (params.status) {

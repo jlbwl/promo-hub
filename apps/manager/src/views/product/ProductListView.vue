@@ -197,7 +197,8 @@ const getCategoryLabel = (product: Product): string => {
     const category = categories.value.find(c => c.value === product.category)
     if (category) return category.name
   }
-  return ''
+  // 未分类
+  return '未分类'
 }
 
 // 表格数据
