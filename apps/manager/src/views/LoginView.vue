@@ -162,9 +162,10 @@ const handlePasswordLogin = async () => {
       password: pwdForm.password,
     })
 
-    if (res.data && res.data.token) {
-      localStorage.setItem('manager_token', res.data.token)
-      localStorage.setItem('manager_info', JSON.stringify(res.data.manager))
+    if (res.code === 0) {
+      if (res.data?.manager) {
+        localStorage.setItem('manager_info', JSON.stringify(res.data.manager))
+      }
       ElMessage.success('登录成功')
       const redirect = (route.query.redirect as string) || '/dashboard'
       router.push(redirect)
@@ -208,9 +209,10 @@ const handleSmsLogin = async () => {
       code: smsForm.code,
     })
 
-    if (res.data && res.data.token) {
-      localStorage.setItem('manager_token', res.data.token)
-      localStorage.setItem('manager_info', JSON.stringify(res.data.manager))
+    if (res.code === 0) {
+      if (res.data?.manager) {
+        localStorage.setItem('manager_info', JSON.stringify(res.data.manager))
+      }
       ElMessage.success('登录成功')
       const redirect = (route.query.redirect as string) || '/dashboard'
       router.push(redirect)
