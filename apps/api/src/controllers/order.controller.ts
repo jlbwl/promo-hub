@@ -53,7 +53,7 @@ export const getOrders = async (req: Request, res: Response): Promise<void> => {
     if (isNaN(pageNum) || pageNum < 1) {
       return sendError(res, 'page参数无效', 400)
     }
-    if (isNaN(pageSizeNum) || pageSizeNum < 1 || pageSizeNum > 100) {
+    if (isNaN(pageSizeNum) || pageSizeNum < 1) {
       return sendError(res, 'pageSize参数无效', 400)
     }
 
