@@ -229,7 +229,7 @@ export async function getProductsPaginated(params: {
 
   // 分页
   const page = params.page || 1
-  const pageSize = params.pageSize || 10
+  const pageSize = parseInt(String(params.pageSize || 10), 10)
   const offset = (page - 1) * pageSize
 
   // 查询产品列表
@@ -512,8 +512,8 @@ export async function getOrdersPaginated(params: {
 
   const whereClause = whereConditions.join(' AND ')
 
-  const page = Math.max(1, params.page || 1)
-  const pageSize = Math.min(100, Math.max(1, params.pageSize || 20))
+  const page = Math.max(1, parseInt(String(params.page || 1), 10))
+  const pageSize = Math.min(100, Math.max(1, parseInt(String(params.pageSize || 20), 10)))
   const offset = (page - 1) * pageSize
 
   try {
@@ -760,8 +760,8 @@ export async function readOperationLogs(params?: {
   const total = await queryOne('SELECT COUNT(*) as count FROM operation_logs' + (conditions.length > 0 ? ' WHERE ' + conditions.join(' AND ') : ''), values)
   const totalCount = total?.count || 0
 
-  const pageNum = params?.page || 1
-  const pageSizeNum = params?.pageSize || 20
+  const pageNum = parseInt(String(params?.page || 1), 10)
+  const pageSizeNum = parseInt(String(params?.pageSize || 20), 10)
   const offset = (pageNum - 1) * pageSizeNum
   
   const rows = await query(queryStr + ' LIMIT ? OFFSET ?', [...values, pageSizeNum, offset])
