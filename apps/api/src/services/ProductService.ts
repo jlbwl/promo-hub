@@ -193,6 +193,7 @@ export const productService: ProductService = {
    */
   async createProduct(productData) {
     const title = (productData.title || '').trim()
+    console.log('[createProduct] 输入数据:', JSON.stringify(productData, null, 2))
 
     // 验证标题不能为空
     if (!title) {
@@ -224,13 +225,18 @@ export const productService: ProductService = {
       createdAt: now,
       updatedAt: now,
     }
+    console.log('[createProduct] 创建的产品对象:', JSON.stringify(product, null, 2))
 
     await insertProduct(product)
+    console.log('[createProduct] insertProduct 完成')
+    
     const savedProduct = await readProduct(product.id)
+    console.log('[createProduct] readProduct 返回:', JSON.stringify(savedProduct, null, 2))
 
     // 清除产品列表缓存
     const cache = getCacheService()
     await cache.deletePattern('product:list:*')
+    console.log('[createProduct] 缓存已清除')
 
     return savedProduct
   },
