@@ -557,7 +557,17 @@ jobs:
             # 确保 package.json 是最新的
             echo "=== package.json 内容 ==="
             cat package.json
+            
+            # 检查 index.js 是否存在，可能在 dist 目录下
+            if [ -f "dist/index.js" ]; then
+              echo "=== 将文件从 dist/ 目录移动到根目录 ==="
+              mv -f dist/* .
+              rm -rf dist
+            fi
 
+            echo "=== 当前目录文件 ==="
+            ls -la
+            
             # 强制安装依赖，确保 native 模块正确编译
             echo "=== 强制安装依赖 ==="
             rm -rf node_modules package-lock.json
