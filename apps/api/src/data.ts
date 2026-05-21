@@ -236,9 +236,11 @@ export async function writeProducts(products: any[]): Promise<void> {
 }
 
 export async function insertProduct(p: any): Promise<void> {
+  console.log('[insertProduct] Starting product insertion:', JSON.stringify(p, null, 2))
   await ensureProductCategoryColumns()
   const hasCategoryId = await columnExists('products', 'categoryId')
   const hasCategoryNameSnapshot = await columnExists('products', 'categoryNameSnapshot')
+  console.log('[insertProduct] hasCategoryId:', hasCategoryId, 'hasCategoryNameSnapshot:', hasCategoryNameSnapshot)
 
   // Initialize columns and values
   const columns = ['id', 'title', 'description', 'coverImage', 'images', 'price', 'originalPrice', 'category', 'status', 'managerId', 'stock', 'options', 'publishedBy', 'publishedAt', 'requireName', 'requirePhone']
@@ -266,10 +268,12 @@ export async function insertProduct(p: any): Promise<void> {
   columns.push('createdAt')
   placeholders.push('NOW()')
 
-  await query(
-    `INSERT INTO products (${columns.join(', ')}) VALUES (${placeholders.join(', ')})`,
-    values
-  )
+  const sqlQuery = `INSERT INTO products (${columns.join(', ')}) VALUES (${placeholders.join(', ')})`
+  console.log('[insertProduct] SQL:', sqlQuery)
+  console.log('[insertProduct] Values:', values)
+
+  await query(sqlQuery, values)
+  console.log('[insertProduct] Product inserted successfully!')
 }
 
 export async function updateProduct(id: string, fields: Record<string, any>): Promise<void> {
@@ -316,6 +320,7 @@ export async function getProductsPaginated(params: {
   keyword?: string
 }): Promise<{ list: any[]; total: number }> {
   try {
+    console.log('[getProductsPaginated] params:', JSON.stringify(params, null, 2))
     const whereConditions: string[] = []
     const values: any[] = []
 
@@ -346,10 +351,12 @@ export async function getProductsPaginated(params: {
     }
 
     const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : ''
+    console.log('[getProductsPaginated] whereClause:', whereClause, 'values:', values)
 
     // 计算总数
     const countResult = await queryOne(`SELECT COUNT(*) as total FROM products ${whereClause}`, values)
     const total = Number(countResult?.total) || 0
+    console.log('[getProductsPaginated] total:', total)
 
     // 分页 - 确保是整数
     const page = params.page || 1
@@ -359,10 +366,12 @@ export async function getProductsPaginated(params: {
     console.log('[产品查询] page:', page, 'pageSize:', pageSize, 'offset:', offset, 'total:', total)
 
     // 查询产品列表
-    let products = await query(
-      `SELECT * FROM products ${whereClause} ORDER BY COALESCE(publishedAt, createdAt) DESC LIMIT ? OFFSET ?`,
-      [...values, pageSize, offset]
-    )
+    const sql = `SELECT * FROM products ${whereClause} ORDER BY COALESCE(publishedAt, createdAt) DESC LIMIT ? OFFSET ?`
+    const allValues = [...values, pageSize, offset]
+    console.log('[getProductsPaginated] SQL:', sql, 'values:', allValues)
+    let products = await query(sql, allValues)
+    console.log('[getProductsPaginated] Retrieved products:', products)
+
 
     // 获取销售数量
     const salesResult = await query(`
