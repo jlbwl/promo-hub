@@ -166,6 +166,7 @@ const handlePasswordLogin = async () => {
       if (res.data?.manager) {
         localStorage.setItem('manager_info', JSON.stringify(res.data.manager))
       }
+      localStorage.setItem('manager_token', 'logged_in')
       ElMessage.success('登录成功')
       const redirect = (route.query.redirect as string) || '/dashboard'
       router.push(redirect)
@@ -213,6 +214,7 @@ const handleSmsLogin = async () => {
       if (res.data?.manager) {
         localStorage.setItem('manager_info', JSON.stringify(res.data.manager))
       }
+      localStorage.setItem('manager_token', 'logged_in')
       ElMessage.success('登录成功')
       const redirect = (route.query.redirect as string) || '/dashboard'
       router.push(redirect)
