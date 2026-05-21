@@ -201,8 +201,7 @@ export async function writeProducts(products: any[]): Promise<void> {
       let insertColumns = [
         'id', 'title', 'description', 'coverImage', 'images', 'price', 'originalPrice',
         'category', 'status', 'managerId', 'stock', 'options', 'publishedBy',
-        'publishedAt', 'offlineReason', 'offlineAt', 'requireName', 'requirePhone',
-        'createdAt'
+        'publishedAt', 'offlineReason', 'offlineAt', 'requireName', 'requirePhone'
       ]
       let insertValues = [
         p.id, p.title || '', p.description || '', p.coverImage || '', serialize(p.images),
@@ -224,8 +223,12 @@ export async function writeProducts(products: any[]): Promise<void> {
         placeholders.push('?')
       }
 
+      // Add createdAt to the end
+      insertColumns.push('createdAt')
+      placeholders.push('NOW()')
+
       await query(
-        `INSERT INTO products (${insertColumns.join(', ')}) VALUES (${placeholders.join(', ')}, NOW())`,
+        `INSERT INTO products (${insertColumns.join(', ')}) VALUES (${placeholders.join(', ')})`,
         insertValues
       )
     }
@@ -237,30 +240,35 @@ export async function insertProduct(p: any): Promise<void> {
   const hasCategoryId = await columnExists('products', 'categoryId')
   const hasCategoryNameSnapshot = await columnExists('products', 'categoryNameSnapshot')
 
-  const columns = ['id', 'title', 'description', 'coverImage', 'images', 'price', 'originalPrice', 'category', 'status', 'managerId', 'stock', 'options', 'publishedBy', 'publishedAt', 'requireName', 'requirePhone', 'createdAt']
+  // Initialize columns and values
+  const columns = ['id', 'title', 'description', 'coverImage', 'images', 'price', 'originalPrice', 'category', 'status', 'managerId', 'stock', 'options', 'publishedBy', 'publishedAt', 'requireName', 'requirePhone']
   const values = [
     p.id, p.title || '', p.description || '', p.coverImage || '', serialize(p.images), 
     p.price || 0, p.originalPrice || 0, p.category || '', p.status || 'draft', 
     p.managerId || '', p.stock || 0, serialize(p.options), p.publishedBy || '', 
-    formatDateTime(p.publishedAt), p.requireName ? 1 : 0, p.requirePhone ? 1 : 0,
-    'NOW()'
+    formatDateTime(p.publishedAt), p.requireName ? 1 : 0, p.requirePhone ? 1 : 0
   ]
-  const placeholders = Array(values.length - 1).fill('?')
+  const placeholders = Array(values.length).fill('?')
 
+  // Add category columns if they exist
   if (hasCategoryId) {
     columns.push('categoryId')
-    values.splice(values.length - 1, 0, p.categoryId || '')
+    values.push(p.categoryId || '')
     placeholders.push('?')
   }
   if (hasCategoryNameSnapshot) {
     columns.push('categoryNameSnapshot')
-    values.splice(values.length - 1, 0, p.categoryNameSnapshot || '')
+    values.push(p.categoryNameSnapshot || '')
     placeholders.push('?')
   }
 
+  // Add createdAt to the end
+  columns.push('createdAt')
+  placeholders.push('NOW()')
+
   await query(
-    `INSERT INTO products (${columns.join(', ')}) VALUES (${placeholders.join(', ')}, NOW())`,
-    values.slice(0, -1)
+    `INSERT INTO products (${columns.join(', ')}) VALUES (${placeholders.join(', ')})`,
+    values
   )
 }
 
