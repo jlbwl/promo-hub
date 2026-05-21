@@ -324,12 +324,13 @@ export async function getProductsPaginated(params: {
     const whereConditions: string[] = []
     const values: any[] = []
 
-    if (params.managerId) {
+    if (params.managerId !== undefined && params.managerId !== null && params.managerId !== '') {
+      // 经理端：只显示该经理的产品
       whereConditions.push('managerId = ?')
       values.push(params.managerId)
     } else {
-      // 用户端只显示活跃经理的产品
-      whereConditions.push('managerId IN (SELECT id FROM managers WHERE status = "active")')
+      // 用户端：只显示活跃经理的产品（managerId不为空且属于活跃经理）
+      whereConditions.push('(managerId IS NOT NULL AND managerId != "" AND managerId IN (SELECT id FROM managers WHERE status = "active"))')
     }
 
     if (params.category && params.category !== '0') {
