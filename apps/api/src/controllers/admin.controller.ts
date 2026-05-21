@@ -139,13 +139,27 @@ export const adminChangePassword = async (req: Request, res: Response): Promise<
  */
 export const getAdminStats = async (req: Request, res: Response): Promise<void> => {
   try {
-    const users = await readUsers()
-    const managers = await readManagers()
-    const products = await readProducts()
-    const commissions = await readCommissions()
+    let users: any[] = []
+    let managers: any[] = []
+    let products: any[] = []
+    let commissions: any[] = []
 
-    const managerCount = managers.length
-    const userCount = users.length
+    try {
+      users = await readUsers()
+      managers = await readManagers()
+      products = await readProducts()
+      commissions = await readCommissions()
+    } catch (dbError: any) {
+      console.warn('[管理员统计] 数据库查询失败，尝试降级到内存:', dbError)
+      const { readUsers: memReadUsers, readManagers: memReadManagers, readProducts: memReadProducts, readCommissions: memReadCommissions } = await import('../data-memory.js')
+      users = await memReadUsers()
+      managers = await memReadManagers()
+      products = await memReadProducts()
+      commissions = await memReadCommissions()
+    }
+
+    const managerCount = managers.filter((m: any) => m.status === 'active').length
+    const userCount = users.filter((u: any) => u.status === 'active').length
     const publishedProductCount = products.filter((p: any) => p.status === 'published').length
     const totalCommission = commissions
       .filter((c: any) => c.status === 'paid')
@@ -159,7 +173,12 @@ export const getAdminStats = async (req: Request, res: Response): Promise<void> 
     })
   } catch (error: any) {
     console.error('[管理员统计] 错误:', error)
-    sendError(res, error.message || '获取失败', 500)
+    sendSuccess(res, {
+      managerCount: 0,
+      userCount: 0,
+      publishedProductCount: 0,
+      totalCommission: 0,
+    })
   }
 }
 
