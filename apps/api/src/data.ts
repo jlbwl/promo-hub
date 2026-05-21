@@ -192,77 +192,140 @@ export async function getProductsPaginated(params: {
   pageSize?: number
   keyword?: string
 }): Promise<{ list: any[]; total: number }> {
-  const whereConditions: string[] = []
-  const values: any[] = []
+  try {
+    const whereConditions: string[] = []
+    const values: any[] = []
 
-  if (params.managerId) {
-    whereConditions.push('managerId = ?')
-    values.push(params.managerId)
-  } else {
-    // 用户端只显示活跃经理的产品
-    whereConditions.push('managerId IN (SELECT id FROM managers WHERE status = "active")')
-  }
+    if (params.managerId) {
+      whereConditions.push('managerId = ?')
+      values.push(params.managerId)
+    } else {
+      // 用户端只显示活跃经理的产品
+      whereConditions.push('managerId IN (SELECT id FROM managers WHERE status = "active")')
+    }
 
-  if (params.category && params.category !== '0') {
-    whereConditions.push('category = ?')
-    values.push(params.category)
-  }
+    if (params.category && params.category !== '0') {
+      whereConditions.push('category = ?')
+      values.push(params.category)
+    }
 
-  if (params.status) {
-    whereConditions.push('status = ?')
-    values.push(params.status)
-  } else if (!params.managerId) {
-    // 用户端默认只返回已发布的产品
-    whereConditions.push('status = "published"')
-  }
+    if (params.status) {
+      whereConditions.push('status = ?')
+      values.push(params.status)
+    } else if (!params.managerId) {
+      // 用户端默认只返回已发布的产品
+      whereConditions.push('status = "published"')
+    }
 
-  if (params.keyword) {
-    whereConditions.push('(title LIKE ? OR description LIKE ?)')
-    values.push(`%${params.keyword}%`, `%${params.keyword}%`)
-  }
+    if (params.keyword) {
+      whereConditions.push('(title LIKE ? OR description LIKE ?)')
+      values.push(`%${params.keyword}%`, `%${params.keyword}%`)
+    }
 
-  const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : ''
+    const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : ''
 
-  // 计算总数
-  const countResult = await queryOne(`SELECT COUNT(*) as total FROM products ${whereClause}`, values)
-  const total = Number(countResult?.total) || 0
+    // 计算总数
+    const countResult = await queryOne(`SELECT COUNT(*) as total FROM products ${whereClause}`, values)
+    const total = Number(countResult?.total) || 0
 
-  // 分页
-  const page = params.page || 1
-  const pageSize = parseInt(String(params.pageSize || 10), 10)
-  const offset = (page - 1) * pageSize
+    // 分页 - 确保是整数
+    const page = params.page || 1
+    const pageSize = parseInt(String(params.pageSize || 10), 10)
+    const offset = (page - 1) * pageSize
 
-  // 查询产品列表
-  let products = await query(
-    `SELECT * FROM products ${whereClause} ORDER BY COALESCE(publishedAt, createdAt) DESC LIMIT ? OFFSET ?`,
-    [...values, pageSize, offset]
-  )
+    console.log('[产品查询] page:', page, 'pageSize:', pageSize, 'offset:', offset, 'total:', total)
 
-  // 获取销售数量
-  const salesResult = await query(`
-    SELECT productId, COUNT(*) as salesCount
-    FROM orders
-    WHERE deleted = 0
-    GROUP BY productId
-  `)
-  const salesMap = new Map()
-  ;(salesResult as any[]).forEach(item => {
-    salesMap.set(item.productId, Number(item.salesCount) || 0)
-  })
+    // 查询产品列表
+    let products = await query(
+      `SELECT * FROM products ${whereClause} ORDER BY COALESCE(publishedAt, createdAt) DESC LIMIT ? OFFSET ?`,
+      [...values, pageSize, offset]
+    )
 
-  return {
-    list: (products as any[]).map(product => ({
-      ...product,
-      price: Number(product.price) || 0,
-      originalPrice: Number(product.originalPrice) || 0,
-      stock: Number(product.stock) || 0,
-      requireName: Boolean(Number(product.requireName)),
-      requirePhone: Boolean(Number(product.requirePhone)),
-      images: deserialize(product.images),
-      options: deserialize(product.options),
-      sales: salesMap.get(product.id) || 0,
-    })),
-    total,
+    // 获取销售数量
+    const salesResult = await query(`
+      SELECT productId, COUNT(*) as salesCount
+      FROM orders
+      WHERE deleted = 0
+      GROUP BY productId
+    `)
+    const salesMap = new Map()
+    ;(salesResult as any[]).forEach(item => {
+      salesMap.set(item.productId, Number(item.salesCount) || 0)
+    })
+
+    return {
+      list: (products as any[]).map(product => ({
+        ...product,
+        price: Number(product.price) || 0,
+        originalPrice: Number(product.originalPrice) || 0,
+        stock: Number(product.stock) || 0,
+        requireName: Boolean(Number(product.requireName)),
+        requirePhone: Boolean(Number(product.requirePhone)),
+        images: deserialize(product.images),
+        options: deserialize(product.options),
+        sales: salesMap.get(product.id) || 0,
+      })),
+      total,
+    }
+  } catch (error: any) {
+    console.error('[产品查询] 数据库错误:', error.message)
+    console.log('[产品查询] 尝试使用文件存储...')
+    
+    // Fallback to file storage
+    try {
+      const { readProducts, readOrders } = await import('./data-memory.js')
+      let products = await readProducts()
+      
+      // 过滤条件
+      if (params.category && params.category !== '0') {
+        products = products.filter((p: any) => p.category === params.category)
+      }
+      if (params.status) {
+        products = products.filter((p: any) => p.status === params.status)
+      } else if (!params.managerId) {
+        products = products.filter((p: any) => p.status === 'published')
+      }
+      if (params.keyword) {
+        const keyword = params.keyword.toLowerCase()
+        products = products.filter((p: any) => 
+          p.title?.toLowerCase().includes(keyword) || 
+          p.description?.toLowerCase().includes(keyword)
+        )
+      }
+      
+      // 获取销售数量
+      const orders = await readOrders()
+      const salesMap = new Map()
+      orders.forEach((o: any) => {
+        const count = salesMap.get(o.productId) || 0
+        salesMap.set(o.productId, count + 1)
+      })
+      
+      // 分页
+      const total = products.length
+      const page = params.page || 1
+      const pageSize = parseInt(String(params.pageSize || 10), 10)
+      const offset = (page - 1) * pageSize
+      products = products.slice(offset, offset + pageSize)
+      
+      return {
+        list: products.map((product: any) => ({
+          ...product,
+          price: Number(product.price) || 0,
+          originalPrice: Number(product.originalPrice) || 0,
+          stock: Number(product.stock) || 0,
+          requireName: Boolean(Number(product.requireName)),
+          requirePhone: Boolean(Number(product.requirePhone)),
+          images: product.images || [],
+          options: product.options || [],
+          sales: salesMap.get(product.id) || 0,
+        })),
+        total,
+      }
+    } catch (fallbackError: any) {
+      console.error('[产品查询] 文件存储也失败:', fallbackError.message)
+      throw new Error('获取产品列表失败')
+    }
   }
 }
 
