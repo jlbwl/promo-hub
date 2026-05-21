@@ -37,6 +37,36 @@ function deserialize(val: any): any {
   return val
 }
 
+// Check if a column exists in a table
+async function columnExists(tableName: string, columnName: string): Promise<boolean> {
+  try {
+    const result = await queryOne(
+      `SHOW COLUMNS FROM ${tableName} LIKE ?`,
+      [columnName]
+    )
+    return !!result
+  } catch (e) {
+    console.warn(`[columnExists] Failed to check column ${tableName}.${columnName}:`, e)
+    return false
+  }
+}
+
+// Ensure categoryId and categoryNameSnapshot columns exist in products table
+async function ensureProductCategoryColumns(): Promise<void> {
+  try {
+    await query('ALTER TABLE products ADD COLUMN IF NOT EXISTS categoryId VARCHAR(100) DEFAULT "" AFTER category')
+    console.log('[DB] Added/verified categoryId column')
+  } catch (e) {
+    console.warn('[DB] categoryId column already exists or failed to add:', e)
+  }
+  try {
+    await query('ALTER TABLE products ADD COLUMN IF NOT EXISTS categoryNameSnapshot VARCHAR(200) DEFAULT "" AFTER categoryId')
+    console.log('[DB] Added/verified categoryNameSnapshot column')
+  } catch (e) {
+    console.warn('[DB] categoryNameSnapshot column already exists or failed to add:', e)
+  }
+}
+
 // ============ Admins ============
 
 export async function readAdminByPhone(phone: string): Promise<any> {
@@ -133,34 +163,119 @@ export async function readProduct(id: string): Promise<any> {
 }
 
 export async function writeProducts(products: any[]): Promise<void> {
+  await ensureProductCategoryColumns()
+  const hasCategoryId = await columnExists('products', 'categoryId')
+  const hasCategoryNameSnapshot = await columnExists('products', 'categoryNameSnapshot')
+
   for (const p of products) {
     const existing = await queryOne('SELECT id FROM products WHERE id = ?', [p.id])
     if (existing) {
+      let updateColumns = [
+        'title=?', 'description=?', 'coverImage=?', 'images=?', 'price=?',
+        'originalPrice=?', 'category=?', 'status=?', 'managerId=?', 'stock=?',
+        'options=?', 'publishedBy=?', 'publishedAt=?', 'offlineReason=?',
+        'offlineAt=?', 'requireName=?', 'requirePhone=?', 'updatedAt=NOW()'
+      ]
+      let updateValues = [
+        p.title || '', p.description || '', p.coverImage || '', serialize(p.images),
+        p.price || 0, p.originalPrice || 0, p.category || '', p.status || 'draft',
+        p.managerId || '', p.stock || 0, serialize(p.options), p.publishedBy || '',
+        formatDateTime(p.publishedAt), p.offlineReason || '', formatDateTime(p.offlineAt),
+        p.requireName ? 1 : 0, p.requirePhone ? 1 : 0, p.id
+      ]
+
+      if (hasCategoryId) {
+        updateColumns.push('categoryId=?')
+        updateValues.splice(updateValues.length - 1, 0, p.categoryId || '')
+      }
+      if (hasCategoryNameSnapshot) {
+        updateColumns.push('categoryNameSnapshot=?')
+        updateValues.splice(updateValues.length - 1, 0, p.categoryNameSnapshot || '')
+      }
+
       await query(
-        `UPDATE products SET title=?, description=?, coverImage=?, images=?, price=?, originalPrice=?, category=?, categoryId=?, categoryNameSnapshot=?, status=?, managerId=?, stock=?, options=?, publishedBy=?, publishedAt=?, offlineReason=?, offlineAt=?, requireName=?, requirePhone=?, updatedAt=NOW() WHERE id=?`,
-        [p.title || '', p.description || '', p.coverImage || '', serialize(p.images), p.price || 0, p.originalPrice || 0, p.category || '', p.categoryId || '', p.categoryNameSnapshot || '', p.status || 'draft', p.managerId || '', p.stock || 0, serialize(p.options), p.publishedBy || '', formatDateTime(p.publishedAt), p.offlineReason || '', formatDateTime(p.offlineAt), p.requireName ? 1 : 0, p.requirePhone ? 1 : 0, p.id]
+        `UPDATE products SET ${updateColumns.join(', ')} WHERE id=?`,
+        updateValues
       )
     } else {
+      let insertColumns = [
+        'id', 'title', 'description', 'coverImage', 'images', 'price', 'originalPrice',
+        'category', 'status', 'managerId', 'stock', 'options', 'publishedBy',
+        'publishedAt', 'offlineReason', 'offlineAt', 'requireName', 'requirePhone',
+        'createdAt'
+      ]
+      let insertValues = [
+        p.id, p.title || '', p.description || '', p.coverImage || '', serialize(p.images),
+        p.price || 0, p.originalPrice || 0, p.category || '', p.status || 'draft',
+        p.managerId || '', p.stock || 0, serialize(p.options), p.publishedBy || '',
+        formatDateTime(p.publishedAt), p.offlineReason || '', formatDateTime(p.offlineAt),
+        p.requireName ? 1 : 0, p.requirePhone ? 1 : 0
+      ]
+      let placeholders = Array(insertValues.length).fill('?')
+
+      if (hasCategoryId) {
+        insertColumns.push('categoryId')
+        insertValues.push(p.categoryId || '')
+        placeholders.push('?')
+      }
+      if (hasCategoryNameSnapshot) {
+        insertColumns.push('categoryNameSnapshot')
+        insertValues.push(p.categoryNameSnapshot || '')
+        placeholders.push('?')
+      }
+
       await query(
-        `INSERT INTO products (id, title, description, coverImage, images, price, originalPrice, category, categoryId, categoryNameSnapshot, status, managerId, stock, options, publishedBy, publishedAt, offlineReason, offlineAt, requireName, requirePhone, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
-        [p.id, p.title || '', p.description || '', p.coverImage || '', serialize(p.images), p.price || 0, p.originalPrice || 0, p.category || '', p.categoryId || '', p.categoryNameSnapshot || '', p.status || 'draft', p.managerId || '', p.stock || 0, serialize(p.options), p.publishedBy || '', formatDateTime(p.publishedAt), p.offlineReason || '', formatDateTime(p.offlineAt), p.requireName ? 1 : 0, p.requirePhone ? 1 : 0]
+        `INSERT INTO products (${insertColumns.join(', ')}) VALUES (${placeholders.join(', ')}, NOW())`,
+        insertValues
       )
     }
   }
 }
 
 export async function insertProduct(p: any): Promise<void> {
+  await ensureProductCategoryColumns()
+  const hasCategoryId = await columnExists('products', 'categoryId')
+  const hasCategoryNameSnapshot = await columnExists('products', 'categoryNameSnapshot')
+
+  const columns = ['id', 'title', 'description', 'coverImage', 'images', 'price', 'originalPrice', 'category', 'status', 'managerId', 'stock', 'options', 'publishedBy', 'publishedAt', 'requireName', 'requirePhone', 'createdAt']
+  const values = [
+    p.id, p.title || '', p.description || '', p.coverImage || '', serialize(p.images), 
+    p.price || 0, p.originalPrice || 0, p.category || '', p.status || 'draft', 
+    p.managerId || '', p.stock || 0, serialize(p.options), p.publishedBy || '', 
+    formatDateTime(p.publishedAt), p.requireName ? 1 : 0, p.requirePhone ? 1 : 0,
+    'NOW()'
+  ]
+  const placeholders = Array(values.length - 1).fill('?')
+
+  if (hasCategoryId) {
+    columns.push('categoryId')
+    values.splice(values.length - 1, 0, p.categoryId || '')
+    placeholders.push('?')
+  }
+  if (hasCategoryNameSnapshot) {
+    columns.push('categoryNameSnapshot')
+    values.splice(values.length - 1, 0, p.categoryNameSnapshot || '')
+    placeholders.push('?')
+  }
+
   await query(
-    `INSERT INTO products (id, title, description, coverImage, images, price, originalPrice, category, categoryId, categoryNameSnapshot, status, managerId, stock, options, publishedBy, publishedAt, requireName, requirePhone, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
-    [p.id, p.title || '', p.description || '', p.coverImage || '', serialize(p.images), p.price || 0, p.originalPrice || 0, p.category || '', p.categoryId || '', p.categoryNameSnapshot || '', p.status || 'draft', p.managerId || '', p.stock || 0, serialize(p.options), p.publishedBy || '', formatDateTime(p.publishedAt), p.requireName ? 1 : 0, p.requirePhone ? 1 : 0]
+    `INSERT INTO products (${columns.join(', ')}) VALUES (${placeholders.join(', ')}, NOW())`,
+    values.slice(0, -1)
   )
 }
 
 export async function updateProduct(id: string, fields: Record<string, any>): Promise<void> {
+  await ensureProductCategoryColumns()
+  const hasCategoryId = await columnExists('products', 'categoryId')
+  const hasCategoryNameSnapshot = await columnExists('products', 'categoryNameSnapshot')
+
   const sets: string[] = []
   const values: any[] = []
   for (const [key, val] of Object.entries(fields)) {
     if (key === 'id' || key === 'updatedAt') continue
+    if (key === 'categoryId' && !hasCategoryId) continue
+    if (key === 'categoryNameSnapshot' && !hasCategoryNameSnapshot) continue
+    
     sets.push(`${key} = ?`)
     if (key === 'images' || key === 'options') {
       values.push(serialize(val))
