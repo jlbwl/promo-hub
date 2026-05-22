@@ -99,20 +99,48 @@ function getProductListCacheKey(params: any): string {
 
 /**
  * 根据分类值或分类ID获取分类信息
+ * 增强：支持多种匹配方式，确保能找到正确的分类
  */
 async function getCategoryInfo(categoryValue?: string, categoryId?: string) {
+  console.log('[getCategoryInfo] 输入 - categoryValue:', categoryValue, 'categoryId:', categoryId)
+  
+  // 方式1：用 categoryId 查询
   if (categoryId) {
     const category = await queryOne('SELECT * FROM product_categories WHERE id = ?', [categoryId])
     if (category) {
+      console.log('[getCategoryInfo] 方式1成功 - 找到分类:', category.name)
       return category
     }
   }
+  
+  // 方式2：用 categoryValue 查询（精确匹配）
   if (categoryValue) {
     const category = await queryOne('SELECT * FROM product_categories WHERE value = ? AND status = ?', [categoryValue, 'active'])
     if (category) {
+      console.log('[getCategoryInfo] 方式2成功 - 找到分类:', category.name)
       return category
     }
   }
+  
+  // 方式3：用 categoryValue 查询（不区分状态）
+  if (categoryValue) {
+    const category = await queryOne('SELECT * FROM product_categories WHERE value = ?', [categoryValue])
+    if (category) {
+      console.log('[getCategoryInfo] 方式3成功 - 找到分类（可能已归档）:', category.name)
+      return category
+    }
+  }
+  
+  // 方式4：用 categoryValue 模糊匹配 name
+  if (categoryValue) {
+    const category = await queryOne('SELECT * FROM product_categories WHERE name LIKE ? AND status = ?', [`%${categoryValue}%`, 'active'])
+    if (category) {
+      console.log('[getCategoryInfo] 方式4成功 - 通过名称模糊匹配找到:', category.name)
+      return category
+    }
+  }
+  
+  console.log('[getCategoryInfo] 未找到匹配的分类')
   return null
 }
 
