@@ -435,7 +435,7 @@ export async function getProductsPaginated(params: {
     console.log('[getProductsPaginated] Total products found:', total)
 
     // Pagination
-    const page = params.page || 1
+    const page = parseInt(String(params.page || 1), 10)
     const pageSize = parseInt(String(params.pageSize || 10), 10)
     const offset = (page - 1) * pageSize
 
@@ -444,6 +444,7 @@ export async function getProductsPaginated(params: {
     // Main query
     const sql = `SELECT * FROM products ${whereClause} ORDER BY COALESCE(publishedAt, createdAt) DESC LIMIT ? OFFSET ?`
     const allValues = [...values, pageSize, offset]
+    console.log('[getProductsPaginated] SQL values with types:', allValues.map((v, i) => `${i}: ${v} (${typeof v})`))
     console.log('[getProductsPaginated] Executing SQL:', sql)
     console.log('[getProductsPaginated] SQL values:', allValues)
     
