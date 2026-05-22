@@ -139,14 +139,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, reactive, onMounted, watch } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Picture } from '@element-plus/icons-vue'
 import { get, put, del } from '@promo/shared/utils/request'
 import type { ProductCategory } from '@promo/shared/types'
 
 const router = useRouter()
+const route = useRoute()
 
 // 加载状态
 const loading = ref(false)
@@ -229,9 +230,18 @@ const statusText = (status: ProductStatus) => {
 // 获取当前经理 ID
 const getManagerId = () => {
   try {
-    const info = JSON.parse(localStorage.getItem('manager_info') || '{}')
+    const infoStr = localStorage.getItem('manager_info')
+    if (!infoStr) {
+      console.warn('[getManagerId] 未找到 manager_info')
+      return ''
+    }
+    const info = JSON.parse(infoStr)
+    if (!info.id) {
+      console.warn('[getManagerId] manager_info 中缺少 id 字段:', info)
+    }
     return info.id || ''
-  } catch {
+  } catch (e) {
+    console.error('[getManagerId] 获取经理 ID 失败:', e)
     return ''
   }
 }
@@ -358,6 +368,16 @@ onMounted(() => {
   fetchCategories()
   fetchData()
 })
+
+// 监听路由变化，确保每次进入页面都重新获取数据
+watch(
+  () => route.path,
+  (newPath) => {
+    if (newPath === '/products') {
+      fetchData()
+    }
+  }
+)
 </script>
 
 <style lang="scss" scoped>

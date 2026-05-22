@@ -326,10 +326,12 @@ export async function getProductsPaginated(params: {
 
     if (params.managerId !== undefined && params.managerId !== null && params.managerId !== '') {
       // 经理端：只显示该经理的产品
+      console.log('[getProductsPaginated] 经理端查询，managerId:', params.managerId)
       whereConditions.push('managerId = ?')
       values.push(params.managerId)
     } else {
       // 用户端：只显示活跃经理的产品（managerId不为空且属于活跃经理）
+      console.log('[getProductsPaginated] 用户端查询，过滤活跃经理产品')
       whereConditions.push('(managerId IS NOT NULL AND managerId != "" AND managerId IN (SELECT id FROM managers WHERE status = "active"))')
     }
 

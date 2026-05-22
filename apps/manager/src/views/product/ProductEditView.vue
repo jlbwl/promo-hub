@@ -394,12 +394,22 @@ const handleSave = async () => {
 
     saving.value = true
 
-    // 获取当前经理 ID
-    const managerId = (() => {
+    // 获取当前经理 ID，增加验证和错误提示
+    const managerInfo = (() => {
       try {
-        const info = JSON.parse(localStorage.getItem('manager_info') || '{}')
-        return info.id || ''
-      } catch { return '' }
+        const infoStr = localStorage.getItem('manager_info')
+        if (!infoStr) {
+          throw new Error('未找到经理登录信息')
+        }
+        const info = JSON.parse(infoStr)
+        if (!info.id) {
+          throw new Error('经理信息中缺少 ID')
+        }
+        return info
+      } catch (e) {
+        console.error('获取经理信息失败:', e)
+        throw new Error('登录信息已过期，请重新登录')
+      }
     })()
 
     // 优化富文本内容
@@ -418,8 +428,8 @@ const handleSave = async () => {
         redirectUrl: (redirectUrl || '').replace(/`/g, '') // 清理反引号
       })), // 只保存有名称的选项
       status: 'published',
-      managerId,
-      publishedBy: localStorage.getItem('manager_token') || 'manager',
+      managerId: managerInfo.id,
+      publishedBy: managerInfo.id || localStorage.getItem('manager_token') || 'manager',
       requireName: form.requireName,
       requirePhone: form.requirePhone
     }
@@ -431,10 +441,20 @@ const handleSave = async () => {
       await post('/products', payload)
       ElMessage.success('产品创建成功')
     }
-    router.push('/products')
+    
+    // 路由跳转
+    await router.push('/products')
   } catch (error: any) {
     console.error('保存失败:', error)
-    ElMessage.error(error.message || '保存失败')
+    // 如果是登录信息问题，跳转到登录页
+    if (error.message?.includes('登录信息已过期') || error.message?.includes('未找到经理登录信息')) {
+      localStorage.removeItem('manager_token')
+      localStorage.removeItem('manager_info')
+      ElMessage.warning(error.message || '请重新登录')
+      await router.push('/login')
+    } else {
+      ElMessage.error(error.message || '保存失败')
+    }
   } finally {
     saving.value = false
   }

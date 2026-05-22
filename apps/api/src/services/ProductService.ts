@@ -84,7 +84,7 @@ function getCacheService(): CacheService {
  */
 function getProductListCacheKey(params: any): string {
   const { page, pageSize, category, status, managerId, keyword } = params
-  return `list:${page}:${pageSize}:${category || 'all'}:${status || 'all'}:${managerId || 'all'}:${keyword || 'none'}`
+  return `:${page}:${pageSize}:${category || 'all'}:${status || 'all'}:${managerId || 'all'}:${keyword || 'none'}`
 }
 
 /**
@@ -120,13 +120,16 @@ export const productService: ProductService = {
   async getProducts(params) {
     const { page = 1, pageSize = 10, category, status, managerId, keyword } = params
     const cacheKey = getProductListCacheKey(params)
+    const fullCacheKey = CacheKeys.PRODUCT_LIST + cacheKey
     const cache = getCacheService()
 
     // 尝试从缓存获取
-    const cached = await cache.get<{ list: any[]; total: number }>(CacheKeys.PRODUCT_LIST + cacheKey)
+    const cached = await cache.get<{ list: any[]; total: number }>(fullCacheKey)
     if (cached) {
+      console.log('[getProducts] 缓存命中:', fullCacheKey)
       return cached
     }
+    console.log('[getProducts] 缓存未命中，查询数据库:', fullCacheKey)
 
     // 缓存未命中，从数据库获取
     const result = await getProductsPaginated({
@@ -139,7 +142,8 @@ export const productService: ProductService = {
     })
 
     // 设置缓存
-    await cache.set(CacheKeys.PRODUCT_LIST + cacheKey, result, CacheTTL.MEDIUM)
+    await cache.set(fullCacheKey, result, CacheTTL.MEDIUM)
+    console.log('[getProducts] 缓存已设置:', fullCacheKey)
 
     return result
   },
@@ -202,6 +206,18 @@ export const productService: ProductService = {
       throw error
     }
 
+    // 验证 managerId 不能为空（经理端创建）
+    const managerId = (productData.managerId || '').trim()
+    if (!managerId) {
+      console.warn('[createProduct] 警告: managerId 为空，产品可能不会显示在经理列表中')
+    } else {
+      // 验证经理是否存在
+      const managerExists = await queryOne('SELECT id FROM managers WHERE id = ?', [managerId])
+      if (!managerExists) {
+        console.warn('[createProduct] 警告: 未找到对应的经理记录，managerId:', managerId)
+      }
+    }
+
     // 检查标题唯一性
     const duplicate = await queryOne('SELECT id FROM products WHERE title = ?', [title])
     if (duplicate) {
@@ -218,6 +234,7 @@ export const productService: ProductService = {
     const product = {
       id: `p_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
       ...productData,
+      managerId: managerId, // 确保 managerId 被正确设置
       categoryId: categoryInfo?.id || productData.categoryId || '',
       categoryNameSnapshot: categoryInfo?.name || productData.categoryNameSnapshot || '',
       status: productData.status || 'published',
@@ -302,6 +319,7 @@ export const productService: ProductService = {
     const cache = getCacheService()
     await cache.delete(CacheKeys.PRODUCT_DETAIL(id))
     await cache.deletePattern('product:list:*')
+    console.log('[updateProduct] 相关缓存已清除')
 
     return updated
   },
@@ -341,8 +359,7 @@ export const productService: ProductService = {
     const cache = getCacheService()
     await cache.delete(CacheKeys.PRODUCT_DETAIL(id))
     await cache.deletePattern('product:list:*')
-
-    console.log('[ProductService] 删除成功, ID:', id)
+    console.log('[ProductService] 缓存已清除，删除成功, ID:', id)
   },
 }
 

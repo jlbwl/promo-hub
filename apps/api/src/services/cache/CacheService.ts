@@ -200,6 +200,11 @@ export class CacheService {
    */
   async deletePattern(pattern: string): Promise<void> {
     const fullPattern = this.buildKey(pattern)
+    // 将通配符模式转换为正则表达式（简单处理：* 匹配任意字符）
+    // 注意：不要使用 ^ 和 $ 锚点，或者正确处理通配符
+    let regexPattern = fullPattern.replace(/\./g, '\\.')
+    regexPattern = regexPattern.replace(/\*/g, '.*')
+    const regex = new RegExp(regexPattern)
 
     // 删除Redis缓存
     if (this.isRedisConnected && this.client) {
@@ -207,7 +212,7 @@ export class CacheService {
         const keys = await this.client.keys(fullPattern)
         if (keys.length > 0) {
           await this.client.del(keys)
-          console.log(`[Cache] Redis批量删除: ${keys.length}个键`)
+          console.log(`[Cache] Redis批量删除: ${keys.length}个键，模式: ${fullPattern}`)
         }
       } catch (error: any) {
         console.error(`[Cache] Redis DEL模式错误: ${error.message}`)
@@ -215,10 +220,17 @@ export class CacheService {
     }
 
     // 删除内存缓存
+    const keysToDelete: string[] = []
     for (const key of this.memoryCache.keys()) {
-      if (key.includes(pattern)) {
-        this.memoryCache.delete(key)
+      if (regex.test(key)) {
+        keysToDelete.push(key)
       }
+    }
+    keysToDelete.forEach(key => this.memoryCache.delete(key))
+    if (keysToDelete.length > 0) {
+      console.log(`[Cache] Memory批量删除: ${keysToDelete.length}个键，模式: ${fullPattern}`)
+    } else {
+      console.log(`[Cache] Memory没有匹配到任何键，当前内存键:`, Array.from(this.memoryCache.keys()))
     }
   }
 
