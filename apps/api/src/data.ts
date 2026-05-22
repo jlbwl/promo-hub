@@ -1,3 +1,4 @@
+
 import { query, queryOne } from './db.js'
 export { query, queryOne }
 
@@ -273,17 +274,17 @@ export async function insertProduct(p: any): Promise<void> {
   )
 
   const placeholders = values.map(() => '?')
-  placeholders[placeholders.length - 1] = 'NOW()'
+  placeholders.push('NOW()')
 
   if (columns.length !== placeholders.length) {
     console.error('[insertProduct] Columns and placeholders count mismatch! columns:', columns.length, 'placeholders:', placeholders.length)
+    console.error('[insertProduct] Columns:', columns)
+    console.error('[insertProduct] Values count:', values.length)
     throw new Error('Database insert field mismatch')
   }
 
   const sqlQuery = `INSERT INTO products (${columns.join(', ')}) VALUES (${placeholders.join(', ')})`
   console.log('[insertProduct] SQL:', sqlQuery)
-  console.log('[insertProduct] Columns:', columns)
-  console.log('[insertProduct] Values:', values)
 
   await query(sqlQuery, values)
   console.log('[insertProduct] Product inserted successfully!')
@@ -347,7 +348,6 @@ export async function getProductsPaginated(params: {
       values.push(params.managerId)
     } else if (!isAdminMode) {
       console.log('[getProductsPaginated] User query, showing published products from any manager')
-      // 优化：用户端显示所有已发布产品，不限制经理状态（只要产品有managerId）
       whereConditions.push('(managerId IS NOT NULL AND managerId != "")')
     } else {
       console.log('[getProductsPaginated] Admin mode, showing all products')
