@@ -231,12 +231,23 @@ export async function writeProducts(products: any[]): Promise<void> {
 }
 
 export async function insertProduct(p: any): Promise<void> {
-  console.log('[insertProduct] Starting product insertion:', JSON.stringify(p, null, 2))
+  console.log('[insertProduct] Starting product insertion')
+  console.log('[insertProduct] Input product data:', JSON.stringify({
+    id: p.id,
+    title: p.title,
+    category: p.category,
+    categoryId: p.categoryId,
+    categoryNameSnapshot: p.categoryNameSnapshot,
+    status: p.status,
+    managerId: p.managerId
+  }, null, 2))
+  
   await ensureProductCategoryColumns()
   const hasCategoryId = await columnExists('products', 'categoryId')
   const hasCategoryNameSnapshot = await columnExists('products', 'categoryNameSnapshot')
   console.log('[insertProduct] hasCategoryId:', hasCategoryId, 'hasCategoryNameSnapshot:', hasCategoryNameSnapshot)
 
+  // 基础字段
   const columns: string[] = ['id', 'title', 'description', 'coverImage', 'images', 'price', 'originalPrice', 'category']
   const values: any[] = [
     p.id,
@@ -249,15 +260,21 @@ export async function insertProduct(p: any): Promise<void> {
     p.category || ''
   ]
 
+  // 分类关联字段
   if (hasCategoryId) {
     columns.push('categoryId')
-    values.push(p.categoryId || '')
+    const categoryId = p.categoryId || ''
+    values.push(categoryId)
+    console.log('[insertProduct] Adding categoryId:', categoryId)
   }
   if (hasCategoryNameSnapshot) {
     columns.push('categoryNameSnapshot')
-    values.push(p.categoryNameSnapshot || '')
+    const categoryNameSnapshot = p.categoryNameSnapshot || ''
+    values.push(categoryNameSnapshot)
+    console.log('[insertProduct] Adding categoryNameSnapshot:', categoryNameSnapshot)
   }
 
+  // 产品状态和基础信息
   const productStatus = p.status || 'published'
   const publishedAtValue = (productStatus === 'published' && p.publishedAt) ? formatDateTime(p.publishedAt) : null
 
@@ -277,17 +294,31 @@ export async function insertProduct(p: any): Promise<void> {
   placeholders.push('NOW()')
 
   if (columns.length !== placeholders.length) {
-    console.error('[insertProduct] Columns and placeholders count mismatch! columns:', columns.length, 'placeholders:', placeholders.length)
+    console.error('[insertProduct] Columns and placeholders count mismatch!')
     console.error('[insertProduct] Columns:', columns)
     console.error('[insertProduct] Values count:', values.length)
+    console.error('[insertProduct] Placeholders count:', placeholders.length)
     throw new Error('Database insert field mismatch')
   }
 
   const sqlQuery = `INSERT INTO products (${columns.join(', ')}) VALUES (${placeholders.join(', ')})`
-  console.log('[insertProduct] SQL:', sqlQuery)
+  console.log('[insertProduct] Final SQL columns:', columns)
+  console.log('[insertProduct] Final values count:', values.length)
 
   await query(sqlQuery, values)
   console.log('[insertProduct] Product inserted successfully!')
+  
+  // 验证插入
+  const inserted = await queryOne('SELECT * FROM products WHERE id = ?', [p.id])
+  console.log('[insertProduct] Verification - inserted product:', {
+    id: inserted?.id,
+    title: inserted?.title,
+    category: inserted?.category,
+    categoryId: inserted?.categoryId,
+    categoryNameSnapshot: inserted?.categoryNameSnapshot,
+    status: inserted?.status,
+    managerId: inserted?.managerId
+  })
 }
 
 export async function updateProduct(id: string, fields: Record<string, any>): Promise<void> {
@@ -335,65 +366,92 @@ export async function getProductsPaginated(params: {
   adminMode?: boolean
 }): Promise<{ list: any[]; total: number }> {
   try {
-    console.log('[getProductsPaginated] params:', JSON.stringify(params, null, 2))
+    console.log('[getProductsPaginated] ==================== START ====================')
+    console.log('[getProductsPaginated] Input params:', JSON.stringify(params, null, 2))
+    
     const whereConditions: string[] = []
     const values: any[] = []
 
     const hasManagerId = params.managerId !== undefined && params.managerId !== null && params.managerId !== ''
     const isAdminMode = params.adminMode === true
     
+    console.log('[getProductsPaginated] hasManagerId:', hasManagerId, 'isAdminMode:', isAdminMode)
+    
+    // Manager ID 过滤
     if (hasManagerId) {
       console.log('[getProductsPaginated] Manager query, managerId:', params.managerId)
       whereConditions.push('managerId = ?')
       values.push(params.managerId)
     } else if (!isAdminMode) {
-      console.log('[getProductsPaginated] User query, showing published products from any manager')
+      console.log('[getProductsPaginated] User query, filtering by manager existence')
       whereConditions.push('(managerId IS NOT NULL AND managerId != "")')
     } else {
-      console.log('[getProductsPaginated] Admin mode, showing all products')
+      console.log('[getProductsPaginated] Admin mode, no manager filter')
     }
 
+    // Category 过滤 - 支持动态分类，不再使用硬编码
     if (params.category && params.category !== '0') {
       if (params.category === 'uncategorized') {
+        console.log('[getProductsPaginated] Filtering uncategorized products')
         whereConditions.push('(category IS NULL OR category = "" OR categoryId IS NULL OR categoryId = "")')
       } else {
+        console.log('[getProductsPaginated] Filtering by category:', params.category)
         whereConditions.push('category = ?')
         values.push(params.category)
       }
+    } else {
+      console.log('[getProductsPaginated] No category filter applied')
     }
 
+    // Status 过滤 - 关键逻辑
     if (params.status) {
       const normalizedStatus = params.status.toLowerCase().trim()
+      console.log('[getProductsPaginated] Filtering by status:', normalizedStatus)
       whereConditions.push('status = ?')
       values.push(normalizedStatus)
     } else if (!hasManagerId) {
+      // 只有在没有 managerId 且没有指定状态时（用户端），才默认只显示 published
+      console.log('[getProductsPaginated] No status filter, default to published for user view')
       whereConditions.push('status = "published"')
+    } else {
+      // 经理端和管理员端，不过滤状态
+      console.log('[getProductsPaginated] No status filter for manager/admin view')
     }
 
+    // Keyword 过滤
     if (params.keyword) {
+      console.log('[getProductsPaginated] Filtering by keyword:', params.keyword)
       whereConditions.push('(title LIKE ? OR description LIKE ?)')
       values.push(`%${params.keyword}%`, `%${params.keyword}%`)
     }
 
     const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : ''
-    console.log('[getProductsPaginated] whereClause:', whereClause, 'values:', values)
+    console.log('[getProductsPaginated] Final WHERE clause:', whereClause)
+    console.log('[getProductsPaginated] Query values:', values)
 
+    // Count query
     const countResult = await queryOne(`SELECT COUNT(*) as total FROM products ${whereClause}`, values)
     const total = Number(countResult?.total) || 0
-    console.log('[getProductsPaginated] total:', total)
+    console.log('[getProductsPaginated] Total products found:', total)
 
+    // Pagination
     const page = params.page || 1
     const pageSize = parseInt(String(params.pageSize || 10), 10)
     const offset = (page - 1) * pageSize
 
-    console.log('[产品查询] page:', page, 'pageSize:', pageSize, 'offset:', offset, 'total:', total)
+    console.log('[getProductsPaginated] Pagination: page', page, 'pageSize', pageSize, 'offset', offset)
 
+    // Main query
     const sql = `SELECT * FROM products ${whereClause} ORDER BY COALESCE(publishedAt, createdAt) DESC LIMIT ? OFFSET ?`
     const allValues = [...values, pageSize, offset]
-    console.log('[getProductsPaginated] SQL:', sql, 'values:', allValues)
+    console.log('[getProductsPaginated] Executing SQL:', sql)
+    console.log('[getProductsPaginated] SQL values:', allValues)
+    
     let products = await query(sql, allValues)
-    console.log('[getProductsPaginated] Retrieved products:', products)
+    console.log('[getProductsPaginated] Products retrieved:', (products as any[]).length)
+    console.log('[getProductsPaginated] Product IDs:', (products as any[]).map(p => ({ id: p.id, title: p.title, status: p.status, managerId: p.managerId })))
 
+    // Get sales counts
     const salesResult = await query(`
       SELECT productId, COUNT(*) as salesCount
       FROM orders
@@ -404,6 +462,8 @@ export async function getProductsPaginated(params: {
     ;(salesResult as any[]).forEach(item => {
       salesMap.set(item.productId, Number(item.salesCount) || 0)
     })
+
+    console.log('[getProductsPaginated] ==================== END ====================')
 
     return {
       list: (products as any[]).map(product => ({
@@ -421,6 +481,7 @@ export async function getProductsPaginated(params: {
     }
   } catch (error: any) {
     console.error('[产品查询] 数据库错误:', error.message)
+    console.error('[产品查询] 错误堆栈:', error.stack)
     console.log('[产品查询] 尝试使用文件存储...')
     
     try {
