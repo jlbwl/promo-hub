@@ -253,8 +253,9 @@ const openProductDialog = async () => {
   productLoading.value = true
   try {
     // 同时获取产品列表和经理列表
+    // adminMode=true 让管理员能看到所有上架产品，不受活跃经理限制
     const [productsRes, managersRes] = await Promise.all([
-      get<any>('/products', { status: 'published', pageSize: 999 }),
+      get<any>('/products', { status: 'published', pageSize: 999, adminMode: true }),
       get<any>('/managers')
     ])
     publishedProducts.value = productsRes.data?.list || []

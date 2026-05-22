@@ -331,6 +331,7 @@ export async function getProductsPaginated(params: {
   page?: number
   pageSize?: number
   keyword?: string
+  adminMode?: boolean
 }): Promise<{ list: any[]; total: number }> {
   try {
     console.log('[getProductsPaginated] params:', JSON.stringify(params, null, 2))
@@ -338,14 +339,17 @@ export async function getProductsPaginated(params: {
     const values: any[] = []
 
     const hasManagerId = params.managerId !== undefined && params.managerId !== null && params.managerId !== ''
+    const isAdminMode = params.adminMode === true
     
     if (hasManagerId) {
       console.log('[getProductsPaginated] Manager query, managerId:', params.managerId)
       whereConditions.push('managerId = ?')
       values.push(params.managerId)
-    } else {
+    } else if (!isAdminMode) {
       console.log('[getProductsPaginated] User query, filtering active manager products')
       whereConditions.push('(managerId IS NOT NULL AND managerId != "" AND managerId IN (SELECT id FROM managers WHERE status = "active"))')
+    } else {
+      console.log('[getProductsPaginated] Admin mode, showing all products')
     }
 
     if (params.category && params.category !== '0') {

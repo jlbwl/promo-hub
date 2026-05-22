@@ -10,7 +10,7 @@ import { productService } from '../services/index.js'
  */
 export const getProducts = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { page = '1', pageSize = '10', category, status, managerId, keyword } = req.query
+    const { page = '1', pageSize = '10', category, status, managerId, keyword, adminMode } = req.query
 
     const { list, total } = await productService.getProducts({
       page: parseInt(page as string, 10),
@@ -19,6 +19,7 @@ export const getProducts = async (req: Request, res: Response): Promise<void> =>
       status: status as string,
       managerId: managerId as string,
       keyword: keyword as string,
+      adminMode: adminMode === 'true' || adminMode === true,
     })
 
     sendPagination(res, list, total, parseInt(page as string, 10), parseInt(pageSize as string, 10))

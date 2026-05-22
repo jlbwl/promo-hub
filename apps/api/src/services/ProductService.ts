@@ -126,12 +126,12 @@ export const productService: ProductService = {
    * @returns 分页的产品列表和总数
    */
   async getProducts(params) {
-    const { page = 1, pageSize = 10, category, status, managerId, keyword } = params
+    const { page = 1, pageSize = 10, category, status, managerId, keyword, adminMode } = params
     const cacheKey = getProductListCacheKey(params)
     const fullCacheKey = CacheKeys.PRODUCT_LIST + cacheKey
     const cache = getCacheService()
 
-    console.log('[getProducts] 输入参数:', { page, pageSize, category, status, managerId, keyword })
+    console.log('[getProducts] 输入参数:', { page, pageSize, category, status, managerId, keyword, adminMode })
     console.log('[getProducts] 缓存键:', fullCacheKey)
 
     // 尝试从缓存获取
@@ -150,6 +150,7 @@ export const productService: ProductService = {
       status,
       managerId,
       keyword,
+      adminMode,
     })
 
     // 设置缓存
