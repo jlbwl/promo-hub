@@ -199,28 +199,19 @@ export class CacheService {
    * 删除匹配的缓存（支持通配符）
    */
   async deletePattern(pattern: string): Promise<void> {
+    console.log(`[Cache] 开始清除缓存，模式: ${pattern}`)
     const fullPattern = this.buildKey(pattern)
-    // 将通配符模式转换为正则表达式
-    // 处理特殊字符转义，然后处理通配符
-    let regexPattern = fullPattern
-      .replace(/[.+?^${}()|[\]\\]/g, '\\$&') // 转义所有正则特殊字符
-      .replace(/\*/g, '.*') // 将 * 转换为 .*
     
-    // 使用简单的字符串匹配而不是正则，因为通配符模式很简单
+    // 简化匹配逻辑：支持前缀匹配（*在末尾）和包含匹配
     const matchesPattern = (key: string): boolean => {
-      // 简单的通配符匹配：处理 * 在末尾或中间的情况
-      if (fullPattern.endsWith('*')) {
-        // 如 promo:product:list:* 应该匹配 promo:product:list: 和 promo:product:list:xxx
-        const prefix = fullPattern.slice(0, -1)
-        return key.startsWith(prefix)
+      // 模式格式为 "xxx*" 的前缀匹配
+      if (pattern.endsWith('*')) {
+        const prefixPattern = pattern.slice(0, -1)
+        const fullPrefix = this.buildKey(prefixPattern)
+        return key.startsWith(fullPrefix)
       }
-      // 其他情况使用正则
-      try {
-        const regex = new RegExp(`^${regexPattern}$`)
-        return regex.test(key)
-      } catch {
-        return false
-      }
+      // 简单的精确匹配或包含匹配
+      return key.includes(fullPattern.replace(/\*/g, ''))
     }
 
     // 删除Redis缓存
@@ -236,20 +227,24 @@ export class CacheService {
       }
     }
 
-    // 删除内存缓存 - 使用简单的字符串前缀匹配
+    // 删除内存缓存 - 打印当前键以便调试
+    console.log(`[Cache] 内存缓存当前键数: ${this.memoryCache.size}`)
+    const allMemoryKeys = Array.from(this.memoryCache.keys())
+    console.log(`[Cache] 内存缓存所有键:`, allMemoryKeys)
+    
     const keysToDelete: string[] = []
-    for (const key of this.memoryCache.keys()) {
+    for (const key of allMemoryKeys) {
       if (matchesPattern(key)) {
         keysToDelete.push(key)
       }
     }
+    
     keysToDelete.forEach(key => this.memoryCache.delete(key))
     if (keysToDelete.length > 0) {
       console.log(`[Cache] Memory批量删除: ${keysToDelete.length}个键`)
       console.log(`[Cache] 删除的键:`, keysToDelete)
     } else {
-      console.log(`[Cache] Memory没有匹配到任何键，模式: ${fullPattern}`)
-      console.log(`[Cache] 当前内存键:`, Array.from(this.memoryCache.keys()))
+      console.log(`[Cache] Memory没有匹配到任何键，模式: ${pattern}`)
     }
   }
 

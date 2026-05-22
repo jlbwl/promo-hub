@@ -346,8 +346,9 @@ export async function getProductsPaginated(params: {
       whereConditions.push('managerId = ?')
       values.push(params.managerId)
     } else if (!isAdminMode) {
-      console.log('[getProductsPaginated] User query, filtering active manager products')
-      whereConditions.push('(managerId IS NOT NULL AND managerId != "" AND managerId IN (SELECT id FROM managers WHERE status = "active"))')
+      console.log('[getProductsPaginated] User query, showing published products from any manager')
+      // 优化：用户端显示所有已发布产品，不限制经理状态（只要产品有managerId）
+      whereConditions.push('(managerId IS NOT NULL AND managerId != "")')
     } else {
       console.log('[getProductsPaginated] Admin mode, showing all products')
     }
@@ -362,8 +363,9 @@ export async function getProductsPaginated(params: {
     }
 
     if (params.status) {
+      const normalizedStatus = params.status.toLowerCase().trim()
       whereConditions.push('status = ?')
-      values.push(params.status)
+      values.push(normalizedStatus)
     } else if (!hasManagerId) {
       whereConditions.push('status = "published"')
     }

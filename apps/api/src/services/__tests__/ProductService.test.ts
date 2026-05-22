@@ -95,13 +95,14 @@ describe('ProductService', () => {
 
   describe('createProduct', () => {
     it('should throw error when title is empty', async () => {
-      await expect(productService.createProduct({ title: '' })).rejects.toThrow('产品标题不能为空')
+      await expect(productService.createProduct({ title: '', managerId: 'm1' })).rejects.toThrow('产品标题不能为空')
     })
 
     it('should throw error when title already exists', async () => {
-      vi.mocked(queryOne).mockResolvedValue({ id: 'existing' })
+      vi.mocked(queryOne).mockResolvedValueOnce({ id: 'm1', status: 'active' }) // 经理验证
+      vi.mocked(queryOne).mockResolvedValueOnce({ id: 'existing' }) // 产品标题验证
 
-      await expect(productService.createProduct({ title: '已存在' })).rejects.toThrow('产品标题已存在')
+      await expect(productService.createProduct({ title: '已存在', managerId: 'm1' })).rejects.toThrow('产品标题已存在')
     })
   })
 

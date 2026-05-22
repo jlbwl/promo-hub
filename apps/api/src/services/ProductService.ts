@@ -220,17 +220,29 @@ export const productService: ProductService = {
       throw error
     }
 
-    // 验证 managerId 不能为空（经理端创建）
+    // 验证 managerId 不能为空且对应经理存在（经理端创建）
     const managerId = (productData.managerId || '').trim()
     if (!managerId) {
-      console.warn('[createProduct] 警告: managerId 为空，产品可能不会显示在经理列表中')
-    } else {
-      // 验证经理是否存在
-      const managerExists = await queryOne('SELECT id FROM managers WHERE id = ?', [managerId])
-      if (!managerExists) {
-        console.warn('[createProduct] 警告: 未找到对应的经理记录，managerId:', managerId)
-      }
+      const error = new Error('经理信息缺失，请重新登录')
+      ;(error as any).code = 400
+      throw error
     }
+    
+    // 验证经理是否存在且状态正常
+    const manager = await queryOne('SELECT id, status FROM managers WHERE id = ?', [managerId])
+    if (!manager) {
+      const error = new Error('经理账户不存在，请重新登录')
+      ;(error as any).code = 400
+      throw error
+    }
+    
+    if (manager.status !== 'active') {
+      const error = new Error('经理账户状态异常，无法创建产品')
+      ;(error as any).code = 400
+      throw error
+    }
+    
+    console.log('[createProduct] 经理验证通过，经理ID:', managerId, '状态:', manager.status)
 
     // 检查标题唯一性
     const duplicate = await queryOne('SELECT id FROM products WHERE title = ?', [title])
@@ -245,17 +257,24 @@ export const productService: ProductService = {
     
     // 创建产品对象
     const now = new Date().toISOString()
+    // 标准化产品状态值
+    const normalizedStatus = (productData.status || 'published').toLowerCase().trim()
+    // 确保状态是有效值
+    const validStatuses = ['draft', 'published', 'offline', 'admin_offline']
+    const finalStatus = validStatuses.includes(normalizedStatus) ? normalizedStatus : 'published'
+    
     const product = {
       id: `p_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
       ...productData,
       managerId: managerId, // 确保 managerId 被正确设置
       categoryId: categoryInfo?.id || productData.categoryId || '',
       categoryNameSnapshot: categoryInfo?.name || productData.categoryNameSnapshot || '',
-      status: productData.status || 'published',
-      publishedAt: productData.status === 'published' ? now : undefined,
+      status: finalStatus,
+      publishedAt: finalStatus === 'published' ? now : undefined,
       createdAt: now,
       updatedAt: now,
     }
+    console.log('[createProduct] 状态标准化:', { input: productData.status, normalized: normalizedStatus, final: finalStatus })
     console.log('[createProduct] 创建的产品对象:', JSON.stringify(product, null, 2))
 
     await insertProduct(product)
@@ -268,12 +287,19 @@ export const productService: ProductService = {
     const cache = getCacheService()
     console.log('[createProduct] 开始清除缓存')
     
-    // 清除产品列表缓存 - 使用多种模式确保所有缓存都被清除
-    await cache.deletePattern('product:list:*')
-    await cache.deletePattern('product:*') // 清除所有产品相关缓存（包括详情缓存）
-    await cache.flush() // 完全清空所有缓存作为最后保障
-    
-    console.log('[createProduct] 所有缓存已清除')
+    try {
+      // 先尝试完全清空所有缓存（最彻底的方式）
+      await cache.flush()
+      console.log('[createProduct] 完全清空所有缓存完成')
+      
+      // 再使用模式清除作为双重保障
+      await cache.deletePattern('product:list:*')
+      await cache.deletePattern('product:*')
+      
+      console.log('[createProduct] 所有缓存已清除完成')
+    } catch (cacheError) {
+      console.error('[createProduct] 缓存清除失败，但产品已创建:', cacheError)
+    }
 
     return savedProduct
   },
