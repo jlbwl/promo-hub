@@ -30,6 +30,7 @@ export interface ProductService {
     status?: string
     managerId?: string
     keyword?: string
+    adminMode?: boolean
   }): Promise<{ list: any[]; total: number }>
 
   /**
