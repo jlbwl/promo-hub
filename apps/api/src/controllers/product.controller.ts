@@ -19,7 +19,7 @@ export const getProducts = async (req: Request, res: Response): Promise<void> =>
       status: status as string,
       managerId: managerId as string,
       keyword: keyword as string,
-      adminMode: adminMode === 'true' || adminMode === true,
+      adminMode: String(adminMode).toLowerCase() === 'true',
     })
 
     sendPagination(res, list, total, parseInt(page as string, 10), parseInt(pageSize as string, 10))
