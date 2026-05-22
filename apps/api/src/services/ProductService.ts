@@ -84,7 +84,15 @@ function getCacheService(): CacheService {
  */
 function getProductListCacheKey(params: any): string {
   const { page, pageSize, category, status, managerId, keyword } = params
-  return `:${page}:${pageSize}:${category || 'all'}:${status || 'all'}:${managerId || 'all'}:${keyword || 'none'}`
+  // 确保缓存键格式一致，避免空字符串导致的连续冒号问题
+  const pageStr = String(page || 1)
+  const pageSizeStr = String(pageSize || 10)
+  const categoryStr = category || 'all'
+  const statusStr = status || 'all'
+  const managerIdStr = managerId || 'all'
+  const keywordStr = keyword || 'none'
+  
+  return `:${pageStr}:${pageSizeStr}:${categoryStr}:${statusStr}:${managerIdStr}:${keywordStr}`
 }
 
 /**
@@ -123,13 +131,16 @@ export const productService: ProductService = {
     const fullCacheKey = CacheKeys.PRODUCT_LIST + cacheKey
     const cache = getCacheService()
 
+    console.log('[getProducts] 输入参数:', { page, pageSize, category, status, managerId, keyword })
+    console.log('[getProducts] 缓存键:', fullCacheKey)
+
     // 尝试从缓存获取
     const cached = await cache.get<{ list: any[]; total: number }>(fullCacheKey)
     if (cached) {
-      console.log('[getProducts] 缓存命中:', fullCacheKey)
+      console.log('[getProducts] 缓存命中，返回缓存数据')
       return cached
     }
-    console.log('[getProducts] 缓存未命中，查询数据库:', fullCacheKey)
+    console.log('[getProducts] 缓存未命中，查询数据库')
 
     // 缓存未命中，从数据库获取
     const result = await getProductsPaginated({
@@ -143,7 +154,7 @@ export const productService: ProductService = {
 
     // 设置缓存
     await cache.set(fullCacheKey, result, CacheTTL.MEDIUM)
-    console.log('[getProducts] 缓存已设置:', fullCacheKey)
+    console.log('[getProducts] 缓存已设置，共', result.total, '条记录')
 
     return result
   },
