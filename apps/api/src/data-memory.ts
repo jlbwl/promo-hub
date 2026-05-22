@@ -491,22 +491,8 @@ export async function readOperationLogs(params?: {
 
 // ============ Product Categories (产品分类) ============
 
-const defaultCategories = [
-  { id: 'cat_1', name: '综合-立返', value: 'comprehensive-instant', sort: 1, status: 'active', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-  { id: 'cat_2', name: '综合-数据', value: 'comprehensive-data', sort: 2, status: 'active', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-  { id: 'cat_3', name: '个养和加挂', value: 'personal-insurance', sort: 3, status: 'active', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-  { id: 'cat_4', name: '限三-立返', value: 'limit3-instant', sort: 4, status: 'active', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-  { id: 'cat_5', name: '限三-数据', value: 'limit3-data', sort: 5, status: 'active', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-  { id: 'cat_6', name: '不限三-立返', value: 'unlimit3-instant', sort: 6, status: 'active', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-  { id: 'cat_7', name: '不限三-数据', value: 'unlimit3-data', sort: 7, status: 'active', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-]
-
 export async function readCategories(includeArchived = false): Promise<any[]> {
   let categories = readFileData('categories')
-  if (categories.length === 0) {
-    categories = [...defaultCategories]
-    writeFileData('categories', categories)
-  }
   if (!includeArchived) {
     categories = categories.filter((c: any) => c.status === 'active')
   }
