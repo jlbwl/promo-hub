@@ -444,10 +444,10 @@ const handleSave = async () => {
     
     console.log('[ProductEditView] 保存成功，准备跳转')
     
-    // 路由跳转 - 添加时间戳来确保路由变化被正确检测到
-    await router.push({
+    // 路由跳转 - 使用 replace 而不是 push，确保正确刷新
+    await router.replace({
       path: '/products',
-      query: { t: Date.now() } // 添加时间戳，强制触发路由变化
+      query: { refresh: Date.now().toString() } // 添加唯一查询参数
     })
     
     console.log('[ProductEditView] 路由跳转完成')

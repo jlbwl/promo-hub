@@ -380,32 +380,16 @@ onMounted(() => {
 
 // 监听路由变化，确保每次进入页面都重新获取数据
 watch(
-  () => route.path,
+  () => route.fullPath,
   (newPath) => {
     console.log('[ProductListView] 路由变化:', newPath)
-    if (newPath === '/products') {
-      console.log('[ProductListView] 触发数据重新获取')
-      // 延迟一点，确保组件完全挂载
-      setTimeout(() => {
-        fetchData()
-      }, 50)
-    }
-  },
-  { immediate: true } // 立即执行一次，确保组件首次加载时也能触发
-)
-
-// 也监听路由参数变化（可选的安全保障）
-watch(
-  () => [route.fullPath, route.query],
-  () => {
     if (route.path === '/products') {
-      console.log('[ProductListView] 路由全路径或参数变化，重新获取数据')
-      setTimeout(() => {
-        fetchData()
-      }, 50)
+      console.log('[ProductListView] 触发数据重新获取')
+      // 确保每次都刷新数据
+      fetchData()
     }
   },
-  { deep: true }
+  { immediate: true }
 )
 </script>
 

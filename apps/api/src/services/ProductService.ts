@@ -84,7 +84,7 @@ function getCacheService(): CacheService {
  * 生成产品列表缓存键
  */
 function getProductListCacheKey(params: any): string {
-  const { page, pageSize, category, status, managerId, keyword } = params
+  const { page, pageSize, category, status, managerId, keyword, adminMode } = params
   // 确保缓存键格式一致，避免空字符串导致的连续冒号问题
   const pageStr = String(page || 1)
   const pageSizeStr = String(pageSize || 10)
@@ -92,8 +92,9 @@ function getProductListCacheKey(params: any): string {
   const statusStr = status || 'all'
   const managerIdStr = managerId || 'all'
   const keywordStr = keyword || 'none'
+  const adminModeStr = adminMode ? 'admin' : 'normal'
   
-  return `:${pageStr}:${pageSizeStr}:${categoryStr}:${statusStr}:${managerIdStr}:${keywordStr}`
+  return `:${pageStr}:${pageSizeStr}:${categoryStr}:${statusStr}:${managerIdStr}:${keywordStr}:${adminModeStr}`
 }
 
 /**
@@ -263,10 +264,16 @@ export const productService: ProductService = {
     const savedProduct = await readProduct(product.id)
     console.log('[createProduct] readProduct 返回:', JSON.stringify(savedProduct, null, 2))
 
-    // 清除产品列表缓存
+    // 清除所有产品相关缓存
     const cache = getCacheService()
+    console.log('[createProduct] 开始清除缓存')
+    
+    // 清除产品列表缓存 - 使用多种模式确保所有缓存都被清除
     await cache.deletePattern('product:list:*')
-    console.log('[createProduct] 缓存已清除')
+    await cache.deletePattern('product:*') // 清除所有产品相关缓存（包括详情缓存）
+    await cache.flush() // 完全清空所有缓存作为最后保障
+    
+    console.log('[createProduct] 所有缓存已清除')
 
     return savedProduct
   },
