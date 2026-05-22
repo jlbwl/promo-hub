@@ -123,28 +123,17 @@ export const productService: ProductService = {
   /**
    * 获取产品列表
    * 支持分页、分类筛选、状态筛选、经理筛选和关键词搜索
-   * 使用Redis缓存提升性能
+   * 每次都从数据库获取最新数据，确保数据一致性
    * @param params - 查询参数，包含分页和筛选条件
    * @returns 分页的产品列表和总数
    */
   async getProducts(params) {
     const { page = 1, pageSize = 10, category, status, managerId, keyword, adminMode } = params
-    const cacheKey = getProductListCacheKey(params)
-    const fullCacheKey = CacheKeys.PRODUCT_LIST + cacheKey
-    const cache = getCacheService()
 
     console.log('[getProducts] 输入参数:', { page, pageSize, category, status, managerId, keyword, adminMode })
-    console.log('[getProducts] 缓存键:', fullCacheKey)
 
-    // 尝试从缓存获取
-    const cached = await cache.get<{ list: any[]; total: number }>(fullCacheKey)
-    if (cached) {
-      console.log('[getProducts] 缓存命中，返回缓存数据')
-      return cached
-    }
-    console.log('[getProducts] 缓存未命中，查询数据库')
-
-    // 缓存未命中，从数据库获取
+    // 直接从数据库获取，确保获取最新数据
+    console.log('[getProducts] 直接查询数据库，确保数据最新')
     const result = await getProductsPaginated({
       page,
       pageSize,
@@ -155,9 +144,8 @@ export const productService: ProductService = {
       adminMode,
     })
 
-    // 设置缓存
-    await cache.set(fullCacheKey, result, CacheTTL.MEDIUM)
-    console.log('[getProducts] 缓存已设置，共', result.total, '条记录')
+    console.log('[getProducts] 查询完成，共', result.total, '条记录')
+    console.log('[getProducts] 返回的产品列表:', JSON.stringify(result.list.map(p => ({ id: p.id, title: p.title, status: p.status, managerId: p.managerId })), null, 2))
 
     return result
   },
@@ -288,15 +276,9 @@ export const productService: ProductService = {
     console.log('[createProduct] 开始清除缓存')
     
     try {
-      // 先尝试完全清空所有缓存（最彻底的方式）
+      // 完全清空所有缓存（最彻底的方式）
       await cache.flush()
       console.log('[createProduct] 完全清空所有缓存完成')
-      
-      // 再使用模式清除作为双重保障
-      await cache.deletePattern('product:list:*')
-      await cache.deletePattern('product:*')
-      
-      console.log('[createProduct] 所有缓存已清除完成')
     } catch (cacheError) {
       console.error('[createProduct] 缓存清除失败，但产品已创建:', cacheError)
     }
