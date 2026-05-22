@@ -25,7 +25,7 @@ export async function query(sql: string, params?: any[]): Promise<any> {
   const timeoutPromise = new Promise<never>((_, reject) => {
     setTimeout(() => reject(new Error('Query timeout')), 20000)
   })
-  const queryPromise = pool.execute(sql, params)
+  const queryPromise = pool.query(sql, params)
   const [rows] = await Promise.race([queryPromise, timeoutPromise]) as any
   return rows
 }
@@ -34,7 +34,7 @@ export async function queryOne(sql: string, params?: any[]): Promise<any> {
   const timeoutPromise = new Promise<never>((_, reject) => {
     setTimeout(() => reject(new Error('Query timeout')), 20000)
   })
-  const queryPromise = pool.execute(sql, params)
+  const queryPromise = pool.query(sql, params)
   const [rows] = await Promise.race([queryPromise, timeoutPromise]) as any
   return (rows as any[])[0] || null
 }
