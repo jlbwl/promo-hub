@@ -248,24 +248,6 @@ const getManagerId = () => {
   }
 }
 
-// 统一的 managerInfo 获取函数，和 ProductEditView 保持一致
-const getManagerInfo = () => {
-  try {
-    const infoStr = localStorage.getItem('manager_info')
-    if (!infoStr) {
-      throw new Error('未找到经理登录信息')
-    }
-    const info = JSON.parse(infoStr)
-    if (!info.id) {
-      throw new Error('经理信息中缺少 ID')
-    }
-    return info
-  } catch (e) {
-    console.error('[getManagerInfo] 获取经理信息失败:', e)
-    throw new Error('登录信息已过期，请重新登录')
-  }
-}
-
 // 获取分类列表
 const fetchCategories = async () => {
   categoriesLoading.value = true
