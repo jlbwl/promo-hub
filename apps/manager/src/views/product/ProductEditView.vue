@@ -442,8 +442,15 @@ const handleSave = async () => {
       ElMessage.success('产品创建成功')
     }
     
-    // 路由跳转
-    await router.push('/products')
+    console.log('[ProductEditView] 保存成功，准备跳转')
+    
+    // 路由跳转 - 添加时间戳来确保路由变化被正确检测到
+    await router.push({
+      path: '/products',
+      query: { t: Date.now() } // 添加时间戳，强制触发路由变化
+    })
+    
+    console.log('[ProductEditView] 路由跳转完成')
   } catch (error: any) {
     console.error('保存失败:', error)
     // 如果是登录信息问题，跳转到登录页

@@ -232,17 +232,37 @@ const getManagerId = () => {
   try {
     const infoStr = localStorage.getItem('manager_info')
     if (!infoStr) {
-      console.warn('[getManagerId] 未找到 manager_info')
+      console.error('[getManagerId] 未找到 manager_info，请重新登录')
       return ''
     }
     const info = JSON.parse(infoStr)
     if (!info.id) {
-      console.warn('[getManagerId] manager_info 中缺少 id 字段:', info)
+      console.error('[getManagerId] manager_info 中缺少 id 字段:', info)
+      return ''
     }
-    return info.id || ''
+    console.log('[getManagerId] 获取到经理 ID:', info.id)
+    return info.id
   } catch (e) {
     console.error('[getManagerId] 获取经理 ID 失败:', e)
     return ''
+  }
+}
+
+// 统一的 managerInfo 获取函数，和 ProductEditView 保持一致
+const getManagerInfo = () => {
+  try {
+    const infoStr = localStorage.getItem('manager_info')
+    if (!infoStr) {
+      throw new Error('未找到经理登录信息')
+    }
+    const info = JSON.parse(infoStr)
+    if (!info.id) {
+      throw new Error('经理信息中缺少 ID')
+    }
+    return info
+  } catch (e) {
+    console.error('[getManagerInfo] 获取经理信息失败:', e)
+    throw new Error('登录信息已过期，请重新登录')
   }
 }
 
@@ -265,14 +285,20 @@ const fetchCategories = async () => {
 const fetchData = async () => {
   loading.value = true
   try {
+    const currentManagerId = getManagerId()
+    console.log('[fetchData] 正在获取产品列表，managerId:', currentManagerId)
+    
     const res = await get<any>('/products', {
       page: pagination.page,
       pageSize: pagination.pageSize,
       status: searchStatus.value || undefined,
-      managerId: getManagerId() || undefined,
+      managerId: currentManagerId,
       keyword: searchKeyword.value || undefined,
     })
+    
     const { list, total } = res.data
+    console.log('[fetchData] 获取到产品列表:', { listCount: list.length, total })
+    
     // 映射字段：coverImage -> cover
     tableData.value = list.map((p: any) => ({
       ...p,
@@ -365,6 +391,7 @@ const handleDelete = async (row: Product) => {
 }
 
 onMounted(() => {
+  console.log('[ProductListView] onMounted 触发')
   fetchCategories()
   fetchData()
 })
@@ -373,10 +400,30 @@ onMounted(() => {
 watch(
   () => route.path,
   (newPath) => {
+    console.log('[ProductListView] 路由变化:', newPath)
     if (newPath === '/products') {
-      fetchData()
+      console.log('[ProductListView] 触发数据重新获取')
+      // 延迟一点，确保组件完全挂载
+      setTimeout(() => {
+        fetchData()
+      }, 50)
     }
-  }
+  },
+  { immediate: true } // 立即执行一次，确保组件首次加载时也能触发
+)
+
+// 也监听路由参数变化（可选的安全保障）
+watch(
+  () => [route.fullPath, route.query],
+  () => {
+    if (route.path === '/products') {
+      console.log('[ProductListView] 路由全路径或参数变化，重新获取数据')
+      setTimeout(() => {
+        fetchData()
+      }, 50)
+    }
+  },
+  { deep: true }
 )
 </script>
 
