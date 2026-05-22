@@ -7,7 +7,6 @@ import bcrypt from 'bcryptjs'
 
 // 密码验证函数
 async function verifyPassword(password: string, hash: string): Promise<boolean> {
-  // 如果是明文密码，直接比较（用于兼容旧数据）
   if (password === hash) {
     return true
   }
@@ -37,7 +36,6 @@ function deserialize(val: any): any {
   return val
 }
 
-// Check if a column exists in a table
 async function columnExists(tableName: string, columnName: string): Promise<boolean> {
   try {
     const result = await queryOne(
@@ -51,7 +49,6 @@ async function columnExists(tableName: string, columnName: string): Promise<bool
   }
 }
 
-// Ensure categoryId and categoryNameSnapshot columns exist in products table
 async function ensureProductCategoryColumns(): Promise<void> {
   try {
     await query('ALTER TABLE products ADD COLUMN IF NOT EXISTS categoryId VARCHAR(100) DEFAULT "" AFTER category')
@@ -201,7 +198,7 @@ export async function writeProducts(products: any[]): Promise<void> {
       let insertColumns = [
         'id', 'title', 'description', 'coverImage', 'images', 'price', 'originalPrice',
         'category', 'status', 'managerId', 'stock', 'options', 'publishedBy',
-        'publishedAt', 'offlineReason', 'offlineAt', 'requireName', 'requirePhone'
+        'publishedAt', 'offlineReason', 'offlineAt', 'requireName', 'requirePhone', 'createdAt'
       ]
       let insertValues = [
         p.id, p.title || '', p.description || '', p.coverImage || '', serialize(p.images),
@@ -211,6 +208,7 @@ export async function writeProducts(products: any[]): Promise<void> {
         p.requireName ? 1 : 0, p.requirePhone ? 1 : 0
       ]
       let placeholders = Array(insertValues.length).fill('?')
+      placeholders.push('NOW()')
 
       if (hasCategoryId) {
         insertColumns.push('categoryId')
@@ -222,10 +220,6 @@ export async function writeProducts(products: any[]): Promise<void> {
         insertValues.push(p.categoryNameSnapshot || '')
         placeholders.push('?')
       }
-
-      // Add createdAt to the end
-      insertColumns.push('createdAt')
-      placeholders.push('NOW()')
 
       await query(
         `INSERT INTO products (${insertColumns.join(', ')}) VALUES (${placeholders.join(', ')})`,
@@ -242,34 +236,53 @@ export async function insertProduct(p: any): Promise<void> {
   const hasCategoryNameSnapshot = await columnExists('products', 'categoryNameSnapshot')
   console.log('[insertProduct] hasCategoryId:', hasCategoryId, 'hasCategoryNameSnapshot:', hasCategoryNameSnapshot)
 
-  // Initialize columns and values
-  const columns = ['id', 'title', 'description', 'coverImage', 'images', 'price', 'originalPrice', 'category', 'status', 'managerId', 'stock', 'options', 'publishedBy', 'publishedAt', 'requireName', 'requirePhone']
-  const values = [
-    p.id, p.title || '', p.description || '', p.coverImage || '', serialize(p.images), 
-    p.price || 0, p.originalPrice || 0, p.category || '', p.status || 'draft', 
-    p.managerId || '', p.stock || 0, serialize(p.options), p.publishedBy || '', 
-    formatDateTime(p.publishedAt), p.requireName ? 1 : 0, p.requirePhone ? 1 : 0
+  const columns: string[] = ['id', 'title', 'description', 'coverImage', 'images', 'price', 'originalPrice', 'category']
+  const values: any[] = [
+    p.id,
+    p.title || '',
+    p.description || '',
+    p.coverImage || '',
+    serialize(p.images),
+    p.price || 0,
+    p.originalPrice || 0,
+    p.category || ''
   ]
-  const placeholders = Array(values.length).fill('?')
 
-  // Add category columns if they exist
   if (hasCategoryId) {
     columns.push('categoryId')
     values.push(p.categoryId || '')
-    placeholders.push('?')
   }
   if (hasCategoryNameSnapshot) {
     columns.push('categoryNameSnapshot')
     values.push(p.categoryNameSnapshot || '')
-    placeholders.push('?')
   }
 
-  // Add createdAt to the end
-  columns.push('createdAt')
-  placeholders.push('NOW()')
+  const productStatus = p.status || 'published'
+  const publishedAtValue = (productStatus === 'published' && p.publishedAt) ? formatDateTime(p.publishedAt) : null
+
+  columns.push('status', 'managerId', 'stock', 'options', 'publishedBy', 'publishedAt', 'requireName', 'requirePhone', 'createdAt')
+  values.push(
+    productStatus,
+    p.managerId || '',
+    p.stock || 0,
+    serialize(p.options),
+    p.publishedBy || '',
+    publishedAtValue,
+    p.requireName ? 1 : 0,
+    p.requirePhone ? 1 : 0,
+  )
+
+  const placeholders = values.map(() => '?')
+  placeholders[placeholders.length - 1] = 'NOW()'
+
+  if (columns.length !== placeholders.length) {
+    console.error('[insertProduct] Columns and placeholders count mismatch! columns:', columns.length, 'placeholders:', placeholders.length)
+    throw new Error('Database insert field mismatch')
+  }
 
   const sqlQuery = `INSERT INTO products (${columns.join(', ')}) VALUES (${placeholders.join(', ')})`
   console.log('[insertProduct] SQL:', sqlQuery)
+  console.log('[insertProduct] Columns:', columns)
   console.log('[insertProduct] Values:', values)
 
   await query(sqlQuery, values)
@@ -324,20 +337,19 @@ export async function getProductsPaginated(params: {
     const whereConditions: string[] = []
     const values: any[] = []
 
-    if (params.managerId !== undefined && params.managerId !== null && params.managerId !== '') {
-      // 经理端：只显示该经理的产品
-      console.log('[getProductsPaginated] 经理端查询，managerId:', params.managerId)
+    const hasManagerId = params.managerId !== undefined && params.managerId !== null && params.managerId !== ''
+    
+    if (hasManagerId) {
+      console.log('[getProductsPaginated] Manager query, managerId:', params.managerId)
       whereConditions.push('managerId = ?')
       values.push(params.managerId)
     } else {
-      // 用户端：只显示活跃经理的产品（managerId不为空且属于活跃经理）
-      console.log('[getProductsPaginated] 用户端查询，过滤活跃经理产品')
+      console.log('[getProductsPaginated] User query, filtering active manager products')
       whereConditions.push('(managerId IS NOT NULL AND managerId != "" AND managerId IN (SELECT id FROM managers WHERE status = "active"))')
     }
 
     if (params.category && params.category !== '0') {
       if (params.category === 'uncategorized') {
-        // 未分类：category 为空或 null
         whereConditions.push('(category IS NULL OR category = "" OR categoryId IS NULL OR categoryId = "")')
       } else {
         whereConditions.push('category = ?')
@@ -348,8 +360,7 @@ export async function getProductsPaginated(params: {
     if (params.status) {
       whereConditions.push('status = ?')
       values.push(params.status)
-    } else if (!params.managerId) {
-      // 用户端默认只返回已发布的产品
+    } else if (!hasManagerId) {
       whereConditions.push('status = "published"')
     }
 
@@ -361,27 +372,22 @@ export async function getProductsPaginated(params: {
     const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : ''
     console.log('[getProductsPaginated] whereClause:', whereClause, 'values:', values)
 
-    // 计算总数
     const countResult = await queryOne(`SELECT COUNT(*) as total FROM products ${whereClause}`, values)
     const total = Number(countResult?.total) || 0
     console.log('[getProductsPaginated] total:', total)
 
-    // 分页 - 确保是整数
     const page = params.page || 1
     const pageSize = parseInt(String(params.pageSize || 10), 10)
     const offset = (page - 1) * pageSize
 
     console.log('[产品查询] page:', page, 'pageSize:', pageSize, 'offset:', offset, 'total:', total)
 
-    // 查询产品列表
     const sql = `SELECT * FROM products ${whereClause} ORDER BY COALESCE(publishedAt, createdAt) DESC LIMIT ? OFFSET ?`
     const allValues = [...values, pageSize, offset]
     console.log('[getProductsPaginated] SQL:', sql, 'values:', allValues)
     let products = await query(sql, allValues)
     console.log('[getProductsPaginated] Retrieved products:', products)
 
-
-    // 获取销售数量
     const salesResult = await query(`
       SELECT productId, COUNT(*) as salesCount
       FROM orders
@@ -411,12 +417,10 @@ export async function getProductsPaginated(params: {
     console.error('[产品查询] 数据库错误:', error.message)
     console.log('[产品查询] 尝试使用文件存储...')
     
-    // Fallback to file storage
     try {
       const { readProducts, readOrders } = await import('./data-memory.js')
       let products = await readProducts()
       
-      // 过滤条件
       if (params.category && params.category !== '0') {
         products = products.filter((p: any) => p.category === params.category)
       }
@@ -433,7 +437,6 @@ export async function getProductsPaginated(params: {
         )
       }
       
-      // 获取销售数量
       const orders = await readOrders()
       const salesMap = new Map()
       orders.forEach((o: any) => {
@@ -441,7 +444,6 @@ export async function getProductsPaginated(params: {
         salesMap.set(o.productId, count + 1)
       })
       
-      // 分页
       const total = products.length
       const page = params.page || 1
       const pageSize = parseInt(String(params.pageSize || 10), 10)
@@ -593,7 +595,6 @@ export async function readOrder(id: string): Promise<any> {
   return await queryOne('SELECT * FROM orders WHERE id = ? AND deleted = 0', [id])
 }
 
-// 优化的订单统计（单次查询获取所有统计）
 export async function getOrderStats(managerId?: string): Promise<any> {
   let whereClause = 'deleted = 0'
   const params: any[] = []
@@ -786,7 +787,7 @@ export async function writeCommissions(commissions: any[]): Promise<void> {
       )
     } else {
       await query(
-        `INSERT INTO commissions (id, orderId, userId, managerId, productName, amount, status, approvedAt, paidAt, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
+        `INSERT INTO commissions (id, orderId, userId, managerId, productName, amount, status, approvedAt, paidAt, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
         [c.id, c.orderId || '', c.userId || '', c.managerId || '', c.productName || '', c.amount || 0, c.status || 'pending', c.approvedAt || null, c.paidAt || null]
       )
     }
@@ -795,7 +796,7 @@ export async function writeCommissions(commissions: any[]): Promise<void> {
 
 export async function insertCommission(c: any): Promise<void> {
   await query(
-    `INSERT INTO commissions (id, orderId, userId, managerId, productName, amount, status, createdAt) VALUES (?, ?, ?, ?, ?, ?, NOW())`,
+    `INSERT INTO commissions (id, orderId, userId, managerId, productName, amount, status, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, NOW())`,
     [c.id, c.orderId || '', c.userId || '', c.managerId || '', c.productName || '', c.amount || 0, c.status || 'pending']
   )
 }
@@ -895,11 +896,9 @@ export async function validateEmployee(phone: string, password: string): Promise
   const row = await queryOne('SELECT * FROM employees WHERE phone = ? AND status = ?', [phone, 'active'])
   if (!row) return null
   
-  // 检查密码是否匹配
   const passwordValid = await verifyPassword(password, row.password)
   if (!passwordValid) return null
   
-  // 检查是否过期
   const now = new Date()
   const expiresAt = new Date(row.expiresAt)
   if (expiresAt < now) return null
@@ -977,5 +976,3 @@ export async function readOperationLogs(params?: {
     total: totalCount,
   }
 }
-
-
