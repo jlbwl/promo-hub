@@ -142,8 +142,7 @@ export const employeeLogin = async (req: Request, res: Response): Promise<void> 
       return sendError(res, '请输入手机号和密码', 1)
     }
     
-    const employees = await readEmployeesByUserId('')
-    const employee = employees.find((e: any) => e.phone === phone)
+    const employee = await readEmployeeByPhone(phone)
     
     if (!employee) {
       return sendError(res, '手机号、密码错误或账户已过期', 1)
