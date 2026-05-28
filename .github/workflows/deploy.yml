@@ -211,6 +211,11 @@ jobs:
           script: |
             set -e
             mkdir -p ${{ env.DEPLOY_DIR }}/api/data/uploads
+            
+            # ==== 删除根目录可能存在的 index.html，防止意外跳转到 admin ====
+            echo "=== 清理根目录旧文件 ==="
+            rm -f ${{ env.DEPLOY_DIR }}/index.html ${{ env.DEPLOY_DIR }}/index.htm 2>/dev/null || true
+            
             cd ${{ env.DEPLOY_DIR }}/api
             
             # 直接在服务器上创建 package.json，用简单的单行避免 YAML 问题
