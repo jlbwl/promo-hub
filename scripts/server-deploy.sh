@@ -68,7 +68,17 @@ if [ -f nginx-config/nginx.conf ]; then
   cp nginx-config/nginx.conf "${NGINX_CONF}"
 fi
 
-# 强制重写 Nginx 配置 - 同时支持 HTTP 和 HTTPS
+# 强制重写 Nginx 配置 - 简化 HTTPS 配置，优先确保连接成功
+# 先检查 SSL 证书是否存在，不存在的话创建一个自签名证书用于临时测试
+mkdir -p /etc/nginx/ssl
+if [ ! -f /etc/nginx/ssl/www.jlbtg.cn.pem ] || [ ! -f /etc/nginx/ssl/www.jlbtg.cn.key ]; then
+    echo "⚠️ SSL 证书文件不存在，正在创建自签名证书用于临时测试..."
+    openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+        -keyout /etc/nginx/ssl/www.jlbtg.cn.key \
+        -out /etc/nginx/ssl/www.jlbtg.cn.pem \
+        -subj "/C=CN/ST=State/L=City/O=Organization/CN=www.jlbtg.cn" 2>/dev/null || true
+fi
+
 cat > "${NGINX_CONF}" << 'NGINXEOF'
 server {
     listen 80;
@@ -77,17 +87,18 @@ server {
 }
 
 server {
-    listen 443 ssl http2;
-    server_name _;
+    listen 443 ssl;
+    server_name www.jlbtg.cn jlbtg.cn;
     gzip on;
     gzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript image/svg+xml;
     gzip_min_length 1024;
     
-    # SSL 配置 - 使用证书路径
+    # SSL 配置 - 确保证书路径正确
     ssl_certificate /etc/nginx/ssl/www.jlbtg.cn.pem;
     ssl_certificate_key /etc/nginx/ssl/www.jlbtg.cn.key;
     ssl_protocols TLSv1.2 TLSv1.3;
-    ssl_ciphers HIGH:!aNULL:!MD5;
+    ssl_prefer_server_ciphers on;
+    ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384;
     
     # 根路径跳转到 /user/
     location = / { return 302 /user/; }
