@@ -16,12 +16,20 @@ function createRequest(): AxiosInstance {
     withCredentials: true,
   })
 
-  // 请求拦截器 — 自动携带 token
+  // 请求拦截器 — 自动携带 token（跳过登录相关接口）
   instance.interceptors.request.use(
     (config) => {
-      const token = localStorage.getItem('user_token') || localStorage.getItem('token')
-      if (token) {
-        config.headers.Authorization = `Bearer ${token}`
+      // 跳过登录相关接口的Authorization头
+      const isLoginOrRegister = 
+        config.url?.includes('/login') || 
+        config.url?.includes('/register') ||
+        config.url?.includes('/sms/send')
+      
+      if (!isLoginOrRegister) {
+        const token = localStorage.getItem('user_token') || localStorage.getItem('token')
+        if (token) {
+          config.headers.Authorization = `Bearer ${token}`
+        }
       }
       return config
     },
