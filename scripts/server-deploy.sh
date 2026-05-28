@@ -21,22 +21,26 @@ cat > package.json << 'PKGEOF'
 {"name":"@promo/api","version":"1.0.0","private":true,"type":"module","scripts":{"dev":"tsx watch src/index.ts","build":"tsc","start":"node index.js"},"dependencies":{"bcryptjs":"^2.4.3","connect-mongo":"^5.1.0","cors":"^2.8.5","dotenv":"^17.4.2","express":"^4.21.0","express-rate-limit":"^8.5.1","express-session":"^1.18.1","multer":"^1.4.5-lts.1","mysql2":"^3.22.3","redis":"^5.12.1","uuid":"^11.0.0"},"devDependencies":{"@types/cors":"^2.8.17","@types/express":"^5.0.0","@types/multer":"^1.4.12","@types/uuid":"^10.0.0","tsx":"^4.19.0","typescript":"^5.7.0"}}
 PKGEOF
 
-# 数据库修复
+# 数据库修复 - 从 .env 文件加载环境变量
 echo "=== 修复数据库 ==="
+if [ -f .env ]; then
+  export $(grep -v '^#' .env | xargs)
+fi
+
 if command -v mysql &> /dev/null; then
-  mysql -h "${DB_HOST}" -P "${DB_PORT}" -u "${DB_USER}" -p"${DB_PASSWORD}" "${DB_NAME}" \
+  mysql -h "${DB_HOST:-localhost}" -P "${DB_PORT:-3306}" -u "${DB_USER:-root}" -p"${DB_PASSWORD:-}" "${DB_NAME:-promo_hub}" \
     -e "ALTER TABLE orders ADD COLUMN IF NOT EXISTS teamName VARCHAR(200) DEFAULT '' AFTER userPhone, ADD COLUMN IF NOT EXISTS userName VARCHAR(200) DEFAULT '' AFTER redirectUrl, ADD COLUMN IF NOT EXISTS userPhone VARCHAR(50) DEFAULT '' AFTER userName;" 2>/dev/null || true
 
-  mysql -h "${DB_HOST}" -P "${DB_PORT}" -u "${DB_USER}" -p"${DB_PASSWORD}" "${DB_NAME}" \
+  mysql -h "${DB_HOST:-localhost}" -P "${DB_PORT:-3306}" -u "${DB_USER:-root}" -p"${DB_PASSWORD:-}" "${DB_NAME:-promo_hub}" \
     -e "ALTER TABLE products ADD COLUMN IF NOT EXISTS requireName TINYINT(1) NOT NULL DEFAULT 0 AFTER offlineAt, ADD COLUMN IF NOT EXISTS requirePhone TINYINT(1) NOT NULL DEFAULT 0 AFTER requireName, ADD COLUMN IF NOT EXISTS categoryId VARCHAR(100) DEFAULT '' AFTER category, ADD COLUMN IF NOT EXISTS categoryNameSnapshot VARCHAR(200) DEFAULT '' AFTER categoryId;" 2>/dev/null || true
 
-  mysql -h "${DB_HOST}" -P "${DB_PORT}" -u "${DB_USER}" -p"${DB_PASSWORD}" "${DB_NAME}" \
+  mysql -h "${DB_HOST:-localhost}" -P "${DB_PORT:-3306}" -u "${DB_USER:-root}" -p"${DB_PASSWORD:-}" "${DB_NAME:-promo_hub}" \
     -e "CREATE TABLE IF NOT EXISTS employees (id VARCHAR(100) PRIMARY KEY, userId VARCHAR(100) NOT NULL, phone VARCHAR(50) NOT NULL, password VARCHAR(500) NOT NULL, nickname VARCHAR(200) DEFAULT '', expiresAt DATETIME NOT NULL, status VARCHAR(50) NOT NULL DEFAULT 'active', createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, INDEX idx_userId (userId), INDEX idx_phone (phone), INDEX idx_expiresAt (expiresAt)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;" 2>/dev/null || true
 
-  mysql -h "${DB_HOST}" -P "${DB_PORT}" -u "${DB_USER}" -p"${DB_PASSWORD}" "${DB_NAME}" \
+  mysql -h "${DB_HOST:-localhost}" -P "${DB_PORT:-3306}" -u "${DB_USER:-root}" -p"${DB_PASSWORD:-}" "${DB_NAME:-promo_hub}" \
     -e "CREATE TABLE IF NOT EXISTS product_categories (id VARCHAR(100) PRIMARY KEY, name VARCHAR(200) NOT NULL, value VARCHAR(200) NOT NULL, sort INT NOT NULL DEFAULT 0, status VARCHAR(50) NOT NULL DEFAULT 'active', createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;" 2>/dev/null || true
 
-  mysql -h "${DB_HOST}" -P "${DB_PORT}" -u "${DB_USER}" -p"${DB_PASSWORD}" "${DB_NAME}" \
+  mysql -h "${DB_HOST:-localhost}" -P "${DB_PORT:-3306}" -u "${DB_USER:-root}" -p"${DB_PASSWORD:-}" "${DB_NAME:-promo_hub}" \
     -e "INSERT IGNORE INTO product_categories (id, name, value, sort, status, createdAt, updatedAt) VALUES ('cat_1', '综合-立返', 'comprehensive-instant', 1, 'active', NOW(), NOW()), ('cat_2', '综合-数据', 'comprehensive-data', 2, 'active', NOW(), NOW()), ('cat_3', '个养和加挂', 'personal-insurance', 3, 'active', NOW(), NOW()), ('cat_4', '限三-立返', 'limit3-instant', 4, 'active', NOW(), NOW()), ('cat_5', '限三-数据', 'limit3-data', 5, 'active', NOW(), NOW()), ('cat_6', '不限三-立返', 'unlimit3-instant', 6, 'active', NOW(), NOW()), ('cat_7', '不限三-数据', 'unlimit3-data', 7, 'active', NOW(), NOW()), ('cat_8', '三方-立返', 'third-party-instant', 8, 'active', NOW(), NOW()), ('cat_9', '三方-数据', 'third-party-data', 9, 'active', NOW(), NOW()), ('cat_10', '其它', 'other', 10, 'active', NOW(), NOW());" 2>/dev/null || true
 fi
 

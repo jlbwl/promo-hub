@@ -241,32 +241,22 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: ${{ secrets.SERVER_PORT || 22 }}
-          envs:
-            - DB_HOST
-            - DB_PORT
-            - DB_USER
-            - DB_PASSWORD
-            - DB_NAME
-            - ALIBABA_CLOUD_ACCESS_KEY_ID
-            - ALIBABA_CLOUD_ACCESS_KEY_SECRET
-            - ALIBABA_CLOUD_SMS_SIGN_NAME
-            - ALIBABA_CLOUD_SMS_TEMPLATE_CODE
           script: |
             set -e
             DEPLOY_DIR="/www/wwwroot/promo-hub"
             
             # 先创建 .env 文件，直接写入值
             cd "${DEPLOY_DIR}/api"
-            echo "DB_HOST=${DB_HOST}" > .env
-            echo "DB_PORT=${DB_PORT}" >> .env
-            echo "DB_USER=${DB_USER}" >> .env
-            echo "DB_PASSWORD=${DB_PASSWORD}" >> .env
-            echo "DB_NAME=${DB_NAME}" >> .env
+            echo "DB_HOST=${{ secrets.DB_HOST }}" > .env
+            echo "DB_PORT=${{ secrets.DB_PORT }}" >> .env
+            echo "DB_USER=${{ secrets.DB_USER }}" >> .env
+            echo "DB_PASSWORD=${{ secrets.DB_PASSWORD }}" >> .env
+            echo "DB_NAME=${{ secrets.DB_NAME }}" >> .env
             echo "PORT=3000" >> .env
-            echo "ALIBABA_CLOUD_ACCESS_KEY_ID=${ALIBABA_CLOUD_ACCESS_KEY_ID}" >> .env
-            echo "ALIBABA_CLOUD_ACCESS_KEY_SECRET=${ALIBABA_CLOUD_ACCESS_KEY_SECRET}" >> .env
-            echo "ALIBABA_CLOUD_SMS_SIGN_NAME=${ALIBABA_CLOUD_SMS_SIGN_NAME}" >> .env
-            echo "ALIBABA_CLOUD_SMS_TEMPLATE_CODE=${ALIBABA_CLOUD_SMS_TEMPLATE_CODE}" >> .env
+            echo "ALIBABA_CLOUD_ACCESS_KEY_ID=${{ secrets.ALIBABA_CLOUD_ACCESS_KEY_ID }}" >> .env
+            echo "ALIBABA_CLOUD_ACCESS_KEY_SECRET=${{ secrets.ALIBABA_CLOUD_ACCESS_KEY_SECRET }}" >> .env
+            echo "ALIBABA_CLOUD_SMS_SIGN_NAME=${{ secrets.ALIBABA_CLOUD_SMS_SIGN_NAME }}" >> .env
+            echo "ALIBABA_CLOUD_SMS_TEMPLATE_CODE=${{ secrets.ALIBABA_CLOUD_SMS_TEMPLATE_CODE }}" >> .env
             
             # 执行部署脚本
             chmod +x server-deploy.sh
