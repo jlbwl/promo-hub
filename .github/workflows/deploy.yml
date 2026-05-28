@@ -617,40 +617,9 @@ jobs:
             rm -f /var/www/html/index.html
             rm -f /usr/share/nginx/html/index.html
             
-            # 创建 nginx 配置文件
-            cat > "${NGINX_CONF}" << 'NGINXEOF'
-server {
-    listen 80;
-    server_name _;
-    gzip on;
-    gzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript image/svg+xml;
-    gzip_min_length 1024;
-    location = / { return 302 /user/; }
-    location / { return 302 /user/; }
-    location /admin/ {
-        alias /www/wwwroot/promo-hub/admin/;
-        index index.html;
-        try_files $uri $uri/ /admin/index.html;
-    }
-    location /manager/ {
-        alias /www/wwwroot/promo-hub/manager/;
-        index index.html;
-        try_files $uri $uri/ /manager/index.html;
-    }
-    location /user/ {
-        alias /www/wwwroot/promo-hub/user/;
-        index index.html;
-        try_files $uri $uri/ /user/index.html;
-    }
-    location /api/ {
-        proxy_pass http://127.0.0.1:3000/;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-}
-NGINXEOF
+            # 使用 printf 创建 nginx 配置文件
+            printf 'server {\n    listen 80;\n    server_name _;\n    gzip on;\n    gzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript image/svg+xml;\n    gzip_min_length 1024;\n    location = / { return 302 /user/; }\n    location / { return 302 /user/; }\n    location /admin/ {\n        alias /www/wwwroot/promo-hub/admin/;\n        index index.html;\n        try_files $uri $uri/ /admin/index.html;\n    }\n    location /manager/ {\n        alias /www/wwwroot/promo-hub/manager/;\n        index index.html;\n        try_files $uri $uri/ /manager/index.html;\n    }\n    location /user/ {\n        alias /www/wwwroot/promo-hub/user/;\n        index index.html;\n        try_files $uri $uri/ /user/index.html;\n    }\n    location /api/ {\n        proxy_pass http://127.0.0.1:3000/;\n        proxy_set_header Host $host;\n        proxy_set_header X-Real-IP $remote_addr;\n        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;\n        proxy_set_header X-Forwarded-Proto $scheme;\n    }\n}\n' > "${NGINX_CONF}"
+            
             echo "✓ Nginx 配置已强制重写"
 
             # 测试并重载 Nginx
