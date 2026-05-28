@@ -119,9 +119,14 @@
               placeholder="请输入员工手机号"
               maxlength="11"
               class="form-field"
+              :readonly="!!editingEmployee"
+              :disabled="!!editingEmployee"
             >
               <template #left-icon>
                 <van-icon name="phone" size="16" color="#1989fa" />
+              </template>
+              <template #right-icon v-if="editingEmployee">
+                <span class="readonly-tip">不可修改</span>
               </template>
             </van-field>
             <van-field
@@ -299,7 +304,7 @@
 import { reactive, ref, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { showDialog, showToast } from 'vant'
-import { get, post, del } from '@promo/shared/utils/request'
+import { get, post, put, del } from '@promo/shared/utils/request'
 
 // 路由实例
 const router = useRouter()
@@ -505,36 +510,57 @@ const closeCreateEmployee = () => {
   employeeForm.expiresHours = '24'
 }
 
-// 创建员工子账户
+// 创建或更新员工子账户
 const handleCreateEmployee = async () => {
-  if (!employeeForm.phone || !/^1[3-9]\d{9}$/.test(employeeForm.phone)) {
-    return showToast('请输入正确的手机号')
+  // 创建时验证手机号
+  if (!editingEmployee.value) {
+    if (!employeeForm.phone || !/^1[3-9]\d{9}$/.test(employeeForm.phone)) {
+      return showToast('请输入正确的手机号')
+    }
+    if (!employeeForm.password || employeeForm.password.length < 6) {
+      return showToast('密码至少6位')
+    }
   }
-  if (!employeeForm.password || employeeForm.password.length < 6) {
+  
+  // 编辑时密码可选，但如果填写了必须至少6位
+  if (editingEmployee.value && employeeForm.password && employeeForm.password.length < 6) {
     return showToast('密码至少6位')
   }
+
   if (!employeeForm.expiresHours || parseInt(employeeForm.expiresHours) < 1) {
     return showToast('有效期至少1小时')
   }
 
   try {
-    const res: any = await post('/employees', {
-      userId: userInfo.id,
-      phone: employeeForm.phone,
-      password: employeeForm.password,
-      nickname: employeeForm.nickname,
-      expiresHours: parseInt(employeeForm.expiresHours)
-    })
+    let res: any
+    
+    if (editingEmployee.value) {
+      // 编辑模式：调用PUT更新，不包含手机号
+      res = await put(`/employees/${editingEmployee.value.id}`, {
+        password: employeeForm.password,
+        nickname: employeeForm.nickname,
+        expiresHours: parseInt(employeeForm.expiresHours)
+      })
+    } else {
+      // 创建模式：调用POST
+      res = await post('/employees', {
+        userId: userInfo.id,
+        phone: employeeForm.phone,
+        password: employeeForm.password,
+        nickname: employeeForm.nickname,
+        expiresHours: parseInt(employeeForm.expiresHours)
+      })
+    }
 
     if (res.code === 0) {
-      showToast('创建成功')
+      showToast(editingEmployee.value ? '更新成功' : '创建成功')
       closeCreateEmployee()
       loadEmployees()
     } else {
-      showToast(res.message || '创建失败')
+      showToast(res.message || (editingEmployee.value ? '更新失败' : '创建失败'))
     }
   } catch (e: any) {
-    showToast(e.message || '创建失败')
+    showToast(e.message || (editingEmployee.value ? '更新失败' : '创建失败'))
   }
 }
 
@@ -850,6 +876,11 @@ const maskPhone = (phone: string) => {
 
   .unit {
     font-size: 13px;
+    color: #969799;
+  }
+
+  .readonly-tip {
+    font-size: 12px;
     color: #969799;
   }
 

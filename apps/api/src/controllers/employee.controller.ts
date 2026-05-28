@@ -7,6 +7,7 @@ import {
   readEmployeesByUserId,
   insertEmployee,
   deleteEmployee,
+  updateEmployee,
   readUser,
 } from '../data.js'
 
@@ -124,6 +125,48 @@ export const deleteEmployeeById = async (req: Request, res: Response): Promise<v
     sendSuccess(res, null, '删除成功')
   } catch (err: any) {
     sendError(res, err.message || '删除失败', 1)
+  }
+}
+
+/**
+ * 更新员工子账户（手机号不允许修改）
+ */
+export const updateEmployeeById = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const id = req.params.id as string
+    const { password, nickname, expiresHours } = req.body
+    
+    const employee = await readEmployeeById(id)
+    if (!employee) {
+      return sendError(res, '员工不存在', 1)
+    }
+    
+    const updateFields: Record<string, any> = {}
+    
+    if (password && password.length >= 6) {
+      updateFields.password = await hashPassword(password)
+    }
+    
+    if (nickname) {
+      updateFields.nickname = nickname
+    }
+    
+    if (expiresHours && expiresHours >= 1) {
+      const expiresAt = new Date()
+      expiresAt.setHours(expiresAt.getHours() + expiresHours)
+      updateFields.expiresAt = expiresAt.toISOString().slice(0, 19).replace('T', ' ')
+    }
+    
+    if (Object.keys(updateFields).length === 0) {
+      return sendError(res, '没有需要更新的字段', 1)
+    }
+    
+    await updateEmployee(id, updateFields)
+    
+    const updated = await readEmployeeById(id)
+    sendSuccess(res, { ...updated, password: '******' }, '更新成功')
+  } catch (err: any) {
+    sendError(res, err.message || '更新失败', 1)
   }
 }
 
