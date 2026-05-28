@@ -37,15 +37,15 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
 
 /**
  * 获取订单列表
- * 支持分页、用户筛选、经理筛选、状态筛选和管理类型筛选
+ * 支持分页、用户筛选、经理筛选、员工筛选、状态筛选和管理类型筛选
  * 使用数据库级别的分页和筛选优化性能
- * @param req - HTTP请求对象，包含查询参数（page, pageSize, userId, managerId, status, keyword, managedBy）
+ * @param req - HTTP请求对象，包含查询参数（page, pageSize, userId, managerId, employeeId, status, keyword, managedBy）
  * @param res - HTTP响应对象
  * @returns 分页的订单列表和总数
  */
 export const getOrders = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { userId, managerId, status, page = '1', pageSize = '20', keyword, managedBy } = req.query
+    const { userId, managerId, employeeId, status, page = '1', pageSize = '20', keyword, managedBy } = req.query
 
     const pageNum = parseInt(page as string, 10)
     const pageSizeNum = parseInt(pageSize as string, 10)
@@ -62,6 +62,7 @@ export const getOrders = async (req: Request, res: Response): Promise<void> => {
       result = await orderService.getOrders({
         userId: userId as string,
         managerId: managerId as string,
+        employeeId: employeeId as string,
         status: status as string,
         managedBy: managedBy as string,
         keyword: keyword as string,
@@ -74,6 +75,7 @@ export const getOrders = async (req: Request, res: Response): Promise<void> => {
       result = await getOrdersPaginated({
         userId: userId as string,
         managerId: managerId as string,
+        employeeId: employeeId as string,
         status: status as string,
         managedBy: managedBy as string,
         keyword: keyword as string,

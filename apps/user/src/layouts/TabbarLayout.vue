@@ -16,9 +16,8 @@
       >
         产品大厅
       </van-tabbar-item>
-      <!-- 收藏（仅主账户显示） -->
+      <!-- 收藏（主账户和员工账户都显示） -->
       <van-tabbar-item
-        v-if="!isEmployee"
         to="/cart"
         icon="star-o"
         name="cart"
@@ -26,14 +25,13 @@
       >
         收藏
       </van-tabbar-item>
-      <!-- 主账户显示积分页面 -->
+      <!-- 主账户显示积分页面，员工账户显示做单记录 -->
       <van-tabbar-item
-        v-if="!isEmployee"
-        to="/commissions"
-        icon="gold-coin"
+        :to="isEmployee ? '/commissions' : '/commissions'"
+        :icon="isEmployee ? 'file-text' : 'gold-coin'"
         name="commissions"
       >
-        积分
+        {{ isEmployee ? '做单记录' : '积分' }}
       </van-tabbar-item>
       <van-tabbar-item
         :to="isEmployee ? '/employee-profile' : '/profile'"

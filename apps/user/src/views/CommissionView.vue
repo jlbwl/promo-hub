@@ -258,6 +258,19 @@ const getUserId = () => {
   } catch { return '' }
 }
 
+// 获取员工ID
+const getEmployeeId = () => {
+  try {
+    const info = JSON.parse(localStorage.getItem('employee_info') || '{}')
+    return info.id || ''
+  } catch { return '' }
+}
+
+// 是否为员工账户
+const isEmployee = () => {
+  return localStorage.getItem('login_type') === 'employee'
+}
+
 // 状态映射
 const statusType = (status: string) => {
   const map: Record<string, string> = {
@@ -303,7 +316,13 @@ const maskName = (name: string) => {
 // 加载统计数据
 const loadStats = async () => {
   try {
-    const res = await get<any>('/orders/stats', { userId: getUserId() || undefined })
+    const params: any = {}
+    if (isEmployee()) {
+      params.employeeId = getEmployeeId()
+    } else {
+      params.userId = getUserId()
+    }
+    const res = await get<any>('/orders/stats', params)
     if (res.data) {
       overview.total = res.data.total || 0
       overview.pending = res.data.pending || 0
@@ -328,8 +347,14 @@ const loadRecords = async () => {
     const params: any = {
       page: page.value,
       pageSize,
-      userId: getUserId() || undefined,
     }
+    
+    if (isEmployee()) {
+      params.employeeId = getEmployeeId()
+    } else {
+      params.userId = getUserId() || undefined
+    }
+    
     if (activeTab.value !== 'all') {
       params.status = activeTab.value
     }

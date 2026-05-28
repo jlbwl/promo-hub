@@ -12,14 +12,14 @@ import {
 /**
  * 获取订单统计
  * 统计订单总数、各状态数量（待审核、已通过、待发放、已发放、已驳回）
- * 支持按用户或经理筛选
- * @param req - HTTP请求对象，包含用户ID或经理ID
+ * 支持按用户、经理或员工筛选
+ * @param req - HTTP请求对象，包含用户ID、经理ID或员工ID
  * @param res - HTTP响应对象
  * @returns 订单统计数据
  */
 export const getStats = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { userId, managerId } = req.query
+    const { userId, managerId, employeeId } = req.query
 
     let stats: any = null
     try {
@@ -30,7 +30,7 @@ export const getStats = async (req: Request, res: Response): Promise<void> => {
       stats = await memGetOrderStats(managerId as string)
     }
 
-    if (userId) {
+    if (userId || employeeId) {
       let orders: any[] = []
       try {
         orders = await readOrders()
@@ -39,7 +39,14 @@ export const getStats = async (req: Request, res: Response): Promise<void> => {
         const { readOrders: memReadOrders } = await import('../data-memory.js')
         orders = await memReadOrders()
       }
-      const filteredOrders = orders.filter((o: any) => o.userId === userId)
+      
+      const filteredOrders = orders.filter((o: any) => {
+        if (employeeId) {
+          return o.employeeId === employeeId
+        }
+        return o.userId === userId
+      })
+      
       const pending = filteredOrders.filter((o: any) => o.status === 'pending').length
       const approved = filteredOrders.filter((o: any) => o.status === 'approved').length
       const pendingPayment = filteredOrders.filter((o: any) => o.status === 'pending_payment').length
