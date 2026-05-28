@@ -35,21 +35,7 @@
       <van-cell title="账户状态" :value="isExpired ? '已过期' : '正常'" />
     </van-cell-group>
 
-    <!-- 功能列表 -->
-    <van-cell-group inset class="func-group">
-      <van-cell
-        title="关于我们"
-        icon="info-o"
-        is-link
-        @click="handleAbout"
-      />
-      <van-cell
-        title="联系客服"
-        icon="service-o"
-        is-link
-        @click="handleContactService"
-      />
-    </van-cell-group>
+
 
     <!-- 退出登录按钮 -->
     <div class="logout-wrap">
@@ -70,7 +56,7 @@
 <script setup lang="ts">
 import { reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { showDialog, showToast } from 'vant'
+import { showToast } from 'vant'
 
 const router = useRouter()
 
@@ -131,24 +117,6 @@ onMounted(() => {
     employeeInfo.nickname = '员工'
   }
 })
-
-// 关于我们
-const handleAbout = () => {
-  showDialog({
-    title: '关于我们',
-    message: '产品展示系统 v1.0.0\n\n产品展示与管理平台。我们致力于为用户提供优质的产品展示服务。',
-    confirmButtonText: '确定'
-  })
-}
-
-// 联系客服
-const handleContactService = () => {
-  showDialog({
-    title: '联系客服',
-    message: '客服微信：jlyc415\n工作时间：周一至周五 9:00-18:00',
-    confirmButtonText: '知道了'
-  })
-}
 
 // 执行退出登录
 const doLogout = () => {
@@ -224,19 +192,6 @@ const doLogout = () => {
   margin-top: 12px;
   border-radius: 12px;
   overflow: hidden;
-}
-
-// 功能列表
-.func-group {
-  margin-top: 12px;
-  border-radius: 12px;
-  overflow: hidden;
-
-  :deep(.van-cell__left-icon) {
-    color: #667eea;
-    font-size: 20px;
-    margin-right: 8px;
-  }
 }
 
 // 退出登录
