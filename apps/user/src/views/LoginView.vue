@@ -68,7 +68,18 @@
 
       <!-- 员工登录入口 -->
       <div class="employee-login-wrap">
-        <span class="employee-link" @click="goEmployeeLogin">员工入口</span>
+        <div class="employee-tip">👇 员工请点击下方登录 👇</div>
+        <van-button 
+          type="warning" 
+          plain 
+          block 
+          size="large" 
+          round 
+          @click="goEmployeeLogin"
+          class="employee-btn"
+        >
+          <van-icon name="user-o" /> 员工专属登录
+        </van-button>
       </div>
     </div>
   </div>
@@ -119,7 +130,23 @@ const handlePasswordLogin = async () => {
     const res = await post<any>('/users/login', { phone: pwdForm.phone, password: pwdForm.password })
     onLoginSuccess(res.data)
   } catch (e: any) {
-    showToast(e.message || '登录失败')
+    // 普通登录失败，尝试员工登录
+    try {
+      const employeeRes = await post<any>('/employees/login', { phone: pwdForm.phone, password: pwdForm.password })
+      
+      // 保存员工信息到 localStorage
+      localStorage.setItem('employee_info', JSON.stringify(employeeRes.data.employee))
+      localStorage.setItem('user_info', JSON.stringify(employeeRes.data.user))
+      localStorage.setItem('user_token', `employee_${employeeRes.data.employee.id}`)
+      localStorage.setItem('login_type', 'employee')
+
+      showToast('员工登录成功')
+      setTimeout(() => {
+        router.replace('/home')
+      }, 1000)
+    } catch (ee: any) {
+      showToast(e.message || '登录失败，请确认登录方式')
+    }
   } finally {
     loading.value = false
   }
@@ -251,12 +278,18 @@ const goEmployeeLogin = () => {
 .employee-login-wrap {
   text-align: center;
   margin-top: 24px;
+  padding: 0 16px;
 
-  .employee-link {
-    font-size: 13px;
-    color: rgba(255, 255, 255, 0.8);
-    cursor: pointer;
-    &:active { opacity: 0.7; }
+  .employee-tip {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.7);
+    margin-bottom: 8px;
+  }
+
+  .employee-btn {
+    border-color: #ff976a;
+    color: #ff976a;
+    background: rgba(255, 151, 106, 0.1);
   }
 }
 </style>
