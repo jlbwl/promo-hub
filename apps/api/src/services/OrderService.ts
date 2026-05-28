@@ -30,6 +30,7 @@ export interface OrderService {
     pageSize?: number
     userId?: string
     managerId?: string
+    employeeId?: string
     status?: string
     keyword?: string
     managedBy?: string
@@ -90,13 +91,14 @@ export const orderService: OrderService = {
    * @returns 分页的订单列表和总数
    */
   async getOrders(params) {
-    const { page = 1, pageSize = 20, userId, managerId, status, keyword, managedBy } = params
+    const { page = 1, pageSize = 20, userId, managerId, employeeId, status, keyword, managedBy } = params
 
     return await getOrdersPaginated({
       page,
       pageSize,
       userId,
       managerId,
+      employeeId,
       status,
       keyword,
       managedBy,

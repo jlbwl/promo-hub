@@ -752,6 +752,7 @@ export async function restoreOrder(id: string): Promise<void> {
 export async function getOrdersPaginated(params: {
   userId?: string
   managerId?: string
+  employeeId?: string
   status?: string
   managedBy?: string
   keyword?: string
@@ -768,6 +769,10 @@ export async function getOrdersPaginated(params: {
   if (params.managerId) {
     whereConditions.push('managerId = ?')
     values.push(params.managerId)
+  }
+  if (params.employeeId) {
+    whereConditions.push('employeeId = ?')
+    values.push(params.employeeId)
   }
   if (params.status) {
     whereConditions.push('status = ?')

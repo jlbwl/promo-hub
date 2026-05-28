@@ -175,6 +175,7 @@ export async function updateOrder(id: string, fields: Record<string, any>): Prom
 export async function getOrdersPaginated(params: {
   userId?: string
   managerId?: string
+  employeeId?: string
   status?: string
   managedBy?: string
   keyword?: string
@@ -188,6 +189,9 @@ export async function getOrdersPaginated(params: {
   }
   if (params.managerId) {
     orders = orders.filter((o: any) => o.managerId === params.managerId)
+  }
+  if (params.employeeId) {
+    orders = orders.filter((o: any) => o.employeeId === params.employeeId)
   }
   if (params.status) {
     orders = orders.filter((o: any) => o.status === params.status)
