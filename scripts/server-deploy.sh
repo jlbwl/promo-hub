@@ -68,7 +68,21 @@ if [ -f nginx-config/nginx.conf ]; then
   cp nginx-config/nginx.conf "${NGINX_CONF}"
 fi
 
-# 强制重写 Nginx 配置 - 先用 HTTP 简化测试，确认功能后再处理 HTTPS
+# 先清理所有可能冲突的 Nginx 配置
+echo "🧹 清理所有可能冲突的 Nginx 配置..."
+rm -f /etc/nginx/conf.d/*.conf /etc/nginx/sites-enabled/* 2>/dev/null
+mkdir -p /etc/nginx/ssl
+
+# 创建自签名证书作为备用方案
+if [ ! -f /etc/nginx/ssl/www.jlbtg.cn.pem ] || [ ! -f /etc/nginx/ssl/www.jlbtg.cn.key ]; then
+    echo "🔐 SSL 证书不存在，正在创建自签名证书..."
+    openssl req -x509 -nodes -days 3650 -newkey rsa:2048 \
+        -keyout /etc/nginx/ssl/www.jlbtg.cn.key \
+        -out /etc/nginx/ssl/www.jlbtg.cn.pem \
+        -subj "/C=CN/ST=Beijing/L=Beijing/O=Dev/OU=Dev/CN=www.jlbtg.cn/emailAddress=dev@jlbtg.cn" 2>/dev/null || true
+fi
+
+# 强制重写 Nginx 配置 - 同时支持 HTTP 和 HTTPS
 cat > "${NGINX_CONF}" << 'NGINXEOF'
 server {
     listen 80;
@@ -76,6 +90,35 @@ server {
     gzip on;
     gzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript image/svg+xml;
     gzip_min_length 1024;
+    
+    # 根路径跳转到 /user/
+    location = / { return 302 /user/; }
+    location / { return 302 /user/; }
+    
+    # 管理员后台
+    location /admin/ { alias /www/wwwroot/promo-hub/admin/; index index.html; try_files $uri $uri/ /admin/index.html; }
+    
+    # 渠道经理后台
+    location /manager/ { alias /www/wwwroot/promo-hub/manager/; index index.html; try_files $uri $uri/ /manager/index.html; }
+    
+    # 用户端
+    location /user/ { alias /www/wwwroot/promo-hub/user/; index index.html; try_files $uri $uri/ /user/index.html; }
+    
+    # API 反向代理
+    location /api/ { proxy_pass http://127.0.0.1:3000/; proxy_set_header Host $host; proxy_set_header X-Real-IP $remote_addr; proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for; proxy_set_header X-Forwarded-Proto $scheme; }
+}
+
+server {
+    listen 443 ssl;
+    server_name www.jlbtg.cn jlbtg.cn;
+    gzip on;
+    gzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript image/svg+xml;
+    gzip_min_length 1024;
+    
+    ssl_certificate /etc/nginx/ssl/www.jlbtg.cn.pem;
+    ssl_certificate_key /etc/nginx/ssl/www.jlbtg.cn.key;
+    ssl_protocols TLSv1 TLSv1.1 TLSv1.2 TLSv1.3;
+    ssl_ciphers HIGH:!aNULL:!MD5;
     
     # 根路径跳转到 /user/
     location = / { return 302 /user/; }
