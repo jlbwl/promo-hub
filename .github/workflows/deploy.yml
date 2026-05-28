@@ -208,426 +208,78 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: ${{ secrets.SERVER_PORT || 22 }}
+          envs:
+            - DB_HOST
+            - DB_PORT
+            - DB_USER
+            - DB_PASSWORD
+            - DB_NAME
           script: |
             set -e
-            mkdir -p ${{ env.DEPLOY_DIR }}/api/data/uploads
+            DEPLOY_DIR="/www/wwwroot/promo-hub"
             
-            # ==== 删除根目录可能存在的 index.html，防止意外跳转到 admin ====
-            echo "=== 清理根目录旧文件 ==="
-            rm -f ${{ env.DEPLOY_DIR }}/index.html ${{ env.DEPLOY_DIR }}/index.htm 2>/dev/null || true
+            # 创建 .env 文件
+              cat > "${DEPLOY_DIR}/api/.env" << 'ENVEOF'
+DB_HOST={{ secrets.DB_HOST }}
+DB_PORT={{ secrets.DB_PORT }}
+DB_USER={{ secrets.DB_USER }}
+DB_PASSWORD={{ secrets.DB_PASSWORD }}
+DB_NAME={{ secrets.DB_NAME }}
+PORT=3000
+ALIBABA_CLOUD_ACCESS_KEY_ID={{ secrets.ALIBABA_CLOUD_ACCESS_KEY_ID }}
+ALIBABA_CLOUD_ACCESS_KEY_SECRET={{ secrets.ALIBABA_CLOUD_ACCESS_KEY_SECRET }}
+ALIBABA_CLOUD_SMS_SIGN_NAME={{ secrets.ALIBABA_CLOUD_SMS_SIGN_NAME }}
+ALIBABA_CLOUD_SMS_TEMPLATE_CODE={{ secrets.ALIBABA_CLOUD_SMS_TEMPLATE_CODE }}
+ENVEOF
             
-            cd ${{ env.DEPLOY_DIR }}/api
-            
-            # 直接在服务器上创建 package.json，用简单的单行避免 YAML 问题
-            echo '{"name":"@promo/api","version":"1.0.0","private":true,"type":"module","scripts":{"dev":"tsx watch src/index.ts","build":"tsc","start":"node index.js"},"dependencies":{"bcryptjs":"^2.4.3","connect-mongo":"^5.1.0","cors":"^2.8.5","dotenv":"^17.4.2","express":"^4.21.0","express-rate-limit":"^8.5.1","express-session":"^1.18.1","multer":"^1.4.5-lts.1","mysql2":"^3.22.3","redis":"^5.12.1","uuid":"^11.0.0"},"devDependencies":{"@types/cors":"^2.8.17","@types/express":"^5.0.0","@types/multer":"^1.4.12","@types/uuid":"^10.0.0","tsx":"^4.19.0","typescript":"^5.7.0"}}' > package.json
-            
-            echo "=== 已创建 package.json ==="
-            ls -la
-
-            # 输出当前环境变量（不包含敏感信息）检查配置
-            echo "=== 检查环境变量 ==="
-            echo "ALIBABA_CLOUD_ACCESS_KEY_ID: ${ALIBABA_CLOUD_ACCESS_KEY_ID:+已设置}"
-            echo "ALIBABA_CLOUD_ACCESS_KEY_SECRET: ${ALIBABA_CLOUD_ACCESS_KEY_SECRET:+已设置}"
-            echo "ALIBABA_CLOUD_SMS_SIGN_NAME: ${ALIBABA_CLOUD_SMS_SIGN_NAME:-未设置}"
-            echo "ALIBABA_CLOUD_SMS_TEMPLATE_CODE: ${ALIBABA_CLOUD_SMS_TEMPLATE_CODE:-未设置}"
-
-            # 创建 .env 文件（从 GitHub Secrets 读取）
-            printf 'DB_HOST=%s\nDB_PORT=%s\nDB_USER=%s\nDB_PASSWORD=%s\nDB_NAME=%s\nPORT=3000\nALIBABA_CLOUD_ACCESS_KEY_ID=%s\nALIBABA_CLOUD_ACCESS_KEY_SECRET=%s\nALIBABA_CLOUD_SMS_SIGN_NAME=%s\nALIBABA_CLOUD_SMS_TEMPLATE_CODE=%s\n' \
-              "${{ secrets.DB_HOST }}" \
-              "${{ secrets.DB_PORT }}" \
-              "${{ secrets.DB_USER }}" \
-              "${{ secrets.DB_PASSWORD }}" \
-              "${{ secrets.DB_NAME }}" \
-              "${{ secrets.ALIBABA_CLOUD_ACCESS_KEY_ID }}" \
-              "${{ secrets.ALIBABA_CLOUD_ACCESS_KEY_SECRET }}" \
-              "${{ secrets.ALIBABA_CLOUD_SMS_SIGN_NAME }}" \
-              "${{ secrets.ALIBABA_CLOUD_SMS_TEMPLATE_CODE }}" > .env
-
-            echo "=== .env 文件内容 ==="
-            cat .env | sed 's/ALIBABA_CLOUD_ACCESS_KEY_SECRET=.*/ALIBABA_CLOUD_ACCESS_KEY_SECRET=***/'
-
-            # ===== 自动修复数据库 Schema =====
-            echo "=== 开始自动修复数据库 Schema ==="
-
-            # 检查 MySQL 客户端是否存在
-            if command -v mysql &> /dev/null; then
-              echo "MySQL 客户端已安装，开始修复数据库..."
-
-              # 修复 orders 表缺少的字段
-              echo "--- 修复 orders 表 ---"
-              mysql -h "${{ secrets.DB_HOST }}" \
-                    -P "${{ secrets.DB_PORT }}" \
-                    -u "${{ secrets.DB_USER }}" \
-                    -p"${{ secrets.DB_PASSWORD }}" \
-                    "${{ secrets.DB_NAME }}" \
-                    -e "ALTER TABLE orders ADD COLUMN IF NOT EXISTS teamName VARCHAR(200) DEFAULT '' AFTER userPhone;" \
-                    2>/dev/null && echo "✓ teamName 字段已添加" || echo "⚠ teamName 字段可能已存在或其他错误，继续..."
-
-              mysql -h "${{ secrets.DB_HOST }}" \
-                    -P "${{ secrets.DB_PORT }}" \
-                    -u "${{ secrets.DB_USER }}" \
-                    -p"${{ secrets.DB_PASSWORD }}" \
-                    "${{ secrets.DB_NAME }}" \
-                    -e "ALTER TABLE orders ADD COLUMN IF NOT EXISTS userName VARCHAR(200) DEFAULT '' AFTER redirectUrl;" \
-                    2>/dev/null && echo "✓ userName 字段已添加" || echo "⚠ userName 字段可能已存在或其他错误，继续..."
-
-              mysql -h "${{ secrets.DB_HOST }}" \
-                    -P "${{ secrets.DB_PORT }}" \
-                    -u "${{ secrets.DB_USER }}" \
-                    -p"${{ secrets.DB_PASSWORD }}" \
-                    "${{ secrets.DB_NAME }}" \
-                    -e "ALTER TABLE orders ADD COLUMN IF NOT EXISTS userPhone VARCHAR(50) DEFAULT '' AFTER userName;" \
-                    2>/dev/null && echo "✓ userPhone 字段已添加" || echo "⚠ userPhone 字段可能已存在或其他错误，继续..."
-
-              # 修复 products 表缺少的字段
-              echo "--- 修复 products 表 ---"
-              mysql -h "${{ secrets.DB_HOST }}" \
-                    -P "${{ secrets.DB_PORT }}" \
-                    -u "${{ secrets.DB_USER }}" \
-                    -p"${{ secrets.DB_PASSWORD }}" \
-                    "${{ secrets.DB_NAME }}" \
-                    -e "ALTER TABLE products ADD COLUMN IF NOT EXISTS requireName TINYINT(1) NOT NULL DEFAULT 0 AFTER offlineAt;" \
-                    2>/dev/null && echo "✓ requireName 字段已添加" || echo "⚠ requireName 字段可能已存在或其他错误，继续..."
-
-              mysql -h "${{ secrets.DB_HOST }}" \
-                    -P "${{ secrets.DB_PORT }}" \
-                    -u "${{ secrets.DB_USER }}" \
-                    -p"${{ secrets.DB_PASSWORD }}" \
-                    "${{ secrets.DB_NAME }}" \
-                    -e "ALTER TABLE products ADD COLUMN IF NOT EXISTS requirePhone TINYINT(1) NOT NULL DEFAULT 0 AFTER requireName;" \
-                    2>/dev/null && echo "✓ requirePhone 字段已添加" || echo "⚠ requirePhone 字段可能已存在或其他错误，继续..."
-
-              # 修复 employees 表
-              echo "--- 修复 employees 表 ---"
-              
-              # 检查 employees 表是否存在，如果不存在则创建
-              mysql -h "${{ secrets.DB_HOST }}" \
-                    -P "${{ secrets.DB_PORT }}" \
-                    -u "${{ secrets.DB_USER }}" \
-                    -p"${{ secrets.DB_PASSWORD }}" \
-                    "${{ secrets.DB_NAME }}" \
-                    -e "CREATE TABLE IF NOT EXISTS employees (
-                      id VARCHAR(100) PRIMARY KEY,
-                      userId VARCHAR(100) NOT NULL,
-                      phone VARCHAR(50) NOT NULL,
-                      password VARCHAR(500) NOT NULL,
-                      nickname VARCHAR(200) DEFAULT '',
-                      expiresAt DATETIME NOT NULL,
-                      status VARCHAR(50) NOT NULL DEFAULT 'active',
-                      createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                      updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                      INDEX idx_userId (userId),
-                      INDEX idx_phone (phone),
-                      INDEX idx_expiresAt (expiresAt)
-                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;" \
-                    2>/dev/null && echo "✓ employees 表已创建或已存在" || echo "⚠ employees 表创建可能失败，继续..."
-
-              # 确保 employees 表的所有字段都存在
-              mysql -h "${{ secrets.DB_HOST }}" \
-                    -P "${{ secrets.DB_PORT }}" \
-                    -u "${{ secrets.DB_USER }}" \
-                    -p"${{ secrets.DB_PASSWORD }}" \
-                    "${{ secrets.DB_NAME }}" \
-                    -e "ALTER TABLE employees ADD COLUMN IF NOT EXISTS userId VARCHAR(100) NOT NULL AFTER id;" \
-                    2>/dev/null && echo "✓ userId 字段已添加" || echo "⚠ userId 字段可能已存在或其他错误，继续..."
-
-              mysql -h "${{ secrets.DB_HOST }}" \
-                    -P "${{ secrets.DB_PORT }}" \
-                    -u "${{ secrets.DB_USER }}" \
-                    -p"${{ secrets.DB_PASSWORD }}" \
-                    "${{ secrets.DB_NAME }}" \
-                    -e "ALTER TABLE employees ADD COLUMN IF NOT EXISTS phone VARCHAR(50) NOT NULL AFTER userId;" \
-                    2>/dev/null && echo "✓ phone 字段已添加" || echo "⚠ phone 字段可能已存在或其他错误，继续..."
-
-              mysql -h "${{ secrets.DB_HOST }}" \
-                    -P "${{ secrets.DB_PORT }}" \
-                    -u "${{ secrets.DB_USER }}" \
-                    -p"${{ secrets.DB_PASSWORD }}" \
-                    "${{ secrets.DB_NAME }}" \
-                    -e "ALTER TABLE employees ADD COLUMN IF NOT EXISTS password VARCHAR(500) NOT NULL AFTER phone;" \
-                    2>/dev/null && echo "✓ password 字段已添加" || echo "⚠ password 字段可能已存在或其他错误，继续..."
-
-              mysql -h "${{ secrets.DB_HOST }}" \
-                    -P "${{ secrets.DB_PORT }}" \
-                    -u "${{ secrets.DB_USER }}" \
-                    -p"${{ secrets.DB_PASSWORD }}" \
-                    "${{ secrets.DB_NAME }}" \
-                    -e "ALTER TABLE employees ADD COLUMN IF NOT EXISTS nickname VARCHAR(200) DEFAULT '' AFTER password;" \
-                    2>/dev/null && echo "✓ nickname 字段已添加" || echo "⚠ nickname 字段可能已存在或其他错误，继续..."
-
-              mysql -h "${{ secrets.DB_HOST }}" \
-                    -P "${{ secrets.DB_PORT }}" \
-                    -u "${{ secrets.DB_USER }}" \
-                    -p"${{ secrets.DB_PASSWORD }}" \
-                    "${{ secrets.DB_NAME }}" \
-                    -e "ALTER TABLE employees ADD COLUMN IF NOT EXISTS expiresAt DATETIME NOT NULL AFTER nickname;" \
-                    2>/dev/null && echo "✓ expiresAt 字段已添加" || echo "⚠ expiresAt 字段可能已存在或其他错误，继续..."
-
-              mysql -h "${{ secrets.DB_HOST }}" \
-                    -P "${{ secrets.DB_PORT }}" \
-                    -u "${{ secrets.DB_USER }}" \
-                    -p"${{ secrets.DB_PASSWORD }}" \
-                    "${{ secrets.DB_NAME }}" \
-                    -e "ALTER TABLE employees ADD COLUMN IF NOT EXISTS status VARCHAR(50) NOT NULL DEFAULT 'active' AFTER expiresAt;" \
-                    2>/dev/null && echo "✓ status 字段已添加" || echo "⚠ status 字段可能已存在或其他错误，继续..."
-
-              mysql -h "${{ secrets.DB_HOST }}" \
-                    -P "${{ secrets.DB_PORT }}" \
-                    -u "${{ secrets.DB_USER }}" \
-                    -p"${{ secrets.DB_PASSWORD }}" \
-                    "${{ secrets.DB_NAME }}" \
-                    -e "ALTER TABLE employees ADD COLUMN IF NOT EXISTS createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP AFTER status;" \
-                    2>/dev/null && echo "✓ createdAt 字段已添加" || echo "⚠ createdAt 字段可能已存在或其他错误，继续..."
-
-              mysql -h "${{ secrets.DB_HOST }}" \
-                    -P "${{ secrets.DB_PORT }}" \
-                    -u "${{ secrets.DB_USER }}" \
-                    -p"${{ secrets.DB_PASSWORD }}" \
-                    "${{ secrets.DB_NAME }}" \
-                    -e "ALTER TABLE employees ADD COLUMN IF NOT EXISTS updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP AFTER createdAt;" \
-                    2>/dev/null && echo "✓ updatedAt 字段已添加" || echo "⚠ updatedAt 字段可能已存在或其他错误，继续..."
-
-              # 添加索引
-              mysql -h "${{ secrets.DB_HOST }}" \
-                    -P "${{ secrets.DB_PORT }}" \
-                    -u "${{ secrets.DB_USER }}" \
-                    -p"${{ secrets.DB_PASSWORD }}" \
-                    "${{ secrets.DB_NAME }}" \
-                    -e "ALTER TABLE employees ADD INDEX IF NOT EXISTS idx_userId (userId);" \
-                    2>/dev/null && echo "✓ idx_userId 索引已添加" || echo "⚠ idx_userId 索引可能已存在或其他错误，继续..."
-
-              mysql -h "${{ secrets.DB_HOST }}" \
-                    -P "${{ secrets.DB_PORT }}" \
-                    -u "${{ secrets.DB_USER }}" \
-                    -p"${{ secrets.DB_PASSWORD }}" \
-                    "${{ secrets.DB_NAME }}" \
-                    -e "ALTER TABLE employees ADD INDEX IF NOT EXISTS idx_phone (phone);" \
-                    2>/dev/null && echo "✓ idx_phone 索引已添加" || echo "⚠ idx_phone 索引可能已存在或其他错误，继续..."
-
-              mysql -h "${{ secrets.DB_HOST }}" \
-                    -P "${{ secrets.DB_PORT }}" \
-                    -u "${{ secrets.DB_USER }}" \
-                    -p"${{ secrets.DB_PASSWORD }}" \
-                    "${{ secrets.DB_NAME }}" \
-                    -e "ALTER TABLE employees ADD INDEX IF NOT EXISTS idx_expiresAt (expiresAt);" \
-                    2>/dev/null && echo "✓ idx_expiresAt 索引已添加" || echo "⚠ idx_expiresAt 索引可能已存在或其他错误，继续..."
-
-              # 验证 employees 表
-              echo "=== 验证 employees 表结构 ==="
-              mysql -h "${{ secrets.DB_HOST }}" \
-                    -P "${{ secrets.DB_PORT }}" \
-                    -u "${{ secrets.DB_USER }}" \
-                    -p"${{ secrets.DB_PASSWORD }}" \
-                    "${{ secrets.DB_NAME }}" \
-                    -e "DESCRIBE employees;" 2>/dev/null || echo "employees 表验证完成"
-
-              echo "=== 数据库 Schema 修复完成 ==="
-
-              # ===== 产品分类相关表结构初始化 =====
-              echo "--- 初始化产品分类表 ---"
-
-              # 创建 product_categories 表
-              mysql -h "${{ secrets.DB_HOST }}" \
-                    -P "${{ secrets.DB_PORT }}" \
-                    -u "${{ secrets.DB_USER }}" \
-                    -p"${{ secrets.DB_PASSWORD }}" \
-                    "${{ secrets.DB_NAME }}" \
-                    -e "CREATE TABLE IF NOT EXISTS product_categories (
-                      id VARCHAR(100) PRIMARY KEY,
-                      name VARCHAR(200) NOT NULL COMMENT '分类名称',
-                      value VARCHAR(200) NOT NULL COMMENT '分类值（兼容旧数据）',
-                      sort INT NOT NULL DEFAULT 0 COMMENT '排序',
-                      status VARCHAR(50) NOT NULL DEFAULT 'active' COMMENT '状态：active/archived',
-                      createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                      updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                      INDEX idx_value (value),
-                      INDEX idx_status (status)
-                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;" \
-                    2>/dev/null && echo "✓ product_categories 表已创建或已存在" || echo "⚠ product_categories 表创建可能失败，继续..."
-
-              # 为 products 表添加 categoryId 和 categoryNameSnapshot 字段
-              mysql -h "${{ secrets.DB_HOST }}" \
-                    -P "${{ secrets.DB_PORT }}" \
-                    -u "${{ secrets.DB_USER }}" \
-                    -p"${{ secrets.DB_PASSWORD }}" \
-                    "${{ secrets.DB_NAME }}" \
-                    -e "ALTER TABLE products ADD COLUMN IF NOT EXISTS categoryId VARCHAR(100) DEFAULT '' AFTER category;" \
-                    2>/dev/null && echo "✓ categoryId 字段已添加" || echo "⚠ categoryId 字段可能已存在或其他错误，继续..."
-
-              mysql -h "${{ secrets.DB_HOST }}" \
-                    -P "${{ secrets.DB_PORT }}" \
-                    -u "${{ secrets.DB_USER }}" \
-                    -p"${{ secrets.DB_PASSWORD }}" \
-                    "${{ secrets.DB_NAME }}" \
-                    -e "ALTER TABLE products ADD COLUMN IF NOT EXISTS categoryNameSnapshot VARCHAR(200) DEFAULT '' AFTER categoryId;" \
-                    2>/dev/null && echo "✓ categoryNameSnapshot 字段已添加" || echo "⚠ categoryNameSnapshot 字段可能已存在或其他错误，继续..."
-
-              # 初始化默认分类数据
-              echo "--- 初始化默认分类数据 ---"
-
-              # 检查分类数据初始化前检查并插入默认分类
-              mysql -h "${{ secrets.DB_HOST }}" \
-                    -P "${{ secrets.DB_PORT }}" \
-                    -u "${{ secrets.DB_USER }}" \
-                    -p"${{ secrets.DB_PASSWORD }}" \
-                    "${{ secrets.DB_NAME }}" \
-                    -e "INSERT IGNORE INTO product_categories (id, name, value, sort, status, createdAt, updatedAt) VALUES
-                      ('cat_1', '综合-立返', 'comprehensive-instant', 1, 'active', NOW(), NOW()),
-                      ('cat_2', '综合-数据', 'comprehensive-data', 2, 'active', NOW(), NOW()),
-                      ('cat_3', '个养和加挂', 'personal-insurance', 3, 'active', NOW(), NOW()),
-                      ('cat_4', '限三-立返', 'limit3-instant', 4, 'active', NOW(), NOW()),
-                      ('cat_5', '限三-数据', 'limit3-data', 5, 'active', NOW(), NOW()),
-                      ('cat_6', '不限三-立返', 'unlimit3-instant', 6, 'active', NOW(), NOW()),
-                      ('cat_7', '不限三-数据', 'unlimit3-data', 7, 'active', NOW(), NOW()),
-                      ('cat_8', '三方-立返', 'third-party-instant', 8, 'active', NOW(), NOW()),
-                      ('cat_9', '三方-数据', 'third-party-data', 9, 'active', NOW(), NOW()),
-                      ('cat_10', '其它', 'other', 10, 'active', NOW(), NOW());" \
-                    2>/dev/null && echo "✓ 默认分类数据已插入或已存在" || echo "⚠ 默认分类数据插入可能失败，继续..."
-
-              # 将现有产品关联到分类并更新快照
-              echo "--- 更新现有产品分类数据 ---"
-              mysql -h "${{ secrets.DB_HOST }}" \
-                    -P "${{ secrets.DB_PORT }}" \
-                    -u "${{ secrets.DB_USER }}" \
-                    -p"${{ secrets.DB_PASSWORD }}" \
-                    "${{ secrets.DB_NAME }}" \
-                    -e "UPDATE products p INNER JOIN product_categories c ON p.category = c.value SET p.categoryId = c.id, p.categoryNameSnapshot = c.name WHERE (p.categoryId IS NULL OR p.categoryId = '') AND p.category != '';" \
-                    2>/dev/null && echo "✓ 现有产品分类数据已同步" || echo "⚠ 现有产品分类数据同步可能失败，继续..."
-
-              # 验证修复结果
-              echo "=== 验证 orders 表结构 ==="
-              mysql -h "${{ secrets.DB_HOST }}" \
-                    -P "${{ secrets.DB_PORT }}" \
-                    -u "${{ secrets.DB_USER }}" \
-                    -p"${{ secrets.DB_PASSWORD }}" \
-                    "${{ secrets.DB_NAME }}" \
-                    -e "DESCRIBE orders;" 2>/dev/null | grep -E "teamName|userName|userPhone" || echo "验证完成"
-
-              echo "=== 验证 product_categories 表结构 ==="
-              mysql -h "${{ secrets.DB_HOST }}" \
-                    -P "${{ secrets.DB_PORT }}" \
-                    -u "${{ secrets.DB_USER }}" \
-                    -p"${{ secrets.DB_PASSWORD }}" \
-                    "${{ secrets.DB_NAME }}" \
-                    -e "DESCRIBE product_categories;" 2>/dev/null || echo "product_categories 表验证完成"
-
-              echo "=== 验证 products 表结构 ==="
-              mysql -h "${{ secrets.DB_HOST }}" \
-                    -P "${{ secrets.DB_PORT }}" \
-                    -u "${{ secrets.DB_USER }}" \
-                    -p"${{ secrets.DB_PASSWORD }}" \
-                    "${{ secrets.DB_NAME }}" \
-                    -e "DESCRIBE products;" 2>/dev/null | grep -E "categoryId|categoryNameSnapshot" || echo "products 表验证完成"
-
-              echo "=== 查看分类数据 ==="
-              mysql -h "${{ secrets.DB_HOST }}" \
-                    -P "${{ secrets.DB_PORT }}" \
-                    -u "${{ secrets.DB_USER }}" \
-                    -p"${{ secrets.DB_PASSWORD }}" \
-                    "${{ secrets.DB_NAME }}" \
-                    -e "SELECT COUNT(*) as total_categories FROM product_categories;" 2>/dev/null || echo "分类数据查询完成"
-
-            else
-              echo "⚠️  MySQL 客户端未安装，跳过数据库自动修复"
-              echo "请手动执行以下 SQL 修复数据库："
-              echo "--- 分类相关 SQL:"
-              echo "CREATE TABLE IF NOT EXISTS product_categories (...);"
-              echo "ALTER TABLE products ADD COLUMN categoryId VARCHAR(100) DEFAULT '' AFTER category;"
-              echo "ALTER TABLE products ADD COLUMN categoryNameSnapshot VARCHAR(200) DEFAULT '' AFTER categoryId;"
-              echo "--- 其他表修复:"
-              echo "ALTER TABLE orders ADD COLUMN teamName VARCHAR(200) DEFAULT '' AFTER userPhone;"
-              echo "ALTER TABLE orders ADD COLUMN userName VARCHAR(200) DEFAULT '' AFTER redirectUrl;"
-              echo "ALTER TABLE orders ADD COLUMN userPhone VARCHAR(50) DEFAULT '' AFTER userName;"
-            fi
-            # ===== 数据库修复结束 =====
-
-            # 确保在正确的工作目录下
-            cd ${{ env.DEPLOY_DIR }}/api || true
-            pwd
-            ls -la
-
-            # 先停止旧进程，完全清理
-            cd ${{ env.DEPLOY_DIR }}/api
-            pm2 stop promo-api 2>/dev/null || true
-            pm2 delete promo-api 2>/dev/null || true
-            pm2 save --force 2>/dev/null || true
-
-            # 检查上传的文件
-            echo "=== 检查上传的文件 ==="
-            ls -la
-            echo "=== Routes 文件内容 ==="
-            ls -la routes/
-            cat routes/category.routes.js || echo "category.routes.js not found"
-
-            # 确保 package.json 是最新的
-            echo "=== package.json 内容 ==="
-            cat package.json
-            
-            # 检查 index.js 是否存在，可能在 dist 目录下
-            if [ -f "dist/index.js" ]; then
-              echo "=== 将文件从 dist/ 目录移动到根目录 ==="
-              mv -f dist/* .
-              rm -rf dist
-            fi
-
-            echo "=== 当前目录文件 ==="
-            ls -la
-            
-            # 强制安装依赖，确保 native 模块正确编译
-            echo "=== 强制安装依赖 ==="
-            rm -rf node_modules package-lock.json
-            npm install --production --no-audit 2>&1
-            echo "✓ 依赖安装完成"
-            ls -la node_modules  # 检查整个 node_modules
-
-            # 检查关键模块是否存在
-            echo "=== 检查关键模块 ==="
-            ls -la node_modules/express 2>/dev/null && echo "✓ express 已安装" || echo "✗ express 未安装"
-            ls -la node_modules/mysql2 2>/dev/null && echo "✓ mysql2 已安装" || echo "✗ mysql2 未安装"
-            ls -la node_modules/bcryptjs 2>/dev/null && echo "✓ bcryptjs 已安装" || echo "✗ bcryptjs 未安装"
-
-            # 启动服务 - 使用 --cwd 明确指定目录
-            echo "=== 启动 API 服务 ==="
-            cd ${{ env.DEPLOY_DIR }}/api
-            pm2 start index.js --name promo-api --cwd ${{ env.DEPLOY_DIR }}/api -f
-
-            # 等待几秒让服务完全启动
-            sleep 5
-
-            # 检查服务状态
-            pm2 status
-            echo "=== API 服务日志 (最近50行) ==="
-            pm2 logs promo-api --lines 50 --nostream
-
-            # 更新 Nginx 配置
-            echo "=== 更新 Nginx 配置 ==="
-            NGINX_CONF="/etc/nginx/conf.d/promo-hub.conf"
-            mkdir -p "${{ env.DEPLOY_DIR }}/nginx"
-            if [ -f nginx-config/nginx.conf ]; then
-              cp nginx-config/nginx.conf "${NGINX_CONF}"
-              echo "Nginx配置已复制"
-            fi
-
-            # ==== 清理干扰文件和强制重写 Nginx 配置 ====
-            echo "=== 强制重写 Nginx 配置并清理干扰文件 ==="
-            
-            # 删除可能的干扰文件
-            rm -f ${{ env.DEPLOY_DIR }}/index.html
-            rm -f ${{ env.DEPLOY_DIR }}/index.htm
-            rm -f /var/www/html/index.html
-            rm -f /usr/share/nginx/html/index.html
-            
-            # 使用 printf 创建 nginx 配置文件
-            printf 'server {\n    listen 80;\n    server_name _;\n    gzip on;\n    gzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript image/svg+xml;\n    gzip_min_length 1024;\n    location = / { return 302 /user/; }\n    location / { return 302 /user/; }\n    location /admin/ {\n        alias /www/wwwroot/promo-hub/admin/;\n        index index.html;\n        try_files $uri $uri/ /admin/index.html;\n    }\n    location /manager/ {\n        alias /www/wwwroot/promo-hub/manager/;\n        index index.html;\n        try_files $uri $uri/ /manager/index.html;\n    }\n    location /user/ {\n        alias /www/wwwroot/promo-hub/user/;\n        index index.html;\n        try_files $uri $uri/ /user/index.html;\n    }\n    location /api/ {\n        proxy_pass http://127.0.0.1:3000/;\n        proxy_set_header Host $host;\n        proxy_set_header X-Real-IP $remote_addr;\n        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;\n        proxy_set_header X-Forwarded-Proto $scheme;\n    }\n}\n' > "${NGINX_CONF}"
-            
-            echo "✓ Nginx 配置已强制重写"
-
-            # 测试并重载 Nginx
-            nginx -t
-            nginx -s reload
-            
-            echo "=== 文件部署完成 ==="
-            echo "Admin files: $(ls ${{ env.DEPLOY_DIR }}/admin/ | wc -l)"
-            echo "Manager files: $(ls ${{ env.DEPLOY_DIR }}/manager/ | wc -l)"
-            echo "User files: $(ls ${{ env.DEPLOY_DIR }}/user/ | wc -l)"
-            echo "🎉 部署完成！"
+            # 在服务器上创建并执行部署脚本
+            cd "${DEPLOY_DIR}/api"
+            cat > deploy-runner.sh << 'SCRIPTEOF'
+#!/bin/bash
+set -e
+DEPLOY_DIR="/www/wwwroot/promo-hub"
+NGINX_CONF="/etc/nginx/conf.d/promo-hub.conf"
+rm -f "${DEPLOY_DIR}/index.html" "${DEPLOY_DIR}/index.htm" /var/www/html/index.html /usr/share/nginx/html/index.html 2>/dev/null || true
+mkdir -p "${DEPLOY_DIR}/api/data/uploads"
+cd "${DEPLOY_DIR}/api"
+cat > package.json << 'PKGEOF'
+{"name":"@promo/api","version":"1.0.0","private":true,"type":"module","scripts":{"dev":"tsx watch src/index.ts","build":"tsc","start":"node index.js"},"dependencies":{"bcryptjs":"^2.4.3","connect-mongo":"^5.1.0","cors":"^2.8.5","dotenv":"^17.4.2","express":"^4.21.0","express-rate-limit":"^8.5.1","express-session":"^1.18.1","multer":"^1.4.5-lts.1","mysql2":"^3.22.3","redis":"^5.12.1","uuid":"^11.0.0"},"devDependencies":{"@types/cors":"^2.8.17","@types/express":"^5.0.0","@types/multer":"^1.4.12","@types/uuid":"^10.0.0","tsx":"^4.19.0","typescript":"^5.7.0"}}
+PKGEOF
+mysql -h "${DB_HOST}" -P "${DB_PORT}" -u "${DB_USER}" -p"${DB_PASSWORD}" "${DB_NAME}" -e "ALTER TABLE orders ADD COLUMN IF NOT EXISTS teamName VARCHAR(200) DEFAULT '' AFTER userPhone, ADD COLUMN IF NOT EXISTS userName VARCHAR(200) DEFAULT '' AFTER redirectUrl, ADD COLUMN IF NOT EXISTS userPhone VARCHAR(50) DEFAULT '' AFTER userName;" 2>/dev/null || true
+mysql -h "${DB_HOST}" -P "${DB_PORT}" -u "${DB_USER}" -p"${DB_PASSWORD}" "${DB_NAME}" -e "ALTER TABLE products ADD COLUMN IF NOT EXISTS requireName TINYINT(1) NOT NULL DEFAULT 0 AFTER offlineAt, ADD COLUMN IF NOT EXISTS requirePhone TINYINT(1) NOT NULL DEFAULT 0 AFTER requireName, ADD COLUMN IF NOT EXISTS categoryId VARCHAR(100) DEFAULT '' AFTER category, ADD COLUMN IF NOT EXISTS categoryNameSnapshot VARCHAR(200) DEFAULT '' AFTER categoryId;" 2>/dev/null || true
+mysql -h "${DB_HOST}" -P "${DB_PORT}" -u "${DB_USER}" -p"${DB_PASSWORD}" "${DB_NAME}" -e "CREATE TABLE IF NOT EXISTS employees (id VARCHAR(100) PRIMARY KEY, userId VARCHAR(100) NOT NULL, phone VARCHAR(50) NOT NULL, password VARCHAR(500) NOT NULL, nickname VARCHAR(200) DEFAULT '', expiresAt DATETIME NOT NULL, status VARCHAR(50) NOT NULL DEFAULT 'active', createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, INDEX idx_userId (userId), INDEX idx_phone (phone), INDEX idx_expiresAt (expiresAt)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;" 2>/dev/null || true
+mysql -h "${DB_HOST}" -P "${DB_PORT}" -u "${DB_USER}" -p"${DB_PASSWORD}" "${DB_NAME}" -e "CREATE TABLE IF NOT EXISTS product_categories (id VARCHAR(100) PRIMARY KEY, name VARCHAR(200) NOT NULL, value VARCHAR(200) NOT NULL, sort INT NOT NULL DEFAULT 0, status VARCHAR(50) NOT NULL DEFAULT 'active', createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;" 2>/dev/null || true
+mysql -h "${DB_HOST}" -P "${DB_PORT}" -u "${DB_USER}" -p"${DB_PASSWORD}" "${DB_NAME}" -e "INSERT IGNORE INTO product_categories (id, name, value, sort, status, createdAt, updatedAt) VALUES ('cat_1', '综合-立返', 'comprehensive-instant', 1, 'active', NOW(), NOW()), ('cat_2', '综合-数据', 'comprehensive-data', 2, 'active', NOW(), NOW()), ('cat_3', '个养和加挂', 'personal-insurance', 3, 'active', NOW(), NOW()), ('cat_4', '限三-立返', 'limit3-instant', 4, 'active', NOW(), NOW()), ('cat_5', '限三-数据', 'limit3-data', 5, 'active', NOW(), NOW()), ('cat_6', '不限三-立返', 'unlimit3-instant', 6, 'active', NOW(), NOW()), ('cat_7', '不限三-数据', 'unlimit3-data', 7, 'active', NOW(), NOW()), ('cat_8', '三方-立返', 'third-party-instant', 8, 'active', NOW(), NOW()), ('cat_9', '三方-数据', 'third-party-data', 9, 'active', NOW(), NOW()), ('cat_10', '其它', 'other', 10, 'active', NOW(), NOW());" 2>/dev/null || true
+pm2 stop promo-api 2>/dev/null || true
+pm2 delete promo-api 2>/dev/null || true
+if [ -f "dist/index.js" ]; then mv -f dist/* . 2>/dev/null || true; rm -rf dist; fi
+rm -rf node_modules package-lock.json
+npm install --production --no-audit
+pm2 start index.js --name promo-api --cwd "${DEPLOY_DIR}/api" -f
+sleep 5
+mkdir -p "${DEPLOY_DIR}/nginx"
+if [ -f nginx-config/nginx.conf ]; then cp nginx-config/nginx.conf "${NGINX_CONF}"; fi
+cat > "${NGINX_CONF}" << 'NGINXEOF'
+server {
+    listen 80;
+    server_name _;
+    gzip on;
+    gzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript image/svg+xml;
+    gzip_min_length 1024;
+    location = / { return 302 /user/; }
+    location / { return 302 /user/; }
+    location /admin/ { alias /www/wwwroot/promo-hub/admin/; index index.html; try_files $uri $uri/ /admin/index.html; }
+    location /manager/ { alias /www/wwwroot/promo-hub/manager/; index index.html; try_files $uri $uri/ /manager/index.html; }
+    location /user/ { alias /www/wwwroot/promo-hub/user/; index index.html; try_files $uri $uri/ /user/index.html; }
+    location /api/ { proxy_pass http://127.0.0.1:3000/; proxy_set_header Host $host; proxy_set_header X-Real-IP $remote_addr; proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for; proxy_set_header X-Forwarded-Proto $scheme; }
+}
+NGINXEOF
+nginx -t && nginx -s reload
+echo "部署完成！"
+SCRIPTEOF
+            chmod +x deploy-runner.sh
+            bash deploy-runner.sh
+            echo "=== 部署完成 ==="
+            echo "Admin files: $(ls ${DEPLOY_DIR}/admin/ 2>/dev/null | wc -l)"
+            echo "Manager files: $(ls ${DEPLOY_DIR}/manager/ 2>/dev/null | wc -l)"
+            echo "User files: $(ls ${DEPLOY_DIR}/user/ 2>/dev/null | wc -l)"
