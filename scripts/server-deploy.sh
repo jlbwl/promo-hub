@@ -72,10 +72,17 @@ fi
 echo "🧹 清理所有可能冲突的 Nginx 配置..."
 rm -f /etc/nginx/conf.d/*.conf /etc/nginx/sites-enabled/* 2>/dev/null
 mkdir -p /etc/nginx/ssl
+mkdir -p /var/www/html/.well-known/acme-challenge
 
 # 检查是否有真实证书文件
 HAS_REAL_CERT=0
-if [ -f /etc/nginx/ssl/www.jlbtg.cn.pem ] && [ -f /etc/nginx/ssl/www.jlbtg.cn.key ]; then
+# 优先检查 Let's Encrypt 证书
+if [ -f /etc/letsencrypt/live/www.jlbtg.cn/fullchain.pem ] && [ -f /etc/letsencrypt/live/www.jlbtg.cn/privkey.pem ]; then
+    echo "✅ 检测到 Let's Encrypt 证书，正在使用..."
+    cp -f /etc/letsencrypt/live/www.jlbtg.cn/fullchain.pem /etc/nginx/ssl/www.jlbtg.cn.pem
+    cp -f /etc/letsencrypt/live/www.jlbtg.cn/privkey.pem /etc/nginx/ssl/www.jlbtg.cn.key
+    HAS_REAL_CERT=1
+elif [ -f /etc/nginx/ssl/www.jlbtg.cn.pem ] && [ -f /etc/nginx/ssl/www.jlbtg.cn.key ]; then
     # 检查是否是自签名证书
     if openssl x509 -in /etc/nginx/ssl/www.jlbtg.cn.pem -text -noout 2>/dev/null | grep -q "issuer.*CN.*www.jlbtg.cn"; then
         echo "⚠️  检测到自签名证书，准备尝试获取真实证书..."
@@ -88,7 +95,8 @@ fi
 # 尝试获取 Let's Encrypt 证书（如果没有真实证书）
 if [ $HAS_REAL_CERT -eq 0 ] && command -v certbot &>/dev/null; then
     echo "🔐 尝试使用 certbot 获取 Let's Encrypt 证书..."
-    certbot certonly --nginx -d www.jlbtg.cn -d jlbtg.cn --non-interactive --agree-tos -m dev@jlbtg.cn 2>/dev/null || true
+    # 使用 webroot 模式获取证书（更可靠）
+    certbot certonly --webroot -w /var/www/html -d www.jlbtg.cn -d jlbtg.cn --non-interactive --agree-tos -m dev@jlbtg.cn 2>/dev/null || true
     
     # 如果 certbot 获取成功，复制到标准位置
     if [ -f /etc/letsencrypt/live/www.jlbtg.cn/fullchain.pem ] && [ -f /etc/letsencrypt/live/www.jlbtg.cn/privkey.pem ]; then
@@ -119,40 +127,41 @@ server {
     gzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript image/svg+xml;
     gzip_min_length 1024;
     
-    # 根路径跳转到 /user/
-    location = / { return 302 /user/; }
-    location / { return 302 /user/; }
+    # Let's Encrypt ACME 验证路径 (必须保持在 HTTP)
+    location /.well-known/acme-challenge/ {
+        root /var/www/html;
+        allow all;
+    }
     
-    # 管理员后台
-    location /admin/ { alias /www/wwwroot/promo-hub/admin/; index index.html; try_files $uri $uri/ /admin/index.html; }
-    
-    # 渠道经理后台
-    location /manager/ { alias /www/wwwroot/promo-hub/manager/; index index.html; try_files $uri $uri/ /manager/index.html; }
-    
-    # 用户端
-    location /user/ { alias /www/wwwroot/promo-hub/user/; index index.html; try_files $uri $uri/ /user/index.html; }
-    
-    # API 反向代理
-    location /api/ { proxy_pass http://127.0.0.1:3000/; proxy_set_header Host $host; proxy_set_header X-Real-IP $remote_addr; proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for; proxy_set_header X-Forwarded-Proto $scheme; }
+    # 所有其他 HTTP 请求重定向到 HTTPS
+    location / {
+        return 301 https://$host$request_uri;
+    }
 }
 
 server {
-    listen 443 ssl;
+    listen 443 ssl http2;
     server_name www.jlbtg.cn jlbtg.cn;
     gzip on;
     gzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript image/svg+xml;
     gzip_min_length 1024;
     
+    # SSL 证书配置
     ssl_certificate /etc/nginx/ssl/www.jlbtg.cn.pem;
     ssl_certificate_key /etc/nginx/ssl/www.jlbtg.cn.key;
-    ssl_protocols TLSv1 TLSv1.1 TLSv1.2 TLSv1.3;
-    ssl_ciphers HIGH:!aNULL:!MD5;
     
-    # 根路径跳转到 /user/
-    location = / { return 302 /user/; }
-    location / { return 302 /user/; }
+    # SSL 安全配置
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384;
+    ssl_prefer_server_ciphers off;
+    ssl_session_cache shared:SSL:10m;
+    ssl_session_timeout 1d;
+    ssl_session_tickets off;
     
-    # 管理员后台
+    # HSTS (HTTP Strict Transport Security)
+    add_header Strict-Transport-Security "max-age=63072000; includeSubDomains" always;
+    
+    # 管理员后台 (最优先)
     location /admin/ { alias /www/wwwroot/promo-hub/admin/; index index.html; try_files $uri $uri/ /admin/index.html; }
     
     # 渠道经理后台
@@ -163,6 +172,9 @@ server {
     
     # API 反向代理
     location /api/ { proxy_pass http://127.0.0.1:3000/; proxy_set_header Host $host; proxy_set_header X-Real-IP $remote_addr; proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for; proxy_set_header X-Forwarded-Proto $scheme; }
+    
+    # 根路径精确匹配 - 跳转到 /user/
+    location = / { return 302 /user/; }
 }
 NGINXEOF
 

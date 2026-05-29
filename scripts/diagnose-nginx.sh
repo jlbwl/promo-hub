@@ -48,24 +48,46 @@ echo "=== 强制重写 Nginx 配置 ==="
 cat > "${NGINX_CONF}" << 'EOF'
 server {
     listen 80;
-    server_name _;
-
-    # Gzip 压缩
+    server_name www.jlbtg.cn jlbtg.cn;
     gzip on;
     gzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript image/svg+xml;
     gzip_min_length 1024;
-
-    # 根路径精确匹配 - 强制跳转到用户端
-    location = / {
-        return 302 /user/;
+    
+    # Let's Encrypt ACME 验证路径 (必须保持在 HTTP)
+    location /.well-known/acme-challenge/ {
+        root /var/www/html;
+        allow all;
     }
-
-    # 其他所有路径 - 也跳转到用户端
+    
+    # 所有其他 HTTP 请求重定向到 HTTPS
     location / {
-        return 302 /user/;
+        return 301 https://$host$request_uri;
     }
+}
 
-    # 管理员后台
+server {
+    listen 443 ssl http2;
+    server_name www.jlbtg.cn jlbtg.cn;
+    gzip on;
+    gzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript image/svg+xml;
+    gzip_min_length 1024;
+    
+    # SSL 证书配置
+    ssl_certificate /etc/nginx/ssl/www.jlbtg.cn.pem;
+    ssl_certificate_key /etc/nginx/ssl/www.jlbtg.cn.key;
+    
+    # SSL 安全配置
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384;
+    ssl_prefer_server_ciphers off;
+    ssl_session_cache shared:SSL:10m;
+    ssl_session_timeout 1d;
+    ssl_session_tickets off;
+    
+    # HSTS (HTTP Strict Transport Security)
+    add_header Strict-Transport-Security "max-age=63072000; includeSubDomains" always;
+
+    # 管理员后台 (最优先)
     location /admin/ {
         alias /www/wwwroot/promo-hub/admin/;
         index index.html;
@@ -93,6 +115,11 @@ server {
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # 根路径精确匹配 - 强制跳转到用户端
+    location = / {
+        return 302 /user/;
     }
 }
 EOF
