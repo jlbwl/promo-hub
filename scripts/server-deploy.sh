@@ -73,13 +73,41 @@ echo "🧹 清理所有可能冲突的 Nginx 配置..."
 rm -f /etc/nginx/conf.d/*.conf /etc/nginx/sites-enabled/* 2>/dev/null
 mkdir -p /etc/nginx/ssl
 
-# 创建自签名证书作为备用方案
-if [ ! -f /etc/nginx/ssl/www.jlbtg.cn.pem ] || [ ! -f /etc/nginx/ssl/www.jlbtg.cn.key ]; then
-    echo "🔐 SSL 证书不存在，正在创建自签名证书..."
-    openssl req -x509 -nodes -days 3650 -newkey rsa:2048 \
-        -keyout /etc/nginx/ssl/www.jlbtg.cn.key \
-        -out /etc/nginx/ssl/www.jlbtg.cn.pem \
-        -subj "/C=CN/ST=Beijing/L=Beijing/O=Dev/OU=Dev/CN=www.jlbtg.cn/emailAddress=dev@jlbtg.cn" 2>/dev/null || true
+# 检查是否有真实证书文件
+HAS_REAL_CERT=0
+if [ -f /etc/nginx/ssl/www.jlbtg.cn.pem ] && [ -f /etc/nginx/ssl/www.jlbtg.cn.key ]; then
+    # 检查是否是自签名证书
+    if openssl x509 -in /etc/nginx/ssl/www.jlbtg.cn.pem -text -noout 2>/dev/null | grep -q "issuer.*CN.*www.jlbtg.cn"; then
+        echo "⚠️  检测到自签名证书，准备尝试获取真实证书..."
+    else
+        echo "✅ 检测到真实 SSL 证书"
+        HAS_REAL_CERT=1
+    fi
+fi
+
+# 尝试获取 Let's Encrypt 证书（如果没有真实证书）
+if [ $HAS_REAL_CERT -eq 0 ] && command -v certbot &>/dev/null; then
+    echo "🔐 尝试使用 certbot 获取 Let's Encrypt 证书..."
+    certbot certonly --nginx -d www.jlbtg.cn -d jlbtg.cn --non-interactive --agree-tos -m dev@jlbtg.cn 2>/dev/null || true
+    
+    # 如果 certbot 获取成功，复制到标准位置
+    if [ -f /etc/letsencrypt/live/www.jlbtg.cn/fullchain.pem ] && [ -f /etc/letsencrypt/live/www.jlbtg.cn/privkey.pem ]; then
+        cp -f /etc/letsencrypt/live/www.jlbtg.cn/fullchain.pem /etc/nginx/ssl/www.jlbtg.cn.pem
+        cp -f /etc/letsencrypt/live/www.jlbtg.cn/privkey.pem /etc/nginx/ssl/www.jlbtg.cn.key
+        echo "✅ Let's Encrypt 证书已安装"
+        HAS_REAL_CERT=1
+    fi
+fi
+
+# 如果仍然没有证书，创建自签名证书作为备用方案
+if [ $HAS_REAL_CERT -eq 0 ]; then
+    if [ ! -f /etc/nginx/ssl/www.jlbtg.cn.pem ] || [ ! -f /etc/nginx/ssl/www.jlbtg.cn.key ]; then
+        echo "⚠️  未能获取真实证书，正在创建自签名证书用于临时测试..."
+        openssl req -x509 -nodes -days 3650 -newkey rsa:2048 \
+            -keyout /etc/nginx/ssl/www.jlbtg.cn.key \
+            -out /etc/nginx/ssl/www.jlbtg.cn.pem \
+            -subj "/C=CN/ST=Beijing/L=Beijing/O=Dev/OU=Dev/CN=www.jlbtg.cn/emailAddress=dev@jlbtg.cn" 2>/dev/null || true
+    fi
 fi
 
 # 强制重写 Nginx 配置 - 同时支持 HTTP 和 HTTPS
