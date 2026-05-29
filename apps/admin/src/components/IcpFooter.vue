@@ -3,7 +3,7 @@
     <div class="icp-info">
       <a
         v-if="icpNumber"
-        href="http://beian.miit.gov.cn/"
+        href="https://beian.miit.gov.cn/"
         target="_blank"
         rel="noopener noreferrer"
         class="icp-link"
