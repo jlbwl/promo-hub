@@ -181,5 +181,18 @@ NGINXEOF
 # 测试并重载 Nginx
 nginx -t && nginx -s reload
 
+echo ""
+echo "📋 运行诊断检查..."
+echo "----------------------------------------"
+echo "部署目录文件检查:"
+ls -la ${DEPLOY_DIR}/admin/ 2>/dev/null || true
+ls -la ${DEPLOY_DIR}/manager/ 2>/dev/null || true
+ls -la ${DEPLOY_DIR}/user/ 2>/dev/null || true
+echo ""
+echo "PM2 服务状态:"
+pm2 status
+echo ""
+echo "----------------------------------------"
 echo "🎉 部署完成！"
-echo "User files: $(ls ${DEPLOY_DIR}/user/ 2>/dev/null | wc -l)"
+echo ""
+echo "User files: $(ls ${DEPLOY_DIR}/user 2>/dev/null | wc -l)"
