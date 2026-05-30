@@ -245,24 +245,30 @@ jobs:
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: ${{ secrets.SERVER_PORT || 22 }}
           script: |
-            set -e
             DEPLOY_DIR="/www/wwwroot/promo-hub"
+            
+            echo "🔍 当前工作目录: $(pwd)"
+            echo "🔍 DEPLOY_DIR: ${DEPLOY_DIR}"
             
             # 调试：检查API目录文件
             echo "🔍 检查API目录内容..."
-            ls -la "${DEPLOY_DIR}/api/" || echo "⚠️ API目录不存在或为空"
+            ls -la "${DEPLOY_DIR}/api/" 2>&1 || echo "⚠️ API目录不存在或为空"
             
             # 修复：如果存在API-dist目录，复制其内容到api目录
+            echo "🔍 检查API-dist是否存在..."
             if [ -d "${DEPLOY_DIR}/api/API-dist" ]; then
-                echo "🔧 发现API-dist目录，正在复制内容..."
-                cp -r "${DEPLOY_DIR}/api/API-dist/"* "${DEPLOY_DIR}/api/" 2>/dev/null || true
-                rm -rf "${DEPLOY_DIR}/api/API-dist"
+                echo "✅ 找到API-dist目录，正在复制内容..."
+                ls -la "${DEPLOY_DIR}/api/API-dist/" 2>&1
+                cp -r "${DEPLOY_DIR}/api/API-dist/"* "${DEPLOY_DIR}/api/" 2>&1
+                rm -rf "${DEPLOY_DIR}/api/API-dist" 2>&1
                 echo "✅ API-dist内容已复制到api目录"
+            else
+                echo "❌ API-dist目录不存在"
             fi
             
             # 再次检查index.js
             echo "🔍 检查index.js..."
-            ls -la "${DEPLOY_DIR}/api/"
+            ls -la "${DEPLOY_DIR}/api/" 2>&1
             
             # 创建 .env 文件
             cd "${DEPLOY_DIR}/api"
