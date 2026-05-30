@@ -1,13 +1,16 @@
 #!/bin/bash
 # ============================================================
-# 项目部署脚本 (简化版)
+# 项目部署脚本 (增强版)
 # 智能模式：无证书时使用HTTP-only，有证书时启用HTTPS
+# 增强SSL证书验证和错误处理
 # ============================================================
 
 set -e
 
 DEPLOY_DIR="/www/wwwroot/promo-hub"
 NGINX_CONF="/etc/nginx/conf.d/promo-hub.conf"
+CERT_FILE="/etc/nginx/ssl/www.jlbtg.cn.pem"
+KEY_FILE="/etc/nginx/ssl/www.jlbtg.cn.key"
 
 # 准备目录
 mkdir -p "${DEPLOY_DIR}"
@@ -18,22 +21,62 @@ mkdir -p /var/www/html/.well-known/acme-challenge
 rm -f /etc/nginx/conf.d/*.conf 2>/dev/null
 
 # ============================================================
-# 检查证书是否存在
+# 检查证书是否存在并验证
 # ============================================================
 HAS_CERT=0
-if [ -f "/etc/nginx/ssl/www.jlbtg.cn.pem" ] && [ -f "/etc/nginx/ssl/www.jlbtg.cn.key" ]; then
-    HAS_CERT=1
+if [ -f "$CERT_FILE" ] && [ -f "$KEY_FILE" ]; then
+    echo "========================================================"
+    echo " 验证SSL证书"
+    echo "========================================================"
+    
+    # 验证证书格式
+    if openssl x509 -in "$CERT_FILE" -noout 2>/dev/null; then
+        echo "✅ 证书格式正确"
+        
+        # 验证私钥格式
+        if openssl rsa -in "$KEY_FILE" -check -noout 2>/dev/null; then
+            echo "✅ 私钥格式正确"
+            
+            # 检查证书和私钥是否匹配
+            CERT_MODULUS=$(openssl x509 -in "$CERT_FILE" -noout -modulus 2>/dev/null | md5sum | cut -d' ' -f1)
+            KEY_MODULUS=$(openssl rsa -in "$KEY_FILE" -noout -modulus 2>/dev/null | md5sum | cut -d' ' -f1)
+            
+            if [ "$CERT_MODULUS" = "$KEY_MODULUS" ]; then
+                echo "✅ 证书和私钥匹配"
+                HAS_CERT=1
+                
+                # 显示证书信息
+                CERT_SUBJECT=$(openssl x509 -in "$CERT_FILE" -subject -noout 2>&1 | sed 's/subject=//')
+                CERT_EXPIRY=$(openssl x509 -in "$CERT_FILE" -enddate -noout 2>&1 | cut -d= -f2)
+                echo "   证书主题: $CERT_SUBJECT"
+                echo "   过期时间: $CERT_EXPIRY"
+                
+                # 修复权限
+                chmod 600 "$KEY_FILE"
+                chmod 644 "$CERT_FILE"
+                chown -R root:root /etc/nginx/ssl/
+                echo "✅ 证书权限已修复"
+            else
+                echo "❌ 证书和私钥不匹配，将使用HTTP-only模式"
+            fi
+        else
+            echo "❌ 私钥格式不正确，将使用HTTP-only模式"
+        fi
+    else
+        echo "❌ 证书格式不正确，将使用HTTP-only模式"
+    fi
 fi
 
+echo ""
 echo "========================================================"
 echo " 项目部署脚本"
 echo "========================================================"
 
 if [ $HAS_CERT -eq 1 ]; then
-    echo "✅ 检测到SSL证书，将启用HTTPS模式"
+    echo "✅ SSL证书验证通过，将启用HTTPS模式"
 else
-    echo "⚠️  未检测到SSL证书，将使用HTTP-only模式"
-    echo "   请上传证书后再次部署以启用HTTPS"
+    echo "⚠️  未检测到有效SSL证书，将使用HTTP-only模式"
+    echo "   请上传有效证书后再次部署以启用HTTPS"
 fi
 
 # ============================================================
