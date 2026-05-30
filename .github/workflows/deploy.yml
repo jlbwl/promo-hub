@@ -107,8 +107,7 @@ jobs:
         uses: actions/upload-artifact@v5
         with:
           name: api-dist
-          path: |
-            apps/api/dist
+          path: apps/api/dist
             
       - name: Upload Nginx config
         uses: actions/upload-artifact@v5
