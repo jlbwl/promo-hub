@@ -1,139 +1,137 @@
 #!/bin/bash
+# ============================================================
+# 项目部署脚本 - 2 阶段证书处理
+# ============================================================
+
 set -e
 
-echo "🚀 开始服务器部署..."
-
-# 配置变量
 DEPLOY_DIR="/www/wwwroot/promo-hub"
 NGINX_CONF="/etc/nginx/conf.d/promo-hub.conf"
+ACME_DIR="/var/www/html"
 
-# 清理干扰文件
-echo "=== 清理根目录旧文件 ==="
-rm -f "${DEPLOY_DIR}/index.html" "${DEPLOY_DIR}/index.htm" 2>/dev/null || true
-rm -f /var/www/html/index.html /usr/share/nginx/html/index.html 2>/dev/null || true
-
-# 创建必要目录
-mkdir -p "${DEPLOY_DIR}/api/data/uploads"
-cd "${DEPLOY_DIR}/api"
-
-# 创建 package.json
-cat > package.json << 'PKGEOF'
-{"name":"@promo/api","version":"1.0.0","private":true,"type":"module","scripts":{"dev":"tsx watch src/index.ts","build":"tsc","start":"node index.js"},"dependencies":{"bcryptjs":"^2.4.3","connect-mongo":"^5.1.0","cors":"^2.8.5","dotenv":"^17.4.2","express":"^4.21.0","express-rate-limit":"^8.5.1","express-session":"^1.18.1","multer":"^1.4.5-lts.1","mysql2":"^3.22.3","redis":"^5.12.1","uuid":"^11.0.0"},"devDependencies":{"@types/cors":"^2.8.17","@types/express":"^5.0.0","@types/multer":"^1.4.12","@types/uuid":"^10.0.0","tsx":"^4.19.0","typescript":"^5.7.0"}}
-PKGEOF
-
-# 数据库修复 - 从 .env 文件加载环境变量
-echo "=== 修复数据库 ==="
-if [ -f .env ]; then
-  export $(grep -v '^#' .env | xargs)
-fi
-
-if command -v mysql &> /dev/null; then
-  mysql -h "${DB_HOST:-localhost}" -P "${DB_PORT:-3306}" -u "${DB_USER:-root}" -p"${DB_PASSWORD:-}" "${DB_NAME:-promo_hub}" \
-    -e "ALTER TABLE orders ADD COLUMN IF NOT EXISTS teamName VARCHAR(200) DEFAULT '' AFTER userPhone, ADD COLUMN IF NOT EXISTS userName VARCHAR(200) DEFAULT '' AFTER redirectUrl, ADD COLUMN IF NOT EXISTS userPhone VARCHAR(50) DEFAULT '' AFTER userName;" 2>/dev/null || true
-
-  mysql -h "${DB_HOST:-localhost}" -P "${DB_PORT:-3306}" -u "${DB_USER:-root}" -p"${DB_PASSWORD:-}" "${DB_NAME:-promo_hub}" \
-    -e "ALTER TABLE products ADD COLUMN IF NOT EXISTS requireName TINYINT(1) NOT NULL DEFAULT 0 AFTER offlineAt, ADD COLUMN IF NOT EXISTS requirePhone TINYINT(1) NOT NULL DEFAULT 0 AFTER requireName, ADD COLUMN IF NOT EXISTS categoryId VARCHAR(100) DEFAULT '' AFTER category, ADD COLUMN IF NOT EXISTS categoryNameSnapshot VARCHAR(200) DEFAULT '' AFTER categoryId;" 2>/dev/null || true
-
-  mysql -h "${DB_HOST:-localhost}" -P "${DB_PORT:-3306}" -u "${DB_USER:-root}" -p"${DB_PASSWORD:-}" "${DB_NAME:-promo_hub}" \
-    -e "CREATE TABLE IF NOT EXISTS employees (id VARCHAR(100) PRIMARY KEY, userId VARCHAR(100) NOT NULL, phone VARCHAR(50) NOT NULL, password VARCHAR(500) NOT NULL, nickname VARCHAR(200) DEFAULT '', expiresAt DATETIME NOT NULL, status VARCHAR(50) NOT NULL DEFAULT 'active', createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, INDEX idx_userId (userId), INDEX idx_phone (phone), INDEX idx_expiresAt (expiresAt)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;" 2>/dev/null || true
-
-  mysql -h "${DB_HOST:-localhost}" -P "${DB_PORT:-3306}" -u "${DB_USER:-root}" -p"${DB_PASSWORD:-}" "${DB_NAME:-promo_hub}" \
-    -e "CREATE TABLE IF NOT EXISTS product_categories (id VARCHAR(100) PRIMARY KEY, name VARCHAR(200) NOT NULL, value VARCHAR(200) NOT NULL, sort INT NOT NULL DEFAULT 0, status VARCHAR(50) NOT NULL DEFAULT 'active', createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;" 2>/dev/null || true
-
-  mysql -h "${DB_HOST:-localhost}" -P "${DB_PORT:-3306}" -u "${DB_USER:-root}" -p"${DB_PASSWORD:-}" "${DB_NAME:-promo_hub}" \
-    -e "INSERT IGNORE INTO product_categories (id, name, value, sort, status, createdAt, updatedAt) VALUES ('cat_1', '综合-立返', 'comprehensive-instant', 1, 'active', NOW(), NOW()), ('cat_2', '综合-数据', 'comprehensive-data', 2, 'active', NOW(), NOW()), ('cat_3', '个养和加挂', 'personal-insurance', 3, 'active', NOW(), NOW()), ('cat_4', '限三-立返', 'limit3-instant', 4, 'active', NOW(), NOW()), ('cat_5', '限三-数据', 'limit3-data', 5, 'active', NOW(), NOW()), ('cat_6', '不限三-立返', 'unlimit3-instant', 6, 'active', NOW(), NOW()), ('cat_7', '不限三-数据', 'unlimit3-data', 7, 'active', NOW(), NOW()), ('cat_8', '三方-立返', 'third-party-instant', 8, 'active', NOW(), NOW()), ('cat_9', '三方-数据', 'third-party-data', 9, 'active', NOW(), NOW()), ('cat_10', '其它', 'other', 10, 'active', NOW(), NOW());" 2>/dev/null || true
-fi
-
-# 停止旧进程
-pm2 stop promo-api 2>/dev/null || true
-pm2 delete promo-api 2>/dev/null || true
-
-# 移动构建文件
-if [ -f "dist/index.js" ]; then
-  mv -f dist/* . 2>/dev/null || true
-  rm -rf dist
-fi
-
-# 安装依赖
-rm -rf node_modules package-lock.json
-npm install --production --no-audit
-
-# 启动服务
-pm2 start index.js --name promo-api --cwd "${DEPLOY_DIR}/api" -f
-sleep 5
-
-# 更新 Nginx 配置 - 确保根路径跳转到 /user/
-mkdir -p "${DEPLOY_DIR}/nginx"
-if [ -f nginx-config/nginx.conf ]; then
-  cp nginx-config/nginx.conf "${NGINX_CONF}"
-fi
-
-# 先清理所有可能冲突的 Nginx 配置
-echo "🧹 清理所有可能冲突的 Nginx 配置..."
-rm -f /etc/nginx/conf.d/*.conf /etc/nginx/sites-enabled/* 2>/dev/null
+# 准备目录
+mkdir -p ${DEPLOY_DIR}
 mkdir -p /etc/nginx/ssl
-mkdir -p /var/www/html/.well-known/acme-challenge
+mkdir -p ${ACME_DIR}/.well-known/acme-challenge
 
-# 检查是否有真实证书文件
-HAS_REAL_CERT=0
-# 优先检查 Let's Encrypt 证书
-if [ -f /etc/letsencrypt/live/www.jlbtg.cn/fullchain.pem ] && [ -f /etc/letsencrypt/live/www.jlbtg.cn/privkey.pem ]; then
-    echo "✅ 检测到 Let's Encrypt 证书，正在使用..."
-    cp -f /etc/letsencrypt/live/www.jlbtg.cn/fullchain.pem /etc/nginx/ssl/www.jlbtg.cn.pem
-    cp -f /etc/letsencrypt/live/www.jlbtg.cn/privkey.pem /etc/nginx/ssl/www.jlbtg.cn.key
-    HAS_REAL_CERT=1
-elif [ -f /etc/nginx/ssl/www.jlbtg.cn.pem ] && [ -f /etc/nginx/ssl/www.jlbtg.cn.key ]; then
-    # 检查是否是自签名证书
-    if openssl x509 -in /etc/nginx/ssl/www.jlbtg.cn.pem -text -noout 2>/dev/null | grep -q "issuer.*CN.*www.jlbtg.cn"; then
-        echo "⚠️  检测到自签名证书，准备尝试获取真实证书..."
-    else
-        echo "✅ 检测到真实 SSL 证书"
-        HAS_REAL_CERT=1
-    fi
-fi
+# 清理可能冲突的旧配置
+rm -f /etc/nginx/conf.d/*.conf 2>/dev/null
 
-# 尝试获取 Let's Encrypt 证书（如果没有真实证书）
-if [ $HAS_REAL_CERT -eq 0 ] && command -v certbot &>/dev/null; then
-    echo "🔐 尝试使用 certbot 获取 Let's Encrypt 证书..."
-    # 使用 webroot 模式获取证书（更可靠）
-    certbot certonly --webroot -w /var/www/html -d www.jlbtg.cn -d jlbtg.cn --non-interactive --agree-tos -m dev@jlbtg.cn 2>/dev/null || true
-    
-    # 如果 certbot 获取成功，复制到标准位置
-    if [ -f /etc/letsencrypt/live/www.jlbtg.cn/fullchain.pem ] && [ -f /etc/letsencrypt/live/www.jlbtg.cn/privkey.pem ]; then
-        cp -f /etc/letsencrypt/live/www.jlbtg.cn/fullchain.pem /etc/nginx/ssl/www.jlbtg.cn.pem
-        cp -f /etc/letsencrypt/live/www.jlbtg.cn/privkey.pem /etc/nginx/ssl/www.jlbtg.cn.key
-        echo "✅ Let's Encrypt 证书已安装"
-        HAS_REAL_CERT=1
-    fi
-fi
+# ============================================================
+# 阶段 1：仅 HTTP 配置（用于 ACME 验证）
+# ============================================================
+echo "========================================================"
+echo " 阶段 1: 配置 HTTP 用于 Let's Encrypt 验证"
+echo "========================================================"
 
-# 如果仍然没有证书，创建自签名证书作为备用方案
-if [ $HAS_REAL_CERT -eq 0 ]; then
-    if [ ! -f /etc/nginx/ssl/www.jlbtg.cn.pem ] || [ ! -f /etc/nginx/ssl/www.jlbtg.cn.key ]; then
-        echo "⚠️  未能获取真实证书，正在创建自签名证书用于临时测试..."
-        openssl req -x509 -nodes -days 3650 -newkey rsa:2048 \
-            -keyout /etc/nginx/ssl/www.jlbtg.cn.key \
-            -out /etc/nginx/ssl/www.jlbtg.cn.pem \
-            -subj "/C=CN/ST=Beijing/L=Beijing/O=Dev/OU=Dev/CN=www.jlbtg.cn/emailAddress=dev@jlbtg.cn" 2>/dev/null || true
-    fi
-fi
-
-# 强制重写 Nginx 配置 - 同时支持 HTTP 和 HTTPS
-cat > "${NGINX_CONF}" << 'NGINXEOF'
+cat > ${NGINX_CONF} << 'HTTP_ONLY'
 server {
     listen 80;
     server_name www.jlbtg.cn jlbtg.cn;
-    gzip on;
-    gzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript image/svg+xml;
-    gzip_min_length 1024;
     
-    # Let's Encrypt ACME 验证路径 (必须保持在 HTTP)
+    # ACME 验证路径
     location /.well-known/acme-challenge/ {
         root /var/www/html;
         allow all;
     }
     
-    # 所有其他 HTTP 请求重定向到 HTTPS
+    # 其他路径先直接服务（避免重定向影响验证）
+    location /admin/ { alias /www/wwwroot/promo-hub/admin/; index index.html; try_files $uri $uri/ /admin/index.html; }
+    location /manager/ { alias /www/wwwroot/promo-hub/manager/; index index.html; try_files $uri $uri/ /manager/index.html; }
+    location /user/ { alias /www/wwwroot/promo-hub/user/; index index.html; try_files $uri $uri/ /user/index.html; }
+    location /api/ { proxy_pass http://127.0.0.1:3000/; proxy_set_header Host $host; proxy_set_header X-Real-IP $remote_addr; proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for; proxy_set_header X-Forwarded-Proto $scheme; }
+    location = / { return 302 /user/; }
+}
+HTTP_ONLY
+
+# 先重载 Nginx
+nginx -t
+nginx -s reload
+
+sleep 2
+
+# ============================================================
+# 阶段 2：获取 Let's Encrypt 证书
+# ============================================================
+echo ""
+echo "========================================================"
+echo " 阶段 2: 尝试获取 Let's Encrypt 证书"
+echo "========================================================"
+
+HAS_REAL_CERT=0
+
+# 方法 1: 检查是否已有 Let's Encrypt 证书
+if [ -f /etc/letsencrypt/live/www.jlbtg.cn/fullchain.pem ] && [ -f /etc/letsencrypt/live/www.jlbtg.cn/privkey.pem ]; then
+    echo "✅ 找到已有的 Let's Encrypt 证书"
+    cp -f /etc/letsencrypt/live/www.jlbtg.cn/fullchain.pem /etc/nginx/ssl/www.jlbtg.cn.pem
+    cp -f /etc/letsencrypt/live/www.jlbtg.cn/privkey.pem /etc/nginx/ssl/www.jlbtg.cn.key
+    chmod 600 /etc/nginx/ssl/www.jlbtg.cn.key
+    HAS_REAL_CERT=1
+fi
+
+# 方法 2: 使用 certbot 获取新证书
+if [ $HAS_REAL_CERT -eq 0 ] && command -v certbot &> /dev/null; then
+    echo "🔐 尝试用 certbot 获取证书..."
+    certbot certonly --webroot -w /var/www/html -d www.jlbtg.cn -d jlbtg.cn --non-interactive --agree-tos -m dev@jlbtg.cn --keep-until-expiring 2>&1 || true
+    
+    if [ -f /etc/letsencrypt/live/www.jlbtg.cn/fullchain.pem ] && [ -f /etc/letsencrypt/live/www.jlbtg.cn/privkey.pem ]; then
+        cp -f /etc/letsencrypt/live/www.jlbtg.cn/fullchain.pem /etc/nginx/ssl/www.jlbtg.cn.pem
+        cp -f /etc/letsencrypt/live/www.jlbtg.cn/privkey.pem /etc/nginx/ssl/www.jlbtg.cn.key
+        chmod 600 /etc/nginx/ssl/www.jlbtg.cn.key
+        HAS_REAL_CERT=1
+        echo "✅ Let's Encrypt 证书获取成功！"
+    fi
+fi
+
+# 方法 3: 检查是否有有效的真实证书（不是未来时间的）
+if [ $HAS_REAL_CERT -eq 0 ] && [ -f /etc/nginx/ssl/www.jlbtg.cn.pem ] && [ -f /etc/nginx/ssl/www.jlbtg.cn.key ]; then
+    # 检查证书时间是否合理
+    if openssl x509 -in /etc/nginx/ssl/www.jlbtg.cn.pem -checkend 0 -noout 2>/dev/null; then
+        echo "✅ 现有证书有效"
+        HAS_REAL_CERT=1
+    else
+        echo "⚠️  现有证书无效（可能时间有问题）"
+    fi
+fi
+
+# 方法 4: 如果都没有，重新生成当前时间有效的自签名证书
+if [ $HAS_REAL_CERT -eq 0 ]; then
+    echo "🔑 重新生成当前时间有效的自签名证书..."
+    # 确保 NTP 时间同步（如果可以）
+    if command -v ntpdate &> /dev/null; then
+        ntpdate -u pool.ntp.org 2>/dev/null || true
+    fi
+    # 强制重新生成证书
+    openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+        -keyout /etc/nginx/ssl/www.jlbtg.cn.key \
+        -out /etc/nginx/ssl/www.jlbtg.cn.pem \
+        -subj "/C=CN/ST=Beijing/L=Beijing/O=Dev/OU=Dev/CN=www.jlbtg.cn" \
+        -addext "subjectAltName=DNS:www.jlbtg.cn,DNS:jlbtg.cn" 2>&1 || true
+    chmod 600 /etc/nginx/ssl/www.jlbtg.cn.key
+fi
+
+# ============================================================
+# 阶段 3：部署完整的 HTTPS + HTTP 配置
+# ============================================================
+echo ""
+echo "========================================================"
+echo " 阶段 3: 部署完整的 Nginx 配置"
+echo "========================================================"
+
+if [ $HAS_REAL_CERT -eq 1 ]; then
+    echo "🔐 使用 HTTPS 配置"
+    cat > ${NGINX_CONF} << 'HTTPS_CONF'
+server {
+    listen 80;
+    server_name www.jlbtg.cn jlbtg.cn;
+    
+    # ACME 验证路径保持开放
+    location /.well-known/acme-challenge/ {
+        root /var/www/html;
+        allow all;
+    }
+    
+    # 其他重定向到 HTTPS
     location / {
         return 301 https://$host$request_uri;
     }
@@ -142,57 +140,67 @@ server {
 server {
     listen 443 ssl http2;
     server_name www.jlbtg.cn jlbtg.cn;
+    
     gzip on;
     gzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript image/svg+xml;
     gzip_min_length 1024;
     
-    # SSL 证书配置
+    # SSL 证书
     ssl_certificate /etc/nginx/ssl/www.jlbtg.cn.pem;
     ssl_certificate_key /etc/nginx/ssl/www.jlbtg.cn.key;
     
-    # SSL 安全配置
+    # 安全配置
     ssl_protocols TLSv1.2 TLSv1.3;
-    ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384;
     ssl_prefer_server_ciphers off;
     ssl_session_cache shared:SSL:10m;
     ssl_session_timeout 1d;
     ssl_session_tickets off;
     
-    # HSTS (HTTP Strict Transport Security)
-    add_header Strict-Transport-Security "max-age=63072000; includeSubDomains" always;
-    
-    # 管理员后台 (最优先)
+    # 各路径配置
     location /admin/ { alias /www/wwwroot/promo-hub/admin/; index index.html; try_files $uri $uri/ /admin/index.html; }
-    
-    # 渠道经理后台
     location /manager/ { alias /www/wwwroot/promo-hub/manager/; index index.html; try_files $uri $uri/ /manager/index.html; }
-    
-    # 用户端
     location /user/ { alias /www/wwwroot/promo-hub/user/; index index.html; try_files $uri $uri/ /user/index.html; }
-    
-    # API 反向代理
     location /api/ { proxy_pass http://127.0.0.1:3000/; proxy_set_header Host $host; proxy_set_header X-Real-IP $remote_addr; proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for; proxy_set_header X-Forwarded-Proto $scheme; }
-    
-    # 根路径精确匹配 - 跳转到 /user/
     location = / { return 302 /user/; }
 }
-NGINXEOF
+HTTPS_CONF
+else
+    echo "⚠️  仅使用 HTTP 配置（临时方案）"
+fi
 
-# 测试并重载 Nginx
-nginx -t && nginx -s reload
+# ============================================================
+# 最后：测试并重载 Nginx
+# ============================================================
+nginx -t
+nginx -s reload
+
+# 部署 API 服务
+if [ -f ${DEPLOY_DIR}/api/index.js ]; then
+    cd ${DEPLOY_DIR}/api || exit 1
+    npm install --production 2>&1 || true
+    if command -v pm2 &> /dev/null; then
+        pm2 delete promo-api 2>/dev/null || true
+        pm2 start index.js --name promo-api
+    fi
+fi
 
 echo ""
-echo "📋 运行诊断检查..."
-echo "----------------------------------------"
-echo "部署目录文件检查:"
-ls -la ${DEPLOY_DIR}/admin/ 2>/dev/null || true
-ls -la ${DEPLOY_DIR}/manager/ 2>/dev/null || true
-ls -la ${DEPLOY_DIR}/user/ 2>/dev/null || true
+echo "========================================================"
+echo " 诊断信息"
+echo "========================================================"
+echo "Nginx 配置文件:"
+cat ${NGINX_CONF} | head -50
 echo ""
-echo "PM2 服务状态:"
-pm2 status
+echo "证书信息:"
+if [ -f /etc/nginx/ssl/www.jlbtg.cn.pem ]; then
+    openssl x509 -in /etc/nginx/ssl/www.jlbtg.cn.pem -text -noout | grep -A 2 -B 2 "Not Before\|Not After\|Subject:" || true
+else
+    echo "证书文件不存在"
+fi
 echo ""
-echo "----------------------------------------"
-echo "🎉 部署完成！"
+echo "部署目录:"
+ls -la ${DEPLOY_DIR}/ 2>/dev/null
 echo ""
-echo "User files: $(ls ${DEPLOY_DIR}/user 2>/dev/null | wc -l)"
+echo "========================================================"
+echo " 🎉 部署完成！"
+echo "========================================================"
