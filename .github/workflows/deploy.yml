@@ -252,6 +252,18 @@ jobs:
             echo "🔍 检查API目录内容..."
             ls -la "${DEPLOY_DIR}/api/" || echo "⚠️ API目录不存在或为空"
             
+            # 修复：如果存在API-dist目录，复制其内容到api目录
+            if [ -d "${DEPLOY_DIR}/api/API-dist" ]; then
+                echo "🔧 发现API-dist目录，正在复制内容..."
+                cp -r "${DEPLOY_DIR}/api/API-dist/"* "${DEPLOY_DIR}/api/" 2>/dev/null || true
+                rm -rf "${DEPLOY_DIR}/api/API-dist"
+                echo "✅ API-dist内容已复制到api目录"
+            fi
+            
+            # 再次检查index.js
+            echo "🔍 检查index.js..."
+            ls -la "${DEPLOY_DIR}/api/"
+            
             # 创建 .env 文件
             cd "${DEPLOY_DIR}/api"
             echo "DB_HOST=${{ secrets.DB_HOST }}" > .env
