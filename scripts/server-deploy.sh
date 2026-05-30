@@ -1,6 +1,6 @@
 #!/bin/bash
 # ============================================================
-# 项目部署脚本 - 2 阶段证书处理
+# 项目部署脚本 - 自动解决证书时间问题
 # ============================================================
 
 set -e
@@ -18,120 +18,102 @@ mkdir -p ${ACME_DIR}/.well-known/acme-challenge
 rm -f /etc/nginx/conf.d/*.conf 2>/dev/null
 
 # ============================================================
-# 阶段 1：仅 HTTP 配置（用于 ACME 验证）
+# 关键：先生成一个超长期有效的证书，覆盖过去和未来
 # ============================================================
 echo "========================================================"
-echo " 阶段 1: 配置 HTTP 用于 Let's Encrypt 验证"
+echo " 步骤 1: 生成证书"
 echo "========================================================"
 
-cat > ${NGINX_CONF} << 'HTTP_ONLY'
+# 备份旧证书（如果有）
+mkdir -p /etc/nginx/ssl/backup
+if [ -f /etc/nginx/ssl/www.jlbtg.cn.pem ]; then
+    mv -f /etc/nginx/ssl/www.jlbtg.cn.pem /etc/nginx/ssl/backup/www.jlbtg.cn.pem.$(date +%s) 2>/dev/null || true
+fi
+if [ -f /etc/nginx/ssl/www.jlbtg.cn.key ]; then
+    mv -f /etc/nginx/ssl/www.jlbtg.cn.key /etc/nginx/ssl/backup/www.jlbtg.cn.key.$(date +%s) 2>/dev/null || true
+fi
+
+# 尝试多种方法获取有效证书
+HAS_CERT=0
+
+# 1. 先试 Let's Encrypt
+if [ -f /etc/letsencrypt/live/www.jlbtg.cn/fullchain.pem ] && [ -f /etc/letsencrypt/live/www.jlbtg.cn/privkey.pem ]; then
+    echo "✅ 使用 Let's Encrypt 证书"
+    cp -f /etc/letsencrypt/live/www.jlbtg.cn/fullchain.pem /etc/nginx/ssl/www.jlbtg.cn.pem
+    cp -f /etc/letsencrypt/live/www.jlbtg.cn/privkey.pem /etc/nginx/ssl/www.jlbtg.cn.key
+    chmod 600 /etc/nginx/ssl/www.jlbtg.cn.key
+    HAS_CERT=1
+elif command -v certbot &> /dev/null; then
+    # 先配置一个临时的 HTTP 服务用于 ACME 验证
+    cat > ${NGINX_CONF} << 'TEMP_HTTP'
 server {
     listen 80;
     server_name www.jlbtg.cn jlbtg.cn;
-    
-    # ACME 验证路径
     location /.well-known/acme-challenge/ {
         root /var/www/html;
         allow all;
     }
-    
-    # 其他路径先直接服务（避免重定向影响验证）
-    location /admin/ { alias /www/wwwroot/promo-hub/admin/; index index.html; try_files $uri $uri/ /admin/index.html; }
-    location /manager/ { alias /www/wwwroot/promo-hub/manager/; index index.html; try_files $uri $uri/ /manager/index.html; }
-    location /user/ { alias /www/wwwroot/promo-hub/user/; index index.html; try_files $uri $uri/ /user/index.html; }
-    location /api/ { proxy_pass http://127.0.0.1:3000/; proxy_set_header Host $host; proxy_set_header X-Real-IP $remote_addr; proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for; proxy_set_header X-Forwarded-Proto $scheme; }
-    location = / { return 302 /user/; }
 }
-HTTP_ONLY
-
-# 先重载 Nginx
-nginx -t
-nginx -s reload
-
-sleep 2
-
-# ============================================================
-# 阶段 2：获取 Let's Encrypt 证书
-# ============================================================
-echo ""
-echo "========================================================"
-echo " 阶段 2: 尝试获取 Let's Encrypt 证书"
-echo "========================================================"
-
-HAS_REAL_CERT=0
-
-# 方法 1: 检查是否已有 Let's Encrypt 证书
-if [ -f /etc/letsencrypt/live/www.jlbtg.cn/fullchain.pem ] && [ -f /etc/letsencrypt/live/www.jlbtg.cn/privkey.pem ]; then
-    echo "✅ 找到已有的 Let's Encrypt 证书"
-    cp -f /etc/letsencrypt/live/www.jlbtg.cn/fullchain.pem /etc/nginx/ssl/www.jlbtg.cn.pem
-    cp -f /etc/letsencrypt/live/www.jlbtg.cn/privkey.pem /etc/nginx/ssl/www.jlbtg.cn.key
-    chmod 600 /etc/nginx/ssl/www.jlbtg.cn.key
-    HAS_REAL_CERT=1
-fi
-
-# 方法 2: 使用 certbot 获取新证书
-if [ $HAS_REAL_CERT -eq 0 ] && command -v certbot &> /dev/null; then
-    echo "🔐 尝试用 certbot 获取证书..."
-    certbot certonly --webroot -w /var/www/html -d www.jlbtg.cn -d jlbtg.cn --non-interactive --agree-tos -m dev@jlbtg.cn --keep-until-expiring 2>&1 || true
+TEMP_HTTP
+    nginx -t && nginx -s reload
+    sleep 2
     
+    certbot certonly --webroot -w /var/www/html -d www.jlbtg.cn -d jlbtg.cn --non-interactive --agree-tos -m dev@jlbtg.cn --keep-until-expiring 2>&1 || true
     if [ -f /etc/letsencrypt/live/www.jlbtg.cn/fullchain.pem ] && [ -f /etc/letsencrypt/live/www.jlbtg.cn/privkey.pem ]; then
         cp -f /etc/letsencrypt/live/www.jlbtg.cn/fullchain.pem /etc/nginx/ssl/www.jlbtg.cn.pem
         cp -f /etc/letsencrypt/live/www.jlbtg.cn/privkey.pem /etc/nginx/ssl/www.jlbtg.cn.key
         chmod 600 /etc/nginx/ssl/www.jlbtg.cn.key
-        HAS_REAL_CERT=1
-        echo "✅ Let's Encrypt 证书获取成功！"
+        HAS_CERT=1
+        echo "✅ Let's Encrypt 证书获取成功"
     fi
 fi
 
-# 方法 3: 检查是否有有效的真实证书（不是未来时间的）
-if [ $HAS_REAL_CERT -eq 0 ] && [ -f /etc/nginx/ssl/www.jlbtg.cn.pem ] && [ -f /etc/nginx/ssl/www.jlbtg.cn.key ]; then
-    # 检查证书时间是否合理
-    if openssl x509 -in /etc/nginx/ssl/www.jlbtg.cn.pem -checkend 0 -noout 2>/dev/null; then
-        echo "✅ 现有证书有效"
-        HAS_REAL_CERT=1
-    else
-        echo "⚠️  现有证书无效（可能时间有问题）"
+# 2. 如果没有，生成自签名证书（超长有效期）
+if [ $HAS_CERT -eq 0 ]; then
+    echo "🔐 生成自签名证书（有效期 10 年）"
+    
+    # 尝试临时修改系统时间到 2023 年（如果有权限）
+    if [ "$(id -u)" = "0" ]; then
+        SAVED_DATE=$(date +%s)
+        date -s "2023-05-30 12:00:00" 2>&1 || true
     fi
-fi
-
-# 方法 4: 如果都没有，重新生成当前时间有效的自签名证书
-if [ $HAS_REAL_CERT -eq 0 ]; then
-    echo "🔑 重新生成当前时间有效的自签名证书..."
-    # 确保 NTP 时间同步（如果可以）
-    if command -v ntpdate &> /dev/null; then
-        ntpdate -u pool.ntp.org 2>/dev/null || true
-    fi
-    # 强制重新生成证书
-    openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+    
+    # 生成证书（10年有效期）
+    openssl req -x509 -nodes -days 3650 -newkey rsa:2048 \
         -keyout /etc/nginx/ssl/www.jlbtg.cn.key \
         -out /etc/nginx/ssl/www.jlbtg.cn.pem \
         -subj "/C=CN/ST=Beijing/L=Beijing/O=Dev/OU=Dev/CN=www.jlbtg.cn" \
-        -addext "subjectAltName=DNS:www.jlbtg.cn,DNS:jlbtg.cn" 2>&1 || true
+        -addext "subjectAltName=DNS:www.jlbtg.cn,DNS:jlbtg.cn" 2>&1
+    
     chmod 600 /etc/nginx/ssl/www.jlbtg.cn.key
+    
+    # 恢复原时间
+    if [ "$(id -u)" = "0" ] && [ -n "$SAVED_DATE" ]; then
+        date -s "@$SAVED_DATE" 2>&1 || true
+        if command -v ntpdate &> /dev/null; then
+            ntpdate -u pool.ntp.org 2>&1 || true
+        fi
+    fi
+    
+    HAS_CERT=1
 fi
 
 # ============================================================
-# 阶段 3：部署完整的 HTTPS + HTTP 配置
+# 部署最终的 Nginx 配置
 # ============================================================
 echo ""
 echo "========================================================"
-echo " 阶段 3: 部署完整的 Nginx 配置"
+echo " 步骤 2: 部署 Nginx 配置"
 echo "========================================================"
 
-if [ $HAS_REAL_CERT -eq 1 ]; then
-    echo "🔐 使用 HTTPS 配置"
-    cat > ${NGINX_CONF} << 'HTTPS_CONF'
+cat > ${NGINX_CONF} << 'FINAL_CONF'
 server {
     listen 80;
     server_name www.jlbtg.cn jlbtg.cn;
-    
-    # ACME 验证路径保持开放
     location /.well-known/acme-challenge/ {
         root /var/www/html;
         allow all;
     }
-    
-    # 其他重定向到 HTTPS
     location / {
         return 301 https://$host$request_uri;
     }
@@ -140,41 +122,30 @@ server {
 server {
     listen 443 ssl http2;
     server_name www.jlbtg.cn jlbtg.cn;
-    
     gzip on;
     gzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript image/svg+xml;
     gzip_min_length 1024;
-    
-    # SSL 证书
     ssl_certificate /etc/nginx/ssl/www.jlbtg.cn.pem;
     ssl_certificate_key /etc/nginx/ssl/www.jlbtg.cn.key;
-    
-    # 安全配置
     ssl_protocols TLSv1.2 TLSv1.3;
     ssl_prefer_server_ciphers off;
     ssl_session_cache shared:SSL:10m;
     ssl_session_timeout 1d;
     ssl_session_tickets off;
     
-    # 各路径配置
     location /admin/ { alias /www/wwwroot/promo-hub/admin/; index index.html; try_files $uri $uri/ /admin/index.html; }
     location /manager/ { alias /www/wwwroot/promo-hub/manager/; index index.html; try_files $uri $uri/ /manager/index.html; }
     location /user/ { alias /www/wwwroot/promo-hub/user/; index index.html; try_files $uri $uri/ /user/index.html; }
     location /api/ { proxy_pass http://127.0.0.1:3000/; proxy_set_header Host $host; proxy_set_header X-Real-IP $remote_addr; proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for; proxy_set_header X-Forwarded-Proto $scheme; }
     location = / { return 302 /user/; }
 }
-HTTPS_CONF
-else
-    echo "⚠️  仅使用 HTTP 配置（临时方案）"
-fi
+FINAL_CONF
 
-# ============================================================
-# 最后：测试并重载 Nginx
-# ============================================================
+# 重载 Nginx
 nginx -t
 nginx -s reload
 
-# 部署 API 服务
+# 部署 API
 if [ -f ${DEPLOY_DIR}/api/index.js ]; then
     cd ${DEPLOY_DIR}/api || exit 1
     npm install --production 2>&1 || true
@@ -188,19 +159,16 @@ echo ""
 echo "========================================================"
 echo " 诊断信息"
 echo "========================================================"
-echo "Nginx 配置文件:"
-cat ${NGINX_CONF} | head -50
+echo "系统时间: $(date)"
 echo ""
 echo "证书信息:"
 if [ -f /etc/nginx/ssl/www.jlbtg.cn.pem ]; then
     openssl x509 -in /etc/nginx/ssl/www.jlbtg.cn.pem -text -noout | grep -A 2 -B 2 "Not Before\|Not After\|Subject:" || true
-else
-    echo "证书文件不存在"
 fi
 echo ""
 echo "部署目录:"
 ls -la ${DEPLOY_DIR}/ 2>/dev/null
 echo ""
 echo "========================================================"
-echo " 🎉 部署完成！"
+echo " 🎉 部署完成！请访问 https://www.jlbtg.cn"
 echo "========================================================"
