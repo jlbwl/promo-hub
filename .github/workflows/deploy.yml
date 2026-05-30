@@ -208,25 +208,92 @@ jobs:
           target: "${{ env.DEPLOY_DIR }}/api/"
           rm: true
           
-      - name: Upload Nginx config to server
-        uses: appleboy/scp-action@v0.1.7
+      - name: Upload Nginx config and scripts via SSH
+        uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: ${{ secrets.SERVER_PORT || 22 }}
-          source: "nginx-config/nginx.conf"
-          target: "/tmp/nginx-config/"
-          
-      - name: Upload deployment script to server
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SERVER_SSH_KEY }}
-          port: ${{ secrets.SERVER_PORT || 22 }}
-          source: "scripts/server-deploy.sh"
-          target: "/tmp/"
+          script: |
+            set -e
+            DEPLOY_DIR="/www/wwwroot/promo-hub"
+            
+            # 创建必要的目录
+            mkdir -p /etc/nginx/conf.d
+            mkdir -p "${DEPLOY_DIR}"
+            mkdir -p /tmp/deploy-files
+            
+            # 创建Nginx配置文件
+            cat > /etc/nginx/conf.d/promo-hub.conf << 'NGINX_EOF'
+server {
+    listen 80;
+    server_name www.jlbtg.cn jlbtg.cn;
+    gzip on;
+    gzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript image/svg+xml;
+    gzip_min_length 1024;
+    
+    # Let's Encrypt ACME 验证路径
+    location /.well-known/acme-challenge/ {
+        root /var/www/html;
+        allow all;
+    }
+    
+    # 管理员后台
+    location /admin/ {
+        alias /www/wwwroot/promo-hub/admin/;
+        index index.html;
+        try_files $uri $uri/ /admin/index.html;
+    }
+    
+    # 渠道经理后台
+    location /manager/ {
+        alias /www/wwwroot/promo-hub/manager/;
+        index index.html;
+        try_files $uri $uri/ /manager/index.html;
+    }
+    
+    # 用户端
+    location /user/ {
+        alias /www/wwwroot/promo-hub/user/;
+        index index.html;
+        try_files $uri $uri/ /user/index.html;
+    }
+    
+    # API 反向代理
+    location /api/ {
+        proxy_pass http://127.0.0.1:3000/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+    
+    # 根路径跳转到用户端
+    location = / {
+        return 302 /user/;
+    }
+}
+NGINX_EOF
+            echo "✅ Nginx配置已创建"
+            
+            # 创建部署脚本
+            cat > /tmp/deploy-files/deploy.sh << 'DEPLOY_EOF'
+#!/bin/bash
+set -e
+DEPLOY_DIR="/www/wwwroot/promo-hub"
+cd "${DEPLOY_DIR}/api"
+npm install --production 2>&1 || true
+if command -v pm2 >/dev/null 2>&1; then
+    pm2 delete promo-api 2>/dev/null || true
+    pm2 start index.js --name promo-api
+    echo "✅ API 服务已启动"
+fi
+nginx -t && nginx -s reload
+echo "✅ Nginx已重载"
+DEPLOY_EOF
+            chmod +x /tmp/deploy-files/deploy.sh
+            echo "✅ 部署脚本已创建"
 
       - name: Run deployment on server
         uses: appleboy/ssh-action@v1.2.0
@@ -239,14 +306,7 @@ jobs:
             set -e
             DEPLOY_DIR="/www/wwwroot/promo-hub"
             
-            # 移动Nginx配置文件到正确位置
-            if [ -f "/tmp/nginx-config/nginx.conf" ]; then
-              mkdir -p /etc/nginx/conf.d
-              cp /tmp/nginx-config/nginx.conf /etc/nginx/conf.d/promo-hub.conf
-              echo "✅ Nginx配置已复制到 /etc/nginx/conf.d/promo-hub.conf"
-            fi
-            
-            # 先创建 .env 文件，直接写入值
+            # 创建 .env 文件
             cd "${DEPLOY_DIR}/api"
             echo "DB_HOST=${{ secrets.DB_HOST }}" > .env
             echo "DB_PORT=${{ secrets.DB_PORT }}" >> .env
@@ -258,7 +318,27 @@ jobs:
             echo "ALIBABA_CLOUD_ACCESS_KEY_SECRET=${{ secrets.ALIBABA_CLOUD_ACCESS_KEY_SECRET }}" >> .env
             echo "ALIBABA_CLOUD_SMS_SIGN_NAME=${{ secrets.ALIBABA_CLOUD_SMS_SIGN_NAME }}" >> .env
             echo "ALIBABA_CLOUD_SMS_TEMPLATE_CODE=${{ secrets.ALIBABA_CLOUD_SMS_TEMPLATE_CODE }}" >> .env
+            echo "✅ .env文件已创建"
             
-            # 执行部署脚本
-            chmod +x /tmp/server-deploy.sh
-            bash /tmp/server-deploy.sh
+            # 安装依赖并启动服务
+            npm install --production 2>&1 || true
+            echo "✅ npm依赖已安装"
+            
+            # 使用PM2管理API服务
+            if command -v pm2 >/dev/null 2>&1; then
+                pm2 delete promo-api 2>/dev/null || true
+                pm2 start index.js --name promo-api
+                echo "✅ API服务已启动"
+            else
+                echo "⚠️ PM2未安装，跳过PM2启动"
+            fi
+            
+            # 验证Nginx配置并重载
+            nginx -t
+            nginx -s reload
+            echo "✅ Nginx已重载"
+            
+            echo ""
+            echo "========================================================"
+            echo " 🎉 部署完成！"
+            echo "========================================================"
