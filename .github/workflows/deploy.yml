@@ -254,16 +254,16 @@ jobs:
             echo "🔍 检查API目录内容..."
             ls -la "${DEPLOY_DIR}/api/" 2>&1 || echo "⚠️ API目录不存在或为空"
             
-            # 修复：如果存在API-dist目录，复制其内容到api目录
-            echo "🔍 检查API-dist是否存在..."
-            if [ -d "${DEPLOY_DIR}/api/API-dist" ]; then
-                echo "✅ 找到API-dist目录，正在复制内容..."
-                ls -la "${DEPLOY_DIR}/api/API-dist/" 2>&1
-                cp -r "${DEPLOY_DIR}/api/API-dist/"* "${DEPLOY_DIR}/api/" 2>&1
-                rm -rf "${DEPLOY_DIR}/api/API-dist" 2>&1
-                echo "✅ API-dist内容已复制到api目录"
+            # 修复：如果存在api-dist目录，复制其内容到api目录
+            echo "🔍 检查api-dist是否存在..."
+            if [ -d "${DEPLOY_DIR}/api/api-dist" ]; then
+                echo "✅ 找到api-dist目录，正在复制内容..."
+                ls -la "${DEPLOY_DIR}/api/api-dist/" 2>&1
+                cp -r "${DEPLOY_DIR}/api/api-dist/"* "${DEPLOY_DIR}/api/" 2>&1
+                rm -rf "${DEPLOY_DIR}/api/api-dist" 2>&1
+                echo "✅ api-dist内容已复制到api目录"
             else
-                echo "❌ API-dist目录不存在"
+                echo "❌ api-dist目录不存在"
             fi
             
             # 再次检查index.js
