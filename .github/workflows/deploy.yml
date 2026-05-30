@@ -204,9 +204,10 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: ${{ secrets.SERVER_PORT || 22 }}
-          source: "api-dist/"
+          source: "api-dist/*"
           target: "${{ env.DEPLOY_DIR }}/api/"
           rm: true
+          strip_components: 0
           
       - name: Configure server via SSH
         uses: appleboy/ssh-action@v1.2.0
