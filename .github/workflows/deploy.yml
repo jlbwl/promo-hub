@@ -171,9 +171,8 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: ${{ secrets.SERVER_PORT || 22 }}
-          source: "admin-dist/*"
-          target: "${{ env.DEPLOY_DIR }}/admin"
-          strip_components: 1
+          source: "admin-dist/"
+          target: "${{ env.DEPLOY_DIR }}/admin/"
           rm: true
 
       - name: Upload Manager to server
@@ -183,9 +182,8 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: ${{ secrets.SERVER_PORT || 22 }}
-          source: "manager-dist/*"
-          target: "${{ env.DEPLOY_DIR }}/manager"
-          strip_components: 1
+          source: "manager-dist/"
+          target: "${{ env.DEPLOY_DIR }}/manager/"
           rm: true
 
       - name: Upload User to server
@@ -195,9 +193,8 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: ${{ secrets.SERVER_PORT || 22 }}
-          source: "user-dist/*"
-          target: "${{ env.DEPLOY_DIR }}/user"
-          strip_components: 1
+          source: "user-dist/"
+          target: "${{ env.DEPLOY_DIR }}/user/"
           rm: true
 
       - name: Upload API files to server
@@ -207,9 +204,8 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: ${{ secrets.SERVER_PORT || 22 }}
-          source: "api-dist/*"
-          target: "${{ env.DEPLOY_DIR }}/api"
-          strip_components: 1
+          source: "api-dist/"
+          target: "${{ env.DEPLOY_DIR }}/api/"
           rm: true
           
       - name: Upload Nginx config to server
@@ -220,8 +216,7 @@ jobs:
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: ${{ secrets.SERVER_PORT || 22 }}
           source: "nginx-config/nginx.conf"
-          target: "${{ env.DEPLOY_DIR }}/api/nginx-config"
-          strip_components: 1
+          target: "/etc/nginx/conf.d/promo-hub.conf"
           
       - name: Upload deployment script to server
         uses: appleboy/scp-action@v0.1.7
@@ -231,8 +226,7 @@ jobs:
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: ${{ secrets.SERVER_PORT || 22 }}
           source: "scripts/server-deploy.sh"
-          target: "${{ env.DEPLOY_DIR }}/api"
-          strip_components: 1
+          target: "/tmp/server-deploy.sh"
 
       - name: Run deployment on server
         uses: appleboy/ssh-action@v1.2.0
