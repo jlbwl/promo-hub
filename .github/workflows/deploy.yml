@@ -203,10 +203,9 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: ${{ secrets.SERVER_PORT || 22 }}
-          source: "api-dist/*"
+          source: "api-dist/"
           target: "${{ env.DEPLOY_DIR }}/api/"
           rm: true
-          strip_components: 0
           
       - name: Configure server via SSH
         uses: appleboy/ssh-action@v1.2.0
@@ -249,6 +248,10 @@ jobs:
             set -e
             DEPLOY_DIR="/www/wwwroot/promo-hub"
             
+            # 调试：检查API目录文件
+            echo "🔍 检查API目录内容..."
+            ls -la "${DEPLOY_DIR}/api/" || echo "⚠️ API目录不存在或为空"
+            
             # 创建 .env 文件
             cd "${DEPLOY_DIR}/api"
             echo "DB_HOST=${{ secrets.DB_HOST }}" > .env
@@ -263,9 +266,23 @@ jobs:
             echo "ALIBABA_CLOUD_SMS_TEMPLATE_CODE=${{ secrets.ALIBABA_CLOUD_SMS_TEMPLATE_CODE }}" >> .env
             echo "✅ .env文件已创建"
             
-            # 安装依赖并启动服务
-            npm install --production 2>&1 || true
+            # 创建package.json（如果不存在）
+            if [ ! -f "package.json" ]; then
+                echo '{"name":"promo-api","version":"1.0.0","type":"module","dependencies":{"bcryptjs":"^3.0.3","connect-mongo":"^5.1.0","cors":"^2.8.5","dotenv":"^17.4.2","express":"^4.21.0","express-rate-limit":"^8.5.1","express-session":"^1.18.1","multer":"^1.4.5-lts.1","mysql2":"^3.22.3","redis":"^5.12.1","uuid":"^11.0.0"}}' > package.json
+                echo "✅ package.json已创建"
+            fi
+            
+            # 安装依赖（使用--legacy-peer-deps避免依赖冲突）
+            npm install --production --legacy-peer-deps 2>&1 || true
             echo "✅ npm依赖已安装"
+            
+            # 检查index.js是否存在
+            if [ ! -f "index.js" ]; then
+                echo "❌ 错误：index.js文件不存在！"
+                echo "🔍 当前目录内容："
+                ls -la
+                exit 1
+            fi
             
             # 使用PM2管理API服务
             if command -v pm2 >/dev/null 2>&1; then
