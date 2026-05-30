@@ -7,6 +7,35 @@
 - **颁发者**: DigiCert
 - **有效期**: 2026-05-01 至 2026-07-30
 
+---
+
+## 🚨 紧急：网站当前无法访问？
+
+如果您的网站因为SSL证书问题无法访问，请先执行以下步骤快速恢复：
+
+### 快速恢复HTTP访问
+
+```bash
+# SSH连接到服务器
+ssh root@www.jlbtg.cn
+
+# 下载并运行清理脚本
+cd /tmp
+curl -O https://raw.githubusercontent.com/jlbwl/promo-hub/main/scripts/cleanup-server.sh
+chmod +x cleanup-server.sh
+bash cleanup-server.sh
+```
+
+这会：
+1. ✅ 备份旧证书
+2. ✅ 清理Nginx配置
+3. ✅ 部署HTTP-only配置
+4. ✅ 重载Nginx让网站可以通过HTTP访问
+
+恢复后，您可以通过 **http://www.jlbtg.cn** 访问网站！
+
+---
+
 ## 🎯 第一步：从阿里云下载证书
 
 1. 登录阿里云控制台
@@ -68,11 +97,11 @@ mv -f /tmp/www.jlbtg.cn.key /etc/nginx/ssl/
 chmod 600 /etc/nginx/ssl/www.jlbtg.cn.key
 chmod 644 /etc/nginx/ssl/www.jlbtg.cn.pem
 
-# 验证 Nginx 配置
-nginx -t
-
-# 重载 Nginx
-nginx -s reload
+# 重新部署（会自动检测证书并启用HTTPS）
+cd /tmp
+curl -O https://raw.githubusercontent.com/jlbwl/promo-hub/main/scripts/server-deploy.sh
+chmod +x server-deploy.sh
+bash server-deploy.sh
 ```
 
 ## ✅ 第四步：验证安装
@@ -82,13 +111,17 @@ nginx -s reload
 3. 点击锁图标，查看证书信息，确认颁发者是 DigiCert
 4. 检查证书有效期是否正确显示为 2026-05-01 至 2026-07-30
 
+---
+
 ## 🔧 文件说明
 
 | 文件 | 用途 |
 |------|------|
-| `scripts/upload-ssl-cert.sh` | 证书上传和安装脚本 |
-| `scripts/server-deploy.sh` | 网站部署脚本（不含证书逻辑） |
-| `config/nginx.conf` | Nginx 配置模板 |
+| [scripts/cleanup-server.sh](file:///Users/sunkai/Documents/projects/self-promotion/scripts/cleanup-server.sh) | ⭐ 清理脚本：快速恢复HTTP访问 |
+| [scripts/upload-ssl-cert.sh](file:///Users/sunkai/Documents/projects/self-promotion/scripts/upload-ssl-cert.sh) | 证书上传和安装脚本 |
+| [scripts/server-deploy.sh](file:///Users/sunkai/Documents/projects/self-promotion/scripts/server-deploy.sh) | 智能部署：自动检测证书，选择HTTP/HTTPS模式 |
+| [config/nginx-http-only.conf](file:///Users/sunkai/Documents/projects/self-promotion/config/nginx-http-only.conf) | HTTP-only配置模板 |
+| [config/nginx.conf](file:///Users/sunkai/Documents/projects/self-promotion/config/nginx.conf) | 完整HTTPS配置模板 |
 
 ## 📂 证书在服务器上的位置
 
@@ -100,18 +133,21 @@ nginx -s reload
 
 1. **证书过期时间**: 2026-07-30，请提前30天更新
 2. **文件权限**: 私钥文件权限必须为 600，否则 Nginx 无法读取
-3. **Nginx 重载**: 每次更换证书后，务必测试并重载 Nginx
+3. **HTTP→HTTPS迁移**: 有证书后，部署脚本会自动配置HTTP重定向到HTTPS
 
 ## 🐛 常见问题
 
 ### Q: Nginx 启动失败，提示找不到证书文件
-A: 检查证书文件路径是否正确，权限是否为 600/644
+A: 先运行 `cleanup-server.sh` 恢复HTTP访问，然后再上传证书
 
 ### Q: 浏览器显示证书不受信任
 A: 确认您使用的是从阿里云下载的真实证书，而非自签名证书
 
 ### Q: 如何备份当前证书
 A: 证书已自动备份到 `/etc/nginx/ssl/backup/` 目录
+
+### Q: 可以先用HTTP，等证书准备好了再开HTTPS吗？
+A: 可以！使用 `cleanup-server.sh` 部署HTTP-only模式，之后随时上传证书并运行 `server-deploy.sh` 切换到HTTPS
 
 ## 📞 需要帮助？
 
