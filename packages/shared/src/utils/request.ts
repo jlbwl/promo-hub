@@ -26,7 +26,13 @@ function createRequest(): AxiosInstance {
         config.url?.includes('/sms/send')
       
       if (!isLoginOrRegister) {
-        const token = localStorage.getItem('user_token') || localStorage.getItem('token')
+        // 尝试从所有角色的token key中读取
+        const token = 
+          localStorage.getItem('admin_token') || 
+          localStorage.getItem('manager_token') || 
+          localStorage.getItem('user_token') || 
+          localStorage.getItem('employee_token') ||
+          localStorage.getItem('token')
         if (token) {
           config.headers.Authorization = `Bearer ${token}`
         }
