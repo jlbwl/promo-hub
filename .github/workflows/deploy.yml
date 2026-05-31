@@ -217,23 +217,62 @@ jobs:
           script: |
             set -e
             DEPLOY_DIR="/www/wwwroot/promo-hub"
+            CERT_DIR="/etc/nginx/ssl"
             
             mkdir -p /etc/nginx/conf.d
             mkdir -p "${DEPLOY_DIR}"
+            mkdir -p "${CERT_DIR}"
             
-            printf '%s\n' 'server {' '    listen 80;' '    server_name www.jlbtg.cn jlbtg.cn;' '    gzip on;' '    gzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript image/svg+xml;' '    gzip_min_length 1024;' > /etc/nginx/conf.d/promo-hub.conf
+            # 检查SSL证书是否存在
+            if [ -f "/etc/nginx/ssl/www.jlbtg.cn.pem" ] && [ -f "/etc/nginx/ssl/www.jlbtg.cn.key" ]; then
+                echo "✅ SSL证书已存在"
+            else
+                echo "⚠️ SSL证书不存在，使用自签名证书进行测试"
+                # 创建自签名证书（仅用于测试）
+                openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+                    -keyout "${CERT_DIR}/www.jlbtg.cn.key" \
+                    -out "${CERT_DIR}/www.jlbtg.cn.pem" \
+                    -subj "/C=CN/ST=Beijing/L=Beijing/O=jlbwl/OU=IT/CN=www.jlbtg.cn" 2>/dev/null || true
+            fi
             
-            printf '%s\n' '' '    location /.well-known/acme-challenge/ {' '        root /var/www/html;' '        allow all;' '    }' '' '    location /admin/ {' '        alias /www/wwwroot/promo-hub/admin/;' '        index index.html;' '        try_files $uri $uri/ /admin/index.html;' '    }' >> /etc/nginx/conf.d/promo-hub.conf
+            # 设置证书权限
+            chmod 600 "${CERT_DIR}/www.jlbtg.cn.key" 2>/dev/null || true
+            chmod 644 "${CERT_DIR}/www.jlbtg.cn.pem" 2>/dev/null || true
             
+            # 创建HTTP服务器配置（用于重定向）
+            printf '%s\n' 'server {' '    listen 80;' '    server_name www.jlbtg.cn jlbtg.cn;' '    return 301 https://$server_name$request_uri;' '}' > /etc/nginx/conf.d/promo-hub-http.conf
+            
+            # 创建HTTPS服务器配置
+            printf '%s\n' 'server {' '    listen 443 ssl http2;' '    server_name www.jlbtg.cn jlbtg.cn;' > /etc/nginx/conf.d/promo-hub.conf
+            
+            # 添加SSL证书配置
+            printf '%s\n' '' '    ssl_certificate /etc/nginx/ssl/www.jlbtg.cn.pem;' >> /etc/nginx/conf.d/promo-hub.conf
+            printf '%s\n' '    ssl_certificate_key /etc/nginx/ssl/www.jlbtg.cn.key;' >> /etc/nginx/conf.d/promo-hub.conf
+            printf '%s\n' '    ssl_protocols TLSv1.2 TLSv1.3;' >> /etc/nginx/conf.d/promo-hub.conf
+            printf '%s\n' '    ssl_ciphers HIGH:!aNULL:!MD5;' >> /etc/nginx/conf.d/promo-hub.conf
+            printf '%s\n' '    ssl_prefer_server_ciphers on;' >> /etc/nginx/conf.d/promo-hub.conf
+            printf '%s\n' '    ssl_session_cache shared:SSL:10m;' >> /etc/nginx/conf.d/promo-hub.conf
+            printf '%s\n' '    ssl_session_timeout 10m;' >> /etc/nginx/conf.d/promo-hub.conf
+            
+            # 添加gzip配置
+            printf '%s\n' '' '    gzip on;' '    gzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript image/svg+xml;' '    gzip_min_length 1024;' >> /etc/nginx/conf.d/promo-hub.conf
+            
+            # 添加静态文件路由
+            printf '%s\n' '' '    location /.well-known/acme-challenge/ {' '        root /var/www/html;' '        allow all;' '    }' >> /etc/nginx/conf.d/promo-hub.conf
+            printf '%s\n' '' '    location /admin/ {' '        alias /www/wwwroot/promo-hub/admin/;' '        index index.html;' '        try_files $uri $uri/ /admin/index.html;' '    }' >> /etc/nginx/conf.d/promo-hub.conf
             printf '%s\n' '' '    location /manager/ {' '        alias /www/wwwroot/promo-hub/manager/;' '        index index.html;' '        try_files $uri $uri/ /manager/index.html;' '    }' >> /etc/nginx/conf.d/promo-hub.conf
-            
             printf '%s\n' '' '    location /user/ {' '        alias /www/wwwroot/promo-hub/user/;' '        index index.html;' '        try_files $uri $uri/ /user/index.html;' '    }' >> /etc/nginx/conf.d/promo-hub.conf
             
+            # 添加API代理
             printf '%s\n' '' '    location /api/ {' '        proxy_pass http://127.0.0.1:3000/;' '        proxy_set_header Host $host;' '        proxy_set_header X-Real-IP $remote_addr;' '        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;' '        proxy_set_header X-Forwarded-Proto $scheme;' '    }' >> /etc/nginx/conf.d/promo-hub.conf
             
-            printf '%s\n' '' '    location = / {' '        return 302 /user/;' '    }' '}' >> /etc/nginx/conf.d/promo-hub.conf
+            # 根目录重定向
+            printf '%s\n' '' '    location = / {' '        return 302 https://$server_name/user/;' '    }' '}' >> /etc/nginx/conf.d/promo-hub.conf
             
-            echo "✅ Nginx配置已创建"
+            echo "✅ Nginx HTTPS配置已创建"
+            
+            # 验证Nginx配置
+            nginx -t && echo "✅ Nginx配置验证通过" || echo "❌ Nginx配置验证失败"
             
             cd "${DEPLOY_DIR}/api"
 
