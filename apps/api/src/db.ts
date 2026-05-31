@@ -9,6 +9,13 @@ dotenv.config({ path: join(__dirname, '..', '.env') })
 
 const SALT_ROUNDS = 12
 
+// 日志工具（简单的 console.log）
+const logger = {
+  info: (msg: string, meta?: any) => console.log(`[DB] ${msg}`, meta || ''),
+  error: (msg: string, meta?: any) => console.error(`[DB ERROR] ${msg}`, meta || ''),
+  warn: (msg: string, meta?: any) => console.warn(`[DB WARN] ${msg}`, meta || ''),
+}
+
 // 数据库连接配置（从环境变量读取）
 const pool = mysql.createPool({
   host: process.env.DB_HOST || '',
@@ -21,25 +28,53 @@ const pool = mysql.createPool({
   queueLimit: 0,
   charset: 'utf8mb4',
   connectTimeout: 10000,
+  acquireTimeout: 10000,
+  timeout: 20000,
 })
 
-// 通用查询方法（带超时）
+// 通用查询方法（带超时和日志）
 export async function query(sql: string, params?: any[]): Promise<any> {
-  const timeoutPromise = new Promise<never>((_, reject) => {
-    setTimeout(() => reject(new Error('Query timeout')), 20000)
-  })
-  const queryPromise = pool.query(sql, params)
-  const [rows] = await Promise.race([queryPromise, timeoutPromise]) as any
-  return rows
+  const startTime = Date.now()
+  try {
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => reject(new Error('Query timeout after 20s')), 20000)
+    })
+    const queryPromise = pool.query(sql, params)
+    const [rows] = await Promise.race([queryPromise, timeoutPromise]) as any
+    const duration = Date.now() - startTime
+    logger.info(`Query completed in ${duration}ms`, { sql: sql.substring(0, 100) })
+    return rows
+  } catch (error: any) {
+    const duration = Date.now() - startTime
+    logger.error(`Query failed after ${duration}ms`, { 
+      sql: sql.substring(0, 100), 
+      error: error.message,
+      params 
+    })
+    throw error
+  }
 }
 
 export async function queryOne(sql: string, params?: any[]): Promise<any> {
-  const timeoutPromise = new Promise<never>((_, reject) => {
-    setTimeout(() => reject(new Error('Query timeout')), 20000)
-  })
-  const queryPromise = pool.query(sql, params)
-  const [rows] = await Promise.race([queryPromise, timeoutPromise]) as any
-  return (rows as any[])[0] || null
+  const startTime = Date.now()
+  try {
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => reject(new Error('Query timeout after 20s')), 20000)
+    })
+    const queryPromise = pool.query(sql, params)
+    const [rows] = await Promise.race([queryPromise, timeoutPromise]) as any
+    const duration = Date.now() - startTime
+    logger.info(`QueryOne completed in ${duration}ms`, { sql: sql.substring(0, 100) })
+    return (rows as any[])[0] || null
+  } catch (error: any) {
+    const duration = Date.now() - startTime
+    logger.error(`QueryOne failed after ${duration}ms`, { 
+      sql: sql.substring(0, 100), 
+      error: error.message,
+      params 
+    })
+    throw error
+  }
 }
 
 // 初始化数据库表

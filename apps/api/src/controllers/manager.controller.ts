@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs'
 import { sendSuccess, sendError } from '../utils/response.js'
 import {
   readManagers,
+  readUsers,
   insertManager,
   updateManager,
   deleteManager,
@@ -14,6 +15,7 @@ import {
 import { login as sessionLogin, generateAuthToken } from '../middleware/auth.js'
 import { sendSmsCode } from '../sms.js'
 import { generateSmsCode, saveSmsCode, verifySmsCode, deleteSmsCode } from '../utils/sms.js'
+import logger from '../utils/logger.js'
 
 const SALT_ROUNDS = 12
 
@@ -77,48 +79,60 @@ export const getManagerById = async (req: Request, res: Response): Promise<void>
  * @returns 新创建的经理信息
  */
 export const createManager = async (req: Request, res: Response): Promise<void> => {
-  const managers = await readManagers()
-  const { teamName, password, phone } = req.body
+  try {
+    logger.info('[createManager] Starting manager creation', { teamName: req.body.teamName, phone: req.body.phone })
 
-  if (!teamName || !password) {
-    return sendError(res, '渠道名称和密码不能为空', 400)
-  }
+    const managers = await readManagers()
+    const { teamName, password, phone } = req.body
 
-  if (managers.find((m: any) => m.teamName === teamName)) {
-    return sendError(res, '该渠道名称已存在', 409)
-  }
-
-  const users = await (async () => {
-    try {
-      const { readUsers } = await import('../data.js')
-      return await readUsers()
-    } catch {
-      return []
+    if (!teamName || !password) {
+      logger.warn('[createManager] Missing required fields', { teamName: !!teamName, password: !!password })
+      return sendError(res, '渠道名称和密码不能为空', 400)
     }
-  })()
-  if (users.find((u: any) => u.teamName === teamName)) {
-    return sendError(res, '该团队名称已存在', 409)
-  }
 
-  const now = new Date().toISOString()
-  const hashedPassword = await hashPassword(password)
-  const manager = {
-    id: `m_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-    username: teamName,
-    password: hashedPassword,
-    name: teamName,
-    teamName,
-    phone: phone || '',
-    role: 'manager',
-    status: 'active',
-    createdAt: now,
-    updatedAt: now,
+    if (managers.find((m: any) => m.teamName === teamName)) {
+      logger.warn('[createManager] Manager teamName already exists', { teamName })
+      return sendError(res, '该渠道名称已存在', 409)
+    }
+
+    let users: any[] = []
+    try {
+      users = await readUsers()
+    } catch (err) {
+      logger.warn('[createManager] Failed to read users, skipping duplicate check', { error: err })
+      // 如果读取用户失败，跳过这个检查
+    }
+
+    if (users.length > 0 && users.find((u: any) => u.teamName === teamName)) {
+      logger.warn('[createManager] User teamName already exists', { teamName })
+      return sendError(res, '该团队名称已存在', 409)
+    }
+
+    const now = new Date().toISOString()
+    const hashedPassword = await hashPassword(password)
+    const manager = {
+      id: `m_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+      username: teamName,
+      password: hashedPassword,
+      name: teamName,
+      teamName,
+      phone: phone || '',
+      role: 'manager',
+      status: 'active',
+      createdAt: now,
+      updatedAt: now,
+    }
+
+    logger.info('[createManager] Inserting manager into database', { managerId: manager.id, teamName })
+    await insertManager(manager)
+    logger.info('[createManager] Manager inserted successfully', { managerId: manager.id })
+
+    const { password: _, ...safeManager } = manager
+    sendSuccess(res, safeManager, '添加成功')
+  } catch (error: any) {
+    logger.error('[createManager] Failed to create manager', { error: error.message, stack: error.stack })
+    sendError(res, '添加渠道失败: ' + error.message, 500)
   }
-  
-  await insertManager(manager)
-  
-  const { password: _, ...safeManager } = manager
-  sendSuccess(res, safeManager, '添加成功')
 }
 
 /**
