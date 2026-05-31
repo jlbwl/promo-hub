@@ -59,8 +59,8 @@ export const getProducts = async (req: Request, res: Response): Promise<void> =>
  * @returns 产品详细信息，包含销售数量
  */
 export const getProductById = async (req: Request, res: Response): Promise<void> => {
+  const id = req.params.id as string
   try {
-    const id = req.params.id as string
     const user = (req as any).user
     
     logger.info('[ProductController] 获取产品详情', {
@@ -130,8 +130,8 @@ export const createProduct = async (req: Request, res: Response): Promise<void> 
  * @returns 更新后的产品信息
  */
 export const updateProductById = async (req: Request, res: Response): Promise<void> => {
+  const id = req.params.id as string
   try {
-    const id = req.params.id as string
     const user = (req as any).user
     
     // 从用户信息中获取managerId（中间件已经验证了权限）
@@ -163,8 +163,8 @@ export const updateProductById = async (req: Request, res: Response): Promise<vo
  * @returns 删除操作结果
  */
 export const deleteProductById = async (req: Request, res: Response): Promise<void> => {
+  const id = req.params.id as string
   try {
-    const id = req.params.id as string
     const user = (req as any).user
     
     // 从用户信息中获取managerId

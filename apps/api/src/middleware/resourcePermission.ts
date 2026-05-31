@@ -60,17 +60,19 @@ export const resourcePermission = (config: ResourcePermissionConfig) => {
         ? (req.params as any)[config.resourceIdParam] 
         : (req.params as any).id
       
-      if (!resourceId && (config.action === 'update' || config.action === 'delete' || config.action === 'read')) {
+      // 如果是列表操作，直接跳过
+      if (config.action === 'list') {
+        next()
+        return
+      }
+      
+      // 其他操作需要资源ID
+      if (!resourceId) {
         logger.warn('[ResourcePermission] 缺少资源ID', {
           userId: user.id,
           resourceType: config.resourceType,
           action: config.action
         })
-        // 如果是列表操作，可能不需要资源ID，直接跳过
-        if (config.action === 'list') {
-          next()
-          return
-        }
         res.status(400).json({
           code: 400,
           message: '缺少资源ID参数',

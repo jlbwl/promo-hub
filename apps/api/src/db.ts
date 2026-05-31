@@ -28,8 +28,6 @@ const pool = mysql.createPool({
   queueLimit: 0,
   charset: 'utf8mb4',
   connectTimeout: 10000,
-  acquireTimeout: 10000,
-  timeout: 20000,
 })
 
 // 通用查询方法（带超时和日志）
