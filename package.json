@@ -4,20 +4,27 @@
   "private": true,
   "description": "Self-promotion mini-program for business development",
   "scripts": {
+    "setup:env": "bash scripts/setup-env.sh",
+    "setup:env:win": "powershell -ExecutionPolicy Bypass -File scripts/setup-env.ps1",
     "dev:admin": "pnpm --filter @promo/admin dev",
     "dev:manager": "pnpm --filter @promo/manager dev",
     "dev:user": "pnpm --filter @promo/user dev",
+    "dev:api": "pnpm --filter @promo/api dev",
+    "dev": "concurrently \"pnpm dev:admin\" \"pnpm dev:manager\" \"pnpm dev:user\" \"pnpm dev:api\"",
     "build:admin": "pnpm --filter @promo/admin build",
     "build:manager": "pnpm --filter @promo/manager build",
     "build:user": "pnpm --filter @promo/user build",
     "build:api": "pnpm --filter @promo/api build",
     "build:shared": "pnpm --filter @promo/shared build",
+    "build": "pnpm build:shared && pnpm build:admin && pnpm build:manager && pnpm build:user && pnpm build:api",
     "lint": "eslint . --ext .vue,.js,.ts,.tsx",
+    "lint:fix": "eslint . --ext .vue,.js,.ts,.tsx --fix",
     "type-check": "pnpm --filter @promo/admin exec vue-tsc --noEmit && pnpm --filter @promo/manager exec vue-tsc --noEmit && pnpm --filter @promo/user exec vue-tsc --noEmit && pnpm --filter @promo/shared exec tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "test:ui": "vitest --ui"
+    "test:ui": "vitest --ui",
+    "pre-commit": "pnpm lint && pnpm type-check && pnpm test"
   },
   "engines": {
     "node": ">=18",

@@ -617,8 +617,11 @@ CREATE TABLE admins (
 ```
 
 **默认管理员账号**：
-- 手机号：`[REDACTED_ADMIN_PHONE]`
-- 密码：`[REDACTED_ADMIN_PASSWORD]`
+- 通过环境变量配置：
+  - `ADMIN_PHONE`：管理员手机号
+  - `ADMIN_PASSWORD`：管理员密码
+  - `ADMIN_NAME`：管理员姓名（可选，默认为"超级管理员"）
+- 首次启动时会自动创建默认管理员账号
 
 #### 6.2.8 操作日志表 (operation_logs)
 

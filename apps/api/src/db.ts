@@ -331,15 +331,24 @@ export async function initDatabase(): Promise<void> {
   // 分类表由管理后台手动维护，不再自动创建默认分类
   console.log('[DB] Product categories table exists, managed by admin panel')
 
-  // 检查是否有管理员账号，没有则创建默认账号
+  // 检查是否有管理员账号，没有则从环境变量创建默认账号
   const [adminRows] = await pool.execute('SELECT COUNT(*) as count FROM admins')
   const adminCount = (adminRows as any[])[0].count
   if (adminCount === 0) {
-    await pool.execute(
-      'INSERT INTO admins (id, phone, password, name, status) VALUES (?, ?, ?, ?, ?)',
-      ['admin_1', '[REDACTED_ADMIN_PHONE]', '[REDACTED_ADMIN_PASSWORD]', '超级管理员', 'active']
-    )
-    console.log('[DB] Default admin account created: [REDACTED_ADMIN_PHONE] / [REDACTED_ADMIN_PASSWORD]')
+    const adminPhone = process.env.ADMIN_PHONE
+    const adminPassword = process.env.ADMIN_PASSWORD
+    const adminName = process.env.ADMIN_NAME || '超级管理员'
+    
+    if (adminPhone && adminPassword) {
+      await pool.execute(
+        'INSERT INTO admins (id, phone, password, name, status) VALUES (?, ?, ?, ?, ?)',
+        ['admin_1', adminPhone, adminPassword, adminName, 'active']
+      )
+      console.log(`[DB] Default admin account created: ${adminPhone}`)
+    } else {
+      console.warn('[DB] ADMIN_PHONE and ADMIN_PASSWORD not set, skipping default admin creation')
+      console.warn('[DB] Please set these environment variables and restart the server')
+    }
   }
 
   console.log('[DB] MySQL tables initialized successfully')
