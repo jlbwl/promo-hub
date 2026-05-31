@@ -6,6 +6,7 @@ import {
   adminSmsLogin,
   sendAdminSmsCode,
   adminChangePassword,
+  adminPasswordUpdate,
   getAdminStats,
   getOperationLogs,
 } from '../controllers/admin.controller.js'
@@ -17,6 +18,7 @@ router.post('/admin/login', loginLimiter, adminLogin)
 router.post('/admin/sms/send', smsLimiter, sendAdminSmsCode)
 router.post('/admin/sms/login', adminSmsLogin)
 router.post('/admin/change-password', requireAdmin, adminChangePassword)
+router.post('/admin/password/update', requireAdmin, adminPasswordUpdate)
 router.get('/admin/stats', requireAdmin, getAdminStats)
 router.get('/admin/operation-logs', requireAdmin, getOperationLogs)
 

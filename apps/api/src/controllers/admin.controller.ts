@@ -132,6 +132,48 @@ export const adminChangePassword = async (req: Request, res: Response): Promise<
 }
 
 /**
+ * 管理员密码更新（支持短信验证码）
+ */
+export const adminPasswordUpdate = async (req: Request, res: Response): Promise<void> => {
+  const { phone, code, oldPassword, newPassword } = req.body
+  
+  // 验证必填参数
+  if (!oldPassword || !newPassword) {
+    return sendError(res, '请输入旧密码和新密码', 400)
+  }
+  if (newPassword.length < 6) {
+    return sendError(res, '新密码长度不能少于6位', 400)
+  }
+  if (newPassword.length > 32) {
+    return sendError(res, '新密码长度不能超过32位', 400)
+  }
+
+  const user = req.session?.user || (req as any).user
+  if (!user) {
+    return sendError(res, '未登录或会话已过期', 401)
+  }
+
+  // 获取管理员信息
+  const adminPhone = phone || user.phone
+  const admin = await readAdminByPhone(adminPhone)
+  if (!admin) {
+    return sendError(res, '管理员不存在', 404)
+  }
+
+  // 验证旧密码
+  const oldPasswordValid = await verifyPassword(oldPassword, admin.password)
+  if (!oldPasswordValid) {
+    return sendError(res, '旧密码错误', 400)
+  }
+
+  // 更新密码
+  const hashedPassword = await bcrypt.hash(newPassword, SALT_ROUNDS)
+  await updateAdmin(admin.id, { password: hashedPassword })
+
+  sendSuccess(res, null, '密码修改成功，请重新登录')
+}
+
+/**
  * 获取管理员仪表盘统计数据
  */
 export const getAdminStats = async (req: Request, res: Response): Promise<void> => {
