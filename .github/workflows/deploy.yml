@@ -282,6 +282,7 @@ jobs:
               echo "" >> .env
               echo "# Session 配置" >> .env
               echo "SESSION_SECRET=${{ secrets.SESSION_SECRET }}" >> .env
+              echo "JWT_SECRET=${{ secrets.JWT_SECRET || secrets.SESSION_SECRET }}" >> .env
               echo "" >> .env
               echo "# 管理员配置" >> .env
               echo "ADMIN_PHONE=${{ secrets.ADMIN_PHONE }}" >> .env
@@ -354,7 +355,7 @@ jobs:
             # 6. 安装依赖
             # =======================
             if [ ! -f "package.json" ]; then
-              echo '{"name":"promo-api","version":"1.0.0","type":"module","dependencies":{"bcryptjs":"^3.0.3","connect-mongo":"^5.1.0","cors":"^2.8.5","dotenv":"^17.4.2","express":"^4.21.0","express-rate-limit":"^8.5.1","express-session":"^1.18.1","multer":"^1.4.5-lts.1","mysql2":"^3.22.3","redis":"^5.12.1","uuid":"^11.0.0"}}' > package.json
+              echo '{"name":"promo-api","version":"1.0.0","type":"module","dependencies":{"bcryptjs":"^3.0.3","connect-mongo":"^5.1.0","cors":"^2.8.5","dotenv":"^17.4.2","express":"^4.21.0","express-rate-limit":"^8.5.1","express-session":"^1.18.1","jsonwebtoken":"^9.0.3","multer":"^1.4.5-lts.1","mysql2":"^3.22.3","redis":"^5.12.1","uuid":"^11.0.0"}}' > package.json
               echo "✅ package.json已创建"
             fi
 
