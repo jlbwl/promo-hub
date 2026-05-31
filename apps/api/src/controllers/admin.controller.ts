@@ -132,14 +132,14 @@ export const adminChangePassword = async (req: Request, res: Response): Promise<
 }
 
 /**
- * 管理员密码更新（支持短信验证码）
+ * 管理员密码更新（支持短信验证码，无需旧密码）
  */
 export const adminPasswordUpdate = async (req: Request, res: Response): Promise<void> => {
   const { phone, code, oldPassword, newPassword } = req.body
   
   // 验证必填参数
-  if (!oldPassword || !newPassword) {
-    return sendError(res, '请输入旧密码和新密码', 400)
+  if (!newPassword) {
+    return sendError(res, '请输入新密码', 400)
   }
   if (newPassword.length < 6) {
     return sendError(res, '新密码长度不能少于6位', 400)
@@ -160,10 +160,22 @@ export const adminPasswordUpdate = async (req: Request, res: Response): Promise<
     return sendError(res, '管理员不存在', 404)
   }
 
-  // 验证旧密码
-  const oldPasswordValid = await verifyPassword(oldPassword, admin.password)
-  if (!oldPasswordValid) {
-    return sendError(res, '旧密码错误', 400)
+  // 模式1：验证码模式（不需要旧密码）
+  if (code) {
+    const valid = verifySmsCode(adminPhone, code)
+    if (!valid) {
+      return sendError(res, '验证码错误或已过期', 400)
+    }
+    deleteSmsCode(adminPhone) // 验证成功后删除验证码
+  } 
+  // 模式2：旧密码模式
+  else if (oldPassword) {
+    const oldPasswordValid = await verifyPassword(oldPassword, admin.password)
+    if (!oldPasswordValid) {
+      return sendError(res, '旧密码错误', 400)
+    }
+  } else {
+    return sendError(res, '请提供验证码或旧密码', 400)
   }
 
   // 更新密码

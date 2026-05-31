@@ -43,19 +43,6 @@
         </el-form-item>
 
         <el-form-item
-          label="旧密码"
-          prop="oldPassword"
-        >
-          <el-input
-            v-model="securityForm.oldPassword"
-            type="password"
-            placeholder="请输入旧密码"
-            show-password
-            clearable
-          />
-        </el-form-item>
-
-        <el-form-item
           label="新密码"
           prop="newPassword"
         >
@@ -132,8 +119,7 @@ const securityRules: FormRules = {
     { len: 6, message: '验证码为6位数字', trigger: 'blur' }
   ],
   oldPassword: [
-    { required: true, message: '请输入旧密码', trigger: 'blur' },
-    { min: 6, max: 20, message: '密码长度为6-20位', trigger: 'blur' }
+    // 旧密码已改为可选（优先使用验证码模式）
   ],
   newPassword: [
     { required: true, message: '请输入新密码', trigger: 'blur' },
