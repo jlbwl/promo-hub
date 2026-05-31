@@ -2,9 +2,12 @@ import mysql from 'mysql2/promise'
 import dotenv from 'dotenv'
 import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
+import bcrypt from 'bcryptjs'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 dotenv.config({ path: join(__dirname, '..', '.env') })
+
+const SALT_ROUNDS = 12
 
 // 数据库连接配置（从环境变量读取）
 const pool = mysql.createPool({
@@ -340,9 +343,11 @@ export async function initDatabase(): Promise<void> {
     const adminName = process.env.ADMIN_NAME || '超级管理员'
     
     if (adminPhone && adminPassword) {
+      // 加密默认管理员密码
+      const hashedPassword = await bcrypt.hash(adminPassword, SALT_ROUNDS)
       await pool.execute(
         'INSERT INTO admins (id, phone, password, name, status) VALUES (?, ?, ?, ?, ?)',
-        ['admin_1', adminPhone, adminPassword, adminName, 'active']
+        ['admin_1', adminPhone, hashedPassword, adminName, 'active']
       )
       console.log(`[DB] Default admin account created: ${adminPhone}`)
     } else {
