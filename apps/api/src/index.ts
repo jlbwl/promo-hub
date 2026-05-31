@@ -37,6 +37,9 @@ const verifyPassword = async (password: string, hash: string): Promise<boolean> 
 const app = express()
 const PORT = process.env.PORT || 3000
 
+// 设置 trust proxy 支持 rate limit 正确识别客户端 IP
+app.set('trust proxy', 1)
+
 // 中间件
 const corsOptions: cors.CorsOptions = {
   origin: process.env.CORS_ORIGIN?.split(',').map(o => o.trim()) || ['http://localhost:5173', 'http://localhost:5174'],

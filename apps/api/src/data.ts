@@ -547,34 +547,61 @@ export async function readManager(id: string): Promise<any> {
 }
 
 export async function writeManagers(managers: any[]): Promise<void> {
+  const hasRole = await columnExists('managers', 'role')
+  
   for (const m of managers) {
     const existing = await queryOne('SELECT id FROM managers WHERE id = ?', [m.id])
     if (existing) {
-      await query(
-        `UPDATE managers SET username=?, password=?, name=?, phone=?, status=?, teamName=?, role=?, updatedAt=NOW() WHERE id=?`,
-        [m.username || '', m.password || '', m.name || '', m.phone || '', m.status || 'active', m.teamName || '', m.role || 'manager', m.id]
-      )
+      let updateColumns = ['username=?', 'password=?', 'name=?', 'phone=?', 'status=?', 'teamName=?', 'updatedAt=NOW()']
+      let updateValues = [m.username || '', m.password || '', m.name || '', m.phone || '', m.status || 'active', m.teamName || '', m.id]
+      
+      if (hasRole) {
+        updateColumns.splice(updateColumns.length - 2, 0, 'role=?')
+        updateValues.splice(updateValues.length - 1, 0, m.role || 'manager')
+      }
+      
+      await query(`UPDATE managers SET ${updateColumns.join(', ')} WHERE id=?`, updateValues)
     } else {
-      await query(
-        `INSERT INTO managers (id, username, password, name, phone, status, teamName, role, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
-        [m.id, m.username || '', m.password || '', m.name || '', m.phone || '', m.status || 'active', m.teamName || '', m.role || 'manager']
-      )
+      let insertColumns = ['id', 'username', 'password', 'name', 'phone', 'status', 'teamName', 'createdAt']
+      let insertValues = [m.id, m.username || '', m.password || '', m.name || '', m.phone || '', m.status || 'active', m.teamName || '']
+      let placeholders = insertValues.map(() => '?')
+      placeholders.push('NOW()')
+      
+      if (hasRole) {
+        insertColumns.splice(insertColumns.length - 1, 0, 'role')
+        insertValues.push(m.role || 'manager')
+        placeholders.splice(placeholders.length - 1, 0, '?')
+      }
+      
+      await query(`INSERT INTO managers (${insertColumns.join(', ')}) VALUES (${placeholders.join(', ')})`, insertValues)
     }
   }
 }
 
 export async function insertManager(m: any): Promise<void> {
-  await query(
-    `INSERT INTO managers (id, username, password, name, phone, status, teamName, role, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
-    [m.id, m.username || '', m.password || '', m.name || '', m.phone || '', m.status || 'active', m.teamName || '', m.role || 'manager']
-  )
+  const hasRole = await columnExists('managers', 'role')
+  
+  let insertColumns = ['id', 'username', 'password', 'name', 'phone', 'status', 'teamName', 'createdAt']
+  let insertValues = [m.id, m.username || '', m.password || '', m.name || '', m.phone || '', m.status || 'active', m.teamName || '']
+  let placeholders = insertValues.map(() => '?')
+  placeholders.push('NOW()')
+  
+  if (hasRole) {
+    insertColumns.splice(insertColumns.length - 1, 0, 'role')
+    insertValues.push(m.role || 'manager')
+    placeholders.splice(placeholders.length - 1, 0, '?')
+  }
+  
+  await query(`INSERT INTO managers (${insertColumns.join(', ')}) VALUES (${placeholders.join(', ')})`, insertValues)
 }
 
 export async function updateManager(id: string, fields: Record<string, any>): Promise<void> {
+  const hasRole = await columnExists('managers', 'role')
   const sets: string[] = []
   const values: any[] = []
   for (const [key, val] of Object.entries(fields)) {
     if (key === 'id') continue
+    if (key === 'role' && !hasRole) continue
     sets.push(`${key} = ?`)
     values.push(val ?? '')
   }
@@ -605,34 +632,61 @@ export async function readUser(id: string): Promise<any> {
 }
 
 export async function writeUsers(users: any[]): Promise<void> {
+  const hasRole = await columnExists('users', 'role')
+  
   for (const u of users) {
     const existing = await queryOne('SELECT id FROM users WHERE id = ?', [u.id])
     if (existing) {
-      await query(
-        `UPDATE users SET phone=?, password=?, nickname=?, teamName=?, role=?, status=?, alipayUserId=?, wechatOpenId=?, loginMethods=?, updatedAt=NOW() WHERE id=?`,
-        [u.phone || '', u.password || '', u.nickname || '', u.teamName || '', u.role || 'user', u.status || 'active', u.alipayUserId || '', u.wechatOpenId || '', serialize(u.loginMethods), u.id]
-      )
+      let updateColumns = ['phone=?', 'password=?', 'nickname=?', 'teamName=?', 'status=?', 'alipayUserId=?', 'wechatOpenId=?', 'loginMethods=?', 'updatedAt=NOW()']
+      let updateValues = [u.phone || '', u.password || '', u.nickname || '', u.teamName || '', u.status || 'active', u.alipayUserId || '', u.wechatOpenId || '', serialize(u.loginMethods), u.id]
+      
+      if (hasRole) {
+        updateColumns.splice(updateColumns.length - 3, 0, 'role=?')
+        updateValues.splice(updateValues.length - 1, 0, u.role || 'user')
+      }
+      
+      await query(`UPDATE users SET ${updateColumns.join(', ')} WHERE id=?`, updateValues)
     } else {
-      await query(
-        `INSERT INTO users (id, phone, password, nickname, teamName, role, status, alipayUserId, wechatOpenId, loginMethods, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
-        [u.id, u.phone || '', u.password || '', u.nickname || '', u.teamName || '', u.role || 'user', u.status || 'active', u.alipayUserId || '', u.wechatOpenId || '', serialize(u.loginMethods)]
-      )
+      let insertColumns = ['id', 'phone', 'password', 'nickname', 'teamName', 'status', 'alipayUserId', 'wechatOpenId', 'loginMethods', 'createdAt']
+      let insertValues = [u.id, u.phone || '', u.password || '', u.nickname || '', u.teamName || '', u.status || 'active', u.alipayUserId || '', u.wechatOpenId || '', serialize(u.loginMethods)]
+      let placeholders = insertValues.map(() => '?')
+      placeholders.push('NOW()')
+      
+      if (hasRole) {
+        insertColumns.splice(insertColumns.length - 2, 0, 'role')
+        insertValues.push(u.role || 'user')
+        placeholders.splice(placeholders.length - 1, 0, '?')
+      }
+      
+      await query(`INSERT INTO users (${insertColumns.join(', ')}) VALUES (${placeholders.join(', ')})`, insertValues)
     }
   }
 }
 
 export async function insertUser(u: any): Promise<void> {
-  await query(
-    `INSERT INTO users (id, phone, password, nickname, teamName, role, status, alipayUserId, wechatOpenId, loginMethods, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
-    [u.id, u.phone || '', u.password || '', u.nickname || '', u.teamName || '', u.role || 'user', u.status || 'active', u.alipayUserId || '', u.wechatOpenId || '', serialize(u.loginMethods)]
-  )
+  const hasRole = await columnExists('users', 'role')
+  
+  let insertColumns = ['id', 'phone', 'password', 'nickname', 'teamName', 'status', 'alipayUserId', 'wechatOpenId', 'loginMethods', 'createdAt']
+  let insertValues = [u.id, u.phone || '', u.password || '', u.nickname || '', u.teamName || '', u.status || 'active', u.alipayUserId || '', u.wechatOpenId || '', serialize(u.loginMethods)]
+  let placeholders = insertValues.map(() => '?')
+  placeholders.push('NOW()')
+  
+  if (hasRole) {
+    insertColumns.splice(insertColumns.length - 2, 0, 'role')
+    insertValues.push(u.role || 'user')
+    placeholders.splice(placeholders.length - 1, 0, '?')
+  }
+  
+  await query(`INSERT INTO users (${insertColumns.join(', ')}) VALUES (${placeholders.join(', ')})`, insertValues)
 }
 
 export async function updateUser(id: string, fields: Record<string, any>): Promise<void> {
+  const hasRole = await columnExists('users', 'role')
   const sets: string[] = []
   const values: any[] = []
   for (const [key, val] of Object.entries(fields)) {
     if (key === 'id') continue
+    if (key === 'role' && !hasRole) continue
     sets.push(`${key} = ?`)
     if (key === 'loginMethods') {
       values.push(serialize(val))
