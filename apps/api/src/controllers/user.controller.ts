@@ -16,6 +16,7 @@ import {
   writeManagers,
   readProducts,
   writeProducts,
+  query,
 } from '../data.js'
 import { login as sessionLogin, generateAuthToken } from '../middleware/auth.js'
 import { sendSmsCode } from '../sms.js'
@@ -387,23 +388,38 @@ export const deleteUser = asyncHandler(
       throw new AppError('验证码不能为空', ErrorCode.BAD_REQUEST, HttpStatus.BAD_REQUEST)
     }
     
-    let users = await readUsers()
+    // 获取管理员信息（支持 session 和 JWT token）
+    const adminInfo = req.session?.user || (req as any).user
+    if (!adminInfo || !adminInfo.phone) {
+      throw new AppError('未登录', ErrorCode.UNAUTHORIZED, HttpStatus.UNAUTHORIZED)
+    }
+    
+    // 验证短信验证码
+    const valid = verifySmsCode(adminInfo.phone, smsCode)
+    if (!valid) {
+      throw new AppError('验证码错误或已过期', ErrorCode.CODE_EXPIRED, HttpStatus.BAD_REQUEST)
+    }
+    deleteSmsCode(adminInfo.phone)
+    
+    // 检查用户是否存在
     const userId = req.params.id as string
-    const index = users.findIndex((u: any) => u.id === userId)
-    if (index === -1) {
+    const users = await readUsers()
+    const exists = users.some((u: any) => u.id === userId)
+    if (!exists) {
       throw new AppError('用户不存在', ErrorCode.USER_NOT_FOUND, HttpStatus.NOT_FOUND)
     }
     
+    // 执行删除
     await deleteUserById(userId)
-    logger.info('User deleted', { userId })
+    
+    logger.info('User deleted', { userId, deletedBy: adminInfo.phone })
     sendSuccess(res, null, '删除成功')
   }
 )
 
 async function deleteUserById(userId: string): Promise<void> {
-  let users = await readUsers()
-  users = users.filter((u: any) => u.id !== userId)
-  await writeUsers(users)
+  // 直接从数据库删除用户
+  await query('DELETE FROM users WHERE id = ?', [userId])
 }
 
 /**
