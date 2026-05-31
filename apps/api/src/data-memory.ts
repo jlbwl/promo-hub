@@ -13,10 +13,6 @@ if (!fs.existsSync(DATA_DIR)) {
 
 // 密码验证函数
 async function verifyPassword(password: string, hash: string): Promise<boolean> {
-  // 如果是明文密码，直接比较（用于兼容旧数据）
-  if (password === hash) {
-    return true
-  }
   try {
     return await bcrypt.compare(password, hash)
   } catch {

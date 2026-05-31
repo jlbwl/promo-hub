@@ -220,7 +220,6 @@ export const getOperationLogs = async (req: Request, res: Response): Promise<voi
 
 // 密码验证辅助函数
 async function verifyPassword(password: string, hash: string): Promise<boolean> {
-  if (password === hash) return true
   try {
     return await bcrypt.compare(password, hash)
   } catch {

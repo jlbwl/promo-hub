@@ -8,9 +8,6 @@ import bcrypt from 'bcryptjs'
 
 // 密码验证函数
 async function verifyPassword(password: string, hash: string): Promise<boolean> {
-  if (password === hash) {
-    return true
-  }
   try {
     return await bcrypt.compare(password, hash)
   } catch {
