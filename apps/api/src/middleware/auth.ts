@@ -1,7 +1,9 @@
 import { Request, Response, NextFunction, RequestHandler } from 'express'
 import session, { Session } from 'express-session'
+import jwt from 'jsonwebtoken'
 
 const SESSION_SECRET = process.env.SESSION_SECRET || 'promo-hub-secret-key-change-in-production'
+const JWT_SECRET = process.env.JWT_SECRET || SESSION_SECRET
 
 export interface AuthUser {
   id: string
@@ -19,6 +21,9 @@ declare module 'express-session' {
     isAuthenticated?: boolean
   }
 }
+
+// Token 存储（临时方案，生产环境应使用 Redis）
+const tokenStore = new Map<string, AuthUser>()
 
 // 创建 session 中间件（支持 MongoDB 降级到内存存储）
 export const sessionMiddleware: RequestHandler = (() => {
@@ -54,11 +59,36 @@ export const sessionMiddleware: RequestHandler = (() => {
   })
 })()
 
+// 生成 JWT Token
+export function generateAuthToken(user: AuthUser): string {
+  return jwt.sign(
+    { id: user.id, phone: user.phone, role: user.role },
+    JWT_SECRET,
+    { expiresIn: '7d' }
+  )
+}
+
+// 验证 JWT Token
+function verifyAuthToken(token: string): AuthUser | null {
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET) as any
+    return {
+      id: decoded.id,
+      phone: decoded.phone,
+      role: decoded.role,
+      token
+    }
+  } catch {
+    return null
+  }
+}
+
 export const authMiddleware = (allowedRoles?: Array<'admin' | 'manager' | 'user' | 'employee'>) => {
   return (req: Request, res: Response, next: NextFunction) => {
     const authHeader = req.headers.authorization
     const bearerToken = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null
 
+    // 1. 优先检查 Session
     if (req.session && req.session.isAuthenticated && req.session.user) {
       if (allowedRoles && allowedRoles.length > 0) {
         const userRole = req.session.user.role
@@ -71,24 +101,31 @@ export const authMiddleware = (allowedRoles?: Array<'admin' | 'manager' | 'user'
           return
         }
       }
+      // 将用户信息附加到 request
+      ;(req as any).user = req.session.user
       next()
       return
     }
 
-    if (bearerToken && req.session?.user?.token === bearerToken) {
-      if (allowedRoles && allowedRoles.length > 0) {
-        const userRole = req.session.user.role
-        if (!allowedRoles.includes(userRole)) {
-          res.status(403).json({
-            code: 403,
-            message: '您没有权限执行此操作',
-            data: null
-          })
-          return
+    // 2. 检查 Bearer Token（JWT）
+    if (bearerToken) {
+      const user = verifyAuthToken(bearerToken)
+      if (user) {
+        if (allowedRoles && allowedRoles.length > 0) {
+          if (!allowedRoles.includes(user.role)) {
+            res.status(403).json({
+              code: 403,
+              message: '您没有权限执行此操作',
+              data: null
+            })
+            return
+          }
         }
+        // 将用户信息附加到 request
+        ;(req as any).user = user
+        next()
+        return
       }
-      next()
-      return
     }
 
     res.status(401).json({

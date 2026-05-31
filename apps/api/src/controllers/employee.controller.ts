@@ -10,6 +10,7 @@ import {
   updateEmployee,
   readUser,
 } from '../data.js'
+import { login as sessionLogin, generateAuthToken } from '../middleware/auth.js'
 
 const SALT_ROUNDS = 12
 
@@ -203,8 +204,18 @@ export const employeeLogin = async (req: Request, res: Response): Promise<void> 
     }
     
     const user = await readUser(employee.userId)
+    const authUser = { 
+      id: employee.id, 
+      phone: employee.phone, 
+      role: 'employee' as const, 
+      nickname: employee.nickname,
+      userId: employee.userId
+    }
+    const token = generateAuthToken(authUser)
+    sessionLogin(req, { ...authUser, token })
     
     sendSuccess(res, {
+      token,
       employee: { ...employee, password: '******' },
       user: user ? { id: user.id, phone: user.phone, nickname: user.nickname } : null
     }, '登录成功')

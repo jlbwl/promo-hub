@@ -9,16 +9,11 @@ import {
   readProducts,
   readCommissions,
 } from '../data.js'
-import { login as sessionLogin } from '../middleware/auth.js'
-import crypto from 'crypto'
+import { login as sessionLogin, generateAuthToken } from '../middleware/auth.js'
 import { generateSmsCode, saveSmsCode, verifySmsCode, deleteSmsCode } from '../utils/sms.js'
 import { sendSmsCode } from '../sms.js'
 
 const SALT_ROUNDS = 12
-
-function generateToken(): string {
-  return crypto.randomBytes(32).toString('hex')
-}
 
 /**
  * 管理员短信验证码发送
@@ -60,8 +55,9 @@ export const adminLogin = async (req: Request, res: Response): Promise<void> => 
     return sendError(res, '手机号或密码错误', 401)
   }
 
-  const token = generateToken()
-  sessionLogin(req, { id: admin.id, phone: admin.phone, role: 'admin', nickname: admin.name, token })
+  const user = { id: admin.id, phone: admin.phone, role: 'admin' as const, nickname: admin.name }
+  const token = generateAuthToken(user)
+  sessionLogin(req, { ...user, token })
 
   sendSuccess(res, {
     token,
@@ -89,8 +85,9 @@ export const adminSmsLogin = async (req: Request, res: Response): Promise<void> 
     return sendError(res, '该手机号未注册', 404)
   }
 
-  const token = generateToken()
-  sessionLogin(req, { id: admin.id, phone: admin.phone, role: 'admin', nickname: admin.name, token })
+  const user = { id: admin.id, phone: admin.phone, role: 'admin' as const, nickname: admin.name }
+  const token = generateAuthToken(user)
+  sessionLogin(req, { ...user, token })
 
   sendSuccess(res, {
     token,

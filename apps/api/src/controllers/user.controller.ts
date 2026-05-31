@@ -17,7 +17,7 @@ import {
   readProducts,
   writeProducts,
 } from '../data.js'
-import { login as sessionLogin } from '../middleware/auth.js'
+import { login as sessionLogin, generateAuthToken } from '../middleware/auth.js'
 import { sendSmsCode } from '../sms.js'
 import { generateSmsCode, saveSmsCode, verifySmsCode, deleteSmsCode } from '../utils/sms.js'
 
@@ -142,17 +142,13 @@ export const userLogin = asyncHandler(
       )
     }
 
-    sessionLogin(req, { 
-      id: user.id, 
-      phone: user.phone, 
-      role: 'user', 
-      nickname: user.nickname, 
-      teamName: user.teamName 
-    })
+    const authUser = { id: user.id, phone: user.phone, role: 'user' as const, nickname: user.nickname, teamName: user.teamName }
+    const token = generateAuthToken(authUser)
+    sessionLogin(req, { ...authUser, token })
 
     logger.info('User logged in', { userId: user.id, method: 'password' })
     const { password: _, ...safeUser } = user
-    sendSuccess(res, { user: safeUser }, '登录成功')
+    sendSuccess(res, { token, user: safeUser }, '登录成功')
   }
 )
 

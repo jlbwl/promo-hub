@@ -11,7 +11,7 @@ import {
   writeProducts,
   writeOrders,
 } from '../data.js'
-import { login as sessionLogin } from '../middleware/auth.js'
+import { login as sessionLogin, generateAuthToken } from '../middleware/auth.js'
 import { sendSmsCode } from '../sms.js'
 import { generateSmsCode, saveSmsCode, verifySmsCode, deleteSmsCode } from '../utils/sms.js'
 
@@ -236,10 +236,12 @@ export const managerLogin = async (req: Request, res: Response): Promise<void> =
     return sendError(res, '手机号或密码错误，或账号已被禁用', 401)
   }
   
-  sessionLogin(req, { id: manager.id, phone: manager.phone, role: 'manager', nickname: manager.name, teamName: manager.teamName })
+  const user = { id: manager.id, phone: manager.phone, role: 'manager' as const, nickname: manager.name, teamName: manager.teamName }
+  const token = generateAuthToken(user)
+  sessionLogin(req, { ...user, token })
   
   const { password: _, ...safeManager } = manager
-  sendSuccess(res, { manager: safeManager }, '登录成功')
+  sendSuccess(res, { token, manager: safeManager }, '登录成功')
 }
 
 /**
@@ -279,10 +281,12 @@ export const managerSmsLogin = async (req: Request, res: Response): Promise<void
     return sendError(res, '该手机号未注册或已被禁用', 404)
   }
   
-  sessionLogin(req, { id: manager.id, phone: manager.phone, role: 'manager', nickname: manager.name, teamName: manager.teamName })
+  const user = { id: manager.id, phone: manager.phone, role: 'manager' as const, nickname: manager.name, teamName: manager.teamName }
+  const token = generateAuthToken(user)
+  sessionLogin(req, { ...user, token })
   
   const { password: _, ...safeManager } = manager
-  sendSuccess(res, { manager: safeManager }, '登录成功')
+  sendSuccess(res, { token, manager: safeManager }, '登录成功')
 }
 
 /**
