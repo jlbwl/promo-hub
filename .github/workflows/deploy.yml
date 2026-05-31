@@ -1,4 +1,4 @@
-name: 部署到生产环境
+name: 部署到生产环境（仅业务代码）
 
 on:
   push:
@@ -12,6 +12,12 @@ concurrency:
 
 env:
   DEPLOY_DIR: /www/wwwroot/promo-hub
+  DOMAIN_NAMES: "www.jlbtg.cn jlbtg.cn"
+  SSL_CERT_PATH: /root/certs/www.jlbtg.cn.pem
+  SSL_KEY_PATH: /root/certs/www.jlbtg.cn.key
+  ACME_ROOT: /var/www/html
+  API_URL: "http://127.0.0.1:3000/"
+  CERT_DIR: /root/certs
 
 jobs:
   pre-check:
@@ -128,20 +134,14 @@ jobs:
           name: api-dist
           path: apps/api/dist
 
-      - name: Upload Nginx config
+      - name: Upload Nginx config template
         uses: actions/upload-artifact@v5
         with:
-          name: nginx-config
-          path: config/nginx.conf
-
-      - name: Upload deployment scripts
-        uses: actions/upload-artifact@v5
-        with:
-          name: scripts
-          path: scripts/server-deploy.sh
+          name: nginx-config-template
+          path: config/nginx.conf.template
 
   deploy:
-    name: 部署到服务器
+    name: 部署业务代码到服务器
     needs: build
     runs-on: ubuntu-latest
     environment: production
@@ -169,18 +169,6 @@ jobs:
         with:
           name: api-dist
           path: api-dist
-
-      - name: Download Nginx config
-        uses: actions/download-artifact@v5
-        with:
-          name: nginx-config
-          path: nginx-config
-
-      - name: Download deployment scripts
-        uses: actions/download-artifact@v5
-        with:
-          name: scripts
-          path: scripts
 
       - name: Upload Admin to server
         uses: appleboy/scp-action@v0.1.7
@@ -226,7 +214,7 @@ jobs:
           target: "${{ env.DEPLOY_DIR }}/api/"
           rm: true
 
-      - name: Configure server via SSH
+      - name: 部署业务代码（保护已有配置）
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.SERVER_HOST }}
@@ -235,101 +223,53 @@ jobs:
           port: ${{ secrets.SERVER_PORT || 22 }}
           script: |
             set -e
-            DEPLOY_DIR="/www/wwwroot/promo-hub"
-            CERT_DIR="/etc/nginx/ssl"
+            DEPLOY_DIR="${{ env.DEPLOY_DIR }}"
+            CERT_DIR="${{ env.CERT_DIR }}"
+
+            echo "=========================================="
+            echo "⚠️ 注意：本部署仅更新业务代码"
+            echo "⚠️ 不会覆盖已有的环境配置和 Nginx 配置"
+            echo "=========================================="
 
             mkdir -p /etc/nginx/conf.d
             mkdir -p "$DEPLOY_DIR"
             mkdir -p "$CERT_DIR"
 
-            # 检查SSL证书是否存在
-            if [ -f "/etc/nginx/ssl/www.jlbtg.cn.pem" ] && [ -f "/etc/nginx/ssl/www.jlbtg.cn.key" ]; then
-              echo "✅ SSL证书已存在"
-            else
-              echo "⚠️ SSL证书不存在，使用自签名证书进行测试"
-              openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
-                -keyout "$CERT_DIR/www.jlbtg.cn.key" \
-                -out "$CERT_DIR/www.jlbtg.cn.pem" \
-                -subj "/C=CN/ST=Beijing/L=Beijing/O=jlbwl/OU=IT/CN=www.jlbtg.cn" 2>/dev/null || true
+            # =======================
+            # 1. 备份已有配置（保护措施）
+            # =======================
+            echo "📦 备份已有配置..."
+            if [ -f "/etc/nginx/conf.d/promo-hub.conf" ]; then
+              cp /etc/nginx/conf.d/promo-hub.conf "/etc/nginx/conf.d/promo-hub.conf.backup.$(date +%Y%m%d_%H%M%S)"
+              echo "✅ Nginx 配置已备份"
             fi
 
-            # 设置证书权限
-            chmod 600 "$CERT_DIR/www.jlbtg.cn.key" 2>/dev/null || true
-            chmod 644 "$CERT_DIR/www.jlbtg.cn.pem" 2>/dev/null || true
-
-            # 创建HTTP服务器配置（用于重定向）
-            printf '%s\n' 'server {' '    listen 80;' '    server_name www.jlbtg.cn jlbtg.cn;' '    return 301 https://$server_name$request_uri;' '}' > /etc/nginx/conf.d/promo-hub-http.conf
-
-            # 创建HTTPS服务器配置
-            printf '%s\n' 'server {' '    listen 443 ssl http2;' '    server_name www.jlbtg.cn jlbtg.cn;' > /etc/nginx/conf.d/promo-hub.conf
-
-            # 添加SSL证书配置
-            printf '%s\n' '' '    ssl_certificate /etc/nginx/ssl/www.jlbtg.cn.pem;' >> /etc/nginx/conf.d/promo-hub.conf
-            printf '%s\n' '    ssl_certificate_key /etc/nginx/ssl/www.jlbtg.cn.key;' >> /etc/nginx/conf.d/promo-hub.conf
-            printf '%s\n' '    ssl_protocols TLSv1.2 TLSv1.3;' >> /etc/nginx/conf.d/promo-hub.conf
-            printf '%s\n' '    ssl_ciphers HIGH:!aNULL:!MD5;' >> /etc/nginx/conf.d/promo-hub.conf
-            printf '%s\n' '    ssl_prefer_server_ciphers on;' >> /etc/nginx/conf.d/promo-hub.conf
-            printf '%s\n' '    ssl_session_cache shared:SSL:10m;' >> /etc/nginx/conf.d/promo-hub.conf
-            printf '%s\n' '    ssl_session_timeout 10m;' >> /etc/nginx/conf.d/promo-hub.conf
-
-            # 添加gzip配置
-            printf '%s\n' '' '    gzip on;' '    gzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript image/svg+xml;' '    gzip_min_length 1024;' >> /etc/nginx/conf.d/promo-hub.conf
-
-            # 添加静态文件路由
-            printf '%s\n' '' '    location /.well-known/acme-challenge/ {' '        root /var/www/html;' '        allow all;' '    }' >> /etc/nginx/conf.d/promo-hub.conf
-            printf '%s\n' '' '    location /admin/ {' '        alias /www/wwwroot/promo-hub/admin/;' '        index index.html;' '        try_files $uri $uri/ /admin/index.html;' '    }' >> /etc/nginx/conf.d/promo-hub.conf
-            printf '%s\n' '' '    location /manager/ {' '        alias /www/wwwroot/promo-hub/manager/;' '        index index.html;' '        try_files $uri $uri/ /manager/index.html;' '    }' >> /etc/nginx/conf.d/promo-hub.conf
-            printf '%s\n' '' '    location /user/ {' '        alias /www/wwwroot/promo-hub/user/;' '        index index.html;' '        try_files $uri $uri/ /user/index.html;' '    }' >> /etc/nginx/conf.d/promo-hub.conf
-
-            # 添加API代理
-            printf '%s\n' '' '    location /api/ {' '        proxy_pass http://127.0.0.1:3000/;' '        proxy_set_header Host $host;' '        proxy_set_header X-Real-IP $remote_addr;' '        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;' '        proxy_set_header X-Forwarded-Proto $scheme;' '    }' >> /etc/nginx/conf.d/promo-hub.conf
-
-            # 根目录重定向
-            printf '%s\n' '' '    location = / {' '        return 302 https://$server_name/user/;' '    }' '}' >> /etc/nginx/conf.d/promo-hub.conf
-
-            echo "✅ Nginx HTTPS配置已创建"
-
-            # 验证Nginx配置
-            nginx -t && echo "✅ Nginx配置验证通过" || echo "❌ Nginx配置验证失败"
-
-            cd "$DEPLOY_DIR/api"
-
-      - name: Run deployment on server
-        uses: appleboy/ssh-action@v1.2.0
-        with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SERVER_SSH_KEY }}
-          port: ${{ secrets.SERVER_PORT || 22 }}
-          script: |
-            DEPLOY_DIR="/www/wwwroot/promo-hub"
-
-            echo "🔍 当前工作目录: $(pwd)"
-            echo "🔍 DEPLOY_DIR: $DEPLOY_DIR"
-
-            # 调试：检查API目录文件
-            echo "🔍 检查API目录内容..."
-            ls -la "$DEPLOY_DIR/api/" 2>&1 || echo "⚠️ API目录不存在或为空"
-
-            # 修复：如果存在api-dist目录，复制其内容到api目录
-            echo "🔍 检查api-dist是否存在..."
-            if [ -d "$DEPLOY_DIR/api/api-dist" ]; then
-              echo "✅ 找到api-dist目录，正在复制内容..."
-              ls -la "$DEPLOY_DIR/api/api-dist/" 2>&1
-              cp -r "$DEPLOY_DIR/api/api-dist/"* "$DEPLOY_DIR/api/" 2>&1
-              rm -rf "$DEPLOY_DIR/api/api-dist" 2>&1
-              echo "✅ api-dist内容已复制到api目录"
-            else
-              echo "❌ api-dist目录不存在"
+            if [ -f "$DEPLOY_DIR/api/.env" ]; then
+              cp "$DEPLOY_DIR/api/.env" "$DEPLOY_DIR/api/.env.backup.$(date +%Y%m%d_%H%M%S)"
+              echo "✅ .env 配置已备份"
             fi
 
-            # 再次检查index.js
-            echo "🔍 检查index.js..."
-            ls -la "$DEPLOY_DIR/api/" 2>&1
-
-            # 创建 .env 文件（使用 cat 进行多行配置，更清晰）
+            # =======================
+            # 2. 修复 API 目录结构
+            # =======================
+            echo "🔍 检查 API 目录..."
             cd "$DEPLOY_DIR/api"
-            cat > .env << 'ENVEOF'
+            if [ -d "api-dist" ]; then
+              echo "✅ 找到 api-dist 目录，正在复制内容..."
+              ls -la api-dist/ 2>&1
+              cp -r api-dist/* ./ 2>&1
+              rm -rf api-dist 2>&1
+              echo "✅ api-dist 内容已复制"
+            fi
+
+            # =======================
+            # 3. 检查并创建 .env（仅在不存在时）
+            # =======================
+            if [ -f ".env" ]; then
+              echo "🔒 .env 文件已存在，保持原样，不覆盖"
+            else
+              echo "⚠️ .env 文件不存在，创建新的（注意：需手动配置）"
+              cat > .env << 'ENVEOF'
 # 数据库配置
 DB_HOST=${{ secrets.DB_HOST }}
 DB_PORT=${{ secrets.DB_PORT }}
@@ -366,27 +306,66 @@ CORS_ORIGIN=https://www.jlbtg.cn,https://jlbtg.cn
 # 数据目录
 DATA_DIR=${{ secrets.DATA_DIR || '/www/wwwroot/promo-hub/api/data' }}
 ENVEOF
-            echo "✅ .env文件已创建"
-            
-            # 显示环境变量配置（仅显示非敏感信息）
-            echo "📋 当前环境变量配置："
-            echo "  DB_HOST: ${DB_HOST:0:10}..."
-            echo "  DB_PORT: $DB_PORT"
-            echo "  DB_NAME: $DB_NAME"
-            echo "  PORT: $PORT"
-            echo "  NODE_ENV: $NODE_ENV"
+              echo "✅ .env 文件已创建（首次部署）"
+            fi
 
-            # 创建package.json（如果不存在）
+            # =======================
+            # 4. 检查 Nginx 配置（仅在不存在时创建）
+            # =======================
+            if [ -f "/etc/nginx/conf.d/promo-hub.conf" ]; then
+              echo "🔒 Nginx 配置已存在，保持原样，不覆盖"
+              echo "🔒 如需更新 Nginx 配置，请手动操作"
+            else
+              echo "⚠️ Nginx 配置不存在，使用模板创建（首次部署）"
+              if [ -f "$DEPLOY_DIR/config/nginx.conf.template" ]; then
+                DOMAIN_NAMES="${{ secrets.DOMAIN_NAMES || env.DOMAIN_NAMES }}"
+                SSL_CERT_PATH="${{ secrets.SSL_CERT_PATH || env.SSL_CERT_PATH }}"
+                SSL_KEY_PATH="${{ secrets.SSL_KEY_PATH || env.SSL_KEY_PATH }}"
+                ACME_ROOT="${{ secrets.ACME_ROOT || env.ACME_ROOT }}"
+                API_URL="${{ secrets.API_URL || env.API_URL }}"
+                PROJECT_ROOT="$DEPLOY_DIR"
+
+                cp "$DEPLOY_DIR/config/nginx.conf.template" /etc/nginx/conf.d/promo-hub.conf
+                sed -i "s|\${DOMAIN_NAMES}|$DOMAIN_NAMES|g" /etc/nginx/conf.d/promo-hub.conf
+                sed -i "s|\${SSL_CERT_PATH}|$SSL_CERT_PATH|g" /etc/nginx/conf.d/promo-hub.conf
+                sed -i "s|\${SSL_KEY_PATH}|$SSL_KEY_PATH|g" /etc/nginx/conf.d/promo-hub.conf
+                sed -i "s|\${ACME_ROOT}|$ACME_ROOT|g" /etc/nginx/conf.d/promo-hub.conf
+                sed -i "s|\${API_URL}|$API_URL|g" /etc/nginx/conf.d/promo-hub.conf
+                sed -i "s|\${PROJECT_ROOT}|$PROJECT_ROOT|g" /etc/nginx/conf.d/promo-hub.conf
+                echo "✅ Nginx 配置已从模板创建（首次部署）"
+              fi
+            fi
+
+            # =======================
+            # 5. 检查 SSL 证书
+            # =======================
+            if [ -f "$CERT_DIR/www.jlbtg.cn.pem" ] && [ -f "$CERT_DIR/www.jlbtg.cn.key" ]; then
+              echo "✅ SSL证书已存在"
+            else
+              echo "⚠️ SSL证书不存在，使用自签名证书进行测试"
+              openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+                -keyout "$CERT_DIR/www.jlbtg.cn.key" \
+                -out "$CERT_DIR/www.jlbtg.cn.pem" \
+                -subj "/C=CN/ST=Beijing/L=Beijing/O=jlbwl/OU=IT/CN=www.jlbtg.cn" 2>/dev/null || true
+            fi
+
+            chmod 600 "$CERT_DIR/www.jlbtg.cn.key" 2>/dev/null || true
+            chmod 644 "$CERT_DIR/www.jlbtg.cn.pem" 2>/dev/null || true
+
+            # =======================
+            # 6. 安装依赖
+            # =======================
             if [ ! -f "package.json" ]; then
               echo '{"name":"promo-api","version":"1.0.0","type":"module","dependencies":{"bcryptjs":"^3.0.3","connect-mongo":"^5.1.0","cors":"^2.8.5","dotenv":"^17.4.2","express":"^4.21.0","express-rate-limit":"^8.5.1","express-session":"^1.18.1","multer":"^1.4.5-lts.1","mysql2":"^3.22.3","redis":"^5.12.1","uuid":"^11.0.0"}}' > package.json
               echo "✅ package.json已创建"
             fi
 
-            # 安装依赖（使用--legacy-peer-deps避免依赖冲突）
             npm install --production --legacy-peer-deps 2>&1 || true
             echo "✅ npm依赖已安装"
 
-            # 检查index.js是否存在
+            # =======================
+            # 7. 检查 index.js
+            # =======================
             if [ ! -f "index.js" ]; then
               echo "❌ 错误：index.js文件不存在！"
               echo "🔍 当前目录内容："
@@ -394,7 +373,14 @@ ENVEOF
               exit 1
             fi
 
-            # 使用PM2管理API服务
+            # =======================
+            # 8. 验证 Nginx 配置
+            # =======================
+            nginx -t || true
+
+            # =======================
+            # 9. 重启 API 服务
+            # =======================
             if command -v pm2 >/dev/null 2>&1; then
               pm2 delete promo-api 2>/dev/null || true
               pm2 start index.js --name promo-api
@@ -403,12 +389,23 @@ ENVEOF
               echo "⚠️ PM2未安装，跳过PM2启动"
             fi
 
-            # 验证Nginx配置并重载
-            nginx -t
-            nginx -s reload
+            # =======================
+            # 10. 重载 Nginx
+            # =======================
+            nginx -t && nginx -s reload || true
             echo "✅ Nginx已重载"
 
             echo ""
             echo "================================================"
-            echo " 🎉 部署完成！"
+            echo " 🎉 业务代码部署完成！"
             echo "================================================"
+            echo ""
+            echo "📋 保护的配置文件："
+            echo "   - /etc/nginx/conf.d/promo-hub.conf 🔒"
+            echo "   - $DEPLOY_DIR/api/.env 🔒"
+            echo ""
+            echo "💡 如需手动修改配置，请："
+            echo "   1. SSH 连接到服务器"
+            echo "   2. 编辑需要修改的配置文件"
+            echo "   3. 运行 nginx -t && nginx -s reload（如修改 Nginx 配置）"
+            echo "   4. 运行 pm2 restart promo-api（如修改 .env 配置）"

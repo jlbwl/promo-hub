@@ -35,6 +35,8 @@
 ├── user/              # 用户端前端
 ├── api/               # Node.js 后端
 │   └── index.js       # 入口文件
+├── config/            # 配置目录
+│   └── nginx.conf.template  # Nginx 配置模板（已纳入版本控制）
 ├── node_modules/      # 依赖包
 ├── package.json       # 项目配置
 ├── pnpm-lock.yaml     # 包锁定文件（使用 pnpm）
@@ -43,46 +45,123 @@
 
 ## 五、Nginx 配置要点
 
-**配置文件**: `/etc/nginx/conf.d/promo-hub.conf`
+### 配置管理方式
 
-### 关键配置项
-- **域名**: `www.jlbtg.cn` / `jlbtg.cn`
-- **SSL 证书**: 
-  - `/root/certs/www.jlbtg.cn.pem`
-  - `/root/certs/www.jlbtg.cn.key`
-- **API 代理**: `/api/` → `http://127.0.0.1:3000`
-- **前端路由**: SPA 需要 `try_files $uri $uri/ /index.html` 支持
+**重要改进**: 现在使用模板文件管理 Nginx 配置，而非硬编码。
 
-### 示例 Nginx 配置
+- **模板文件**: `config/nginx.conf.template`（已纳入版本控制）
+- **生成的配置**: `/etc/nginx/conf.d/promo-hub.conf`（动态生成，不上传 Git）
+- **模板变量替换**: CI/CD 部署时自动从 GitHub Secrets 读取变量值
+
+### 模板变量说明
+
+| 变量名 | 说明 | 默认值 |
+|--------|------|--------|
+| `DOMAIN_NAMES` | 域名列表 | `www.jlbtg.cn jlbtg.cn` |
+| `SSL_CERT_PATH` | SSL 证书路径 | `/etc/nginx/ssl/www.jlbtg.cn.pem` |
+| `SSL_KEY_PATH` | SSL 密钥路径 | `/etc/nginx/ssl/www.jlbtg.cn.key` |
+| `ACME_ROOT` | ACME 验证路径 | `/var/www/html` |
+| `API_URL` | API 反向代理地址 | `http://127.0.0.1:3000` |
+| `PROJECT_ROOT` | 项目根目录 | `/www/wwwroot/promo-hub` |
+
+### Nginx 配置模板内容
 
 ```nginx
+# Nginx 配置模板文件
+# 在部署时通过变量替换生成实际配置
+
 server {
     listen 80;
-    server_name www.jlbtg.cn jlbtg.cn;
-    return 301 https://$server_name$request_uri;
+    server_name ${DOMAIN_NAMES};
+    gzip on;
+    gzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript image/svg+xml;
+    gzip_min_length 1024;
+    
+    # Let's Encrypt ACME 验证路径 (必须保持在 HTTP)
+    location /.well-known/acme-challenge/ {
+        root ${ACME_ROOT};
+        allow all;
+    }
+    
+    # 所有其他 HTTP 请求重定向到 HTTPS
+    location / {
+        return 301 https://$host$request_uri;
+    }
 }
 
 server {
     listen 443 ssl http2;
-    server_name www.jlbtg.cn jlbtg.cn;
+    server_name ${DOMAIN_NAMES};
+    gzip on;
+    gzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript image/svg+xml;
+    gzip_min_length 1024;
 
-    ssl_certificate /root/certs/www.jlbtg.cn.pem;
-    ssl_certificate_key /root/certs/www.jlbtg.cn.key;
+    # SSL 证书配置
+    ssl_certificate ${SSL_CERT_PATH};
+    ssl_certificate_key ${SSL_KEY_PATH};
 
-    root /www/wwwroot/promo-hub/user/dist;
-    index index.html;
+    # SSL 安全配置
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384;
+    ssl_prefer_server_ciphers off;
+    ssl_session_cache shared:SSL:10m;
+    ssl_session_timeout 1d;
+    ssl_session_tickets off;
 
-    location /api/ {
-        proxy_pass http://127.0.0.1:3000;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    # HSTS (HTTP Strict Transport Security)
+    add_header Strict-Transport-Security "max-age=63072000; includeSubDomains" always;
+
+    # Favicon: Serve from user directory by default
+    location ~* ^/favicon\.(ico|svg|png)$ {
+        alias ${PROJECT_ROOT}/user/;
+        expires 30d;
+        add_header Cache-Control "public, immutable";
+        try_files $uri $uri/ =404;
     }
 
-    location / {
-        try_files $uri $uri/ /index.html;
-    }
+    # 管理员后台 (最优先)
+    location /admin/ { alias ${PROJECT_ROOT}/admin/; index index.html; try_files $uri $uri/ /admin/index.html; }
+
+    # 渠道经理后台
+    location /manager/ { alias ${PROJECT_ROOT}/manager/; index index.html; try_files $uri $uri/ /manager/index.html; }
+
+    # 用户端
+    location /user/ { alias ${PROJECT_ROOT}/user/; index index.html; try_files $uri $uri/ /user/index.html; }
+
+    # API 反向代理
+    location /api/ { proxy_pass ${API_URL}/; proxy_set_header Host $host; proxy_set_header X-Real-IP $remote_addr; proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for; proxy_set_header X-Forwarded-Proto $scheme; }
+
+    # 根路径精确匹配 - 跳转到 /user/
+    location = / { return 302 /user/; }
 }
+```
+
+### 关键配置项（实际生效值）
+- **域名**: `www.jlbtg.cn` / `jlbtg.cn`
+- **SSL 证书**: 
+  - `/etc/nginx/ssl/www.jlbtg.cn.pem`
+  - `/etc/nginx/ssl/www.jlbtg.cn.key`
+- **API 代理**: `/api/` → `http://127.0.0.1:3000`
+- **前端路由**: SPA 需要 `try_files $uri $uri/ /index.html` 支持
+
+### 手动从模板生成配置（如果需要）
+
+```bash
+# 使用 sed 替换变量生成配置
+cd /www/wwwroot/promo-hub
+sed -e 's|\${DOMAIN_NAMES}|www.jlbtg.cn jlbtg.cn|g' \
+    -e 's|\${SSL_CERT_PATH}|/etc/nginx/ssl/www.jlbtg.cn.pem|g' \
+    -e 's|\${SSL_KEY_PATH}|/etc/nginx/ssl/www.jlbtg.cn.key|g' \
+    -e 's|\${ACME_ROOT}|/var/www/html|g' \
+    -e 's|\${API_URL}|http://127.0.0.1:3000|g' \
+    -e 's|\${PROJECT_ROOT}|/www/wwwroot/promo-hub|g' \
+    config/nginx.conf.template > /etc/nginx/conf.d/promo-hub.conf
+
+# 验证配置
+nginx -t
+
+# 重载 Nginx
+nginx -s reload
 ```
 
 ## 六、环境变量（敏感信息，CI/CD 使用 Secrets 管理）
@@ -106,25 +185,52 @@ CORS_ORIGIN=https://www.jlbtg.cn,https://jlbtg.cn
 SESSION_SECRET=<从 Secrets 获取>
 
 # 阿里云 SMS 配置
-SMS_ACCESS_KEY_ID=<从 Secrets 获取>
-SMS_ACCESS_KEY_SECRET=<从 Secrets 获取>
-SMS_SIGN_NAME=<从 Secrets 获取>
+ALIBABA_CLOUD_ACCESS_KEY_ID=<从 Secrets 获取>
+ALIBABA_CLOUD_ACCESS_KEY_SECRET=<从 Secrets 获取>
+ALIBABA_CLOUD_SMS_SIGN_NAME=<从 Secrets 获取>
+ALIBABA_CLOUD_SMS_TEMPLATE_CODE=<从 Secrets 获取>
+
+# Redis 配置（可选）
+REDIS_HOST=<从 Secrets 获取，可选>
+REDIS_PORT=6379
+REDIS_PASSWORD=<从 Secrets 获取，可选>
+REDIS_DB=0
+DATA_DIR=/www/wwwroot/promo-hub/api/data
 ```
 
 ### GitHub Secrets 配置
 
 在 GitHub 仓库的 `Settings → Secrets and variables → Actions` 中配置以下 Secrets：
 
-| Secret 名称 | 说明 |
-|------------|------|
-| `DB_PASSWORD` | 数据库密码 |
-| `SESSION_SECRET` | Session 密钥 |
-| `SMS_ACCESS_KEY_ID` | 阿里云访问密钥 ID |
-| `SMS_ACCESS_KEY_SECRET` | 阿里云访问密钥 Secret |
-| `SMS_SIGN_NAME` | 短信签名名称 |
-| `DEPLOY_HOST` | 部署服务器 IP |
-| `DEPLOY_USER` | 部署用户名 |
-| `DEPLOY_KEY` | SSH 私钥 |
+| Secret 名称 | 说明 | 是否必需 |
+|------------|------|----------|
+| `DB_HOST` | 数据库主机 | ✅ |
+| `DB_PORT` | 数据库端口 | ✅ |
+| `DB_USER` | 数据库用户名 | ✅ |
+| `DB_PASSWORD` | 数据库密码 | ✅ |
+| `DB_NAME` | 数据库名称 | ✅ |
+| `SESSION_SECRET` | Session 密钥 | ✅ |
+| `ADMIN_PHONE` | 管理员手机号 | ✅ |
+| `ADMIN_PASSWORD` | 管理员密码 | ✅ |
+| `ALIBABA_CLOUD_ACCESS_KEY_ID` | 阿里云访问密钥 ID | ✅ |
+| `ALIBABA_CLOUD_ACCESS_KEY_SECRET` | 阿里云访问密钥 Secret | ✅ |
+| `ALIBABA_CLOUD_SMS_SIGN_NAME` | 短信签名名称 | ✅ |
+| `ALIBABA_CLOUD_SMS_TEMPLATE_CODE` | 短信模板码 | ✅ |
+| `SERVER_HOST` | 部署服务器 IP | ✅ |
+| `SERVER_USER` | 部署用户名 | ✅ |
+| `SERVER_SSH_KEY` | SSH 私钥 | ✅ |
+| `SERVER_PORT` | SSH 端口 | ❌（默认 22） |
+| `DOMAIN_NAMES` | 域名列表（空格分隔） | ❌ |
+| `SSL_CERT_PATH` | SSL 证书路径 | ❌ |
+| `SSL_KEY_PATH` | SSL 密钥路径 | ❌ |
+| `ACME_ROOT` | ACME 验证路径 | ❌ |
+| `API_URL` | API 地址 | ❌ |
+| `REDIS_HOST` | Redis 主机 | ❌ |
+| `REDIS_PORT` | Redis 端口 | ❌ |
+| `REDIS_PASSWORD` | Redis 密码 | ❌ |
+| `REDIS_DB` | Redis 数据库 | ❌ |
+| `DATA_DIR` | 数据存储目录 | ❌ |
+| `VITE_ICP_NUMBER` | ICP 备案号 | ❌ |
 
 ## 七、PM2 进程配置
 
@@ -174,6 +280,24 @@ firewall-cmd --reload
 
 ## 九、CI/CD 部署流程
 
+### 部署流程概述
+
+完整的 CI/CD 部署流程如下：
+
+```
+1. 代码推送到 main 分支 → GitHub Actions 触发
+2. 部署前检查（检查是否有 .env 等敏感文件被提交）
+3. 代码质量检查（TypeScript 类型检查 + ESLint）
+4. 构建应用（Admin/Manager/User 前端 + API 后端）
+5. 上传构建产物到服务器
+6. 上传 Nginx 配置模板
+7. 在服务器上从模板生成 Nginx 配置（替换变量）
+8. 创建/更新 .env 环境变量文件
+9. 安装依赖
+10. 重启 PM2 进程
+11. 重载 Nginx
+```
+
 ### 部署前备份
 
 ```bash
@@ -217,35 +341,9 @@ pm2 restart promo-api
 nginx -t && nginx -s reload
 ```
 
-### CI/CD 脚本示例
+### CI/CD 配置文件
 
-在 `.github/workflows/deploy.yml` 中：
-
-```yaml
-name: Deploy to Production
-
-on:
-  push:
-    branches: [main]
-
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Deploy to Server
-        uses: appleboy/ssh-action@master
-        with:
-          host: ${{ secrets.DEPLOY_HOST }}
-          username: ${{ secrets.DEPLOY_USER }}
-          key: ${{ secrets.DEPLOY_KEY }}
-          script: |
-            cd /www/wwwroot/promo-hub
-            git pull origin main
-            pnpm install
-            pnpm build
-            pm2 restart promo-api
-            nginx -t && nginx -s reload
-```
+完整的 CI/CD 配置文件见 `.github/workflows/deploy.yml`
 
 ## 十、关键检查点
 
@@ -256,6 +354,8 @@ jobs:
 - ✅ PM2 进程名保持 `promo-api`
 - ✅ 数据库连接信息正确
 - ✅ CORS 配置包含所有域名
+- ✅ Nginx 配置使用模板文件，避免硬编码路径
+- ✅ 敏感信息仅存储在 GitHub Secrets 中，不上传 Git
 
 ## 十一、回滚方案
 
@@ -425,6 +525,6 @@ fi
 
 ---
 
-**文档版本**: 1.0.0  
+**文档版本**: 2.0.0  
 **最后更新**: 2026-05-31  
 **维护者**: Development Team
