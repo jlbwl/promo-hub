@@ -10,7 +10,7 @@
       @dragleave.prevent="handleDragLeave"
       @drop.prevent="handleDrop"
       @input="handleInput"
-    ></div>
+    />
     
     <div class="editor-toolbar">
       <div class="toolbar-left">
@@ -18,8 +18,8 @@
           type="primary"
           size="small"
           :icon="PictureFilled"
-          @click="handleImageUpload"
           class="upload-btn"
+          @click="handleImageUpload"
         >
           插入图片
         </el-button>
@@ -29,7 +29,7 @@
           accept="image/*"
           style="display: none;"
           @change="handleFileSelect"
-        />
+        >
       </div>
       
       <div class="toolbar-right">
@@ -37,15 +37,26 @@
           <el-icon><InfoFilled /></el-icon>
           支持拖拽、复制粘贴或点击按钮上传图片
         </span>
-        <span class="word-count" :class="{ warning: currentLength > maxLength * 0.9 }">
+        <span
+          class="word-count"
+          :class="{ warning: currentLength > maxLength * 0.9 }"
+        >
           {{ currentLength }} / {{ maxLength }}
         </span>
       </div>
     </div>
     
-    <div v-if="uploading" class="uploading-overlay">
+    <div
+      v-if="uploading"
+      class="uploading-overlay"
+    >
       <div class="uploading-content">
-        <el-icon class="loading-icon" :size="32"><Loading /></el-icon>
+        <el-icon
+          class="loading-icon"
+          :size="32"
+        >
+          <Loading />
+        </el-icon>
         <span class="uploading-text">图片上传中...</span>
       </div>
     </div>
@@ -58,7 +69,7 @@ import { ElMessage } from 'element-plus'
 import { PictureFilled, InfoFilled, Loading } from '@element-plus/icons-vue'
 import { post } from '@promo/shared/utils/request'
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
+ 
 const props = withDefaults(defineProps<{
   modelValue: string
   placeholder?: string

@@ -10,7 +10,10 @@
       >
         {{ icpNumber }}
       </a>
-      <span v-else class="icp-placeholder">
+      <span
+        v-else
+        class="icp-placeholder"
+      >
         请在备案成功后配置备案号
       </span>
     </div>

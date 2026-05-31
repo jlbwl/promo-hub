@@ -3,61 +3,125 @@
     <!-- 顶部品牌区域 -->
     <div class="login-header">
       <div class="logo">
-        <van-icon name="shop-o" size="64" color="#1989fa" />
+        <van-icon
+          name="shop-o"
+          size="64"
+          color="#1989fa"
+        />
       </div>
-      <h2 class="app-name">产品展示系统</h2>
-      <p class="app-desc">产品展示与管理平台</p>
+      <h2 class="app-name">
+        产品展示系统
+      </h2>
+      <p class="app-desc">
+        产品展示与管理平台
+      </p>
     </div>
 
     <!-- 登录方式选择 -->
     <div class="login-form">
       <!-- 第一步：选择登录方式 -->
-      <div v-if="currentStep === 'select'" class="login-options">
-        <div class="option-item" @click="selectLoginType('normal')">
+      <div
+        v-if="currentStep === 'select'"
+        class="login-options"
+      >
+        <div
+          class="option-item"
+          @click="selectLoginType('normal')"
+        >
           <div class="option-icon">
-            <van-icon name="user-o" size="32" />
+            <van-icon
+              name="user-o"
+              size="32"
+            />
           </div>
           <div class="option-content">
-            <div class="option-title">普通登录</div>
-            <div class="option-desc">使用手机号密码或验证码登录</div>
+            <div class="option-title">
+              普通登录
+            </div>
+            <div class="option-desc">
+              使用手机号密码或验证码登录
+            </div>
           </div>
           <van-icon name="arrow" />
         </div>
 
-        <div class="option-item" @click="handleGuestLogin">
+        <div
+          class="option-item"
+          @click="handleGuestLogin"
+        >
           <div class="option-icon">
-            <van-icon name="eye-o" size="32" />
+            <van-icon
+              name="eye-o"
+              size="32"
+            />
           </div>
           <div class="option-content">
-            <div class="option-title">访客登录</div>
-            <div class="option-desc">无需注册，快速浏览产品</div>
+            <div class="option-title">
+              访客登录
+            </div>
+            <div class="option-desc">
+              无需注册，快速浏览产品
+            </div>
           </div>
           <van-icon name="arrow" />
         </div>
 
-        <div class="option-item" @click="goEmployeeLogin">
+        <div
+          class="option-item"
+          @click="goEmployeeLogin"
+        >
           <div class="option-icon">
-            <van-icon name="friends-o" size="32" />
+            <van-icon
+              name="friends-o"
+              size="32"
+            />
           </div>
           <div class="option-content">
-            <div class="option-title">员工专属登录</div>
-            <div class="option-desc">企业员工专属登录入口</div>
+            <div class="option-title">
+              员工专属登录
+            </div>
+            <div class="option-desc">
+              企业员工专属登录入口
+            </div>
           </div>
           <van-icon name="arrow" />
         </div>
       </div>
 
       <!-- 第二步：普通登录表单 -->
-      <div v-else class="normal-login-form">
-        <div class="back-btn" @click="backToSelect">
+      <div
+        v-else
+        class="normal-login-form"
+      >
+        <div
+          class="back-btn"
+          @click="backToSelect"
+        >
           <van-icon name="arrow-left" /> 返回
         </div>
 
-        <van-tabs v-model:active="loginTab" animated shrink>
+        <van-tabs
+          v-model:active="loginTab"
+          animated
+          shrink
+        >
           <!-- Tab 1: 密码登录 -->
-          <van-tab title="密码登录" name="password">
-            <van-cell-group inset style="margin-top: 16px;">
-              <van-field v-model="pwdForm.phone" type="tel" label="手机号" placeholder="请输入手机号" maxlength="11" clearable />
+          <van-tab
+            title="密码登录"
+            name="password"
+          >
+            <van-cell-group
+              inset
+              style="margin-top: 16px;"
+            >
+              <van-field
+                v-model="pwdForm.phone"
+                type="tel"
+                label="手机号"
+                placeholder="请输入手机号"
+                maxlength="11"
+                clearable
+              />
               <van-field
                 v-model="pwdForm.password"
                 :type="showPassword ? 'text' : 'password'"
@@ -69,35 +133,85 @@
               />
             </van-cell-group>
             <div class="login-btn-wrap">
-              <van-button type="primary" block round size="large" :loading="loading" loading-text="登录中..." @click="handlePasswordLogin">登录</van-button>
+              <van-button
+                type="primary"
+                block
+                round
+                size="large"
+                :loading="loading"
+                loading-text="登录中..."
+                @click="handlePasswordLogin"
+              >
+                登录
+              </van-button>
             </div>
             <div class="login-footer">
-              <span class="link-text" @click="goRegister">没有账号？去注册</span>
+              <span
+                class="link-text"
+                @click="goRegister"
+              >没有账号？去注册</span>
             </div>
           </van-tab>
 
           <!-- Tab 2: 短信验证码登录 -->
-          <van-tab title="短信登录" name="sms">
-            <van-cell-group inset style="margin-top: 16px;">
-              <van-field v-model="smsForm.phone" type="tel" label="手机号" placeholder="请输入手机号" maxlength="11" clearable />
-              <van-field v-model="smsForm.code" type="digit" label="验证码" placeholder="请输入验证码" maxlength="6" clearable>
+          <van-tab
+            title="短信登录"
+            name="sms"
+          >
+            <van-cell-group
+              inset
+              style="margin-top: 16px;"
+            >
+              <van-field
+                v-model="smsForm.phone"
+                type="tel"
+                label="手机号"
+                placeholder="请输入手机号"
+                maxlength="11"
+                clearable
+              />
+              <van-field
+                v-model="smsForm.code"
+                type="digit"
+                label="验证码"
+                placeholder="请输入验证码"
+                maxlength="6"
+                clearable
+              >
                 <template #button>
                   <van-button
                     size="small"
                     type="primary"
                     :disabled="smsCooldown > 0"
                     :text="smsCooldown > 0 ? `${smsCooldown}s` : '获取验证码'"
-                    @click="handleSendSms"
                     style="min-width: 90px;"
+                    @click="handleSendSms"
                   />
                 </template>
               </van-field>
-              <van-field v-model="smsForm.teamName" label="团队名称" placeholder="选填，用于区分不同团队" clearable />
+              <van-field
+                v-model="smsForm.teamName"
+                label="团队名称"
+                placeholder="选填，用于区分不同团队"
+                clearable
+              />
             </van-cell-group>
             <div class="login-btn-wrap">
-              <van-button type="primary" block round size="large" :loading="loading" loading-text="登录中..." @click="handleSmsLogin">登录 / 注册</van-button>
+              <van-button
+                type="primary"
+                block
+                round
+                size="large"
+                :loading="loading"
+                loading-text="登录中..."
+                @click="handleSmsLogin"
+              >
+                登录 / 注册
+              </van-button>
             </div>
-            <div class="sms-tip">未注册的手机号将自动创建账号</div>
+            <div class="sms-tip">
+              未注册的手机号将自动创建账号
+            </div>
           </van-tab>
         </van-tabs>
       </div>

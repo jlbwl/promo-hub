@@ -1,6 +1,9 @@
 <template>
   <div class="cart-item">
-    <div class="item-info" @click="handleItemClick">
+    <div
+      class="item-info"
+      @click="handleItemClick"
+    >
       <van-image
         v-if="item.coverImage"
         :src="item.coverImage"
@@ -9,11 +12,25 @@
         fit="cover"
         round
       />
-      <div v-else class="no-image">无图</div>
+      <div
+        v-else
+        class="no-image"
+      >
+        无图
+      </div>
       <div class="item-detail">
-        <h4 class="item-name">{{ item.productName }}</h4>
-        <p v-if="item.optionLabel" class="item-option">{{ item.optionLabel }}</p>
-        <p class="item-price">¥{{ item.productPrice }}</p>
+        <h4 class="item-name">
+          {{ item.productName }}
+        </h4>
+        <p
+          v-if="item.optionLabel"
+          class="item-option"
+        >
+          {{ item.optionLabel }}
+        </p>
+        <p class="item-price">
+          ¥{{ item.productPrice }}
+        </p>
       </div>
     </div>
     <div class="item-actions">
@@ -28,7 +45,13 @@
       >
         移除
       </van-button>
-      <van-tag v-else type="warning" size="medium">主账户加入</van-tag>
+      <van-tag
+        v-else
+        type="warning"
+        size="medium"
+      >
+        主账户加入
+      </van-tag>
     </div>
   </div>
 </template>

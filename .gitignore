@@ -41,3 +41,7 @@ coverage
 # Misc
 *.local
 .turbo
+
+# Upload scripts
+upload-cert.exp
+upload-cert.py

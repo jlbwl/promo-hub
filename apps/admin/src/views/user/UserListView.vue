@@ -1,8 +1,14 @@
 <template>
   <div class="user-list">
     <!-- 搜索栏 -->
-    <el-card shadow="never" class="search-card">
-      <el-row :gutter="20" align="middle">
+    <el-card
+      shadow="never"
+      class="search-card"
+    >
+      <el-row
+        :gutter="20"
+        align="middle"
+      >
         <el-col :span="6">
           <el-input
             v-model="searchKeyword"
@@ -20,13 +26,26 @@
             clearable
             @change="handleSearch"
           >
-            <el-option label="全部" value="" />
-            <el-option label="启用" :value="1" />
-            <el-option label="禁用" :value="0" />
+            <el-option
+              label="全部"
+              value=""
+            />
+            <el-option
+              label="启用"
+              :value="1"
+            />
+            <el-option
+              label="禁用"
+              :value="0"
+            />
           </el-select>
         </el-col>
         <el-col :span="4">
-          <el-button type="primary" icon="Search" @click="handleSearch">
+          <el-button
+            type="primary"
+            icon="Search"
+            @click="handleSearch"
+          >
             搜索
           </el-button>
         </el-col>
@@ -34,17 +53,34 @@
     </el-card>
 
     <!-- 数据表格 -->
-    <el-card shadow="never" style="margin-top: 16px;">
+    <el-card
+      shadow="never"
+      style="margin-top: 16px;"
+    >
       <el-table
+        v-loading="loading"
         :data="tableData"
         stripe
         border
         style="width: 100%"
-        v-loading="loading"
       >
-        <el-table-column prop="teamName" label="团队名称" width="160" show-overflow-tooltip />
-        <el-table-column prop="phone" label="手机号" width="140" />
-        <el-table-column prop="role" label="角色" width="220" align="center">
+        <el-table-column
+          prop="teamName"
+          label="团队名称"
+          width="160"
+          show-overflow-tooltip
+        />
+        <el-table-column
+          prop="phone"
+          label="手机号"
+          width="140"
+        />
+        <el-table-column
+          prop="role"
+          label="角色"
+          width="220"
+          align="center"
+        >
           <template #default="{ row }">
             <el-button-group>
               <el-button
@@ -64,7 +100,12 @@
             </el-button-group>
           </template>
         </el-table-column>
-        <el-table-column prop="status" label="状态" width="200" align="center">
+        <el-table-column
+          prop="status"
+          label="状态"
+          width="200"
+          align="center"
+        >
           <template #default="{ row }">
             <el-button-group>
               <el-button
@@ -84,17 +125,34 @@
             </el-button-group>
           </template>
         </el-table-column>
-        <el-table-column label="注册时间" width="180">
+        <el-table-column
+          label="注册时间"
+          width="180"
+        >
           <template #default="{ row }">
             {{ formatTime(row.createdAt) }}
           </template>
         </el-table-column>
-        <el-table-column label="操作" min-width="180" fixed="right">
+        <el-table-column
+          label="操作"
+          min-width="180"
+          fixed="right"
+        >
           <template #default="{ row }">
-            <el-button type="warning" text size="small" @click="handleEditTeamName(row)">
+            <el-button
+              type="warning"
+              text
+              size="small"
+              @click="handleEditTeamName(row)"
+            >
               修改团队名称
             </el-button>
-            <el-button type="danger" text size="small" @click="handleDelete(row)">
+            <el-button
+              type="danger"
+              text
+              size="small"
+              @click="handleDelete(row)"
+            >
               删除
             </el-button>
           </template>
@@ -121,7 +179,10 @@
       title="修改团队名称"
       width="400px"
     >
-      <el-form :model="teamNameForm" label-width="100px">
+      <el-form
+        :model="teamNameForm"
+        label-width="100px"
+      >
         <el-form-item label="团队名称">
           <el-input
             v-model="teamNameForm.teamName"
@@ -130,12 +191,21 @@
           />
         </el-form-item>
         <el-form-item label="原团队名称">
-          <el-input :value="editRow?.teamName || '--'" disabled />
+          <el-input
+            :value="editRow?.teamName || '--'"
+            disabled
+          />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="teamNameDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="teamNameLoading" @click="handleSaveTeamName">
+        <el-button @click="teamNameDialogVisible = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="teamNameLoading"
+          @click="handleSaveTeamName"
+        >
           确定
         </el-button>
       </template>
@@ -147,7 +217,10 @@
       title="安全验证"
       width="400px"
     >
-      <el-form :model="{ smsCode: smsCode }" label-width="100px">
+      <el-form
+        :model="{ smsCode: smsCode }"
+        label-width="100px"
+      >
         <el-form-item label="短信验证码">
           <el-input
             v-model="smsCode"
@@ -161,7 +234,9 @@
         请输入管理员手机收到的验证码
       </p>
       <template #footer>
-        <el-button @click="deleteSmsDialogVisible = false; smsCode = ''">取消</el-button>
+        <el-button @click="deleteSmsDialogVisible = false; smsCode = ''">
+          取消
+        </el-button>
         <el-button
           type="primary"
           :loading="smsLoading"
@@ -172,8 +247,8 @@
         <el-button
           type="success"
           :loading="smsLoading"
-          @click="sendSmsCode"
           :disabled="smsCooldown > 0"
+          @click="sendSmsCode"
         >
           {{ smsCooldown > 0 ? `${smsCooldown}s` : '获取验证码' }}
         </el-button>

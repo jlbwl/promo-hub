@@ -4,7 +4,10 @@
       <template #header>
         <div class="flex-between">
           <span>{{ isEdit ? '编辑产品' : '新建产品' }}</span>
-          <el-button text @click="$router.back()">
+          <el-button
+            text
+            @click="$router.back()"
+          >
             <el-icon><ArrowLeft /></el-icon>
             返回
           </el-button>
@@ -19,7 +22,10 @@
         style="max-width: 700px;"
       >
         <!-- 产品标题 -->
-        <el-form-item label="产品标题" prop="title">
+        <el-form-item
+          label="产品标题"
+          prop="title"
+        >
           <el-input
             v-model="form.title"
             placeholder="请输入产品标题"
@@ -29,26 +35,45 @@
         </el-form-item>
 
         <!-- 产品描述 -->
-        <el-form-item label="产品描述" prop="description">
+        <el-form-item
+          label="产品描述"
+          prop="description"
+        >
           <RichTextEditor
+            ref="richTextRef"
             v-model="form.description"
             placeholder="请输入产品描述，支持图文混排"
-            :maxLength="5000"
-            ref="richTextRef"
+            :max-length="5000"
           />
         </el-form-item>
 
         <!-- 产品分类 -->
-        <el-form-item label="产品分类" prop="category">
-          <el-select v-model="form.category" placeholder="请选择分类" style="width: 100%;" :loading="categoriesLoading">
-            <el-option v-for="category in categories" :key="category.id" :label="category.name" :value="category.value" />
+        <el-form-item
+          label="产品分类"
+          prop="category"
+        >
+          <el-select
+            v-model="form.category"
+            placeholder="请选择分类"
+            style="width: 100%;"
+            :loading="categoriesLoading"
+          >
+            <el-option
+              v-for="category in categories"
+              :key="category.id"
+              :label="category.name"
+              :value="category.value"
+            />
           </el-select>
         </el-form-item>
 
         <!-- 价格与库存 -->
         <el-row :gutter="20">
           <el-col :span="12">
-            <el-form-item label="积分值" prop="price">
+            <el-form-item
+              label="积分值"
+              prop="price"
+            >
               <el-input-number
                 v-model="form.price"
                 :min="0"
@@ -60,7 +85,10 @@
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="库存" prop="stock">
+            <el-form-item
+              label="库存"
+              prop="stock"
+            >
               <el-input-number
                 v-model="form.stock"
                 :min="0"
@@ -79,40 +107,83 @@
             <div class="option-group-header">
               <span style="font-size: 13px; color: #606266;">用户使用时需选择的选项（如套餐、规格等）</span>
               <div>
-                <el-button type="primary" size="small" @click="handleBatchAddOptions">批量添加</el-button>
-                <el-button size="small" @click="handleClearOptions">清空</el-button>
+                <el-button
+                  type="primary"
+                  size="small"
+                  @click="handleBatchAddOptions"
+                >
+                  批量添加
+                </el-button>
+                <el-button
+                  size="small"
+                  @click="handleClearOptions"
+                >
+                  清空
+                </el-button>
               </div>
             </div>
 
             <!-- 选项表格 -->
-            <div v-if="form.options.length > 0" class="option-table-wrapper">
+            <div
+              v-if="form.options.length > 0"
+              class="option-table-wrapper"
+            >
               <table class="option-table">
                 <thead>
                   <tr>
-                    <th style="width: 160px;">选项</th>
-                    <th style="width: 120px;">限制做单量</th>
-                    <th style="min-width: 200px;">提交后跳转</th>
-                    <th style="width: 100px;">操作</th>
+                    <th style="width: 160px;">
+                      选项
+                    </th>
+                    <th style="width: 120px;">
+                      限制做单量
+                    </th>
+                    <th style="min-width: 200px;">
+                      提交后跳转
+                    </th>
+                    <th style="width: 100px;">
+                      操作
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
-                  <tr v-for="(opt, idx) in form.options" :key="idx">
+                  <tr
+                    v-for="(opt, idx) in form.options"
+                    :key="idx"
+                  >
                     <td>
-                      <el-input v-model="opt.label" placeholder="请输入" size="small" />
+                      <el-input
+                        v-model="opt.label"
+                        placeholder="请输入"
+                        size="small"
+                      />
                     </td>
                     <td>
-                      <el-input v-model="opt.limit" placeholder="请输入" size="small" />
+                      <el-input
+                        v-model="opt.limit"
+                        placeholder="请输入"
+                        size="small"
+                      />
                     </td>
                     <td>
                       <div class="redirect-input-wrap">
-                        <el-input v-model="opt.redirectUrl" placeholder="输入跳转链接（不填则不跳转）" size="small" />
+                        <el-input
+                          v-model="opt.redirectUrl"
+                          placeholder="输入跳转链接（不填则不跳转）"
+                          size="small"
+                        />
                         <el-upload
                           :show-file-list="false"
                           :auto-upload="false"
                           accept="image/*"
                           @change="(file: any) => handleQrUpload(file, idx)"
                         >
-                          <el-button type="primary" text size="small" :loading="opt._qrLoading" title="上传二维码识别链接">
+                          <el-button
+                            type="primary"
+                            text
+                            size="small"
+                            :loading="opt._qrLoading"
+                            title="上传二维码识别链接"
+                          >
                             <el-icon><PictureFilled /></el-icon>
                           </el-button>
                         </el-upload>
@@ -120,8 +191,22 @@
                     </td>
                     <td>
                       <div class="option-actions">
-                        <el-button type="primary" text size="small" @click="handleCopyOption(idx)">复制</el-button>
-                        <el-button type="danger" text size="small" @click="handleDeleteOption(idx)">删除</el-button>
+                        <el-button
+                          type="primary"
+                          text
+                          size="small"
+                          @click="handleCopyOption(idx)"
+                        >
+                          复制
+                        </el-button>
+                        <el-button
+                          type="danger"
+                          text
+                          size="small"
+                          @click="handleDeleteOption(idx)"
+                        >
+                          删除
+                        </el-button>
                       </div>
                     </td>
                   </tr>
@@ -130,7 +215,10 @@
             </div>
 
             <!-- 添加一行 -->
-            <div class="add-option-area" @click="handleAddOption">
+            <div
+              class="add-option-area"
+              @click="handleAddOption"
+            >
               <el-icon><Plus /></el-icon>
               <span>添加一行数据</span>
             </div>
@@ -138,7 +226,10 @@
         </el-form-item>
 
         <!-- 封面图片 -->
-        <el-form-item label="封面图片" prop="cover">
+        <el-form-item
+          label="封面图片"
+          prop="cover"
+        >
           <div class="upload-area">
             <el-image
               v-if="form.cover"
@@ -146,8 +237,14 @@
               fit="cover"
               style="width: 200px; height: 200px; border-radius: 8px;"
             />
-            <div v-else class="upload-placeholder" @click="handleUpload">
-              <el-icon class="upload-icon"><Plus /></el-icon>
+            <div
+              v-else
+              class="upload-placeholder"
+              @click="handleUpload"
+            >
+              <el-icon class="upload-icon">
+                <Plus />
+              </el-icon>
               <span>点击上传图片</span>
               <span class="upload-tip">建议尺寸 800x800，支持 JPG/PNG</span>
             </div>
@@ -185,10 +282,16 @@
 
         <!-- 操作按钮 -->
         <el-form-item>
-          <el-button type="primary" :loading="saving" @click="handleSave">
+          <el-button
+            type="primary"
+            :loading="saving"
+            @click="handleSave"
+          >
             {{ saving ? '保存中...' : '保存' }}
           </el-button>
-          <el-button @click="$router.back()">取消</el-button>
+          <el-button @click="$router.back()">
+            取消
+          </el-button>
         </el-form-item>
       </el-form>
     </el-card>

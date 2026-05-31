@@ -1,54 +1,97 @@
 <template>
   <div class="dashboard-page">
     <!-- 统计卡片 -->
-    <el-row :gutter="20" class="stat-cards">
-      <el-col :xs="24" :sm="12" :md="6">
-        <el-card shadow="hover" class="stat-card">
+    <el-row
+      :gutter="20"
+      class="stat-cards"
+    >
+      <el-col
+        :xs="24"
+        :sm="12"
+        :md="6"
+      >
+        <el-card
+          shadow="hover"
+          class="stat-card"
+        >
           <div class="stat-content">
             <div class="stat-info">
               <span class="stat-label">产品总数</span>
               <el-statistic :value="stats.totalProducts" />
             </div>
-            <el-icon class="stat-icon" style="color: #409eff; background: #ecf5ff;">
+            <el-icon
+              class="stat-icon"
+              style="color: #409eff; background: #ecf5ff;"
+            >
               <Goods />
             </el-icon>
           </div>
         </el-card>
       </el-col>
-      <el-col :xs="24" :sm="12" :md="6">
-        <el-card shadow="hover" class="stat-card">
+      <el-col
+        :xs="24"
+        :sm="12"
+        :md="6"
+      >
+        <el-card
+          shadow="hover"
+          class="stat-card"
+        >
           <div class="stat-content">
             <div class="stat-info">
               <span class="stat-label">已发布产品</span>
               <el-statistic :value="stats.publishedProducts" />
             </div>
-            <el-icon class="stat-icon" style="color: #67c23a; background: #f0f9eb;">
+            <el-icon
+              class="stat-icon"
+              style="color: #67c23a; background: #f0f9eb;"
+            >
               <CircleCheck />
             </el-icon>
           </div>
         </el-card>
       </el-col>
-      <el-col :xs="24" :sm="12" :md="6">
-        <el-card shadow="hover" class="stat-card">
+      <el-col
+        :xs="24"
+        :sm="12"
+        :md="6"
+      >
+        <el-card
+          shadow="hover"
+          class="stat-card"
+        >
           <div class="stat-content">
             <div class="stat-info">
               <span class="stat-label">待审核积分</span>
               <el-statistic :value="stats.pendingCommissions" />
             </div>
-            <el-icon class="stat-icon" style="color: #e6a23c; background: #fdf6ec;">
+            <el-icon
+              class="stat-icon"
+              style="color: #e6a23c; background: #fdf6ec;"
+            >
               <Clock />
             </el-icon>
           </div>
         </el-card>
       </el-col>
-      <el-col :xs="24" :sm="12" :md="6">
-        <el-card shadow="hover" class="stat-card">
+      <el-col
+        :xs="24"
+        :sm="12"
+        :md="6"
+      >
+        <el-card
+          shadow="hover"
+          class="stat-card"
+        >
           <div class="stat-content">
             <div class="stat-info">
               <span class="stat-label">累计积分</span>
               <el-statistic :value="stats.totalCommissions" />
             </div>
-            <el-icon class="stat-icon" style="color: #f56c6c; background: #fef0f0;">
+            <el-icon
+              class="stat-icon"
+              style="color: #f56c6c; background: #fef0f0;"
+            >
               <Money />
             </el-icon>
           </div>
@@ -57,22 +100,34 @@
     </el-row>
 
     <!-- 快捷操作 -->
-    <el-row :gutter="20" class="quick-actions">
+    <el-row
+      :gutter="20"
+      class="quick-actions"
+    >
       <el-col :span="24">
         <el-card shadow="hover">
           <template #header>
             <span>快捷操作</span>
           </template>
           <div class="action-buttons">
-            <el-button type="primary" @click="$router.push('/products/create')">
+            <el-button
+              type="primary"
+              @click="$router.push('/products/create')"
+            >
               <el-icon><Plus /></el-icon>
               新建产品
             </el-button>
-            <el-button type="success" @click="$router.push('/products')">
+            <el-button
+              type="success"
+              @click="$router.push('/products')"
+            >
               <el-icon><Goods /></el-icon>
               产品管理
             </el-button>
-            <el-button type="warning" @click="$router.push('/commissions')">
+            <el-button
+              type="warning"
+              @click="$router.push('/commissions')"
+            >
               <el-icon><Money /></el-icon>
               积分管理
             </el-button>

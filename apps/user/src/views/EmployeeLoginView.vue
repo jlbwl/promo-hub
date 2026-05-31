@@ -3,10 +3,18 @@
     <div class="login-container">
       <div class="logo-section">
         <div class="logo">
-          <van-icon name="user-o" size="48" color="#1989fa" />
+          <van-icon
+            name="user-o"
+            size="48"
+            color="#1989fa"
+          />
         </div>
-        <h1 class="title">员工登录</h1>
-        <p class="subtitle">登录员工账户，开始抢单</p>
+        <h1 class="title">
+          员工登录
+        </h1>
+        <p class="subtitle">
+          登录员工账户，开始抢单
+        </p>
       </div>
 
       <van-form @submit="handleSubmit">
@@ -29,7 +37,12 @@
         </van-cell-group>
 
         <div class="btn-area">
-          <van-button type="primary" block native-type="submit" :loading="loading">
+          <van-button
+            type="primary"
+            block
+            native-type="submit"
+            :loading="loading"
+          >
             登录
           </van-button>
         </div>
@@ -42,7 +55,10 @@
     </div>
 
     <!-- 返回主登录入口 -->
-    <div class="back-link" @click="goBack">
+    <div
+      class="back-link"
+      @click="goBack"
+    >
       返回普通登录
     </div>
   </div>

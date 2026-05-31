@@ -1,78 +1,194 @@
 <template>
   <div class="commission-list-page">
     <!-- 统计卡片 -->
-    <el-row :gutter="20" class="stat-cards">
-      <el-col :xs="24" :sm="12" :md="4">
-        <el-card shadow="hover" class="stat-card clickable" @click="openStatDialog('all', '总订单')">
+    <el-row
+      :gutter="20"
+      class="stat-cards"
+    >
+      <el-col
+        :xs="24"
+        :sm="12"
+        :md="4"
+      >
+        <el-card
+          shadow="hover"
+          class="stat-card clickable"
+          @click="openStatDialog('all', '总订单')"
+        >
           <div class="stat-content">
             <div class="stat-info">
               <span class="stat-label">总订单</span>
               <el-statistic :value="stats.total" />
             </div>
-            <el-icon class="stat-icon" style="color: #409eff; background: #ecf5ff;"><Document /></el-icon>
+            <el-icon
+              class="stat-icon"
+              style="color: #409eff; background: #ecf5ff;"
+            >
+              <Document />
+            </el-icon>
           </div>
-          <div v-if="stats.total > 0" class="card-badge">查看</div>
+          <div
+            v-if="stats.total > 0"
+            class="card-badge"
+          >
+            查看
+          </div>
         </el-card>
       </el-col>
-      <el-col :xs="24" :sm="12" :md="4">
-        <el-card shadow="hover" class="stat-card clickable" @click="openStatDialog('pending', '待审核')">
+      <el-col
+        :xs="24"
+        :sm="12"
+        :md="4"
+      >
+        <el-card
+          shadow="hover"
+          class="stat-card clickable"
+          @click="openStatDialog('pending', '待审核')"
+        >
           <div class="stat-content">
             <div class="stat-info">
               <span class="stat-label">待审核</span>
               <el-statistic :value="stats.pending" />
             </div>
-            <el-icon class="stat-icon" style="color: #e6a23c; background: #fdf6ec;"><Clock /></el-icon>
+            <el-icon
+              class="stat-icon"
+              style="color: #e6a23c; background: #fdf6ec;"
+            >
+              <Clock />
+            </el-icon>
           </div>
-          <div v-if="stats.pending > 0" class="card-badge" style="background: linear-gradient(135deg, #e6a23c, #f5c77e);">查看</div>
+          <div
+            v-if="stats.pending > 0"
+            class="card-badge"
+            style="background: linear-gradient(135deg, #e6a23c, #f5c77e);"
+          >
+            查看
+          </div>
         </el-card>
       </el-col>
-      <el-col :xs="24" :sm="12" :md="4">
-        <el-card shadow="hover" class="stat-card clickable" @click="openStatDialog('approved', '已通过')">
+      <el-col
+        :xs="24"
+        :sm="12"
+        :md="4"
+      >
+        <el-card
+          shadow="hover"
+          class="stat-card clickable"
+          @click="openStatDialog('approved', '已通过')"
+        >
           <div class="stat-content">
             <div class="stat-info">
               <span class="stat-label">已通过</span>
               <el-statistic :value="stats.approved" />
             </div>
-            <el-icon class="stat-icon" style="color: #67c23a; background: #f0f9eb;"><CircleCheck /></el-icon>
+            <el-icon
+              class="stat-icon"
+              style="color: #67c23a; background: #f0f9eb;"
+            >
+              <CircleCheck />
+            </el-icon>
           </div>
-          <div v-if="stats.approved > 0" class="card-badge" style="background: linear-gradient(135deg, #67c23a, #95d475);">查看</div>
+          <div
+            v-if="stats.approved > 0"
+            class="card-badge"
+            style="background: linear-gradient(135deg, #67c23a, #95d475);"
+          >
+            查看
+          </div>
         </el-card>
       </el-col>
       <!-- 待付款 - 可点击按钮 -->
-      <el-col :xs="24" :sm="12" :md="4">
-        <el-card shadow="hover" class="stat-card clickable" :class="{ 'has-items': stats.pendingPayment > 0 }" @click="openPaymentDialog">
+      <el-col
+        :xs="24"
+        :sm="12"
+        :md="4"
+      >
+        <el-card
+          shadow="hover"
+          class="stat-card clickable"
+          :class="{ 'has-items': stats.pendingPayment > 0 }"
+          @click="openPaymentDialog"
+        >
           <div class="stat-content">
             <div class="stat-info">
               <span class="stat-label">待发放</span>
               <el-statistic :value="stats.pendingPayment" />
             </div>
-            <el-icon class="stat-icon" style="color: #409eff; background: #ecf5ff;"><Wallet /></el-icon>
+            <el-icon
+              class="stat-icon"
+              style="color: #409eff; background: #ecf5ff;"
+            >
+              <Wallet />
+            </el-icon>
           </div>
-          <div v-if="stats.pendingPayment > 0" class="card-badge">去结算</div>
+          <div
+            v-if="stats.pendingPayment > 0"
+            class="card-badge"
+          >
+            去结算
+          </div>
         </el-card>
       </el-col>
-      <el-col :xs="24" :sm="12" :md="4">
-        <el-card shadow="hover" class="stat-card clickable" @click="openStatDialog('settled', '已结算')">
+      <el-col
+        :xs="24"
+        :sm="12"
+        :md="4"
+      >
+        <el-card
+          shadow="hover"
+          class="stat-card clickable"
+          @click="openStatDialog('settled', '已结算')"
+        >
           <div class="stat-content">
             <div class="stat-info">
               <span class="stat-label">已发放</span>
               <el-statistic :value="stats.settled" />
             </div>
-            <el-icon class="stat-icon" style="color: #67c23a; background: #f0f9eb;"><SuccessFilled /></el-icon>
+            <el-icon
+              class="stat-icon"
+              style="color: #67c23a; background: #f0f9eb;"
+            >
+              <SuccessFilled />
+            </el-icon>
           </div>
-          <div v-if="stats.settled > 0" class="card-badge" style="background: linear-gradient(135deg, #67c23a, #95d475);">查看</div>
+          <div
+            v-if="stats.settled > 0"
+            class="card-badge"
+            style="background: linear-gradient(135deg, #67c23a, #95d475);"
+          >
+            查看
+          </div>
         </el-card>
       </el-col>
-      <el-col :xs="24" :sm="12" :md="4">
-        <el-card shadow="hover" class="stat-card clickable" @click="openStatDialog('rejected', '已驳回')">
+      <el-col
+        :xs="24"
+        :sm="12"
+        :md="4"
+      >
+        <el-card
+          shadow="hover"
+          class="stat-card clickable"
+          @click="openStatDialog('rejected', '已驳回')"
+        >
           <div class="stat-content">
             <div class="stat-info">
               <span class="stat-label">已驳回</span>
               <el-statistic :value="stats.rejected" />
             </div>
-            <el-icon class="stat-icon" style="color: #f56c6c; background: #fef0f0;"><CircleClose /></el-icon>
+            <el-icon
+              class="stat-icon"
+              style="color: #f56c6c; background: #fef0f0;"
+            >
+              <CircleClose />
+            </el-icon>
           </div>
-          <div v-if="stats.rejected > 0" class="card-badge" style="background: linear-gradient(135deg, #f56c6c, #fab6b6);">查看</div>
+          <div
+            v-if="stats.rejected > 0"
+            class="card-badge"
+            style="background: linear-gradient(135deg, #f56c6c, #fab6b6);"
+          >
+            查看
+          </div>
         </el-card>
       </el-col>
     </el-row>
@@ -95,14 +211,37 @@
         style="width: 140px;"
         @change="fetchData"
       >
-        <el-option label="全部" value="" />
-        <el-option label="待审核" value="pending" />
-        <el-option label="已通过" value="approved" />
-        <el-option label="待发放" value="pending_payment" />
-        <el-option label="已发放" value="settled" />
-        <el-option label="已驳回" value="rejected" />
+        <el-option
+          label="全部"
+          value=""
+        />
+        <el-option
+          label="待审核"
+          value="pending"
+        />
+        <el-option
+          label="已通过"
+          value="approved"
+        />
+        <el-option
+          label="待发放"
+          value="pending_payment"
+        />
+        <el-option
+          label="已发放"
+          value="settled"
+        />
+        <el-option
+          label="已驳回"
+          value="rejected"
+        />
       </el-select>
-      <el-button icon="Refresh" @click="handleReset">重置</el-button>
+      <el-button
+        icon="Refresh"
+        @click="handleReset"
+      >
+        重置
+      </el-button>
     </div>
 
     <!-- 数据表格 -->
@@ -113,63 +252,137 @@
       stripe
       style="width: 100%;"
     >
-      <el-table-column prop="productName" label="产品名称" min-width="180" show-overflow-tooltip>
+      <el-table-column
+        prop="productName"
+        label="产品名称"
+        min-width="180"
+        show-overflow-tooltip
+      >
         <template #default="{ row }">
           <span>{{ row.productName }}</span>
-          <el-tag v-if="row.optionLabel" size="small" type="info" style="margin-left: 6px;">{{ row.optionLabel }}</el-tag>
-          <el-tag v-if="row.fundAccount" size="small" type="primary" plain style="margin-left: 6px;">{{ row.fundAccount }}</el-tag>
+          <el-tag
+            v-if="row.optionLabel"
+            size="small"
+            type="info"
+            style="margin-left: 6px;"
+          >
+            {{ row.optionLabel }}
+          </el-tag>
+          <el-tag
+            v-if="row.fundAccount"
+            size="small"
+            type="primary"
+            plain
+            style="margin-left: 6px;"
+          >
+            {{ row.fundAccount }}
+          </el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="userName" label="用户姓名" width="120" show-overflow-tooltip>
+      <el-table-column
+        prop="userName"
+        label="用户姓名"
+        width="120"
+        show-overflow-tooltip
+      >
         <template #default="{ row }">
           <span>{{ maskName(row.userName) }}</span>
         </template>
       </el-table-column>
-      <el-table-column prop="userPhone" label="手机号" width="130" show-overflow-tooltip>
+      <el-table-column
+        prop="userPhone"
+        label="手机号"
+        width="130"
+        show-overflow-tooltip
+      >
         <template #default="{ row }">
           <span>{{ maskPhone(row.userPhone) }}</span>
         </template>
       </el-table-column>
-      <el-table-column prop="productPrice" label="积分值" width="100" align="right">
+      <el-table-column
+        prop="productPrice"
+        label="积分值"
+        width="100"
+        align="right"
+      >
         <template #default="{ row }">
           <span style="font-weight: 500;">{{ row.productPrice }}</span>
         </template>
       </el-table-column>
-      <el-table-column prop="status" label="状态" width="100" align="center">
+      <el-table-column
+        prop="status"
+        label="状态"
+        width="100"
+        align="center"
+      >
         <template #default="{ row }">
           <el-tag :type="statusTagType(row.status)">
             {{ statusText(row.status) }}
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="做单时间" width="170" align="center">
+      <el-table-column
+        label="做单时间"
+        width="170"
+        align="center"
+      >
         <template #default="{ row }">
           {{ formatTime(row.createdAt) }}
         </template>
       </el-table-column>
-      <el-table-column prop="rejectReason" label="驳回原因" width="120" show-overflow-tooltip>
+      <el-table-column
+        prop="rejectReason"
+        label="驳回原因"
+        width="120"
+        show-overflow-tooltip
+      >
         <template #default="{ row }">
           <span style="color: #f56c6c;">{{ row.rejectReason || '--' }}</span>
         </template>
       </el-table-column>
-      <el-table-column prop="settledAt" label="发放日期" width="170" align="center">
+      <el-table-column
+        prop="settledAt"
+        label="发放日期"
+        width="170"
+        align="center"
+      >
         <template #default="{ row }">
           <span>{{ row.settledAt ? formatTime(row.settledAt) : '--' }}</span>
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="200" align="center" fixed="right">
+      <el-table-column
+        label="操作"
+        width="200"
+        align="center"
+        fixed="right"
+      >
         <template #default="{ row }">
           <div class="table-actions">
             <template v-if="row.status === 'pending'">
-              <el-button type="success" text size="small" @click="handleApprove(row)">
+              <el-button
+                type="success"
+                text
+                size="small"
+                @click="handleApprove(row)"
+              >
                 审核通过
               </el-button>
-              <el-button type="danger" text size="small" @click="handleReject(row)">
+              <el-button
+                type="danger"
+                text
+                size="small"
+                @click="handleReject(row)"
+              >
                 驳回
               </el-button>
             </template>
             <template v-else-if="row.status === 'approved'">
-              <el-button type="primary" text size="small" @click="handleAddToPayment(row)">
+              <el-button
+                type="primary"
+                text
+                size="small"
+                @click="handleAddToPayment(row)"
+              >
                 添加到待发放
               </el-button>
             </template>
@@ -203,7 +416,10 @@
       destroy-on-close
     >
       <!-- 待付款列表 -->
-      <div v-if="paymentStep === 'list'" class="payment-dialog-content">
+      <div
+        v-if="paymentStep === 'list'"
+        class="payment-dialog-content"
+      >
         <div class="payment-summary">
           <span>共 <strong>{{ paymentOrders.length }}</strong> 笔待发放</span>
           <span class="payment-total">
@@ -211,35 +427,86 @@
           </span>
         </div>
 
-        <el-table :data="paymentOrders" border size="small" max-height="400">
-          <el-table-column type="index" label="#" width="40" />
-          <el-table-column prop="productName" label="产品名称" min-width="140" show-overflow-tooltip>
+        <el-table
+          :data="paymentOrders"
+          border
+          size="small"
+          max-height="400"
+        >
+          <el-table-column
+            type="index"
+            label="#"
+            width="40"
+          />
+          <el-table-column
+            prop="productName"
+            label="产品名称"
+            min-width="140"
+            show-overflow-tooltip
+          >
             <template #default="{ row }">
               <span>{{ row.productName }}</span>
-              <el-tag v-if="row.optionLabel" size="small" type="info" style="margin-left: 4px;">{{ row.optionLabel }}</el-tag>
-              <el-tag v-if="row.fundAccount" size="small" type="primary" plain style="margin-left: 4px;">{{ row.fundAccount }}</el-tag>
+              <el-tag
+                v-if="row.optionLabel"
+                size="small"
+                type="info"
+                style="margin-left: 4px;"
+              >
+                {{ row.optionLabel }}
+              </el-tag>
+              <el-tag
+                v-if="row.fundAccount"
+                size="small"
+                type="primary"
+                plain
+                style="margin-left: 4px;"
+              >
+                {{ row.fundAccount }}
+              </el-tag>
             </template>
           </el-table-column>
-          <el-table-column prop="userName" label="姓名" width="100" show-overflow-tooltip>
+          <el-table-column
+            prop="userName"
+            label="姓名"
+            width="100"
+            show-overflow-tooltip
+          >
             <template #default="{ row }">
               <span>{{ maskName(row.userName) }}</span>
             </template>
           </el-table-column>
-          <el-table-column prop="userPhone" label="手机号" width="110" show-overflow-tooltip>
+          <el-table-column
+            prop="userPhone"
+            label="手机号"
+            width="110"
+            show-overflow-tooltip
+          >
             <template #default="{ row }">
               <span>{{ maskPhone(row.userPhone) }}</span>
             </template>
           </el-table-column>
-          <el-table-column prop="productPrice" label="积分值" width="90" align="right">
+          <el-table-column
+            prop="productPrice"
+            label="积分值"
+            width="90"
+            align="right"
+          >
             <template #default="{ row }">
               <span style="font-weight: 600; color: #409eff;">{{ row.productPrice }}</span>
             </template>
           </el-table-column>
-          <el-table-column prop="createdAt" label="做单时间" width="150" align="center" />
+          <el-table-column
+            prop="createdAt"
+            label="做单时间"
+            width="150"
+            align="center"
+          />
         </el-table>
 
         <div class="payment-actions">
-          <el-button @click="paymentDialogVisible = false">关闭</el-button>
+          <el-button @click="paymentDialogVisible = false">
+            关闭
+          </el-button>
           <el-button
             type="primary"
             :disabled="paymentOrders.length === 0"
@@ -251,7 +518,10 @@
       </div>
 
       <!-- 选择发放方式 -->
-      <div v-else-if="paymentStep === 'method'" class="payment-dialog-content">
+      <div
+        v-else-if="paymentStep === 'method'"
+        class="payment-dialog-content"
+      >
         <div class="payment-summary">
           <span>共 <strong>{{ paymentOrders.length }}</strong> 笔</span>
           <span class="payment-total">
@@ -267,7 +537,10 @@
             :class="{ active: selectedPaymentMethod === method.value }"
             @click="selectedPaymentMethod = method.value"
           >
-            <div class="method-icon" :style="{ background: method.color }">
+            <div
+              class="method-icon"
+              :style="{ background: method.color }"
+            >
               <span>{{ method.icon }}</span>
             </div>
             <div class="method-info">
@@ -283,7 +556,9 @@
         </div>
 
         <div class="payment-actions">
-          <el-button @click="paymentStep = 'list'">返回</el-button>
+          <el-button @click="paymentStep = 'list'">
+            返回
+          </el-button>
           <el-button
             type="primary"
             :disabled="!selectedPaymentMethod"
@@ -296,17 +571,33 @@
       </div>
 
       <!-- 发放成功 -->
-      <div v-else-if="paymentStep === 'success'" class="payment-dialog-content">
+      <div
+        v-else-if="paymentStep === 'success'"
+        class="payment-dialog-content"
+      >
         <div class="success-result">
-          <el-icon class="success-icon" style="color: #67c23a; font-size: 64px;">
+          <el-icon
+            class="success-icon"
+            style="color: #67c23a; font-size: 64px;"
+          >
             <SuccessFilled />
           </el-icon>
           <h3>结算成功</h3>
           <p>已通过{{ methodLabel }}完成 {{ paymentOrders.length }} 笔订单结算</p>
-          <p class="success-amount">¥{{ paymentTotal }}</p>
+          <p class="success-amount">
+            ¥{{ paymentTotal }}
+          </p>
         </div>
-        <div class="payment-actions" style="justify-content: center;">
-          <el-button type="primary" @click="closePaymentDialog">完成</el-button>
+        <div
+          class="payment-actions"
+          style="justify-content: center;"
+        >
+          <el-button
+            type="primary"
+            @click="closePaymentDialog"
+          >
+            完成
+          </el-button>
         </div>
       </div>
     </el-dialog>
@@ -326,46 +617,114 @@
           </span>
         </div>
 
-        <el-table :data="statDialogOrders" border size="small" max-height="450">
-          <el-table-column type="index" label="#" width="40" />
-          <el-table-column prop="productName" label="产品名称" min-width="140" show-overflow-tooltip>
+        <el-table
+          :data="statDialogOrders"
+          border
+          size="small"
+          max-height="450"
+        >
+          <el-table-column
+            type="index"
+            label="#"
+            width="40"
+          />
+          <el-table-column
+            prop="productName"
+            label="产品名称"
+            min-width="140"
+            show-overflow-tooltip
+          >
             <template #default="{ row }">
               <span>{{ row.productName }}</span>
-              <el-tag v-if="row.optionLabel" size="small" type="info" style="margin-left: 4px;">{{ row.optionLabel }}</el-tag>
-              <el-tag v-if="row.fundAccount" size="small" type="primary" plain style="margin-left: 4px;">{{ row.fundAccount }}</el-tag>
+              <el-tag
+                v-if="row.optionLabel"
+                size="small"
+                type="info"
+                style="margin-left: 4px;"
+              >
+                {{ row.optionLabel }}
+              </el-tag>
+              <el-tag
+                v-if="row.fundAccount"
+                size="small"
+                type="primary"
+                plain
+                style="margin-left: 4px;"
+              >
+                {{ row.fundAccount }}
+              </el-tag>
             </template>
           </el-table-column>
-          <el-table-column prop="userName" label="姓名" width="100" show-overflow-tooltip>
+          <el-table-column
+            prop="userName"
+            label="姓名"
+            width="100"
+            show-overflow-tooltip
+          >
             <template #default="{ row }">
               <span>{{ maskName(row.userName) }}</span>
             </template>
           </el-table-column>
-          <el-table-column prop="userPhone" label="手机号" width="110" show-overflow-tooltip>
+          <el-table-column
+            prop="userPhone"
+            label="手机号"
+            width="110"
+            show-overflow-tooltip
+          >
             <template #default="{ row }">
               <span>{{ maskPhone(row.userPhone) }}</span>
             </template>
           </el-table-column>
-          <el-table-column prop="productPrice" label="积分值" width="90" align="right">
+          <el-table-column
+            prop="productPrice"
+            label="积分值"
+            width="90"
+            align="right"
+          >
             <template #default="{ row }">
               <span style="font-weight: 600;">{{ row.productPrice }}</span>
             </template>
           </el-table-column>
-          <el-table-column prop="status" label="状态" width="80" align="center">
+          <el-table-column
+            prop="status"
+            label="状态"
+            width="80"
+            align="center"
+          >
             <template #default="{ row }">
-              <el-tag :type="statusTagType(row.status)" size="small">{{ statusText(row.status) }}</el-tag>
+              <el-tag
+                :type="statusTagType(row.status)"
+                size="small"
+              >
+                {{ statusText(row.status) }}
+              </el-tag>
             </template>
           </el-table-column>
-          <el-table-column label="做单时间" width="150" align="center">
+          <el-table-column
+            label="做单时间"
+            width="150"
+            align="center"
+          >
             <template #default="{ row }">
               {{ formatTime(row.createdAt) }}
             </template>
           </el-table-column>
-          <el-table-column prop="rejectReason" label="驳回原因" width="120" show-overflow-tooltip>
+          <el-table-column
+            prop="rejectReason"
+            label="驳回原因"
+            width="120"
+            show-overflow-tooltip
+          >
             <template #default="{ row }">
               <span style="color: #f56c6c;">{{ row.rejectReason || '--' }}</span>
             </template>
           </el-table-column>
-          <el-table-column prop="settledAt" label="结算日期" width="150" align="center">
+          <el-table-column
+            prop="settledAt"
+            label="结算日期"
+            width="150"
+            align="center"
+          >
             <template #default="{ row }">
               <span>{{ row.settledAt ? formatTime(row.settledAt) : '--' }}</span>
             </template>
@@ -373,7 +732,9 @@
         </el-table>
 
         <div class="payment-actions">
-          <el-button @click="statDialogVisible = false">关闭</el-button>
+          <el-button @click="statDialogVisible = false">
+            关闭
+          </el-button>
         </div>
       </div>
     </el-dialog>
@@ -672,7 +1033,7 @@ const handleBatchSettle = async () => {
 
   try {
     await ElMessageBox.confirm(
-      `确认通过${methodLabel.value}支付 ¥${paymentTotal}，结算 ${paymentOrders.value.length} 笔订单？`,
+      `确认通过${methodLabel.value}支付 ¥${paymentTotal.value}，结算 ${paymentOrders.value.length} 笔订单？`,
       '确认结算',
       { confirmButtonText: '确认付款', cancelButtonText: '取消', type: 'warning' }
     )

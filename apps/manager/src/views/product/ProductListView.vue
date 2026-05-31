@@ -18,15 +18,42 @@
         style="width: 140px;"
         @change="handleSearch"
       >
-        <el-option label="全部" value="" />
-        <el-option label="草稿" value="draft" />
-        <el-option label="已发布" value="published" />
-        <el-option label="已下架" value="offline" />
+        <el-option
+          label="全部"
+          value=""
+        />
+        <el-option
+          label="草稿"
+          value="draft"
+        />
+        <el-option
+          label="已发布"
+          value="published"
+        />
+        <el-option
+          label="已下架"
+          value="offline"
+        />
       </el-select>
-      <el-button type="primary" icon="Search" @click="handleSearch">搜索</el-button>
-      <el-button icon="Refresh" @click="handleReset">重置</el-button>
+      <el-button
+        type="primary"
+        icon="Search"
+        @click="handleSearch"
+      >
+        搜索
+      </el-button>
+      <el-button
+        icon="Refresh"
+        @click="handleReset"
+      >
+        重置
+      </el-button>
       <div style="flex: 1;" />
-      <el-button type="primary" icon="Plus" @click="$router.push('/products/create')">
+      <el-button
+        type="primary"
+        icon="Plus"
+        @click="$router.push('/products/create')"
+      >
         新建产品
       </el-button>
     </div>
@@ -39,7 +66,11 @@
       stripe
       style="width: 100%;"
     >
-      <el-table-column label="封面" width="100" align="center">
+      <el-table-column
+        label="封面"
+        width="100"
+        align="center"
+      >
         <template #default="{ row }">
           <el-image
             :src="row.cover"
@@ -56,23 +87,42 @@
           </el-image>
         </template>
       </el-table-column>
-      <el-table-column prop="title" label="标题" min-width="220">
+      <el-table-column
+        prop="title"
+        label="标题"
+        min-width="220"
+      >
         <template #default="{ row }">
           <div class="title-with-category">
             <span class="title-text">{{ row.title }}</span>
-            <el-tag v-if="getCategoryLabel(row)" type="primary" size="small" class="category-tag">
+            <el-tag
+              v-if="getCategoryLabel(row)"
+              type="primary"
+              size="small"
+              class="category-tag"
+            >
               {{ getCategoryLabel(row) }}
             </el-tag>
           </div>
         </template>
       </el-table-column>
-      <el-table-column prop="price" label="积分值" width="100" align="right">
+      <el-table-column
+        prop="price"
+        label="积分值"
+        width="100"
+        align="right"
+      >
         <template #default="{ row }">
           <span style="color: #f56c6c; font-weight: 500;">{{ Number(row.price || 0).toFixed(2) }}</span>
         </template>
       </el-table-column>
 
-      <el-table-column prop="status" label="状态" width="130" align="center">
+      <el-table-column
+        prop="status"
+        label="状态"
+        width="130"
+        align="center"
+      >
         <template #default="{ row }">
           <el-tag :type="statusTagType(row.status)">
             {{ statusText(row.status) }}
@@ -89,11 +139,26 @@
           </el-button>
         </template>
       </el-table-column>
-      <el-table-column prop="createdAt" label="发布时间" width="170" align="center" />
-      <el-table-column label="操作" width="220" align="center" fixed="right">
+      <el-table-column
+        prop="createdAt"
+        label="发布时间"
+        width="170"
+        align="center"
+      />
+      <el-table-column
+        label="操作"
+        width="220"
+        align="center"
+        fixed="right"
+      >
         <template #default="{ row }">
           <div class="table-actions">
-            <el-button type="primary" text size="small" @click="handleEdit(row)">
+            <el-button
+              type="primary"
+              text
+              size="small"
+              @click="handleEdit(row)"
+            >
               编辑
             </el-button>
             <el-button
@@ -114,7 +179,12 @@
             >
               下架
             </el-button>
-            <el-button type="danger" text size="small" @click="handleDelete(row)">
+            <el-button
+              type="danger"
+              text
+              size="small"
+              @click="handleDelete(row)"
+            >
               删除
             </el-button>
           </div>

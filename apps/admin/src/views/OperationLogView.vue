@@ -2,49 +2,128 @@
   <div class="operation-log">
     <el-card class="search-card">
       <div class="search-form">
-        <el-form :inline="true" :model="searchForm" class="search-form-inline">
+        <el-form
+          :inline="true"
+          :model="searchForm"
+          class="search-form-inline"
+        >
           <el-form-item label="操作类型">
-            <el-select v-model="searchForm.operationType" placeholder="请选择操作类型">
-              <el-option label="全部" value="" />
-              <el-option label="删除" value="delete" />
+            <el-select
+              v-model="searchForm.operationType"
+              placeholder="请选择操作类型"
+            >
+              <el-option
+                label="全部"
+                value=""
+              />
+              <el-option
+                label="删除"
+                value="delete"
+              />
             </el-select>
           </el-form-item>
           <el-form-item label="目标类型">
-            <el-select v-model="searchForm.targetType" placeholder="请选择目标类型">
-              <el-option label="全部" value="" />
-              <el-option label="订单" value="order" />
+            <el-select
+              v-model="searchForm.targetType"
+              placeholder="请选择目标类型"
+            >
+              <el-option
+                label="全部"
+                value=""
+              />
+              <el-option
+                label="订单"
+                value="order"
+              />
             </el-select>
           </el-form-item>
           <el-form-item>
-            <el-button type="primary" @click="fetchLogs">查询</el-button>
-            <el-button @click="resetForm">重置</el-button>
+            <el-button
+              type="primary"
+              @click="fetchLogs"
+            >
+              查询
+            </el-button>
+            <el-button @click="resetForm">
+              重置
+            </el-button>
           </el-form-item>
         </el-form>
       </div>
     </el-card>
 
     <el-card>
-      <el-table :data="tableData" border size="small" max-height="500" v-loading="loading">
-        <el-table-column prop="createdAt" label="操作时间" width="180" formatter="formatTime" />
-        <el-table-column prop="adminName" label="操作人" width="120" />
-        <el-table-column prop="adminPhone" label="操作人手机号" width="140" />
-        <el-table-column prop="operationType" label="操作类型" width="100">
+      <el-table
+        v-loading="loading"
+        :data="tableData"
+        border
+        size="small"
+        max-height="500"
+      >
+        <el-table-column
+          prop="createdAt"
+          label="操作时间"
+          width="180"
+          formatter="formatTime"
+        />
+        <el-table-column
+          prop="adminName"
+          label="操作人"
+          width="120"
+        />
+        <el-table-column
+          prop="adminPhone"
+          label="操作人手机号"
+          width="140"
+        />
+        <el-table-column
+          prop="operationType"
+          label="操作类型"
+          width="100"
+        >
           <template #default="{ row }">
-            <el-tag type="danger" v-if="row.operationType === 'delete'">删除</el-tag>
+            <el-tag
+              v-if="row.operationType === 'delete'"
+              type="danger"
+            >
+              删除
+            </el-tag>
             <span v-else>{{ row.operationType }}</span>
           </template>
         </el-table-column>
-        <el-table-column prop="targetType" label="目标类型" width="100">
+        <el-table-column
+          prop="targetType"
+          label="目标类型"
+          width="100"
+        >
           <template #default="{ row }">
             <span v-if="row.targetType === 'order'">订单</span>
             <span v-else>{{ row.targetType }}</span>
           </template>
         </el-table-column>
-        <el-table-column prop="targetName" label="目标名称" width="200" />
-        <el-table-column prop="reason" label="操作原因" width="200" show-overflow-tooltip />
-        <el-table-column prop="detail" label="详细信息" width="200">
+        <el-table-column
+          prop="targetName"
+          label="目标名称"
+          width="200"
+        />
+        <el-table-column
+          prop="reason"
+          label="操作原因"
+          width="200"
+          show-overflow-tooltip
+        />
+        <el-table-column
+          prop="detail"
+          label="详细信息"
+          width="200"
+        >
           <template #default="{ row }">
-            <el-button type="text" @click="showDetail(row)">查看详情</el-button>
+            <el-button
+              type="text"
+              @click="showDetail(row)"
+            >
+              查看详情
+            </el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -64,8 +143,15 @@
     </el-card>
 
     <!-- 详情弹窗 -->
-    <el-dialog v-model="detailVisible" title="操作详情" width="600px">
-      <div class="detail-content" v-if="currentLog">
+    <el-dialog
+      v-model="detailVisible"
+      title="操作详情"
+      width="600px"
+    >
+      <div
+        v-if="currentLog"
+        class="detail-content"
+      >
         <div class="detail-row">
           <span class="detail-label">操作时间：</span>
           <span class="detail-value">{{ formatTime(currentLog.createdAt) }}</span>

@@ -1,6 +1,9 @@
 <template>
   <div class="settings-view">
-    <el-card shadow="never" class="settings-card">
+    <el-card
+      shadow="never"
+      class="settings-card"
+    >
       <template #header>
         <span>账户安全</span>
       </template>
@@ -18,7 +21,10 @@
 
         <el-divider />
 
-        <el-form-item label="验证码" prop="phoneCode">
+        <el-form-item
+          label="验证码"
+          prop="phoneCode"
+        >
           <el-input
             v-model="securityForm.phoneCode"
             placeholder="请输入验证码"
@@ -36,7 +42,10 @@
           </el-input>
         </el-form-item>
 
-        <el-form-item label="旧密码" prop="oldPassword">
+        <el-form-item
+          label="旧密码"
+          prop="oldPassword"
+        >
           <el-input
             v-model="securityForm.oldPassword"
             type="password"
@@ -46,7 +55,10 @@
           />
         </el-form-item>
 
-        <el-form-item label="新密码" prop="newPassword">
+        <el-form-item
+          label="新密码"
+          prop="newPassword"
+        >
           <el-input
             v-model="securityForm.newPassword"
             type="password"
@@ -56,7 +68,10 @@
           />
         </el-form-item>
 
-        <el-form-item label="确认新密码" prop="confirmPassword">
+        <el-form-item
+          label="确认新密码"
+          prop="confirmPassword"
+        >
           <el-input
             v-model="securityForm.confirmPassword"
             type="password"
@@ -67,7 +82,11 @@
         </el-form-item>
 
         <el-form-item>
-          <el-button type="primary" :loading="securitySaving" @click="handleSecuritySave">
+          <el-button
+            type="primary"
+            :loading="securitySaving"
+            @click="handleSecuritySave"
+          >
             修改密码
           </el-button>
           <el-button @click="handleSecurityReset">

@@ -12,40 +12,72 @@
         >
           <template #error>
             <div class="avatar-placeholder">
-              <van-icon name="user-o" size="32" color="#fff" />
+              <van-icon
+                name="user-o"
+                size="32"
+                color="#fff"
+              />
             </div>
           </template>
         </van-image>
         <div class="user-detail">
-          <h3 class="user-name">{{ userInfo.teamName || userInfo.nickname }}</h3>
-          <p class="user-id">ID: {{ userInfo.id }}</p>
+          <h3 class="user-name">
+            {{ userInfo.teamName || userInfo.nickname }}
+          </h3>
+          <p class="user-id">
+            ID: {{ userInfo.id }}
+          </p>
         </div>
       </div>
     </div>
 
     <!-- 数据统计 -->
     <div class="stats-card">
-      <div class="stat-item" @click="goTo('/commissions')">
-        <van-icon name="coins" size="20" color="#1989fa" />
+      <div
+        class="stat-item"
+        @click="goTo('/commissions')"
+      >
+        <van-icon
+          name="coins"
+          size="20"
+          color="#1989fa"
+        />
         <span class="stat-value">{{ stats.totalCommission }}</span>
         <span class="stat-label">累计积分</span>
       </div>
-      <div class="stat-divider"></div>
-      <div class="stat-item" @click="showEmployeeList = true">
-        <van-icon name="users" size="20" color="#1989fa" />
+      <div class="stat-divider" />
+      <div
+        class="stat-item"
+        @click="showEmployeeList = true"
+      >
+        <van-icon
+          name="users"
+          size="20"
+          color="#1989fa"
+        />
         <span class="stat-value">{{ employeeCount }}</span>
         <span class="stat-label">我的团队</span>
       </div>
-      <div class="stat-divider"></div>
-      <div class="stat-item" @click="goTo('/commissions')">
-        <van-icon name="gift-o" size="20" color="#1989fa" />
+      <div class="stat-divider" />
+      <div
+        class="stat-item"
+        @click="goTo('/commissions')"
+      >
+        <van-icon
+          name="gift-o"
+          size="20"
+          color="#1989fa"
+        />
         <span class="stat-value">{{ stats.withdrawCount }}</span>
         <span class="stat-label">兑换记录</span>
       </div>
     </div>
 
     <!-- 功能列表 -->
-    <van-cell-group inset class="func-group">
+    <van-cell-group
+      inset
+      class="func-group"
+    >
       <van-cell
         title="创建员工子账户"
         icon="user-o"
@@ -67,7 +99,10 @@
       />
     </van-cell-group>
 
-    <van-cell-group inset class="func-group">
+    <van-cell-group
+      inset
+      class="func-group"
+    >
       <van-cell
         title="修改密码"
         icon="lock"
@@ -101,17 +136,31 @@
     />
 
     <!-- 创建员工子账户弹窗 -->
-    <van-popup v-model:show="showCreateEmployee" position="center" :style="{ width: '90%', maxWidth: '420px', borderRadius: '16px', overflow: 'hidden' }">
+    <van-popup
+      v-model:show="showCreateEmployee"
+      position="center"
+      :style="{ width: '90%', maxWidth: '420px', borderRadius: '16px', overflow: 'hidden' }"
+    >
       <div class="employee-dialog">
         <div class="dialog-header">
           <div class="header-icon">
-            <van-icon name="user-o" size="24" />
+            <van-icon
+              name="user-o"
+              size="24"
+            />
           </div>
           <h3>{{ editingEmployee ? '编辑员工' : '创建员工子账户' }}</h3>
-          <van-icon name="cross" @click="closeCreateEmployee" class="close-icon" />
+          <van-icon
+            name="cross"
+            class="close-icon"
+            @click="closeCreateEmployee"
+          />
         </div>
         <div class="dialog-content">
-          <van-cell-group inset class="form-group">
+          <van-cell-group
+            inset
+            class="form-group"
+          >
             <van-field
               v-model="employeeForm.phone"
               type="tel"
@@ -123,9 +172,16 @@
               :disabled="!!editingEmployee"
             >
               <template #left-icon>
-                <van-icon name="phone" size="16" color="#1989fa" />
+                <van-icon
+                  name="phone"
+                  size="16"
+                  color="#1989fa"
+                />
               </template>
-              <template #right-icon v-if="editingEmployee">
+              <template
+                v-if="editingEmployee"
+                #right-icon
+              >
                 <span class="readonly-tip">不可修改</span>
               </template>
             </van-field>
@@ -137,7 +193,11 @@
               class="form-field"
             >
               <template #left-icon>
-                <van-icon name="lock" size="16" color="#1989fa" />
+                <van-icon
+                  name="lock"
+                  size="16"
+                  color="#1989fa"
+                />
               </template>
             </van-field>
             <van-field
@@ -148,7 +208,11 @@
               class="form-field"
             >
               <template #left-icon>
-                <van-icon name="user-o" size="16" color="#1989fa" />
+                <van-icon
+                  name="user-o"
+                  size="16"
+                  color="#1989fa"
+                />
               </template>
             </van-field>
             <van-field
@@ -159,7 +223,11 @@
               class="form-field"
             >
               <template #left-icon>
-                <van-icon name="clock-o" size="16" color="#1989fa" />
+                <van-icon
+                  name="clock-o"
+                  size="16"
+                  color="#1989fa"
+                />
               </template>
               <template #right-icon>
                 <span class="unit">小时</span>
@@ -167,7 +235,11 @@
             </van-field>
           </van-cell-group>
           <div class="expire-tips">
-            <van-icon name="info-o" size="16" color="#1989fa" />
+            <van-icon
+              name="info-o"
+              size="16"
+              color="#1989fa"
+            />
             <div class="tips-content">
               <p>员工账户有效期到期后将自动失效</p>
               <p>员工做单业绩将归属于您的账户</p>
@@ -175,73 +247,150 @@
           </div>
         </div>
         <div class="dialog-footer">
-          <van-button plain type="default" block class="btn-cancel" @click="closeCreateEmployee">取消</van-button>
-          <van-button type="primary" block class="btn-confirm" @click="handleCreateEmployee">{{ editingEmployee ? '保存修改' : '创建账户' }}</van-button>
+          <van-button
+            plain
+            type="default"
+            block
+            class="btn-cancel"
+            @click="closeCreateEmployee"
+          >
+            取消
+          </van-button>
+          <van-button
+            type="primary"
+            block
+            class="btn-confirm"
+            @click="handleCreateEmployee"
+          >
+            {{ editingEmployee ? '保存修改' : '创建账户' }}
+          </van-button>
         </div>
       </div>
     </van-popup>
 
     <!-- 员工列表弹窗 -->
-    <van-popup v-model:show="showEmployeeList" position="center" :style="{ width: '90%', maxWidth: '420px', height: '75%', borderRadius: '16px', overflow: 'hidden' }">
+    <van-popup
+      v-model:show="showEmployeeList"
+      position="center"
+      :style="{ width: '90%', maxWidth: '420px', height: '75%', borderRadius: '16px', overflow: 'hidden' }"
+    >
       <div class="employee-list-dialog">
         <div class="dialog-header">
           <div class="header-icon">
-            <van-icon name="users" size="24" />
+            <van-icon
+              name="users"
+              size="24"
+            />
           </div>
           <h3>员工子账户列表</h3>
-          <van-icon name="cross" @click="showEmployeeList = false" class="close-icon" />
+          <van-icon
+            name="cross"
+            class="close-icon"
+            @click="showEmployeeList = false"
+          />
         </div>
         <div class="dialog-content">
-          <van-loading v-if="loadingEmployees && employees.length === 0" class="loading-center" />
+          <van-loading
+            v-if="loadingEmployees && employees.length === 0"
+            class="loading-center"
+          />
           <van-list
             v-model:loading="loadingEmployees"
             :finished="employeesFinished"
             finished-text="没有更多了"
-            @load="loadEmployees"
             class="employee-list"
+            @load="loadEmployees"
           >
-            <van-cell v-for="emp in employees" :key="emp.id" class="employee-item">
+            <van-cell
+              v-for="emp in employees"
+              :key="emp.id"
+              class="employee-item"
+            >
               <template #icon>
                 <div class="employee-avatar">
-                  <van-icon name="user-o" size="20" />
+                  <van-icon
+                    name="user-o"
+                    size="20"
+                  />
                 </div>
               </template>
               <template #title>
-                <div class="employee-name">{{ emp.nickname }}</div>
-                <div class="employee-phone">{{ maskPhone(emp.phone) }}</div>
+                <div class="employee-name">
+                  {{ emp.nickname }}
+                </div>
+                <div class="employee-phone">
+                  {{ maskPhone(emp.phone) }}
+                </div>
               </template>
               <template #right-icon>
                 <div class="employee-actions">
-                  <van-icon name="edit" size="18" color="#1989fa" @click="editEmployee(emp)" />
-                  <van-icon name="delete" size="18" color="#ee0a24" @click="handleDeleteEmployee(emp)" />
+                  <van-icon
+                    name="edit"
+                    size="18"
+                    color="#1989fa"
+                    @click="editEmployee(emp)"
+                  />
+                  <van-icon
+                    name="delete"
+                    size="18"
+                    color="#ee0a24"
+                    @click="handleDeleteEmployee(emp)"
+                  />
                 </div>
               </template>
             </van-cell>
           </van-list>
-          <div v-if="!loadingEmployees && employees.length === 0" class="empty-tip">
+          <div
+            v-if="!loadingEmployees && employees.length === 0"
+            class="empty-tip"
+          >
             <div class="empty-icon">
-              <van-icon name="user-o" size="56" />
+              <van-icon
+                name="user-o"
+                size="56"
+              />
             </div>
-            <p class="empty-text">暂无员工子账户</p>
-            <p class="empty-hint">点击下方按钮添加员工</p>
+            <p class="empty-text">
+              暂无员工子账户
+            </p>
+            <p class="empty-hint">
+              点击下方按钮添加员工
+            </p>
           </div>
         </div>
         <div class="dialog-footer">
-          <van-button type="primary" block class="add-employee-btn" @click="showCreateEmployee = true; showEmployeeList = false">添加员工</van-button>
+          <van-button
+            type="primary"
+            block
+            class="add-employee-btn"
+            @click="showCreateEmployee = true; showEmployeeList = false"
+          >
+            添加员工
+          </van-button>
         </div>
       </div>
     </van-popup>
 
     <!-- 设置密码弹窗 -->
-    <van-popup v-model:show="passwordDialogVisible" position="center" :style="{ width: '90%', maxWidth: '360px' }">
+    <van-popup
+      v-model:show="passwordDialogVisible"
+      position="center"
+      :style="{ width: '90%', maxWidth: '360px' }"
+    >
       <div class="password-dialog">
         <div class="dialog-header">
           <h3>设置登录密码</h3>
-          <van-icon name="cross" @click="passwordDialogVisible = false" />
+          <van-icon
+            name="cross"
+            @click="passwordDialogVisible = false"
+          />
         </div>
         <div class="dialog-content">
           <van-cell-group inset>
-            <van-cell title="当前手机号" :value="userInfo.phone" />
+            <van-cell
+              title="当前手机号"
+              :value="userInfo.phone"
+            />
             <van-field
               v-model="passwordForm.code"
               type="digit"
@@ -256,8 +405,8 @@
                   type="primary"
                   :disabled="smsCooldown > 0"
                   :text="smsCooldown > 0 ? `${smsCooldown}s` : '获取验证码'"
-                  @click="handleSendPasswordSms"
                   style="min-width: 90px;"
+                  @click="handleSendPasswordSms"
                 />
               </template>
             </van-field>
@@ -278,8 +427,21 @@
           </van-cell-group>
         </div>
         <div class="dialog-footer">
-          <van-button plain type="default" block @click="passwordDialogVisible = false">稍后设置</van-button>
-          <van-button type="primary" block @click="handleSetPassword">确认设置</van-button>
+          <van-button
+            plain
+            type="default"
+            block
+            @click="passwordDialogVisible = false"
+          >
+            稍后设置
+          </van-button>
+          <van-button
+            type="primary"
+            block
+            @click="handleSetPassword"
+          >
+            确认设置
+          </van-button>
         </div>
       </div>
     </van-popup>

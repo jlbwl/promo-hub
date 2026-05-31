@@ -12,27 +12,53 @@
         >
           <template #error>
             <div class="avatar-placeholder">
-              <van-icon name="user-o" size="32" color="#fff" />
+              <van-icon
+                name="user-o"
+                size="32"
+                color="#fff"
+              />
             </div>
           </template>
         </van-image>
         <div class="user-detail">
-          <h3 class="user-name">{{ employeeInfo.nickname }}</h3>
-          <p class="user-id">员工ID: {{ employeeInfo.id }}</p>
+          <h3 class="user-name">
+            {{ employeeInfo.nickname }}
+          </h3>
+          <p class="user-id">
+            员工ID: {{ employeeInfo.id }}
+          </p>
         </div>
       </div>
     </div>
 
     <!-- 隶属主账户信息 -->
-    <van-cell-group inset class="main-account-card">
-      <van-cell title="隶属主账户" :value="userInfo.nickname || userInfo.phone" />
-      <van-cell title="主账户手机号" :value="maskPhone(userInfo.phone)" />
+    <van-cell-group
+      inset
+      class="main-account-card"
+    >
+      <van-cell
+        title="隶属主账户"
+        :value="userInfo.nickname || userInfo.phone"
+      />
+      <van-cell
+        title="主账户手机号"
+        :value="maskPhone(userInfo.phone)"
+      />
     </van-cell-group>
 
     <!-- 有效期信息 -->
-    <van-cell-group inset class="expire-card">
-      <van-cell title="登录有效期" :value="formatExpireTime" />
-      <van-cell title="账户状态" :value="isExpired ? '已过期' : '正常'" />
+    <van-cell-group
+      inset
+      class="expire-card"
+    >
+      <van-cell
+        title="登录有效期"
+        :value="formatExpireTime"
+      />
+      <van-cell
+        title="账户状态"
+        :value="isExpired ? '已过期' : '正常'"
+      />
     </van-cell-group>
 
 

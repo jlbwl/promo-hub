@@ -8,7 +8,13 @@
     </div>
 
     <!-- 底部 Tab 导航（产品详情页隐藏） -->
-    <van-tabbar v-model="activeTab" route fixed placeholder v-show="!isProductDetail">
+    <van-tabbar
+      v-show="!isProductDetail"
+      v-model="activeTab"
+      route
+      fixed
+      placeholder
+    >
       <van-tabbar-item
         to="/home"
         icon="home-o"

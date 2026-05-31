@@ -1,15 +1,24 @@
 <template>
   <div class="login-container">
-    <el-card class="login-card" shadow="always">
+    <el-card
+      class="login-card"
+      shadow="always"
+    >
       <template #header>
         <div class="login-header">
           <h2>管理后台登录</h2>
         </div>
       </template>
 
-      <el-tabs v-model="loginTab" class="login-tabs">
+      <el-tabs
+        v-model="loginTab"
+        class="login-tabs"
+      >
         <!-- 密码登录 -->
-        <el-tab-pane label="密码登录" name="password">
+        <el-tab-pane
+          label="密码登录"
+          name="password"
+        >
           <el-form
             ref="pwdFormRef"
             :model="pwdForm"
@@ -49,7 +58,10 @@
         </el-tab-pane>
 
         <!-- 短信登录 -->
-        <el-tab-pane label="短信登录" name="sms">
+        <el-tab-pane
+          label="短信登录"
+          name="sms"
+        >
           <el-form
             ref="smsFormRef"
             :model="smsForm"

@@ -1,77 +1,192 @@
 <template>
   <div class="commission-admin">
     <!-- 统计卡片 -->
-    <el-row :gutter="20" class="stat-cards">
-      <el-col :xs="24" :sm="12" :md="4">
-        <el-card shadow="hover" class="stat-card clickable" @click="openStatDialog('all', '总订单')">
+    <el-row
+      :gutter="20"
+      class="stat-cards"
+    >
+      <el-col
+        :xs="24"
+        :sm="12"
+        :md="4"
+      >
+        <el-card
+          shadow="hover"
+          class="stat-card clickable"
+          @click="openStatDialog('all', '总订单')"
+        >
           <div class="stat-content">
             <div class="stat-info">
               <span class="stat-label">总订单</span>
               <el-statistic :value="stats.total" />
             </div>
-            <el-icon class="stat-icon" style="color: #409eff; background: #ecf5ff;"><Document /></el-icon>
+            <el-icon
+              class="stat-icon"
+              style="color: #409eff; background: #ecf5ff;"
+            >
+              <Document />
+            </el-icon>
           </div>
-          <div v-if="stats.total > 0" class="card-badge">查看</div>
+          <div
+            v-if="stats.total > 0"
+            class="card-badge"
+          >
+            查看
+          </div>
         </el-card>
       </el-col>
-      <el-col :xs="24" :sm="12" :md="4">
-        <el-card shadow="hover" class="stat-card clickable" @click="openStatDialog('pending', '待审核')">
+      <el-col
+        :xs="24"
+        :sm="12"
+        :md="4"
+      >
+        <el-card
+          shadow="hover"
+          class="stat-card clickable"
+          @click="openStatDialog('pending', '待审核')"
+        >
           <div class="stat-content">
             <div class="stat-info">
               <span class="stat-label">待审核</span>
               <el-statistic :value="stats.pending" />
             </div>
-            <el-icon class="stat-icon" style="color: #e6a23c; background: #fdf6ec;"><Clock /></el-icon>
+            <el-icon
+              class="stat-icon"
+              style="color: #e6a23c; background: #fdf6ec;"
+            >
+              <Clock />
+            </el-icon>
           </div>
-          <div v-if="stats.pending > 0" class="card-badge" style="background: linear-gradient(135deg, #e6a23c, #f5c77e);">查看</div>
+          <div
+            v-if="stats.pending > 0"
+            class="card-badge"
+            style="background: linear-gradient(135deg, #e6a23c, #f5c77e);"
+          >
+            查看
+          </div>
         </el-card>
       </el-col>
-      <el-col :xs="24" :sm="12" :md="4">
-        <el-card shadow="hover" class="stat-card clickable" @click="openStatDialog('approved', '已通过')">
+      <el-col
+        :xs="24"
+        :sm="12"
+        :md="4"
+      >
+        <el-card
+          shadow="hover"
+          class="stat-card clickable"
+          @click="openStatDialog('approved', '已通过')"
+        >
           <div class="stat-content">
             <div class="stat-info">
               <span class="stat-label">已通过</span>
               <el-statistic :value="stats.approved" />
             </div>
-            <el-icon class="stat-icon" style="color: #67c23a; background: #f0f9eb;"><CircleCheck /></el-icon>
+            <el-icon
+              class="stat-icon"
+              style="color: #67c23a; background: #f0f9eb;"
+            >
+              <CircleCheck />
+            </el-icon>
           </div>
-          <div v-if="stats.approved > 0" class="card-badge" style="background: linear-gradient(135deg, #67c23a, #95d475);">查看</div>
+          <div
+            v-if="stats.approved > 0"
+            class="card-badge"
+            style="background: linear-gradient(135deg, #67c23a, #95d475);"
+          >
+            查看
+          </div>
         </el-card>
       </el-col>
-      <el-col :xs="24" :sm="12" :md="4">
-        <el-card shadow="hover" class="stat-card clickable" @click="openStatDialog('pending_payment', '待付款')">
+      <el-col
+        :xs="24"
+        :sm="12"
+        :md="4"
+      >
+        <el-card
+          shadow="hover"
+          class="stat-card clickable"
+          @click="openStatDialog('pending_payment', '待付款')"
+        >
           <div class="stat-content">
             <div class="stat-info">
               <span class="stat-label">待发放</span>
               <el-statistic :value="stats.pendingPayment" />
             </div>
-            <el-icon class="stat-icon" style="color: #409eff; background: #ecf5ff;"><Wallet /></el-icon>
+            <el-icon
+              class="stat-icon"
+              style="color: #409eff; background: #ecf5ff;"
+            >
+              <Wallet />
+            </el-icon>
           </div>
-          <div v-if="stats.pendingPayment > 0" class="card-badge">去结算</div>
+          <div
+            v-if="stats.pendingPayment > 0"
+            class="card-badge"
+          >
+            去结算
+          </div>
         </el-card>
       </el-col>
-      <el-col :xs="24" :sm="12" :md="4">
-        <el-card shadow="hover" class="stat-card clickable" @click="openStatDialog('settled', '已结算')">
+      <el-col
+        :xs="24"
+        :sm="12"
+        :md="4"
+      >
+        <el-card
+          shadow="hover"
+          class="stat-card clickable"
+          @click="openStatDialog('settled', '已结算')"
+        >
           <div class="stat-content">
             <div class="stat-info">
               <span class="stat-label">已发放</span>
               <el-statistic :value="stats.settled" />
             </div>
-            <el-icon class="stat-icon" style="color: #67c23a; background: #f0f9eb;"><SuccessFilled /></el-icon>
+            <el-icon
+              class="stat-icon"
+              style="color: #67c23a; background: #f0f9eb;"
+            >
+              <SuccessFilled />
+            </el-icon>
           </div>
-          <div v-if="stats.settled > 0" class="card-badge" style="background: linear-gradient(135deg, #67c23a, #95d475);">查看</div>
+          <div
+            v-if="stats.settled > 0"
+            class="card-badge"
+            style="background: linear-gradient(135deg, #67c23a, #95d475);"
+          >
+            查看
+          </div>
         </el-card>
       </el-col>
-      <el-col :xs="24" :sm="12" :md="4">
-        <el-card shadow="hover" class="stat-card clickable" @click="openStatDialog('rejected', '已驳回')">
+      <el-col
+        :xs="24"
+        :sm="12"
+        :md="4"
+      >
+        <el-card
+          shadow="hover"
+          class="stat-card clickable"
+          @click="openStatDialog('rejected', '已驳回')"
+        >
           <div class="stat-content">
             <div class="stat-info">
               <span class="stat-label">已驳回</span>
               <el-statistic :value="stats.rejected" />
             </div>
-            <el-icon class="stat-icon" style="color: #f56c6c; background: #fef0f0;"><CircleClose /></el-icon>
+            <el-icon
+              class="stat-icon"
+              style="color: #f56c6c; background: #fef0f0;"
+            >
+              <CircleClose />
+            </el-icon>
           </div>
-          <div v-if="stats.rejected > 0" class="card-badge" style="background: linear-gradient(135deg, #f56c6c, #fab6b6);">查看</div>
+          <div
+            v-if="stats.rejected > 0"
+            class="card-badge"
+            style="background: linear-gradient(135deg, #f56c6c, #fab6b6);"
+          >
+            查看
+          </div>
         </el-card>
       </el-col>
     </el-row>
@@ -87,78 +202,216 @@
         @clear="fetchData"
         @keyup.enter="fetchData"
       />
-      <el-select v-model="filterStatus" placeholder="订单状态" clearable style="width: 140px; margin-left: 12px;" @change="fetchData">
-        <el-option label="全部" value="" />
-        <el-option label="待审核" value="pending" />
-        <el-option label="已通过" value="approved" />
-        <el-option label="待发放" value="pending_payment" />
-        <el-option label="已发放" value="settled" />
-        <el-option label="已驳回" value="rejected" />
+      <el-select
+        v-model="filterStatus"
+        placeholder="订单状态"
+        clearable
+        style="width: 140px; margin-left: 12px;"
+        @change="fetchData"
+      >
+        <el-option
+          label="全部"
+          value=""
+        />
+        <el-option
+          label="待审核"
+          value="pending"
+        />
+        <el-option
+          label="已通过"
+          value="approved"
+        />
+        <el-option
+          label="待发放"
+          value="pending_payment"
+        />
+        <el-option
+          label="已发放"
+          value="settled"
+        />
+        <el-option
+          label="已驳回"
+          value="rejected"
+        />
       </el-select>
-      <el-select v-model="filterManager" placeholder="筛选经理" clearable style="width: 160px; margin-left: 12px;" @change="fetchData">
-        <el-option label="全部经理" value="" />
-        <el-option v-for="m in managers" :key="m.id" :label="m.name" :value="m.id" />
+      <el-select
+        v-model="filterManager"
+        placeholder="筛选经理"
+        clearable
+        style="width: 160px; margin-left: 12px;"
+        @change="fetchData"
+      >
+        <el-option
+          label="全部经理"
+          value=""
+        />
+        <el-option
+          v-for="m in managers"
+          :key="m.id"
+          :label="m.name"
+          :value="m.id"
+        />
       </el-select>
-      <el-select v-model="filterUser" placeholder="筛选用户" clearable style="width: 160px; margin-left: 12px;" @change="fetchData">
-        <el-option label="全部用户" value="" />
-        <el-option v-for="u in users" :key="u.id" :label="u.phone" :value="u.id" />
+      <el-select
+        v-model="filterUser"
+        placeholder="筛选用户"
+        clearable
+        style="width: 160px; margin-left: 12px;"
+        @change="fetchData"
+      >
+        <el-option
+          label="全部用户"
+          value=""
+        />
+        <el-option
+          v-for="u in users"
+          :key="u.id"
+          :label="u.phone"
+          :value="u.id"
+        />
       </el-select>
-      <el-button icon="Refresh" style="margin-left: 12px;" @click="handleReset">重置</el-button>
+      <el-button
+        icon="Refresh"
+        style="margin-left: 12px;"
+        @click="handleReset"
+      >
+        重置
+      </el-button>
     </div>
 
     <!-- 数据表格 -->
-    <el-table v-loading="loading" :data="tableData" border stripe style="width: 100%;">
-      <el-table-column prop="productName" label="产品名称" min-width="180" show-overflow-tooltip>
+    <el-table
+      v-loading="loading"
+      :data="tableData"
+      border
+      stripe
+      style="width: 100%;"
+    >
+      <el-table-column
+        prop="productName"
+        label="产品名称"
+        min-width="180"
+        show-overflow-tooltip
+      >
         <template #default="{ row }">
           <span>{{ row.productName }}</span>
-          <el-tag v-if="row.optionLabel" size="small" type="info" style="margin-left: 6px;">{{ row.optionLabel }}</el-tag>
-          <el-tag v-if="row.fundAccount" size="small" type="primary" plain style="margin-left: 6px;">{{ row.fundAccount }}</el-tag>
+          <el-tag
+            v-if="row.optionLabel"
+            size="small"
+            type="info"
+            style="margin-left: 6px;"
+          >
+            {{ row.optionLabel }}
+          </el-tag>
+          <el-tag
+            v-if="row.fundAccount"
+            size="small"
+            type="primary"
+            plain
+            style="margin-left: 6px;"
+          >
+            {{ row.fundAccount }}
+          </el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="userName" label="用户姓名" width="120" show-overflow-tooltip>
+      <el-table-column
+        prop="userName"
+        label="用户姓名"
+        width="120"
+        show-overflow-tooltip
+      >
         <template #default="{ row }">
           <span>{{ maskName(row.userName) }}</span>
         </template>
       </el-table-column>
-      <el-table-column label="渠道名称" width="140" show-overflow-tooltip>
+      <el-table-column
+        label="渠道名称"
+        width="140"
+        show-overflow-tooltip
+      >
         <template #default="{ row }">
           <span>{{ getManagerTeamName(row.managerId) }}</span>
         </template>
       </el-table-column>
-      <el-table-column prop="teamName" label="团队名称" width="140" show-overflow-tooltip />
-      <el-table-column prop="userPhone" label="手机号" width="130" show-overflow-tooltip>
+      <el-table-column
+        prop="teamName"
+        label="团队名称"
+        width="140"
+        show-overflow-tooltip
+      />
+      <el-table-column
+        prop="userPhone"
+        label="手机号"
+        width="130"
+        show-overflow-tooltip
+      >
         <template #default="{ row }">
           <span>{{ maskPhone(row.userPhone) }}</span>
         </template>
       </el-table-column>
-      <el-table-column prop="productPrice" label="积分值" width="100" align="right">
+      <el-table-column
+        prop="productPrice"
+        label="积分值"
+        width="100"
+        align="right"
+      >
         <template #default="{ row }">
           <span style="font-weight: 500;">{{ row.productPrice }}</span>
         </template>
       </el-table-column>
-      <el-table-column prop="status" label="状态" width="100" align="center">
+      <el-table-column
+        prop="status"
+        label="状态"
+        width="100"
+        align="center"
+      >
         <template #default="{ row }">
-          <el-tag :type="statusTagType(row.status)">{{ statusText(row.status) }}</el-tag>
+          <el-tag :type="statusTagType(row.status)">
+            {{ statusText(row.status) }}
+          </el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="做单时间" width="170" align="center">
+      <el-table-column
+        label="做单时间"
+        width="170"
+        align="center"
+      >
         <template #default="{ row }">
           {{ formatTime(row.createdAt) }}
         </template>
       </el-table-column>
-      <el-table-column prop="rejectReason" label="驳回原因" width="120" show-overflow-tooltip>
+      <el-table-column
+        prop="rejectReason"
+        label="驳回原因"
+        width="120"
+        show-overflow-tooltip
+      >
         <template #default="{ row }">
           <span style="color: #f56c6c;">{{ row.rejectReason || '--' }}</span>
         </template>
       </el-table-column>
-      <el-table-column prop="settledAt" label="发放日期" width="170" align="center">
+      <el-table-column
+        prop="settledAt"
+        label="发放日期"
+        width="170"
+        align="center"
+      >
         <template #default="{ row }">
           <span>{{ row.settledAt ? formatTime(row.settledAt) : '--' }}</span>
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="120" align="center">
+      <el-table-column
+        label="操作"
+        width="120"
+        align="center"
+      >
         <template #default="{ row }">
-          <el-button type="danger" text size="small" @click="handleDelete(row)">
+          <el-button
+            type="danger"
+            text
+            size="small"
+            @click="handleDelete(row)"
+          >
             删除
           </el-button>
         </template>
@@ -189,14 +442,24 @@
     >
       <div class="delete-dialog-content">
         <div class="warning-icon">
-          <el-icon size="48" color="#f56c6c"><Warning /></el-icon>
+          <el-icon
+            size="48"
+            color="#f56c6c"
+          >
+            <Warning />
+          </el-icon>
         </div>
         <div class="warning-text">
           <p>确定要删除订单「<strong>{{ deleteRow?.productName }}</strong>」吗？</p>
-          <p class="hint">删除后将同时从经理端和用户端移除该条数据，请谨慎操作。</p>
+          <p class="hint">
+            删除后将同时从经理端和用户端移除该条数据，请谨慎操作。
+          </p>
         </div>
         <div class="reason-section">
-          <el-form-item label="删除原因" required>
+          <el-form-item
+            label="删除原因"
+            required
+          >
             <el-textarea
               v-model="deleteReason"
               placeholder="请输入删除原因（选填）"
@@ -208,48 +471,127 @@
         </div>
       </div>
       <template #footer>
-        <el-button @click="closeDeleteDialog">取消</el-button>
-        <el-button type="danger" @click="confirmDelete">确定删除</el-button>
+        <el-button @click="closeDeleteDialog">
+          取消
+        </el-button>
+        <el-button
+          type="danger"
+          @click="confirmDelete"
+        >
+          确定删除
+        </el-button>
       </template>
     </el-dialog>
 
     <!-- ====== 通用数据查看模态框 ====== -->
-    <el-dialog v-model="statDialogVisible" :title="statDialogTitle" width="750px" destroy-on-close>
+    <el-dialog
+      v-model="statDialogVisible"
+      :title="statDialogTitle"
+      width="750px"
+      destroy-on-close
+    >
       <div class="stat-dialog-content">
         <div class="payment-summary">
           <span>共 <strong>{{ statDialogOrders.length }}</strong> 条记录</span>
           <span class="payment-total">合计积分：<strong>{{ statDialogTotal }}</strong></span>
         </div>
-        <el-table :data="statDialogOrders" border size="small" max-height="450">
-          <el-table-column type="index" label="#" width="40" />
-          <el-table-column prop="productName" label="产品名称" min-width="150" show-overflow-tooltip>
+        <el-table
+          :data="statDialogOrders"
+          border
+          size="small"
+          max-height="450"
+        >
+          <el-table-column
+            type="index"
+            label="#"
+            width="40"
+          />
+          <el-table-column
+            prop="productName"
+            label="产品名称"
+            min-width="150"
+            show-overflow-tooltip
+          >
             <template #default="{ row }">
               <span>{{ row.productName }}</span>
-              <el-tag v-if="row.optionLabel" size="small" type="info" style="margin-left: 4px;">{{ row.optionLabel }}</el-tag>
-              <el-tag v-if="row.fundAccount" size="small" type="primary" plain style="margin-left: 4px;">{{ row.fundAccount }}</el-tag>
+              <el-tag
+                v-if="row.optionLabel"
+                size="small"
+                type="info"
+                style="margin-left: 4px;"
+              >
+                {{ row.optionLabel }}
+              </el-tag>
+              <el-tag
+                v-if="row.fundAccount"
+                size="small"
+                type="primary"
+                plain
+                style="margin-left: 4px;"
+              >
+                {{ row.fundAccount }}
+              </el-tag>
             </template>
           </el-table-column>
-          <el-table-column prop="userName" label="用户姓名" width="100" show-overflow-tooltip>
-            <template #default="{ row }"><span>{{ maskName(row.userName) }}</span></template>
+          <el-table-column
+            prop="userName"
+            label="用户姓名"
+            width="100"
+            show-overflow-tooltip
+          >
+            <template #default="{ row }">
+              <span>{{ maskName(row.userName) }}</span>
+            </template>
           </el-table-column>
-          <el-table-column label="渠道名称" width="120" show-overflow-tooltip>
-            <template #default="{ row }"><span>{{ getManagerTeamName(row.managerId) }}</span></template>
+          <el-table-column
+            label="渠道名称"
+            width="120"
+            show-overflow-tooltip
+          >
+            <template #default="{ row }">
+              <span>{{ getManagerTeamName(row.managerId) }}</span>
+            </template>
           </el-table-column>
-          <el-table-column prop="teamName" label="团队名称" width="120" show-overflow-tooltip />
-          <el-table-column prop="userPhone" label="手机号" width="110" show-overflow-tooltip>
-            <template #default="{ row }"><span>{{ maskPhone(row.userPhone) }}</span></template>
+          <el-table-column
+            prop="teamName"
+            label="团队名称"
+            width="120"
+            show-overflow-tooltip
+          />
+          <el-table-column
+            prop="userPhone"
+            label="手机号"
+            width="110"
+            show-overflow-tooltip
+          >
+            <template #default="{ row }">
+              <span>{{ maskPhone(row.userPhone) }}</span>
+            </template>
           </el-table-column>
-          <el-table-column prop="productPrice" label="积分值" width="80" align="right">
-            <template #default="{ row }"><span style="font-weight: 600;">{{ row.productPrice }}</span></template>
+          <el-table-column
+            prop="productPrice"
+            label="积分值"
+            width="80"
+            align="right"
+          >
+            <template #default="{ row }">
+              <span style="font-weight: 600;">{{ row.productPrice }}</span>
+            </template>
           </el-table-column>
-          <el-table-column label="做单时间" width="140" align="center">
+          <el-table-column
+            label="做单时间"
+            width="140"
+            align="center"
+          >
             <template #default="{ row }">
               {{ formatTime(row.createdAt) }}
             </template>
           </el-table-column>
         </el-table>
         <div class="payment-actions">
-          <el-button @click="statDialogVisible = false">关闭</el-button>
+          <el-button @click="statDialogVisible = false">
+            关闭
+          </el-button>
         </div>
       </div>
     </el-dialog>

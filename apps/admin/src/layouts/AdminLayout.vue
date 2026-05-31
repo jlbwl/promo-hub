@@ -1,7 +1,10 @@
 <template>
   <el-container class="admin-layout">
     <!-- 左侧导航栏 -->
-    <el-aside width="220px" class="admin-aside">
+    <el-aside
+      width="220px"
+      class="admin-aside"
+    >
       <div class="logo">
         <h2>管理后台</h2>
       </div>
@@ -52,7 +55,11 @@
         </div>
         <div class="header-right">
           <span class="admin-name">管理员</span>
-          <el-button type="danger" text @click="handleLogout">
+          <el-button
+            type="danger"
+            text
+            @click="handleLogout"
+          >
             退出登录
           </el-button>
         </div>

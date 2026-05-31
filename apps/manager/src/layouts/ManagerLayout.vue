@@ -1,10 +1,17 @@
 <template>
   <el-container class="manager-layout">
     <!-- 左侧导航栏 -->
-    <el-aside :width="isCollapse ? '64px' : '220px'" class="layout-aside">
+    <el-aside
+      :width="isCollapse ? '64px' : '220px'"
+      class="layout-aside"
+    >
       <div class="logo-container">
-        <h2 v-if="!isCollapse">渠道经理后台</h2>
-        <h2 v-if="isCollapse">渠道</h2>
+        <h2 v-if="!isCollapse">
+          渠道经理后台
+        </h2>
+        <h2 v-if="isCollapse">
+          渠道
+        </h2>
       </div>
       <el-menu
         :default-active="activeMenu"
@@ -17,19 +24,27 @@
       >
         <el-menu-item index="/dashboard">
           <el-icon><Odometer /></el-icon>
-          <template #title>仪表盘</template>
+          <template #title>
+            仪表盘
+          </template>
         </el-menu-item>
         <el-menu-item index="/products">
           <el-icon><Goods /></el-icon>
-          <template #title>产品管理</template>
+          <template #title>
+            产品管理
+          </template>
         </el-menu-item>
         <el-menu-item index="/commissions">
           <el-icon><Money /></el-icon>
-          <template #title>积分管理</template>
+          <template #title>
+            积分管理
+          </template>
         </el-menu-item>
         <el-menu-item index="/profile">
           <el-icon><User /></el-icon>
-          <template #title>个人中心</template>
+          <template #title>
+            个人中心
+          </template>
         </el-menu-item>
       </el-menu>
     </el-aside>
@@ -50,7 +65,11 @@
         </div>
         <div class="header-right">
           <span class="manager-name">{{ managerName }}</span>
-          <el-button type="danger" text @click="handleLogout">
+          <el-button
+            type="danger"
+            text
+            @click="handleLogout"
+          >
             <el-icon><SwitchButton /></el-icon>
             退出登录
           </el-button>

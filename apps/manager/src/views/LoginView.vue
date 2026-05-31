@@ -6,9 +6,15 @@
         <p>渠道经理管理系统</p>
       </div>
 
-      <el-tabs v-model="loginTab" class="login-tabs">
+      <el-tabs
+        v-model="loginTab"
+        class="login-tabs"
+      >
         <!-- 密码登录 -->
-        <el-tab-pane label="密码登录" name="password">
+        <el-tab-pane
+          label="密码登录"
+          name="password"
+        >
           <el-form
             ref="pwdFormRef"
             :model="pwdForm"
@@ -50,7 +56,10 @@
         </el-tab-pane>
 
         <!-- 短信登录 -->
-        <el-tab-pane label="短信登录" name="sms">
+        <el-tab-pane
+          label="短信登录"
+          name="sms"
+        >
           <el-form
             ref="smsFormRef"
             :model="smsForm"

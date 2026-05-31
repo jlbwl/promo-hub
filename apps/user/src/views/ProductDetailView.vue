@@ -10,8 +10,15 @@
     />
 
     <!-- 产品轮播图 -->
-    <van-swipe :autoplay="3000" indicator-color="#1989fa" class="product-swipe">
-      <van-swipe-item v-for="(image, index) in product.images" :key="index">
+    <van-swipe
+      :autoplay="3000"
+      indicator-color="#1989fa"
+      class="product-swipe"
+    >
+      <van-swipe-item
+        v-for="(image, index) in product.images"
+        :key="index"
+      >
         <van-image
           width="100%"
           height="375"
@@ -20,7 +27,11 @@
         >
           <template #error>
             <div class="image-placeholder">
-              <van-icon name="photo-fail" size="48" color="#ddd" />
+              <van-icon
+                name="photo-fail"
+                size="48"
+                color="#ddd"
+              />
             </div>
           </template>
         </van-image>
@@ -31,14 +42,22 @@
     <div class="product-info">
       <div class="price-row">
         <span class="price">{{ product.price }}</span>
-        <span v-if="product.stock > 0" class="stock-badge">
+        <span
+          v-if="product.stock > 0"
+          class="stock-badge"
+        >
           库存 {{ product.stock }} 件
         </span>
-        <span v-else class="stock-badge unlimited">
+        <span
+          v-else
+          class="stock-badge unlimited"
+        >
           库存充足
         </span>
       </div>
-      <h2 class="title">{{ product.title }}</h2>
+      <h2 class="title">
+        {{ product.title }}
+      </h2>
       <div class="meta-row">
         <span class="sales">已售 {{ product.sales || 0 }} 件</span>
         <span class="rate">好评率 {{ product.rate || '100%' }}</span>
@@ -47,14 +66,27 @@
 
     <!-- 产品描述 -->
     <div class="product-desc">
-      <h3 class="section-title">产品描述</h3>
-      <div class="desc-content" v-html="product.description"></div>
+      <h3 class="section-title">
+        产品描述
+      </h3>
+      <div
+        class="desc-content"
+        v-html="product.description"
+      />
     </div>
 
     <!-- 单选框组（渠道经理设置的选项） -->
-    <div v-if="product.options && product.options.length > 0" class="option-section">
-      <h3 class="section-title">选择产品配置</h3>
-      <van-radio-group v-model="selectedOption" class="option-radio-group">
+    <div
+      v-if="product.options && product.options.length > 0"
+      class="option-section"
+    >
+      <h3 class="section-title">
+        选择产品配置
+      </h3>
+      <van-radio-group
+        v-model="selectedOption"
+        class="option-radio-group"
+      >
         <van-cell-group inset>
           <van-cell
             v-for="(opt, idx) in product.options"
@@ -68,10 +100,16 @@
             </template>
             <template #label>
               <div class="option-meta">
-                <span v-if="opt.limit" class="option-limit">
+                <span
+                  v-if="opt.limit"
+                  class="option-limit"
+                >
                   限量 {{ opt.limit }} 单
                 </span>
-                <span v-if="opt.redirectUrl" class="option-redirect">
+                <span
+                  v-if="opt.redirectUrl"
+                  class="option-redirect"
+                >
                   做单后跳转
                 </span>
               </div>
@@ -83,7 +121,10 @@
 
     <!-- 底部操作栏 -->
     <van-action-bar>
-      <van-action-bar-icon icon="chat-o" text="客服" />
+      <van-action-bar-icon
+        icon="chat-o"
+        text="客服"
+      />
       <van-action-bar-button
         type="primary"
         text="了解详情"
@@ -92,11 +133,18 @@
     </van-action-bar>
 
     <!-- 用户信息填写弹窗 -->
-    <van-popup v-model:show="infoFormVisible" position="bottom" :style="{ height: 'auto' }">
+    <van-popup
+      v-model:show="infoFormVisible"
+      position="bottom"
+      :style="{ height: 'auto' }"
+    >
       <div class="info-form-container">
         <div class="info-form-header">
           <span class="info-form-title">请填写您的信息</span>
-          <van-icon name="cross" @click="infoFormVisible = false" />
+          <van-icon
+            name="cross"
+            @click="infoFormVisible = false"
+          />
         </div>
         <van-form @submit="submitInfoForm">
           <van-cell-group inset>
@@ -122,7 +170,11 @@
             />
           </van-cell-group>
           <div class="info-form-footer">
-            <van-button type="primary" native-type="submit" block>
+            <van-button
+              type="primary"
+              native-type="submit"
+              block
+            >
               确认提交并做单
             </van-button>
           </div>

@@ -2,22 +2,34 @@
   <div class="profile-page">
     <el-row :gutter="20">
       <!-- 左侧：经理信息 -->
-      <el-col :xs="24" :md="12">
+      <el-col
+        :xs="24"
+        :md="12"
+      >
         <el-card shadow="hover">
           <template #header>
             <span>经理信息</span>
           </template>
           <div class="profile-info">
             <div class="avatar-section">
-              <el-avatar :size="80" class="avatar">
+              <el-avatar
+                :size="80"
+                class="avatar"
+              >
                 {{ (managerInfo.teamName || managerInfo.name).charAt(0) }}
               </el-avatar>
               <div class="info-text">
                 <h3>{{ managerInfo.teamName || managerInfo.name }}</h3>
-                <p class="info-label">渠道经理</p>
+                <p class="info-label">
+                  渠道经理
+                </p>
               </div>
             </div>
-            <el-descriptions :column="1" border class="info-descriptions">
+            <el-descriptions
+              :column="1"
+              border
+              class="info-descriptions"
+            >
               <el-descriptions-item label="渠道名称">
                 {{ managerInfo.teamName || managerInfo.name }}
               </el-descriptions-item>
@@ -38,7 +50,10 @@
       </el-col>
 
       <!-- 右侧：修改密码 -->
-      <el-col :xs="24" :md="12">
+      <el-col
+        :xs="24"
+        :md="12"
+      >
         <el-card shadow="hover">
           <template #header>
             <span>修改密码</span>
@@ -50,7 +65,10 @@
             label-width="100px"
             style="max-width: 400px;"
           >
-            <el-form-item label="验证码" prop="code">
+            <el-form-item
+              label="验证码"
+              prop="code"
+            >
               <div style="display: flex; gap: 12px;">
                 <el-input
                   v-model="passwordForm.code"
@@ -61,14 +79,17 @@
                 <el-button
                   type="primary"
                   :disabled="smsCooldown > 0"
-                  @click="handleSendSms"
                   style="min-width: 120px;"
+                  @click="handleSendSms"
                 >
                   {{ smsCooldown > 0 ? `${smsCooldown}s` : '获取验证码' }}
                 </el-button>
               </div>
             </el-form-item>
-            <el-form-item label="新密码" prop="newPassword">
+            <el-form-item
+              label="新密码"
+              prop="newPassword"
+            >
               <el-input
                 v-model="passwordForm.newPassword"
                 type="password"
@@ -76,7 +97,10 @@
                 show-password
               />
             </el-form-item>
-            <el-form-item label="确认密码" prop="confirmPassword">
+            <el-form-item
+              label="确认密码"
+              prop="confirmPassword"
+            >
               <el-input
                 v-model="passwordForm.confirmPassword"
                 type="password"
@@ -85,10 +109,16 @@
               />
             </el-form-item>
             <el-form-item>
-              <el-button type="primary" :loading="passwordSaving" @click="handleChangePassword">
+              <el-button
+                type="primary"
+                :loading="passwordSaving"
+                @click="handleChangePassword"
+              >
                 {{ passwordSaving ? '提交中...' : '修改密码' }}
               </el-button>
-              <el-button @click="handleResetPassword">重置</el-button>
+              <el-button @click="handleResetPassword">
+                重置
+              </el-button>
             </el-form-item>
           </el-form>
         </el-card>

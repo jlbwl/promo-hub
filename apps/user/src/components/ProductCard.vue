@@ -14,24 +14,38 @@
       >
         <template #error>
           <div class="image-error">
-            <van-icon name="photo-fail" size="32" />
+            <van-icon
+              name="photo-fail"
+              size="32"
+            />
           </div>
         </template>
       </van-image>
       <!-- 分类标签 -->
-      <div v-if="categoryName" class="category-tag">
+      <div
+        v-if="categoryName"
+        class="category-tag"
+      >
         {{ categoryName }}
       </div>
     </div>
     <!-- 产品信息 -->
     <div class="product-info">
-      <h3 class="product-title">{{ product.title }}</h3>
+      <h3 class="product-title">
+        {{ product.title }}
+      </h3>
       <div class="product-bottom">
         <span class="product-price">¥{{ product.price }}</span>
-        <span class="product-sales" v-if="product.sales !== undefined">已售 {{ product.sales }}</span>
+        <span
+          v-if="product.sales !== undefined"
+          class="product-sales"
+        >已售 {{ product.sales }}</span>
       </div>
       <!-- 产品操作按钮 -->
-      <div class="product-actions" v-if="showActions">
+      <div
+        v-if="showActions"
+        class="product-actions"
+      >
         <van-button
           size="small"
           type="primary"

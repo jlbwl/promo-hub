@@ -9,7 +9,10 @@
 
     <!-- 购物车列表 -->
     <div class="cart-content">
-      <div v-if="cartItems.length > 0" class="cart-list">
+      <div
+        v-if="cartItems.length > 0"
+        class="cart-list"
+      >
         <CartItem
           v-for="item in cartItems"
           :key="item.id"
@@ -28,7 +31,12 @@
         image-size="100"
       >
         <template #bottom>
-          <van-button round type="primary" to="/home" size="small">
+          <van-button
+            round
+            type="primary"
+            to="/home"
+            size="small"
+          >
             去选产品
           </van-button>
         </template>
@@ -36,7 +44,10 @@
     </div>
 
     <!-- 底部提示（子账户） -->
-    <div v-if="isEmployee" class="employee-tip">
+    <div
+      v-if="isEmployee"
+      class="employee-tip"
+    >
       <van-icon name="info-o" />
       <span>此收藏属于主账户，您可以在做单时快速访问</span>
     </div>

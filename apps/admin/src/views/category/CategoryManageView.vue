@@ -1,15 +1,31 @@
 <template>
   <div class="category-manage">
     <!-- 搜索栏 -->
-    <el-card shadow="never" class="search-card">
-      <el-row :gutter="20" align="middle">
+    <el-card
+      shadow="never"
+      class="search-card"
+    >
+      <el-row
+        :gutter="20"
+        align="middle"
+      >
         <el-col :span="4">
-          <el-button type="primary" icon="Plus" @click="showAddDialog">
+          <el-button
+            type="primary"
+            icon="Plus"
+            @click="showAddDialog"
+          >
             添加分类
           </el-button>
         </el-col>
-        <el-col :span="20" style="text-align: right;">
-          <el-button icon="Refresh" @click="loadData">
+        <el-col
+          :span="20"
+          style="text-align: right;"
+        >
+          <el-button
+            icon="Refresh"
+            @click="loadData"
+          >
             刷新
           </el-button>
         </el-col>
@@ -17,40 +33,81 @@
     </el-card>
 
     <!-- 数据表格 -->
-    <el-card shadow="never" style="margin-top: 16px;">
+    <el-card
+      shadow="never"
+      style="margin-top: 16px;"
+    >
       <el-table
+        v-loading="loading"
         :data="tableData"
         stripe
         border
         style="width: 100%"
-        v-loading="loading"
       >
-        <el-table-column prop="name" label="分类名称" width="180" />
-        <el-table-column prop="value" label="分类标识" width="200" />
-        <el-table-column prop="sort" label="排序" width="100" align="center" />
-        <el-table-column prop="status" label="状态" width="120" align="center">
+        <el-table-column
+          prop="name"
+          label="分类名称"
+          width="180"
+        />
+        <el-table-column
+          prop="value"
+          label="分类标识"
+          width="200"
+        />
+        <el-table-column
+          prop="sort"
+          label="排序"
+          width="100"
+          align="center"
+        />
+        <el-table-column
+          prop="status"
+          label="状态"
+          width="120"
+          align="center"
+        >
           <template #default="{ row }">
             <el-tag :type="row.status === 'active' ? 'success' : 'info'">
               {{ row.status === 'active' ? '启用' : '已归档' }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="创建时间" width="180">
+        <el-table-column
+          label="创建时间"
+          width="180"
+        >
           <template #default="{ row }">
             {{ formatTime(row.createdAt) }}
           </template>
         </el-table-column>
-        <el-table-column label="更新时间" width="180">
+        <el-table-column
+          label="更新时间"
+          width="180"
+        >
           <template #default="{ row }">
             {{ formatTime(row.updatedAt) }}
           </template>
         </el-table-column>
-        <el-table-column label="操作" min-width="240" fixed="right">
+        <el-table-column
+          label="操作"
+          min-width="240"
+          fixed="right"
+        >
           <template #default="{ row }">
-            <el-button type="primary" text size="small" @click="showEditDialog(row)">
+            <el-button
+              type="primary"
+              text
+              size="small"
+              @click="showEditDialog(row)"
+            >
               编辑
             </el-button>
-            <el-button type="warning" text size="small" @click="handleToggleStatus(row)">
+            <el-button
+              type="warning"
+              text
+              size="small"
+              @click="handleToggleStatus(row)"
+            >
               {{ row.status === 'active' ? '归档' : '启用' }}
             </el-button>
           </template>
@@ -71,16 +128,32 @@
         :rules="formRules"
         label-width="100px"
       >
-        <el-form-item label="分类名称" prop="name">
-          <el-input v-model="form.name" placeholder="请输入分类名称" />
+        <el-form-item
+          label="分类名称"
+          prop="name"
+        >
+          <el-input
+            v-model="form.name"
+            placeholder="请输入分类名称"
+          />
         </el-form-item>
-        <el-form-item label="分类标识" prop="value">
-          <el-input v-model="form.value" placeholder="请输入分类标识" :disabled="isEdit" />
+        <el-form-item
+          label="分类标识"
+          prop="value"
+        >
+          <el-input
+            v-model="form.value"
+            placeholder="请输入分类标识"
+            :disabled="isEdit"
+          />
           <div style="color: #999; font-size: 12px; margin-top: 4px;">
             标识用于兼容旧数据，创建后不可修改
           </div>
         </el-form-item>
-        <el-form-item label="排序" prop="sort">
+        <el-form-item
+          label="排序"
+          prop="sort"
+        >
           <el-input-number
             v-model="form.sort"
             :min="0"
@@ -88,16 +161,29 @@
             style="width: 100%;"
           />
         </el-form-item>
-        <el-form-item label="状态" prop="status">
+        <el-form-item
+          label="状态"
+          prop="status"
+        >
           <el-radio-group v-model="form.status">
-            <el-radio value="active">启用</el-radio>
-            <el-radio value="archived">已归档</el-radio>
+            <el-radio value="active">
+              启用
+            </el-radio>
+            <el-radio value="archived">
+              已归档
+            </el-radio>
           </el-radio-group>
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="saveLoading" @click="handleSave">
+        <el-button @click="dialogVisible = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="saveLoading"
+          @click="handleSave"
+        >
           {{ isEdit ? '保存' : '添加' }}
         </el-button>
       </template>

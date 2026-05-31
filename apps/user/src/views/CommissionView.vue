@@ -38,13 +38,35 @@
     </div>
 
     <!-- Tab 切换 -->
-    <van-tabs v-model:active="activeTab" sticky @change="onTabChange">
-      <van-tab title="全部" name="all" />
-      <van-tab title="待审核" name="pending" />
-      <van-tab title="已通过" name="approved" />
-      <van-tab title="待发放" name="pending_payment" />
-      <van-tab title="已发放" name="settled" />
-      <van-tab title="已驳回" name="rejected" />
+    <van-tabs
+      v-model:active="activeTab"
+      sticky
+      @change="onTabChange"
+    >
+      <van-tab
+        title="全部"
+        name="all"
+      />
+      <van-tab
+        title="待审核"
+        name="pending"
+      />
+      <van-tab
+        title="已通过"
+        name="approved"
+      />
+      <van-tab
+        title="待发放"
+        name="pending_payment"
+      />
+      <van-tab
+        title="已发放"
+        name="settled"
+      />
+      <van-tab
+        title="已驳回"
+        name="rejected"
+      />
     </van-tabs>
 
     <!-- 订单记录列表 -->
@@ -64,13 +86,40 @@
         >
           <div class="record-card">
             <div class="record-left">
-              <h4 class="record-title">{{ record.productName }} <van-tag v-if="record.optionLabel" type="primary" plain size="medium" style="vertical-align: middle; margin-left: 4px;">{{ record.optionLabel }}</van-tag><van-tag v-if="record.fundAccount" type="primary" plain size="medium" style="vertical-align: middle; margin-left: 4px;">{{ record.fundAccount }}</van-tag></h4>
-              <div class="record-user-info" v-if="record.userName || record.userPhone">
+              <h4 class="record-title">
+                {{ record.productName }} <van-tag
+                  v-if="record.optionLabel"
+                  type="primary"
+                  plain
+                  size="medium"
+                  style="vertical-align: middle; margin-left: 4px;"
+                >
+                  {{ record.optionLabel }}
+                </van-tag><van-tag
+                  v-if="record.fundAccount"
+                  type="primary"
+                  plain
+                  size="medium"
+                  style="vertical-align: middle; margin-left: 4px;"
+                >
+                  {{ record.fundAccount }}
+                </van-tag>
+              </h4>
+              <div
+                v-if="record.userName || record.userPhone"
+                class="record-user-info"
+              >
                 <span v-if="record.userName">姓名：{{ maskName(record.userName) }}</span>
-                <span v-if="record.userPhone" style="margin-left: 8px;">手机：{{ maskPhone(record.userPhone) }}</span>
+                <span
+                  v-if="record.userPhone"
+                  style="margin-left: 8px;"
+                >手机：{{ maskPhone(record.userPhone) }}</span>
               </div>
               <span class="record-time">{{ formatTime(record.createdAt) }}</span>
-              <span v-if="record.rejectReason" class="reject-reason">驳回原因：{{ record.rejectReason }}</span>
+              <span
+                v-if="record.rejectReason"
+                class="reject-reason"
+              >驳回原因：{{ record.rejectReason }}</span>
             </div>
             <div class="record-right">
               <span class="record-price">{{ record.productPrice }}</span>
@@ -100,14 +149,14 @@
                 <div class="fund-action">
                   <input
                     :ref="(el) => { if (el) fundInputRefs[record.id] = el as HTMLInputElement }"
+                    v-model="fundAccountNumbers[record.id]"
                     type="text"
                     class="fund-input"
-                    v-model="fundAccountNumbers[record.id]"
                     placeholder="请输入资金号"
                     @keyup.enter="submitFundAccount(record)"
                     @click.stop
                     @touchend.stop
-                  />
+                  >
                   <van-button
                     type="primary"
                     size="small"
@@ -154,34 +203,68 @@
     >
       <template #description>
         <div class="recycle-bin-content">
-          <div v-if="deletedOrders.length === 0" class="empty-recycle">
-            <van-icon name="trash-o" size="48" color="#ccc" />
+          <div
+            v-if="deletedOrders.length === 0"
+            class="empty-recycle"
+          >
+            <van-icon
+              name="trash-o"
+              size="48"
+              color="#ccc"
+            />
             <p>回收站是空的</p>
           </div>
-          <div v-else class="deleted-list">
+          <div
+            v-else
+            class="deleted-list"
+          >
             <div
               v-for="order in deletedOrders"
               :key="order.id"
               class="deleted-item"
-              @click="selectOrder(order)"
               :class="{ active: selectedOrder?.id === order.id }"
+              @click="selectOrder(order)"
             >
               <div class="deleted-info">
                 <div class="deleted-title-row">
                   <span class="deleted-title">{{ order.productName }}</span>
-                  <van-tag v-if="order.optionLabel" type="primary" plain size="medium">{{ order.optionLabel }}</van-tag>
-                  <van-tag v-if="order.fundAccount" type="primary" plain size="medium">{{ order.fundAccount }}</van-tag>
+                  <van-tag
+                    v-if="order.optionLabel"
+                    type="primary"
+                    plain
+                    size="medium"
+                  >
+                    {{ order.optionLabel }}
+                  </van-tag>
+                  <van-tag
+                    v-if="order.fundAccount"
+                    type="primary"
+                    plain
+                    size="medium"
+                  >
+                    {{ order.fundAccount }}
+                  </van-tag>
                 </div>
-                <div class="deleted-user-info" v-if="order.userName || order.userPhone">
+                <div
+                  v-if="order.userName || order.userPhone"
+                  class="deleted-user-info"
+                >
                   <span v-if="order.userName">姓名：{{ maskName(order.userName) }}</span>
-                  <span v-if="order.userPhone" class="phone-span">手机：{{ maskPhone(order.userPhone) }}</span>
+                  <span
+                    v-if="order.userPhone"
+                    class="phone-span"
+                  >手机：{{ maskPhone(order.userPhone) }}</span>
                 </div>
                 <div class="deleted-price-row">
                   <span class="deleted-price">{{ order.productPrice }}</span>
                   <span class="deleted-time">删除于 {{ formatTime(order.deletedAt) }}</span>
                 </div>
               </div>
-              <van-icon name="check" v-if="selectedOrder?.id === order.id" color="#1989fa" />
+              <van-icon
+                v-if="selectedOrder?.id === order.id"
+                name="check"
+                color="#1989fa"
+              />
             </div>
           </div>
         </div>
