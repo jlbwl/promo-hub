@@ -394,12 +394,12 @@ export const deleteUser = asyncHandler(
       throw new AppError('未登录', ErrorCode.UNAUTHORIZED, HttpStatus.UNAUTHORIZED)
     }
     
-    // 验证短信验证码
+    // 验证短信验证码（验证后自动失效，确保一次性使用）
     const valid = verifySmsCode(adminInfo.phone, smsCode)
     if (!valid) {
-      throw new AppError('验证码错误或已过期', ErrorCode.CODE_EXPIRED, HttpStatus.BAD_REQUEST)
+      throw new AppError('验证码错误、已过期或已被使用', ErrorCode.CODE_EXPIRED, HttpStatus.BAD_REQUEST)
     }
-    deleteSmsCode(adminInfo.phone)
+    // 注意：verifySmsCode 内部已自动删除验证码，无需再次调用 deleteSmsCode
     
     // 检查用户是否存在
     const userId = req.params.id as string
