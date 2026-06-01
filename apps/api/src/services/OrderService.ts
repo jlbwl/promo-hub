@@ -178,6 +178,7 @@ export const orderService: OrderService = {
       productId,
       userId: finalUserId,
       managerId: product.managerId,
+      employeeId: employeeId || '',
       productName: product.title,
       productPrice: product.price,
       optionLabel: optionLabel || '',
