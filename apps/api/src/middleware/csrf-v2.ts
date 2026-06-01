@@ -47,6 +47,31 @@ export function csrfVerify(req: Request, res: Response, next: NextFunction) {
     return next()
   }
   
+  // 允许绕过 CSRF 的关键接口
+  const bypassPaths = [
+    // 登录和认证相关
+    '/api/admin/login',
+    '/api/manager/login',
+    '/api/manager/sms/send',
+    '/api/manager/sms/login',
+    '/api/user/login',
+    '/api/user/sms/send',
+    '/api/user/sms/login',
+    '/api/user/register',
+    
+    // CSRF token 接口本身
+    '/api/csrf-token'
+  ]
+  
+  // 检查路径是否需要绕过
+  if (bypassPaths.some(path => req.path === path || req.path.startsWith(path + '/'))) {
+    logger.info('[CSRF] Bypassing CSRF for safe path', {
+      path: req.path,
+      method: req.method
+    })
+    return next()
+  }
+  
   // 获取请求中的 token
   const bodyToken = req.body?._csrf || req.body?.csrfToken
   const headerToken = req.headers['x-csrf-token'] as string
@@ -84,6 +109,11 @@ export function csrfVerify(req: Request, res: Response, next: NextFunction) {
   }
   
   // Token 验证通过
+  logger.debug('[CSRF] Token verified', {
+    ip: req.ip,
+    method: req.method,
+    url: req.originalUrl
+  })
   next()
 }
 
