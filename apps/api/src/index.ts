@@ -20,6 +20,7 @@ logger.info('✅ 环境变量检查通过')
 
 // 继续导入其他模块
 import { sessionMiddleware } from './middleware/auth.js'
+import { csrfProtection, csrfErrorHandler, csrfTokenMiddleware } from './middleware/csrf.js'
 import routes from './routes/index.js'
 import { errorHandler } from './utils/response.js'
 import { logRequest } from './utils/logger.js'
@@ -64,6 +65,18 @@ const corsOptions: cors.CorsOptions = {
 app.use(cors(corsOptions))
 app.use(express.json())
 app.use(sessionMiddleware)
+
+// CSRF token 中间件
+app.use(csrfTokenMiddleware)
+
+// 提供 CSRF token 获取接口
+app.get('/api/csrf-token', (req, res) => {
+  res.json({ 
+    code: 0, 
+    message: '获取成功', 
+    data: { csrfToken: (req as any).csrfToken() } 
+  })
+})
 
 // 请求日志中间件
 app.use((req, _res, next) => {
@@ -181,8 +194,14 @@ app.delete('/api/categories/:id', async (req, res) => {
   }
 })
 
+// 应用 CSRF 防护到需要保护的路由 - 注意要放在路由之前！
+app.use(['/api/admin', '/api/manager', '/api/user'], csrfProtection)
+
 // 主路由（添加 /api 前缀） - 放在最后，让上面的临时路由优先！
 app.use('/api', routes)
+
+// CSRF 错误处理
+app.use(csrfErrorHandler)
 
 // 全局错误处理 - 必须在路由之后注册
 app.use(errorHandler)
