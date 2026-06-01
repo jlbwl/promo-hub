@@ -11,6 +11,8 @@ import {
   readOrders,
   writeProducts,
   writeOrders,
+  writeManagers,
+  writeUsers,
 } from '../data.js'
 import { login as sessionLogin, generateAuthToken } from '../middleware/auth.js'
 import { sendSmsCode } from '../sms.js'
@@ -223,6 +225,67 @@ export const updateManagerById = async (req: Request, res: Response): Promise<vo
   sendSuccess(res, safeManager, '更新成功')
 }
 
+/**
+ * 更新经理团队名称
+ * 同时更新该经理下所有用户的团队名称
+ */
+export const updateManagerTeamName = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const managerId = req.params.id as string
+    const { newTeamName } = req.body
+
+    logger.info('[updateManagerTeamName] Starting update', { managerId, newTeamName })
+
+    if (!newTeamName) {
+      return sendError(res, '渠道名称不能为空', 400)
+    }
+
+    // 获取经理列表
+    const managers = await readManagers()
+    const managerIndex = managers.findIndex((m: any) => m.id === managerId)
+    if (managerIndex === -1) {
+      return sendError(res, '经理不存在', 404)
+    }
+
+    // 检查渠道名称是否重复
+    const existingManager = managers.find((m: any) => 
+      m.teamName === newTeamName && m.id !== managerId
+    )
+    if (existingManager) {
+      return sendError(res, '该渠道名称已存在', 409)
+    }
+
+    const oldTeamName = managers[managerIndex].teamName
+    const now = new Date().toISOString()
+    managers[managerIndex].teamName = newTeamName
+    managers[managerIndex].name = newTeamName
+    managers[managerIndex].username = newTeamName
+    managers[managerIndex].updatedAt = now
+
+    // 更新经理信息
+    await writeManagers(managers)
+
+    // 同时更新该经理下所有用户的团队名称
+    const users = await readUsers()
+    const updatedUsers = users.map((u: any) => {
+      if (u.teamName === oldTeamName) {
+        return { ...u, teamName: newTeamName, updatedAt: now }
+      }
+      return u
+    })
+    
+    await writeUsers(updatedUsers)
+
+    // 返回更新后的经理信息
+    const { password: _, ...safeManager } = managers[managerIndex]
+    logger.info('[updateManagerTeamName] Update successful', { managerId, newTeamName })
+    sendSuccess(res, safeManager, '更新成功')
+  } catch (error: any) {
+    logger.error('[updateManagerTeamName] Failed to update team name', { error: error.message })
+    sendError(res, '更新失败: ' + error.message, 500)
+  }
+}
+
 // ============================================
 // 登录相关
 // ============================================
@@ -347,13 +410,4 @@ export const setManagerPassword = async (req: Request, res: Response): Promise<v
   await writeManagers(managers)
 
   sendSuccess(res, null, '密码修改成功')
-}
-
-// ============================================
-// 内部辅助函数
-// ============================================
-
-async function writeManagers(managers: any[]): Promise<void> {
-  const { writeManagers: write } = await import('../data.js')
-  await write(managers)
 }

@@ -1,12 +1,14 @@
 import { Router } from 'express'
 import { smsLimiter, loginLimiter } from '../middleware/rateLimit.js'
-import { requireAdmin } from '../middleware/auth.js'
+import { requireAdmin, requireAuth } from '../middleware/auth.js'
+import { resourcePermission } from '../middleware/resourcePermission.js'
 import {
   getManagers,
   getManagerById,
   createManager,
   deleteManagerWithCascade,
   updateManagerById,
+  updateManagerTeamName,
   managerLogin,
   sendManagerSmsCode,
   managerSmsLogin,
@@ -22,6 +24,18 @@ router.get('/managers/:id', getManagerById)
 router.post('/managers', requireAdmin, createManager)
 router.delete('/managers/:id', requireAdmin, deleteManagerWithCascade)
 router.put('/managers/:id', updateManagerById)
+
+// 更新经理团队名称
+router.put(
+  '/managers/:id/team-name',
+  requireAuth,
+  resourcePermission({
+    resourceType: 'manager',
+    action: 'update',
+    adminOverride: true
+  }),
+  updateManagerTeamName
+)
 
 // 经理登录相关
 router.post('/managers/login', loginLimiter, managerLogin)
