@@ -232,11 +232,12 @@ export const updateManagerById = async (req: Request, res: Response): Promise<vo
 export const updateManagerTeamName = async (req: Request, res: Response): Promise<void> => {
   try {
     const managerId = req.params.id as string
-    const { newTeamName } = req.body
+    const { teamName, newTeamName } = req.body
+    const finalTeamName = teamName || newTeamName
 
-    logger.info('[updateManagerTeamName] Starting update', { managerId, newTeamName })
+    logger.info('[updateManagerTeamName] Starting update', { managerId, teamName, newTeamName, finalTeamName })
 
-    if (!newTeamName) {
+    if (!finalTeamName) {
       return sendError(res, '渠道名称不能为空', 400)
     }
 
@@ -249,7 +250,7 @@ export const updateManagerTeamName = async (req: Request, res: Response): Promis
 
     // 检查渠道名称是否重复
     const existingManager = managers.find((m: any) => 
-      m.teamName === newTeamName && m.id !== managerId
+      m.teamName === finalTeamName && m.id !== managerId
     )
     if (existingManager) {
       return sendError(res, '该渠道名称已存在', 409)
@@ -257,9 +258,9 @@ export const updateManagerTeamName = async (req: Request, res: Response): Promis
 
     const oldTeamName = managers[managerIndex].teamName
     const now = new Date().toISOString()
-    managers[managerIndex].teamName = newTeamName
-    managers[managerIndex].name = newTeamName
-    managers[managerIndex].username = newTeamName
+    managers[managerIndex].teamName = finalTeamName
+    managers[managerIndex].name = finalTeamName
+    managers[managerIndex].username = finalTeamName
     managers[managerIndex].updatedAt = now
 
     // 更新经理信息
@@ -269,7 +270,7 @@ export const updateManagerTeamName = async (req: Request, res: Response): Promis
     const users = await readUsers()
     const updatedUsers = users.map((u: any) => {
       if (u.teamName === oldTeamName) {
-        return { ...u, teamName: newTeamName, updatedAt: now }
+        return { ...u, teamName: finalTeamName, updatedAt: now }
       }
       return u
     })
@@ -278,7 +279,7 @@ export const updateManagerTeamName = async (req: Request, res: Response): Promis
 
     // 返回更新后的经理信息
     const { password: _, ...safeManager } = managers[managerIndex]
-    logger.info('[updateManagerTeamName] Update successful', { managerId, newTeamName })
+    logger.info('[updateManagerTeamName] Update successful', { managerId, finalTeamName })
     sendSuccess(res, safeManager, '更新成功')
   } catch (error: any) {
     logger.error('[updateManagerTeamName] Failed to update team name', { error: error.message })
