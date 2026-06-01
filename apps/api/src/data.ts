@@ -17,7 +17,12 @@ async function verifyPassword(password: string, hash: string): Promise<boolean> 
 
 function serialize(val: any): string | null {
   if (val === null || val === undefined) return null
-  return JSON.stringify(val)
+  // 确保总是返回有效的 JSON
+  if (Array.isArray(val)) {
+    return JSON.stringify(val)
+  }
+  // 如果不是数组，返回默认的 ["sms"]
+  return JSON.stringify(["sms"])
 }
 
 function formatDateTime(dateStr: string | undefined | null): string | null {
@@ -29,7 +34,21 @@ function formatDateTime(dateStr: string | undefined | null): string | null {
 function deserialize(val: any): any {
   if (val === null || val === undefined) return null
   if (typeof val === 'string') {
-    try { return JSON.parse(val) } catch { return val }
+    try { 
+      const parsed = JSON.parse(val)
+      // 确保返回的是数组
+      if (!Array.isArray(parsed)) {
+        return ["sms"]
+      }
+      return parsed
+    } catch { 
+      // 如果解析失败，返回默认值
+      return ["sms"]
+    }
+  }
+  // 如果不是字符串但也不是数组，返回默认值
+  if (!Array.isArray(val)) {
+    return ["sms"]
   }
   return val
 }
@@ -633,6 +652,21 @@ export async function readUser(id: string): Promise<any> {
 
 export async function writeUsers(users: any[]): Promise<void> {
   const hasRole = await columnExists('users', 'role')
+  
+  // 先尝试修复数据库中已损坏的 loginMethods 数据
+  try {
+    await query(`
+      UPDATE users 
+      SET loginMethods = '[\"sms\"]' 
+      WHERE loginMethods IS NULL 
+         OR loginMethods = '' 
+         OR loginMethods = 'null'
+         OR JSON_VALID(loginMethods) = 0
+    `)
+  } catch (e) {
+    // 忽略修复错误，继续执行
+    console.warn('自动修复 loginMethods 失败，继续执行:', e)
+  }
   
   for (const u of users) {
     const existing = await queryOne('SELECT id FROM users WHERE id = ?', [u.id])
