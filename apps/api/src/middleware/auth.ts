@@ -2,9 +2,9 @@ import { Request, Response, NextFunction, RequestHandler } from 'express'
 import session, { Session } from 'express-session'
 import jwt from 'jsonwebtoken'
 
-// 这些环境变量已经在 index.ts 中检查过，确保不为空
-const SESSION_SECRET = process.env.SESSION_SECRET as string
-const JWT_SECRET = process.env.JWT_SECRET as string
+// 确保有默认值的环境变量
+const SESSION_SECRET = process.env.SESSION_SECRET || 'default-session-secret-change-in-production-please'
+const JWT_SECRET = process.env.JWT_SECRET || 'default-jwt-secret-change-in-production-please'
 
 export interface AuthUser {
   id: string
