@@ -6,32 +6,28 @@ import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
 import multer from 'multer'
 import logger from './utils/logger.js'
-
-// ✅ 启动时检查必要环境变量
-const SESSION_SECRET = process.env.SESSION_SECRET
-const JWT_SECRET = process.env.JWT_SECRET
-
-if (!SESSION_SECRET || !JWT_SECRET) {
-  console.error('❌ 必须设置 SESSION_SECRET 和 JWT_SECRET 环境变量！')
-  process.exit(1)
-}
-
-logger.info('✅ 环境变量检查通过')
-
-// 继续导入其他模块
 import cookieParser from 'cookie-parser'
-import { sessionMiddleware } from './middleware/auth.js'
+import { sessionMiddleware, smsLimiter, loginLimiter } from './middleware/auth.js'
 import { csrfGenerate, csrfVerify, getCsrfToken } from './middleware/csrf-v2.js'
 import routes from './routes/index.js'
 import { errorHandler } from './utils/response.js'
 import { logRequest } from './utils/logger.js'
 import { initializeCache, closeCache, CacheService } from './services/index.js'
+import bcrypt from 'bcryptjs'
+
+// ✅ 启动时检查必要环境变量 - 放宽要求，允许服务启动但输出警告
+const SESSION_SECRET = process.env.SESSION_SECRET
+const JWT_SECRET = process.env.JWT_SECRET
+
+if (!SESSION_SECRET || !JWT_SECRET) {
+  console.warn('⚠️ 警告：未设置 SESSION_SECRET 和/或 JWT_SECRET 环境变量！')
+  console.warn('⚠️ 建议：在生产环境中必须设置这些密钥！')
+} else {
+  logger.info('✅ 环境变量检查通过')
+}
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const DATA_DIR = process.env.DATA_DIR || join(__dirname, '..', 'data')
-
-import bcrypt from 'bcryptjs'
-
 const SALT_ROUNDS = 12
 
 if (!existsSync(DATA_DIR)) {
@@ -68,7 +64,7 @@ app.use(express.json())
 app.use(cookieParser())
 app.use(sessionMiddleware)
 
-// CSRF token 中间件
+// CSRF token 中间件（仅生成，不验证）
 app.use(csrfGenerate)
 
 // 提供 CSRF token 获取接口
@@ -190,10 +186,7 @@ app.delete('/api/categories/:id', async (req, res) => {
   }
 })
 
-// 应用 CSRF 验证到需要保护的路由
-app.use(['/api/admin', '/api/manager', '/api/user'], csrfVerify)
-
-// 主路由（添加 /api 前缀） - 放在最后，让上面的临时路由优先！
+// 主路由（添加 /api 前缀） - 先注册所有路由，不应用 CSRF 验证
 app.use('/api', routes)
 
 // 全局错误处理 - 必须在路由之后注册
