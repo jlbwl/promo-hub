@@ -11,20 +11,11 @@ import { resourcePermission } from '../middleware/resourcePermission.js'
 
 const router: Router = Router()
 
-// 获取产品列表 - 允许所有已认证用户访问
-router.get('/products', requireAuth, getProducts)
+// 获取产品列表 - 允许所有用户（包括访客）访问
+router.get('/products', getProducts)
 
-// 获取单个产品详情 - 使用资源级权限验证
-router.get(
-  '/products/:id',
-  requireAuth,
-  resourcePermission({
-    resourceType: 'product',
-    action: 'read',
-    adminOverride: true
-  }),
-  getProductById
-)
+// 获取单个产品详情 - 允许所有用户（包括访客）访问
+router.get('/products/:id', getProductById)
 
 // 创建产品 - 只有经理可以创建
 router.post(
