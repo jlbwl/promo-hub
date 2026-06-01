@@ -12,7 +12,7 @@ import {
   writeProducts,
   writeOrders,
   writeManagers,
-  writeUsers,
+  updateUser,
 } from '../data.js'
 import { login as sessionLogin, generateAuthToken } from '../middleware/auth.js'
 import { sendSmsCode } from '../sms.js'
@@ -257,29 +257,25 @@ export const updateManagerTeamName = async (req: Request, res: Response): Promis
     }
 
     const oldTeamName = managers[managerIndex].teamName
-    const now = new Date().toISOString()
     managers[managerIndex].teamName = finalTeamName
     managers[managerIndex].name = finalTeamName
     managers[managerIndex].username = finalTeamName
-    managers[managerIndex].updatedAt = now
 
     // 更新经理信息
     await writeManagers(managers)
 
     // 同时更新该经理下所有用户的团队名称
+    // 只更新 teamName 字段，避免修改其他字段
     const users = await readUsers()
-    const updatedUsers = users.map((u: any) => {
-      if (u.teamName === oldTeamName) {
-        return { ...u, teamName: finalTeamName, updatedAt: now }
-      }
-      return u
-    })
+    const usersToUpdate = users.filter((u: any) => u.teamName === oldTeamName)
     
-    await writeUsers(updatedUsers)
+    for (const user of usersToUpdate) {
+      await updateUser(user.id, { teamName: finalTeamName })
+    }
 
     // 返回更新后的经理信息
     const { password: _, ...safeManager } = managers[managerIndex]
-    logger.info('[updateManagerTeamName] Update successful', { managerId, finalTeamName })
+    logger.info('[updateManagerTeamName] Update successful', { managerId, finalTeamName, updatedUsers: usersToUpdate.length })
     sendSuccess(res, safeManager, '更新成功')
   } catch (error: any) {
     logger.error('[updateManagerTeamName] Failed to update team name', { error: error.message })
