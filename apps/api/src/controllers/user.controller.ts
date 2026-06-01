@@ -17,8 +17,12 @@ import {
   readProducts,
   writeProducts,
   query,
+  queryOne,
+  deserialize,
+  insertUser,
+  updateUser,
 } from '../data.js'
-import { login as sessionLogin, generateAuthToken } from '../middleware/auth.js'
+import { login as sessionLogin, loginSync as sessionLoginSync, generateAuthToken } from '../middleware/auth.js'
 import { sendSmsCode } from '../sms.js'
 import { generateSmsCode, saveSmsCode, verifySmsCode, deleteSmsCode } from '../utils/sms.js'
 
@@ -185,63 +189,113 @@ export const sendUserSmsCode = asyncHandler(
 export const userSmsLogin = asyncHandler(
   async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
     const { phone, code, teamName } = req.body
+    logger.info('SMS login attempt started', { phone, hasTeamName: !!teamName })
+
     if (!phone || !code) {
       throw new AppError('手机号和验证码不能为空', ErrorCode.BAD_REQUEST, HttpStatus.BAD_REQUEST)
     }
 
+    // 验证验证码
+    logger.debug('Verifying SMS code', { phone })
     const valid = verifySmsCode(phone, code)
     if (!valid) {
       throw new AppError('验证码错误或已过期', ErrorCode.CODE_EXPIRED, HttpStatus.BAD_REQUEST)
     }
     deleteSmsCode(phone)
 
-    let users = await readUsers()
-    let user = users.find((u: any) => u.phone === phone)
+    let user: any = null
     let isNewUser = false
 
-    if (!user) {
-      isNewUser = true
-      // 检查团队名称
-      if (teamName) {
-        if (users.find((u: any) => u.teamName === teamName)) {
-          throw new AppError('该团队名称已存在', ErrorCode.BAD_REQUEST, HttpStatus.CONFLICT)
+    try {
+      // 查询用户
+      logger.debug('Querying user by phone', { phone })
+      user = await queryOne('SELECT * FROM users WHERE phone = ?', [phone])
+      logger.debug('Query result', { userFound: !!user })
+
+      if (!user) {
+        isNewUser = true
+        logger.info('Creating new user', { phone })
+
+        // 检查团队名称
+        if (teamName) {
+          const existingTeamUser = await queryOne('SELECT id FROM users WHERE teamName = ?', [teamName])
+          if (existingTeamUser) {
+            throw new AppError('该团队名称已存在', ErrorCode.BAD_REQUEST, HttpStatus.CONFLICT)
+          }
         }
+
+        const now = new Date().toISOString()
+        user = {
+          id: `u_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+          phone,
+          password: '',
+          nickname: `用户${phone.slice(-4)}`,
+          teamName: teamName || '',
+          role: 'user',
+          status: 'active',
+          loginMethods: ['sms'],
+          createdAt: now,
+          updatedAt: now,
+        }
+        // 使用 insertUser 而不是 writeUsers
+        logger.debug('Inserting new user', { userId: user.id })
+        await insertUser(user)
+        logger.info('New user created', { userId: user.id })
+      } else {
+        // 反序列化 loginMethods
+        logger.debug('Updating existing user', { userId: user.id })
+        const loginMethods = deserialize(user.loginMethods)
+        const newLoginMethods = Array.isArray(loginMethods) ? loginMethods : ['sms']
+        if (!newLoginMethods.includes('sms')) {
+          newLoginMethods.push('sms')
+        }
+        // 只更新必要字段
+        await updateUser(user.id, {
+          loginMethods: newLoginMethods,
+          updatedAt: new Date().toISOString(),
+        })
+        // 重新获取最新的用户数据
+        user = await queryOne('SELECT * FROM users WHERE id = ?', [user.id]) as any
+        user.loginMethods = newLoginMethods
+        logger.info('User updated', { userId: user.id })
       }
 
-      const now = new Date().toISOString()
-      user = {
-        id: `u_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-        phone,
-        password: '',
-        nickname: `用户${phone.slice(-4)}`,
-        teamName: teamName || '',
-        role: 'user',
-        status: 'active',
-        loginMethods: ['sms'],
-        createdAt: now,
-        updatedAt: now,
+      // 处理 session - 非阻塞模式，即使保存失败也继续
+      logger.debug('Setting up session', { userId: user.id })
+      try {
+        await sessionLogin(req, { 
+          id: user.id, 
+          phone: user.phone, 
+          role: user.role || 'user', 
+          nickname: user.nickname, 
+          teamName: user.teamName 
+        })
+      } catch (sessionError: any) {
+        logger.warn('Session save failed, continuing anyway', { 
+          error: sessionError.message 
+        })
+        // 即使 session 保存失败，我们仍然可以返回成功，因为用户信息已经在响应中
       }
-      users.push(user)
-      await writeUsers(users)
-    } else {
-      if (!user.loginMethods) user.loginMethods = []
-      if (!user.loginMethods.includes('sms')) user.loginMethods.push('sms')
-      user.updatedAt = new Date().toISOString()
-      users = users.map((u: any) => u.id === user!.id ? user : u)
-      await writeUsers(users)
+
+      logger.info('User logged in successfully', { userId: user.id, method: 'sms', isNewUser })
+      const { password: _, ...safeUser } = user
+      sendSuccess(res, { user: safeUser }, '登录成功')
+    } catch (error: any) {
+      logger.error('SMS login failed', { 
+        phone, 
+        error: error.message, 
+        stack: error.stack 
+      })
+      // 如果是 AppError，重新抛出，否则包装成通用错误
+      if (error instanceof AppError) {
+        throw error
+      }
+      throw new AppError(
+        `登录失败: ${error.message}`, 
+        ErrorCode.INTERNAL_SERVER_ERROR, 
+        HttpStatus.INTERNAL_SERVER_ERROR
+      )
     }
-
-    sessionLogin(req, { 
-      id: user.id, 
-      phone: user.phone, 
-      role: 'user', 
-      nickname: user.nickname, 
-      teamName: user.teamName 
-    })
-
-    logger.info('User logged in', { userId: user.id, method: 'sms', isNewUser })
-    const { password: _, ...safeUser } = user
-    sendSuccess(res, { user: safeUser }, '登录成功')
   }
 )
 

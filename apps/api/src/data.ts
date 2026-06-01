@@ -15,14 +15,32 @@ async function verifyPassword(password: string, hash: string): Promise<boolean> 
   }
 }
 
-function serialize(val: any): string | null {
-  if (val === null || val === undefined) return null
-  // 确保总是返回有效的 JSON
-  if (Array.isArray(val)) {
-    return JSON.stringify(val)
+function serialize(val: any): string {
+  // 确保总是返回有效的 JSON 数组字符串
+  try {
+    if (val === null || val === undefined) {
+      return JSON.stringify(["sms"])
+    }
+    if (Array.isArray(val)) {
+      return JSON.stringify(val)
+    }
+    // 如果已经是字符串，先尝试解析
+    if (typeof val === 'string') {
+      try {
+        const parsed = JSON.parse(val)
+        if (Array.isArray(parsed)) {
+          return JSON.stringify(parsed)
+        }
+      } catch {
+        // 解析失败，继续下面的处理
+      }
+    }
+    // 兜底返回 ["sms"]
+    return JSON.stringify(["sms"])
+  } catch (e) {
+    console.warn('[serialize] 序列化失败，返回默认值', e)
+    return JSON.stringify(["sms"])
   }
-  // 如果不是数组，返回默认的 ["sms"]
-  return JSON.stringify(["sms"])
 }
 
 function formatDateTime(dateStr: string | undefined | null): string | null {
@@ -31,7 +49,7 @@ function formatDateTime(dateStr: string | undefined | null): string | null {
   return date.toISOString().replace('T', ' ').substring(0, 19)
 }
 
-function deserialize(val: any): any {
+export function deserialize(val: any): any {
   if (val === null || val === undefined) return null
   if (typeof val === 'string') {
     try { 
@@ -653,20 +671,8 @@ export async function readUser(id: string): Promise<any> {
 export async function writeUsers(users: any[]): Promise<void> {
   const hasRole = await columnExists('users', 'role')
   
-  // 先尝试修复数据库中已损坏的 loginMethods 数据
-  try {
-    await query(`
-      UPDATE users 
-      SET loginMethods = '[\"sms\"]' 
-      WHERE loginMethods IS NULL 
-         OR loginMethods = '' 
-         OR loginMethods = 'null'
-         OR JSON_VALID(loginMethods) = 0
-    `)
-  } catch (e) {
-    // 忽略修复错误，继续执行
-    console.warn('自动修复 loginMethods 失败，继续执行:', e)
-  }
+  // 不再自动修复 loginMethods，避免触发错误
+  // 如果需要修复，后续可以单独调用一个安全的修复函数
   
   for (const u of users) {
     const existing = await queryOne('SELECT id FROM users WHERE id = ?', [u.id])
@@ -679,7 +685,21 @@ export async function writeUsers(users: any[]): Promise<void> {
         updateValues.splice(updateValues.length - 1, 0, u.role || 'user')
       }
       
-      await query(`UPDATE users SET ${updateColumns.join(', ')} WHERE id=?`, updateValues)
+      try {
+        await query(`UPDATE users SET ${updateColumns.join(', ')} WHERE id=?`, updateValues)
+      } catch (e) {
+        console.error('[writeUsers] 更新用户失败', { userId: u.id, error: e })
+        // 如果 loginMethods 导致错误，尝试不更新它
+        try {
+          const safeUpdateColumns = updateColumns.filter(c => c !== 'loginMethods=?')
+          const safeUpdateValues = updateValues.filter((_, i) => updateColumns[i] !== 'loginMethods=?')
+          await query(`UPDATE users SET ${safeUpdateColumns.join(', ')} WHERE id=?`, safeUpdateValues)
+          console.log('[writeUsers] 安全更新成功（跳过 loginMethods）', { userId: u.id })
+        } catch (e2) {
+          console.error('[writeUsers] 安全更新也失败了', { userId: u.id, error: e2 })
+          throw e2
+        }
+      }
     } else {
       let insertColumns = ['id', 'phone', 'password', 'nickname', 'teamName', 'status', 'alipayUserId', 'wechatOpenId', 'loginMethods', 'createdAt']
       let insertValues = [u.id, u.phone || '', u.password || '', u.nickname || '', u.teamName || '', u.status || 'active', u.alipayUserId || '', u.wechatOpenId || '', serialize(u.loginMethods)]
@@ -692,7 +712,26 @@ export async function writeUsers(users: any[]): Promise<void> {
         placeholders.splice(placeholders.length - 1, 0, '?')
       }
       
-      await query(`INSERT INTO users (${insertColumns.join(', ')}) VALUES (${placeholders.join(', ')})`, insertValues)
+      try {
+        await query(`INSERT INTO users (${insertColumns.join(', ')}) VALUES (${placeholders.join(', ')})`, insertValues)
+      } catch (e) {
+        console.error('[writeUsers] 插入用户失败', { userId: u.id, error: e })
+        // 如果 loginMethods 导致错误，尝试用默认值
+        try {
+          const safeInsertColumns = insertColumns.filter(c => c !== 'loginMethods')
+          const safeInsertValues = insertValues.filter((_, i) => insertColumns[i] !== 'loginMethods')
+          safeInsertColumns.push('loginMethods')
+          safeInsertValues.push(JSON.stringify(["sms"]))
+          const safePlaceholders = safeInsertValues.map(() => '?')
+          safePlaceholders[safePlaceholders.length - 1] = 'NOW()'
+          
+          await query(`INSERT INTO users (${safeInsertColumns.join(', ')}) VALUES (${safePlaceholders.join(', ')})`, safeInsertValues)
+          console.log('[writeUsers] 安全插入成功（使用默认 loginMethods）', { userId: u.id })
+        } catch (e2) {
+          console.error('[writeUsers] 安全插入也失败了', { userId: u.id, error: e2 })
+          throw e2
+        }
+      }
     }
   }
 }

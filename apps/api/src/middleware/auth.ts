@@ -137,15 +137,31 @@ export const authMiddleware = (allowedRoles?: Array<'admin' | 'manager' | 'user'
   }
 }
 
-export const login = (req: Request, user: AuthUser) => {
-  req.session.user = user
-  req.session.isAuthenticated = true
-  req.session.save((err) => {
-    if (err) {
-      console.error('[Session] 保存会话失败:', err)
-    } else {
-      console.log(`[Session] 用户 ${user.id} (${user.role}) 登录成功`)
+export const login = (req: Request, user: AuthUser): Promise<void> => {
+  return new Promise((resolve, reject) => {
+    try {
+      req.session.user = user
+      req.session.isAuthenticated = true
+      req.session.save((err) => {
+        if (err) {
+          console.error('[Session] 保存会话失败:', err)
+          reject(err)
+        } else {
+          console.log(`[Session] 用户 ${user.id} (${user.role}) 登录成功`)
+          resolve()
+        }
+      })
+    } catch (error) {
+      console.error('[Session] 设置会话失败:', error)
+      reject(error)
     }
+  })
+}
+
+// 兼容旧的调用方式（不等待的版本）
+export const loginSync = (req: Request, user: AuthUser) => {
+  login(req, user).catch(err => {
+    console.error('[Session] 会话保存出错（但不影响请求）:', err)
   })
 }
 
