@@ -5,10 +5,24 @@ import { existsSync, mkdirSync } from 'fs'
 import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
 import multer from 'multer'
+import logger from './utils/logger.js'
+
+// ✅ 启动时检查必要环境变量
+const SESSION_SECRET = process.env.SESSION_SECRET
+const JWT_SECRET = process.env.JWT_SECRET
+
+if (!SESSION_SECRET || !JWT_SECRET) {
+  console.error('❌ 必须设置 SESSION_SECRET 和 JWT_SECRET 环境变量！')
+  process.exit(1)
+}
+
+logger.info('✅ 环境变量检查通过')
+
+// 继续导入其他模块
 import { sessionMiddleware } from './middleware/auth.js'
 import routes from './routes/index.js'
 import { errorHandler } from './utils/response.js'
-import logger, { logRequest } from './utils/logger.js'
+import { logRequest } from './utils/logger.js'
 import { initializeCache, closeCache, CacheService } from './services/index.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))

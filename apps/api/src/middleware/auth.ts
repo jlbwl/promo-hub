@@ -2,8 +2,9 @@ import { Request, Response, NextFunction, RequestHandler } from 'express'
 import session, { Session } from 'express-session'
 import jwt from 'jsonwebtoken'
 
-const SESSION_SECRET = process.env.SESSION_SECRET || 'promo-hub-secret-key-change-in-production'
-const JWT_SECRET = process.env.JWT_SECRET || SESSION_SECRET
+// 这些环境变量已经在 index.ts 中检查过，确保不为空
+const SESSION_SECRET = process.env.SESSION_SECRET as string
+const JWT_SECRET = process.env.JWT_SECRET as string
 
 export interface AuthUser {
   id: string
