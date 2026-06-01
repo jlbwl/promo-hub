@@ -94,7 +94,7 @@ export async function initDatabase(): Promise<void> {
       options JSON DEFAULT NULL,
       publishedBy VARCHAR(200) DEFAULT '',
       publishedAt DATETIME DEFAULT NULL,
-      offlineReason TEXT DEFAULT NULL,
+      offlineReason TEXT,
       offlineAt DATETIME DEFAULT NULL,
       requireName TINYINT(1) NOT NULL DEFAULT 0,
       requirePhone TINYINT(1) NOT NULL DEFAULT 0,
@@ -177,7 +177,7 @@ export async function initDatabase(): Promise<void> {
       fundAccount VARCHAR(200) DEFAULT '',
       status VARCHAR(50) NOT NULL DEFAULT 'pending',
       reviewedAt DATETIME DEFAULT NULL,
-      rejectReason TEXT DEFAULT NULL,
+      rejectReason TEXT,
       addedToPaymentAt DATETIME DEFAULT NULL,
       settledAt DATETIME DEFAULT NULL,
       transferredFromManager VARCHAR(200) DEFAULT '',
@@ -317,7 +317,7 @@ export async function initDatabase(): Promise<void> {
       targetId VARCHAR(100) DEFAULT '',
       targetName VARCHAR(500) DEFAULT '',
       reason VARCHAR(1000) DEFAULT '',
-      detail TEXT DEFAULT '',
+      detail TEXT,
       createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `)
