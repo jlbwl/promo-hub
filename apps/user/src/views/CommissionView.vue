@@ -197,9 +197,7 @@
     <van-action-sheet
       v-model:show="showRecycleBin"
       title="回收站"
-      :actions="recycleBinActions"
       cancel-text="关闭"
-      @select="handleRestore"
     >
       <template #description>
         <div class="recycle-bin-content">
@@ -218,54 +216,64 @@
             v-else
             class="deleted-list"
           >
-            <div
+            <van-swipe-cell
               v-for="order in deletedOrders"
               :key="order.id"
-              class="deleted-item"
-              :class="{ active: selectedOrder?.id === order.id }"
-              @click="selectOrder(order)"
+              right-width="140"
             >
-              <div class="deleted-info">
-                <div class="deleted-title-row">
-                  <span class="deleted-title">{{ order.productName }}</span>
-                  <van-tag
-                    v-if="order.optionLabel"
-                    type="primary"
-                    plain
-                    size="medium"
+              <div class="deleted-item">
+                <div class="deleted-info">
+                  <div class="deleted-title-row">
+                    <span class="deleted-title">{{ order.productName }}</span>
+                    <van-tag
+                      v-if="order.optionLabel"
+                      type="primary"
+                      plain
+                      size="medium"
+                    >
+                      {{ order.optionLabel }}
+                    </van-tag>
+                    <van-tag
+                      v-if="order.fundAccount"
+                      type="primary"
+                      plain
+                      size="medium"
+                    >
+                      {{ order.fundAccount }}
+                    </van-tag>
+                  </div>
+                  <div
+                    v-if="order.userName || order.userPhone"
+                    class="deleted-user-info"
                   >
-                    {{ order.optionLabel }}
-                  </van-tag>
-                  <van-tag
-                    v-if="order.fundAccount"
-                    type="primary"
-                    plain
-                    size="medium"
-                  >
-                    {{ order.fundAccount }}
-                  </van-tag>
-                </div>
-                <div
-                  v-if="order.userName || order.userPhone"
-                  class="deleted-user-info"
-                >
-                  <span v-if="order.userName">姓名：{{ maskName(order.userName) }}</span>
-                  <span
-                    v-if="order.userPhone"
-                    class="phone-span"
-                  >手机：{{ maskPhone(order.userPhone) }}</span>
-                </div>
-                <div class="deleted-price-row">
-                  <span class="deleted-price">{{ order.productPrice }}</span>
-                  <span class="deleted-time">删除于 {{ formatTime(order.deletedAt) }}</span>
+                    <span v-if="order.userName">姓名：{{ maskName(order.userName) }}</span>
+                    <span
+                      v-if="order.userPhone"
+                      class="phone-span"
+                    >手机：{{ maskPhone(order.userPhone) }}</span>
+                  </div>
+                  <div class="deleted-price-row">
+                    <span class="deleted-price">{{ order.productPrice }}</span>
+                    <span class="deleted-time">删除于 {{ formatTime(order.deletedAt) }}</span>
+                  </div>
                 </div>
               </div>
-              <van-icon
-                v-if="selectedOrder?.id === order.id"
-                name="check"
-                color="#1989fa"
-              />
-            </div>
+              <template #right>
+                <div class="recycle-swipe-actions">
+                  <van-button
+                    type="primary"
+                    square
+                    text="恢复"
+                    @click="handleRestore(order)"
+                  />
+                  <van-button
+                    type="danger"
+                    square
+                    text="取消"
+                  />
+                </div>
+              </template>
+            </van-swipe-cell>
           </div>
         </div>
       </template>
@@ -326,12 +334,6 @@ let isLoading = false
 // 回收站相关
 const showRecycleBin = ref(false)
 const deletedOrders = ref<any[]>([])
-const selectedOrder = ref<any>(null)
-
-// 回收站操作按钮
-const recycleBinActions = [
-  { name: '恢复选中', color: '#1989fa', loading: false }
-]
 
 // 获取当前用户 ID
 const getUserId = () => {
@@ -635,32 +637,22 @@ const loadDeletedOrders = async () => {
   }
 }
 
-// 选择订单
-const selectOrder = (order: any) => {
-  if (selectedOrder.value?.id === order.id) {
-    selectedOrder.value = null
-  } else {
-    selectedOrder.value = order
-  }
-}
-
 // 恢复订单
-const handleRestore = async () => {
-  if (!selectedOrder.value) {
+const handleRestore = async (order: any) => {
+  if (!order) {
     showToast('请选择要恢复的订单')
     return
   }
   
   try {
-    const res = await post(`/user/orders/${selectedOrder.value.id}/restore`, { userId: getUserId() })
+    const res = await post(`/user/orders/${order.id}/restore`, { userId: getUserId() })
     if (res.code === 0) {
       showToast('恢复成功')
       // 从回收站移除
-      const index = deletedOrders.value.findIndex(o => o.id === selectedOrder.value!.id)
+      const index = deletedOrders.value.findIndex(o => o.id === order.id)
       if (index > -1) {
         deletedOrders.value.splice(index, 1)
       }
-      selectedOrder.value = null
       // 刷新订单列表
       initData()
     } else {
@@ -984,5 +976,36 @@ onActivated(() => {
 .deleted-time {
   font-size: 12px;
   color: #969799;
+}
+
+// 回收站侧拉菜单样式
+.recycle-swipe-actions {
+  display: flex;
+  align-items: stretch;
+  height: 100%;
+  width: 100%;
+  
+  :deep(.van-button) {
+    flex: 1;
+    height: 100%;
+    border-radius: 0;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    font-size: 14px;
+    font-weight: 500;
+    
+    &.van-button--danger {
+      background-color: #ee0a24;
+      color: #ffffff;
+    }
+    
+    &.van-button--primary {
+      background-color: #1989fa;
+      color: #ffffff;
+    }
+  }
 }
 </style>
