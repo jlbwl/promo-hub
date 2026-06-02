@@ -314,17 +314,23 @@ const submitGoOrder = (userInfo: any) => {
 
   console.log('[做单] 开始提交, payload:', JSON.stringify(payload))
   
-  // 先执行跳转，避免跳转后刷新详情导致请求被中断
+  // 获取跳转链接
   let jumpUrl = ''
   if (chosenOption?.redirectUrl) {
     jumpUrl = cleanUrlForJump.trim()
+    if (jumpUrl && !jumpUrl.startsWith('http://') && !jumpUrl.startsWith('https://')) {
+      jumpUrl = 'https://' + jumpUrl
+    }
+    console.log('[做单] 跳转链接:', jumpUrl)
+  }
+  
+  // 先提交订单，成功后再跳转
+  post('/orders', payload).then((res: any) => {
+    console.log('[做单] 成功, 响应:', JSON.stringify(res))
+    
+    // 订单提交成功后执行跳转
     if (jumpUrl) {
-      if (!jumpUrl.startsWith('http://') && !jumpUrl.startsWith('https://')) {
-        jumpUrl = 'https://' + jumpUrl
-      }
-      console.log('[做单] 准备跳转链接:', jumpUrl)
-      
-      // 微信兼容的跳转方式
+      console.log('[做单] 订单提交成功，准备跳转:', jumpUrl)
       try {
         if (navigator.userAgent.includes('MicroMessenger')) {
           console.log('[做单] 微信环境检测')
@@ -344,15 +350,10 @@ const submitGoOrder = (userInfo: any) => {
         console.error('[做单] 跳转失败:', err)
         window.location.href = jumpUrl
       }
-    }
-  }
-  
-  // 提交订单（在跳转之后或不跳转时执行）
-  post('/orders', payload).then((res: any) => {
-    console.log('[做单] 成功, 响应:', JSON.stringify(res))
-    // 只有在不跳转的情况下才刷新详情
-    if (!jumpUrl) {
+    } else {
+      // 没有跳转链接时刷新详情
       fetchProductDetail()
+      showToast('做单成功')
     }
   }).catch((error: any) => {
     console.error('[做单] 失败:', error)
