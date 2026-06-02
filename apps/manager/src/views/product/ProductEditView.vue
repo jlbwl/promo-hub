@@ -231,33 +231,69 @@
           prop="cover"
         >
           <div class="upload-area">
-            <el-image
-              v-if="form.cover"
-              :src="form.cover"
-              fit="cover"
-              style="width: 200px; height: 200px; border-radius: 8px;"
-            />
-            <div
-              v-else
-              class="upload-placeholder"
-              @click="handleUpload"
-            >
-              <el-icon class="upload-icon">
-                <Plus />
-              </el-icon>
-              <span>点击上传图片</span>
-              <span class="upload-tip">建议尺寸 800x800，支持 JPG/PNG</span>
+            <!-- 已上传的图片预览 -->
+            <div v-if="form.cover" class="image-preview-wrapper">
+              <el-image
+                :src="form.cover"
+                fit="cover"
+                style="width: 200px; height: 200px; border-radius: 8px;"
+                :preview-src-list="[form.cover]"
+              />
+              <div class="image-actions">
+                <el-button
+                  type="primary"
+                  size="small"
+                  @click="triggerUpload"
+                >
+                  更换图片
+                </el-button>
+                <el-button
+                  type="danger"
+                  size="small"
+                  @click="removeCover"
+                >
+                  删除图片
+                </el-button>
+              </div>
+              <div class="image-info" v-if="coverImageInfo">
+                <span>尺寸: {{ coverImageInfo.width }}x{{ coverImageInfo.height }}</span>
+                <span v-if="coverImageInfo.size">
+                  大小: {{ (coverImageInfo.size / 1024).toFixed(1) }}KB
+                </span>
+              </div>
             </div>
-            <el-button
-              v-if="form.cover"
-              type="danger"
-              text
-              size="small"
-              style="margin-top: 8px;"
-              @click="form.cover = ''"
-            >
-              删除图片
-            </el-button>
+            
+            <!-- 上传区域 -->
+            <div v-else>
+              <el-upload
+                ref="uploadRef"
+                class="cover-uploader"
+                :show-file-list="false"
+                :auto-upload="false"
+                :on-change="handleFileChange"
+                :before-upload="beforeUpload"
+                accept="image/jpeg,image/jpg,image/png,image/webp"
+                drag
+              >
+                <el-icon class="el-icon--upload"><UploadFilled /></el-icon>
+                <div class="el-upload__text">
+                  拖拽图片到此处或 <em>点击上传</em>
+                </div>
+                <template #tip>
+                  <div class="el-upload__tip">
+                    建议尺寸 800x800，支持 JPG/PNG/WebP，文件大小不超过 5MB
+                  </div>
+                </template>
+              </el-upload>
+            </div>
+            
+            <!-- 上传进度 -->
+            <el-progress
+              v-if="uploading"
+              :percentage="uploadProgress"
+              :status="uploadProgress === 100 ? 'success' : undefined"
+              style="margin-top: 12px; width: 200px;"
+            />
           </div>
         </el-form-item>
 
@@ -301,8 +337,8 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
-import { ArrowLeft, Plus, PictureFilled } from '@element-plus/icons-vue'
+import { ElMessage, ElMessageBox, type FormInstance, type FormRules, type UploadProps, type UploadUserFile } from 'element-plus'
+import { ArrowLeft, Plus, PictureFilled, UploadFilled } from '@element-plus/icons-vue'
 import { get, post, put } from '@promo/shared/utils/request'
 import RichTextEditor from '@/components/RichTextEditor.vue'
 import type { ProductCategory } from '@promo/shared/types'
@@ -313,11 +349,25 @@ const router = useRouter()
 // 表单引用
 const formRef = ref<FormInstance>()
 
+// 上传组件引用
+const uploadRef = ref()
+
 // 富文本编辑器引用
 const richTextRef = ref<InstanceType<typeof RichTextEditor>>()
 
 // 保存状态
 const saving = ref(false)
+
+// 上传状态
+const uploading = ref(false)
+const uploadProgress = ref(0)
+
+// 封面图片信息
+const coverImageInfo = ref<{
+  width: number
+  height: number
+  size: number
+} | null>(null)
 
 // 分类数据
 const categories = ref<ProductCategory[]>([])
@@ -458,11 +508,110 @@ const handleBatchAddOptions = () => {
   }).catch(() => {})
 }
 
-// 模拟图片上传
-const handleUpload = () => {
-  // 模拟上传，实际项目中使用 el-upload 组件
-  form.cover = 'https://via.placeholder.com/800x800'
-  ElMessage.success('图片上传成功（模拟）')
+// 封面图片配置
+const COVER_CONFIG = {
+  maxSize: 5 * 1024 * 1024, // 5MB
+  supportedFormats: ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'],
+}
+
+// 文件选择前验证
+const beforeUpload: UploadProps['beforeUpload'] = (file) => {
+  const isImage = COVER_CONFIG.supportedFormats.includes(file.type)
+  if (!isImage) {
+    ElMessage.error('只支持 JPG/PNG/WebP 格式的图片!')
+    return false
+  }
+  const isLt5M = file.size <= COVER_CONFIG.maxSize
+  if (!isLt5M) {
+    ElMessage.error('图片大小不能超过 5MB!')
+    return false
+  }
+  return true
+}
+
+// 文件选择变化处理
+const handleFileChange: UploadProps['onChange'] = async (file) => {
+  const rawFile = file.raw
+  if (!rawFile) return
+
+  // 验证文件
+  const isValid = beforeUpload(rawFile)
+  if (!isValid) return
+
+  await uploadCoverImage(rawFile)
+}
+
+// 触发上传
+const triggerUpload = () => {
+  uploadRef.value?.$el.querySelector('input[type="file"]')?.click()
+}
+
+// 上传封面图片
+const uploadCoverImage = async (file: File) => {
+  uploading.value = true
+  uploadProgress.value = 0
+
+  try {
+    const formData = new FormData()
+    formData.append('cover', file)
+
+    // 模拟上传进度
+    const progressInterval = setInterval(() => {
+      if (uploadProgress.value < 90) {
+        uploadProgress.value += 10
+      }
+    }, 200)
+
+    // 发送上传请求
+    const response = await fetch('/api/upload/cover', {
+      method: 'POST',
+      body: formData,
+      credentials: 'include',
+    })
+
+    clearInterval(progressInterval)
+    uploadProgress.value = 100
+
+    const result = await response.json()
+
+    if (result.code === 0) {
+      form.cover = result.data.url
+      coverImageInfo.value = {
+        width: result.data.width,
+        height: result.data.height,
+        size: result.data.size,
+      }
+      ElMessage.success('封面图片上传成功')
+      
+      // 延迟隐藏进度条
+      setTimeout(() => {
+        uploading.value = false
+        uploadProgress.value = 0
+      }, 1000)
+    } else {
+      throw new Error(result.message || '上传失败')
+    }
+  } catch (error: any) {
+    console.error('封面图片上传失败:', error)
+    ElMessage.error(error.message || '上传失败，请重试')
+    uploading.value = false
+    uploadProgress.value = 0
+  }
+}
+
+// 删除封面图片
+const removeCover = () => {
+  ElMessageBox.confirm('确定要删除封面图片吗?', '提示', {
+    confirmButtonText: '确定',
+    cancelButtonText: '取消',
+    type: 'warning',
+  })
+    .then(() => {
+      form.cover = ''
+      coverImageInfo.value = null
+      ElMessage.success('已删除')
+    })
+    .catch(() => {})
 }
 
 // 优化富文本内容，移除不必要的标签并压缩
@@ -604,6 +753,14 @@ const fetchProductDetail = async () => {
         requireName: p.requireName || false,
         requirePhone: p.requirePhone || false
       })
+      // 如果有封面图片，设置默认信息
+      if (p.coverImage) {
+        coverImageInfo.value = {
+          width: 800,
+          height: 800,
+          size: 0
+        }
+      }
     }
   } catch (error: any) {
     console.error('获取产品详情失败:', error)
@@ -627,33 +784,61 @@ onMounted(() => {
   }
   
   .upload-area {
-    .upload-placeholder {
-      width: 200px;
-      height: 200px;
-      border: 1px dashed #dcdfe6;
-      border-radius: 8px;
+    .image-preview-wrapper {
       display: flex;
       flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      transition: border-color 0.3s;
-      color: #909399;
+      gap: 12px;
+      align-items: flex-start;
 
-      &:hover {
-        border-color: #409eff;
-        color: #409eff;
+      .image-actions {
+        display: flex;
+        gap: 8px;
       }
 
-      .upload-icon {
-        font-size: 32px;
-        margin-bottom: 8px;
-      }
-
-      .upload-tip {
+      .image-info {
+        display: flex;
+        gap: 16px;
         font-size: 12px;
-        margin-top: 4px;
-        color: #c0c4cc;
+        color: #909399;
+      }
+    }
+
+    .cover-uploader {
+      :deep(.el-upload) {
+        width: 200px;
+        height: 200px;
+      }
+
+      :deep(.el-upload-dragger) {
+        width: 200px;
+        height: 200px;
+        border-radius: 8px;
+
+        &:hover {
+          border-color: #409eff;
+        }
+      }
+
+      .el-icon--upload {
+        font-size: 48px;
+        color: #8c939d;
+      }
+
+      .el-upload__text {
+        margin-top: 8px;
+        color: #606266;
+        font-size: 14px;
+
+        em {
+          color: #409eff;
+          font-style: normal;
+        }
+      }
+
+      .el-upload__tip {
+        margin-top: 8px;
+        font-size: 12px;
+        color: #909399;
       }
     }
   }

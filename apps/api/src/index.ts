@@ -15,6 +15,13 @@ import { errorHandler } from './utils/response.js'
 import { logRequest } from './utils/logger.js'
 import { initializeCache, closeCache, CacheService } from './services/index.js'
 import bcrypt from 'bcryptjs'
+import {
+  processCoverImage,
+  validateImageFile,
+  COVER_IMAGE_CONFIG,
+  COVER_DIR,
+  UPLOAD_DIR,
+} from './utils/imageProcessor.js'
 
 // ✅ 启动时检查必要环境变量 - 放宽要求，允许服务启动但输出警告
 const SESSION_SECRET = process.env.SESSION_SECRET
@@ -82,9 +89,7 @@ app.use((req, _res, next) => {
   next()
 })
 
-const UPLOAD_DIR = join(DATA_DIR, 'uploads')
-if (!existsSync(UPLOAD_DIR)) mkdirSync(UPLOAD_DIR, { recursive: true })
-
+// 通用上传存储配置
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => cb(null, UPLOAD_DIR),
   filename: (_req, file, cb) => {
@@ -95,6 +100,21 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage, limits: { fileSize: 5 * 1024 * 1024 } })
 
+// 封面图片临时上传存储
+const tempCoverStorage = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, UPLOAD_DIR),
+  filename: (_req, file, cb) => {
+    const ext = file.originalname.split('.').pop()
+    cb(null, `temp_cover_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`)
+  },
+})
+
+const coverUpload = multer({
+  storage: tempCoverStorage,
+  limits: { fileSize: COVER_IMAGE_CONFIG.maxFileSize },
+})
+
+// 通用文件上传接口
 app.post('/api/upload', upload.single('file'), (req, res) => {
   if (!req.file) {
     res.json({ code: 400, message: '请选择文件', data: null })
@@ -104,7 +124,63 @@ app.post('/api/upload', upload.single('file'), (req, res) => {
   res.json({ code: 0, message: '上传成功', data: { url, filename: req.file.filename } })
 })
 
+// 封面图片上传接口 - 带压缩和尺寸统一
+app.post(
+  '/api/upload/cover',
+  sessionMiddleware,
+  coverUpload.single('cover'),
+  async (req, res) => {
+    try {
+      if (!req.file) {
+        res.json({ code: 400, message: '请选择封面图片', data: null })
+        return
+      }
+
+      // 验证文件
+      const validation = validateImageFile(req.file)
+      if (!validation.valid) {
+        res.json({ code: 400, message: validation.error, data: null })
+        return
+      }
+
+      // 生成输出文件名
+      const outputFilename = `cover_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.jpg`
+
+      // 处理图片
+      const result = await processCoverImage(req.file.path, outputFilename)
+
+      // 删除临时文件
+      try {
+        const fs = await import('fs')
+        const fsPromises = fs.promises
+        await fsPromises.unlink(req.file.path)
+      } catch (err) {
+        logger.warn('[API] 删除临时封面图片失败', { path: req.file.path, error: err })
+      }
+
+      logger.info('[API] 封面图片上传成功', { filename: outputFilename })
+
+      res.json({
+        code: 0,
+        message: '上传成功',
+        data: {
+          url: result.url,
+          filename: result.filename,
+          width: result.width,
+          height: result.height,
+          size: result.size,
+        },
+      })
+    } catch (error: any) {
+      logger.error('[API] 封面图片上传失败', { error: error.message })
+      res.json({ code: 500, message: error.message || '上传失败', data: null })
+    }
+  }
+)
+
+// 静态文件服务
 app.use('/api/uploads', express.static(UPLOAD_DIR))
+app.use('/api/uploads/covers', express.static(COVER_DIR))
 
 app.get('/api/health', (_req, res) => {
   const cacheService = new CacheService()
