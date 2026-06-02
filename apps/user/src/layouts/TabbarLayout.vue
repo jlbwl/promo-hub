@@ -34,7 +34,7 @@
       <!-- 主账户显示积分页面，员工账户显示做单记录 -->
       <van-tabbar-item
         :to="isEmployee ? '/commissions' : '/commissions'"
-        :icon="isEmployee ? 'file-text' : 'gold-coin'"
+        :icon="isEmployee ? 'list-o' : 'gold-coin'"
         name="commissions"
       >
         {{ isEmployee ? '做单记录' : '积分' }}
