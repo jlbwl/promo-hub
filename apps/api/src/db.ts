@@ -167,6 +167,7 @@ export async function initDatabase(): Promise<void> {
       productId VARCHAR(100) DEFAULT '',
       userId VARCHAR(100) DEFAULT '',
       managerId VARCHAR(100) DEFAULT '',
+      employeeId VARCHAR(100) DEFAULT '',
       productName VARCHAR(500) DEFAULT '',
       productPrice DECIMAL(10,2) DEFAULT 0,
       optionLabel VARCHAR(500) DEFAULT '',
@@ -212,6 +213,10 @@ export async function initDatabase(): Promise<void> {
   // 新增 fundAccount 列（如果不存在）
   try {
     await pool.execute('ALTER TABLE orders ADD COLUMN fundAccount VARCHAR(200) DEFAULT "" AFTER teamName')
+  } catch (e) { /* 列可能已存在，忽略错误 */ }
+  // 新增 employeeId 列（如果不存在）
+  try {
+    await pool.execute('ALTER TABLE orders ADD COLUMN employeeId VARCHAR(100) DEFAULT "" AFTER managerId')
   } catch (e) { /* 列可能已存在，忽略错误 */ }
   // 添加 deleted 相关索引（如果不存在）
   try {
