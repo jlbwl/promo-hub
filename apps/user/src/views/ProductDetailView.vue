@@ -9,34 +9,7 @@
       @click-left="router.back()"
     />
 
-    <!-- 产品轮播图 -->
-    <van-swipe
-      :autoplay="3000"
-      indicator-color="#1989fa"
-      class="product-swipe"
-    >
-      <van-swipe-item
-        v-for="(image, index) in product.images"
-        :key="index"
-      >
-        <van-image
-          width="100%"
-          height="375"
-          fit="cover"
-          :src="image"
-        >
-          <template #error>
-            <div class="image-placeholder">
-              <van-icon
-                name="photo-fail"
-                size="48"
-                color="#ddd"
-              />
-            </div>
-          </template>
-        </van-image>
-      </van-swipe-item>
-    </van-swipe>
+    <!-- 产品轮播图已隐藏 -->
 
     <!-- 产品基本信息 -->
     <div class="product-info">
