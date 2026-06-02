@@ -59,7 +59,7 @@ jobs:
           cache: pnpm
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install
 
       - name: Type Check
         run: pnpm type-check
@@ -87,7 +87,7 @@ jobs:
           cache: pnpm
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install
 
       - name: Build Admin
         env:
@@ -355,7 +355,7 @@ jobs:
             # 6. 安装依赖
             # =======================
             if [ ! -f "package.json" ]; then
-              echo '{"name":"promo-api","version":"1.0.0","type":"module","dependencies":{"@fastify/csrf":"^8.0.1","bcryptjs":"^3.0.3","connect-mongo":"^5.1.0","cookie-parser":"^1.4.7","cors":"^2.8.5","csurf":"^1.11.0","dotenv":"^17.4.2","express":"^4.21.0","express-rate-limit":"^8.5.1","express-session":"^1.18.1","jsonwebtoken":"^9.0.3","multer":"^1.4.5-lts.1","mysql2":"^3.22.3","redis":"^5.12.1","uuid":"^11.0.0"}}' > package.json
+              echo '{"name":"promo-api","version":"1.0.0","type":"module","dependencies":{"@fastify/csrf":"^8.0.1","bcryptjs":"^3.0.3","connect-mongo":"^5.1.0","cookie-parser":"^1.4.7","cors":"^2.8.5","csurf":"^1.11.0","dotenv":"^17.4.2","express":"^4.21.0","express-rate-limit":"^8.5.1","express-session":"^1.18.1","jsonwebtoken":"^9.0.3","multer":"^1.4.5-lts.1","mysql2":"^3.22.3","redis":"^5.12.1","uuid":"^11.0.0","sharp":"^0.33.5"}}' > package.json
               echo "✅ package.json已创建"
             fi
 
