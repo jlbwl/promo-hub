@@ -620,7 +620,6 @@ const handleDelete = async (record: any) => {
 
 // 打开回收站
 const openRecycleBin = async () => {
-  selectedOrder.value = null
   await loadDeletedOrders()
   showRecycleBin.value = true
 }
