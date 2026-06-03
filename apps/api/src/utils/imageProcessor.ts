@@ -3,6 +3,7 @@ import { existsSync, mkdirSync } from 'fs'
 import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
 import logger from './logger.js'
+import type { File } from 'multer'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const DATA_DIR = process.env.DATA_DIR || join(__dirname, '..', '..', 'data')
@@ -94,7 +95,7 @@ export async function processCoverImage(
  * @param file Multer 文件对象
  * @returns 是否有效
  */
-export function validateImageFile(file: Express.Multer.File): {
+export function validateImageFile(file: File): {
   valid: boolean
   error?: string
 } {
