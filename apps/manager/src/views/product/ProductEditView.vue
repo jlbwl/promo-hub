@@ -337,7 +337,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ElMessage, ElMessageBox, type FormInstance, type FormRules, type UploadProps, type UploadUserFile } from 'element-plus'
+import { ElMessage, ElMessageBox, type FormInstance, type FormRules, type UploadProps } from 'element-plus'
 import { ArrowLeft, Plus, PictureFilled, UploadFilled } from '@element-plus/icons-vue'
 import { get, post, put } from '@promo/shared/utils/request'
 import RichTextEditor from '@/components/RichTextEditor.vue'
