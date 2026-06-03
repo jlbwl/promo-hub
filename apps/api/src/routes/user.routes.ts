@@ -14,6 +14,7 @@ import {
   updateUserStatus,
   updateUserRole,
   updateUserTeamName,
+  userLogout,
 } from '../controllers/user.controller.js'
 
 const router: Router = Router()
@@ -24,6 +25,31 @@ router.post('/users/login', loginLimiter, userLogin)
 router.post('/users/sms/send', smsLimiter, sendUserSmsCode)
 router.post('/users/sms/login', userSmsLogin)
 router.post('/users/password/set', setUserPassword)
+router.post('/users/logout', requireAuth, userLogout)
+
+// 刷新 Token
+router.post('/users/refresh', async (req, res) => {
+  try {
+    const { refreshToken } = req.body
+    
+    if (!refreshToken) {
+      res.status(400).json({ code: 400, message: 'Refresh Token 不能为空', data: null })
+      return
+    }
+    
+    const tokens = refreshAuthToken(refreshToken)
+    
+    if (!tokens) {
+      res.status(401).json({ code: 401, message: 'Refresh Token 无效或已过期', data: null })
+      return
+    }
+    
+    res.json({ code: 0, message: 'Token 刷新成功', data: tokens })
+  } catch (error: any) {
+    console.error('Token 刷新失败:', error)
+    res.status(500).json({ code: 500, message: 'Token 刷新失败', data: null })
+  }
+})
 
 // 管理后台用户管理
 router.get('/users', requireAuth, getUsers)

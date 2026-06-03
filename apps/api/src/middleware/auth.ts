@@ -26,6 +26,9 @@ declare module 'express-session' {
 // Token 存储（临时方案，生产环境应使用 Redis）
 const tokenStore = new Map<string, AuthUser>()
 
+// Refresh Token 存储（用于刷新 Token）
+const refreshTokenStore = new Map<string, AuthUser>()
+
 // 创建 session 中间件（支持 MongoDB 降级到内存存储）
 export const sessionMiddleware: RequestHandler = (() => {
   let store: any = undefined
@@ -60,13 +63,34 @@ export const sessionMiddleware: RequestHandler = (() => {
   })
 })()
 
-// 生成 JWT Token
+// 生成 JWT Token（Access Token - 短期有效）
 export function generateAuthToken(user: AuthUser): string {
   return jwt.sign(
-    { id: user.id, phone: user.phone, role: user.role },
+    { id: user.id, phone: user.phone, role: user.role, type: 'access' },
     JWT_SECRET,
-    { expiresIn: '7d' }
+    { expiresIn: '1h' } // Access Token 有效期 1 小时
   )
+}
+
+// 生成 Refresh Token（长期有效）
+export function generateRefreshToken(user: AuthUser): string {
+  const refreshToken = jwt.sign(
+    { id: user.id, phone: user.phone, role: user.role, type: 'refresh' },
+    JWT_SECRET,
+    { expiresIn: '7d' } // Refresh Token 有效期 7 天
+  )
+  
+  // 存储 Refresh Token
+  refreshTokenStore.set(refreshToken, user)
+  
+  return refreshToken
+}
+
+// 同时生成 Access Token 和 Refresh Token
+export function generateTokens(user: AuthUser): { token: string; refreshToken: string } {
+  const token = generateAuthToken(user)
+  const refreshToken = generateRefreshToken(user)
+  return { token, refreshToken }
 }
 
 // 验证 JWT Token
@@ -174,6 +198,47 @@ export const logout = (req: Request) => {
       console.log(`[Session] 用户 ${userId} 已登出`)
     }
   })
+}
+
+// 刷新 Token
+export function refreshAuthToken(refreshToken: string): { token: string; refreshToken: string } | null {
+  try {
+    // 验证 Refresh Token
+    const decoded = jwt.verify(refreshToken, JWT_SECRET) as any
+    
+    if (decoded.type !== 'refresh') {
+      console.warn('[Auth] 无效的 Refresh Token 类型')
+      return null
+    }
+    
+    // 检查 Refresh Token 是否在存储中
+    const user = refreshTokenStore.get(refreshToken)
+    if (!user) {
+      console.warn('[Auth] Refresh Token 不存在或已失效')
+      return null
+    }
+    
+    // 生成新的 Access Token 和 Refresh Token
+    const authUser: AuthUser = {
+      id: decoded.id,
+      phone: decoded.phone,
+      role: decoded.role
+    }
+    
+    // 删除旧的 Refresh Token
+    refreshTokenStore.delete(refreshToken)
+    
+    // 生成新的 Token 对
+    return generateTokens(authUser)
+  } catch (error) {
+    console.error('[Auth] 刷新 Token 失败:', error)
+    return null
+  }
+}
+
+// 使 Refresh Token 失效（用于登出）
+export function revokeRefreshToken(refreshToken: string): boolean {
+  return refreshTokenStore.delete(refreshToken)
 }
 
 export const requireAuth = authMiddleware()

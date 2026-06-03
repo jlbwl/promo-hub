@@ -653,11 +653,21 @@ const handleContactService = () => {
 }
 
 // 执行退出登录
-const doLogout = () => {
-  localStorage.removeItem('user_token')
-  localStorage.removeItem('user_info')
-  showToast('已退出登录')
-  router.replace('/login')
+const doLogout = async () => {
+  try {
+    // 调用后端登出接口
+    await post('/users/logout')
+  } catch (e: any) {
+    // 即使后端调用失败，也继续清除本地数据
+    console.warn('后端登出失败:', e)
+  } finally {
+    // 清除本地存储的认证信息
+    localStorage.removeItem('user_token')
+    localStorage.removeItem('user_info')
+    localStorage.removeItem('refresh_token')
+    showToast('已退出登录')
+    router.replace('/login')
+  }
 }
 
 // ============ 员工子账户相关方法 ============

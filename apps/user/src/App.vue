@@ -3,7 +3,18 @@
 </template>
 
 <script setup lang="ts">
-// 根组件 - 仅作为路由视图容器
+import { onMounted } from 'vue'
+import { useAuth } from './composables/useAuth'
+
+// 初始化认证状态
+const { checkAuth, isLoading } = useAuth()
+
+// 页面加载时检查认证状态
+onMounted(async () => {
+  console.log('[App] 初始化，检查认证状态...')
+  await checkAuth()
+  console.log('[App] 认证状态检查完成')
+})
 </script>
 
 <style>

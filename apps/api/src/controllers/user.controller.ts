@@ -22,7 +22,7 @@ import {
   insertUser,
   updateUser,
 } from '../data.js'
-import { login as sessionLogin, loginSync as sessionLoginSync, generateAuthToken } from '../middleware/auth.js'
+import { login as sessionLogin, loginSync as sessionLoginSync, generateAuthToken, logout as sessionLogout, generateTokens, refreshAuthToken } from '../middleware/auth.js'
 import { sendSmsCode } from '../sms.js'
 import { generateSmsCode, saveSmsCode, verifySmsCode, deleteSmsCode } from '../utils/sms.js'
 
@@ -147,12 +147,12 @@ export const userLogin = asyncHandler(
     }
 
     const authUser = { id: user.id, phone: user.phone, role: 'user' as const, nickname: user.nickname, teamName: user.teamName }
-    const token = generateAuthToken(authUser)
-    sessionLogin(req, { ...authUser, token })
+    const tokens = generateTokens(authUser)
+    sessionLogin(req, { ...authUser, token: tokens.token })
 
     logger.info('User logged in', { userId: user.id, method: 'password' })
     const { password: _, ...safeUser } = user
-    sendSuccess(res, { token, user: safeUser }, '登录成功')
+    sendSuccess(res, { token: tokens.token, refreshToken: tokens.refreshToken, user: safeUser }, '登录成功')
   }
 )
 
@@ -278,8 +278,13 @@ export const userSmsLogin = asyncHandler(
       }
 
       logger.info('User logged in successfully', { userId: user.id, method: 'sms', isNewUser })
+      
+      // 生成 Token
+      const authUser = { id: user.id, phone: user.phone, role: user.role || 'user' as const, nickname: user.nickname, teamName: user.teamName }
+      const tokens = generateTokens(authUser)
+      
       const { password: _, ...safeUser } = user
-      sendSuccess(res, { user: safeUser }, '登录成功')
+      sendSuccess(res, { token: tokens.token, refreshToken: tokens.refreshToken, user: safeUser }, '登录成功')
     } catch (error: any) {
       logger.error('SMS login failed', { 
         phone, 
@@ -331,6 +336,26 @@ export const setUserPassword = asyncHandler(
 
     logger.info('User password updated', { userId: users[index].id })
     sendSuccess(res, null, '密码设置成功')
+  }
+)
+
+// ============================================
+// 用户登出
+// ============================================
+
+/**
+ * 用户登出
+ * 清除 Session 和 Token
+ */
+export const userLogout = asyncHandler(
+  async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
+    logger.info('User logout', { userId: req.session?.user?.id || (req as any).user?.id })
+    
+    // 清除 Session
+    sessionLogout(req)
+    
+    // 返回成功响应
+    sendSuccess(res, null, '登出成功')
   }
 )
 
