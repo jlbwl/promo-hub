@@ -1,12 +1,11 @@
 import { ref } from 'vue'
-import { get } from '@promo/shared/utils/request'
+import { get, post } from '@promo/shared/utils/request'
 
 /**
  * 认证状态管理
  */
 export function useAuth() {
   const isAuthenticated = ref(false)
-  const isLoading = ref(true)
 
   /**
    * 检查是否已登录（通过 Token）
@@ -16,7 +15,6 @@ export function useAuth() {
     
     if (!token) {
       isAuthenticated.value = false
-      isLoading.value = false
       return false
     }
 
@@ -25,14 +23,12 @@ export function useAuth() {
       const userInfoStr = localStorage.getItem('user_info')
       if (!userInfoStr) {
         isAuthenticated.value = false
-        isLoading.value = false
         return false
       }
 
       const userInfo = JSON.parse(userInfoStr)
       if (!userInfo.id) {
         isAuthenticated.value = false
-        isLoading.value = false
         return false
       }
 
@@ -50,13 +46,11 @@ export function useAuth() {
           ...res.data
         }))
         isAuthenticated.value = true
-        isLoading.value = false
         return true
       } else {
         // Token 无效，清除本地存储
         clearAuth()
         isAuthenticated.value = false
-        isLoading.value = false
         return false
       }
     } catch (error: any) {
@@ -68,7 +62,6 @@ export function useAuth() {
         const refreshed = await refreshToken()
         if (refreshed) {
           isAuthenticated.value = true
-          isLoading.value = false
           return true
         }
       }
@@ -76,7 +69,6 @@ export function useAuth() {
       // 其他错误，清除本地存储
       clearAuth()
       isAuthenticated.value = false
-      isLoading.value = false
       return false
     }
   }
@@ -92,11 +84,7 @@ export function useAuth() {
       }
 
       // 调用刷新 Token 接口
-      const res: any = await get('/auth/refresh', {}, {
-        headers: {
-          'Authorization': `Bearer ${refreshToken}`
-        }
-      })
+      const res: any = await post('/users/refresh', { refreshToken })
 
       if (res.code === 0 && res.data?.token) {
         // 保存新的 Token
@@ -149,7 +137,6 @@ export function useAuth() {
 
   return {
     isAuthenticated,
-    isLoading,
     checkAuth,
     refreshToken,
     clearAuth,

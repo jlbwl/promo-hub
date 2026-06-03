@@ -7,7 +7,7 @@ import { onMounted } from 'vue'
 import { useAuth } from './composables/useAuth'
 
 // 初始化认证状态
-const { checkAuth, isLoading } = useAuth()
+const { checkAuth } = useAuth()
 
 // 页面加载时检查认证状态
 onMounted(async () => {

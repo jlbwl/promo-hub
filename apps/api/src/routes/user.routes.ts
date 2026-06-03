@@ -1,7 +1,8 @@
 import { Router } from 'express'
 import { smsLimiter, loginLimiter } from '../middleware/rateLimit.js'
-import { requireAdmin, requireAuth } from '../middleware/auth.js'
+import { requireAdmin, requireAuth, refreshAuthToken } from '../middleware/auth.js'
 import { resourcePermission } from '../middleware/resourcePermission.js'
+import { sendSuccess, sendError, ErrorCode, HttpStatus } from '../utils/response.js'
 import {
   registerUser,
   userLogin,
@@ -33,21 +34,21 @@ router.post('/users/refresh', async (req, res) => {
     const { refreshToken } = req.body
     
     if (!refreshToken) {
-      res.status(400).json({ code: 400, message: 'Refresh Token 不能为空', data: null })
+      sendError(res, 'Refresh Token 不能为空', ErrorCode.BAD_REQUEST, HttpStatus.BAD_REQUEST)
       return
     }
     
     const tokens = refreshAuthToken(refreshToken)
     
     if (!tokens) {
-      res.status(401).json({ code: 401, message: 'Refresh Token 无效或已过期', data: null })
+      sendError(res, 'Refresh Token 无效或已过期', ErrorCode.UNAUTHORIZED, HttpStatus.UNAUTHORIZED)
       return
     }
     
-    res.json({ code: 0, message: 'Token 刷新成功', data: tokens })
+    sendSuccess(res, tokens, 'Token 刷新成功')
   } catch (error: any) {
     console.error('Token 刷新失败:', error)
-    res.status(500).json({ code: 500, message: 'Token 刷新失败', data: null })
+    sendError(res, 'Token 刷新失败', ErrorCode.INTERNAL_SERVER_ERROR, HttpStatus.INTERNAL_SERVER_ERROR)
   }
 })
 
