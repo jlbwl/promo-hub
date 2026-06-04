@@ -2,7 +2,7 @@ import { Router } from 'express'
 import { smsLimiter, loginLimiter } from '../middleware/rateLimit.js'
 import { requireAdmin, requireAuth, refreshAuthToken } from '../middleware/auth.js'
 import { resourcePermission } from '../middleware/resourcePermission.js'
-import { sendSuccess, sendError, ErrorCode, HttpStatus } from '../utils/response.js'
+import { sendSuccess, sendError } from '../utils/response.js'
 import {
   registerUser,
   userLogin,
@@ -34,21 +34,21 @@ router.post('/users/refresh', async (req, res) => {
     const { refreshToken } = req.body
     
     if (!refreshToken) {
-      sendError(res, 'Refresh Token 不能为空', ErrorCode.BAD_REQUEST, HttpStatus.BAD_REQUEST)
+      sendError(res, 'Refresh Token 不能为空', 400)
       return
     }
     
     const tokens = refreshAuthToken(refreshToken)
     
     if (!tokens) {
-      sendError(res, 'Refresh Token 无效或已过期', ErrorCode.UNAUTHORIZED, HttpStatus.UNAUTHORIZED)
+      sendError(res, 'Refresh Token 无效或已过期', 401)
       return
     }
     
     sendSuccess(res, tokens, 'Token 刷新成功')
   } catch (error: any) {
     console.error('Token 刷新失败:', error)
-    sendError(res, 'Token 刷新失败', ErrorCode.INTERNAL_SERVER_ERROR, HttpStatus.INTERNAL_SERVER_ERROR)
+    sendError(res, 'Token 刷新失败', 500)
   }
 })
 

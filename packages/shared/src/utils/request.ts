@@ -72,8 +72,11 @@ const request = createRequest()
 /**
  * 通用请求方法
  */
-export async function get<T>(url: string, params?: object): Promise<ApiResponse<T>> {
-  const res = await request.get<ApiResponse<T>>(url, { params: params as Record<string, unknown> })
+export async function get<T>(url: string, params?: object, config?: AxiosRequestConfig): Promise<ApiResponse<T>> {
+  const res = await request.get<ApiResponse<T>>(url, { 
+    ...config,
+    params: params as Record<string, unknown> 
+  })
   return res.data
 }
 
@@ -82,13 +85,16 @@ export async function post<T>(url: string, data?: unknown, config?: AxiosRequest
   return res.data
 }
 
-export async function put<T>(url: string, data?: unknown): Promise<ApiResponse<T>> {
-  const res = await request.put<ApiResponse<T>>(url, data)
+export async function put<T>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<ApiResponse<T>> {
+  const res = await request.put<ApiResponse<T>>(url, data, config)
   return res.data
 }
 
-export async function del<T>(url: string, data?: unknown): Promise<ApiResponse<T>> {
-  const res = await request.delete<ApiResponse<T>>(url, { data })
+export async function del<T>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<ApiResponse<T>> {
+  const res = await request.delete<ApiResponse<T>>(url, { 
+    ...config,
+    data 
+  })
   return res.data
 }
 
