@@ -279,6 +279,15 @@ describe('request module', () => {
       expect(result.code).toBe(0)
     })
 
+    it('should send GET request with custom config', async () => {
+      const params = { page: 1, pageSize: 10 }
+      const config = { headers: { 'X-Custom': 'value' } }
+      const result = await get('/test', params, config)
+
+      expect(mockAxiosInstance.get).toHaveBeenCalledWith('/test', { ...config, params })
+      expect(result.code).toBe(0)
+    })
+
     it('should send POST request with data', async () => {
       const data = { name: 'test' }
       const result = await post('/test', data)
@@ -300,14 +309,23 @@ describe('request module', () => {
       const data = { id: 1, name: 'updated' }
       const result = await put('/test/1', data)
 
-      expect(mockAxiosInstance.put).toHaveBeenCalledWith('/test/1', data)
+      expect(mockAxiosInstance.put).toHaveBeenCalledWith('/test/1', data, undefined)
       expect(result.code).toBe(0)
     })
 
     it('should send PUT request without data', async () => {
       const result = await put('/test/1')
 
-      expect(mockAxiosInstance.put).toHaveBeenCalledWith('/test/1', undefined)
+      expect(mockAxiosInstance.put).toHaveBeenCalledWith('/test/1', undefined, undefined)
+      expect(result.code).toBe(0)
+    })
+
+    it('should send PUT request with custom config', async () => {
+      const data = { id: 1, name: 'updated' }
+      const config = { headers: { 'X-Custom': 'value' } }
+      const result = await put('/test/1', data, config)
+
+      expect(mockAxiosInstance.put).toHaveBeenCalledWith('/test/1', data, config)
       expect(result.code).toBe(0)
     })
 
@@ -315,7 +333,7 @@ describe('request module', () => {
       const data = { reason: 'deleted' }
       const result = await del('/test/1', data)
 
-      expect(mockAxiosInstance.delete).toHaveBeenCalledWith('/test/1', { data })
+      expect(mockAxiosInstance.delete).toHaveBeenCalledWith('/test/1', { data: data })
       expect(result.code).toBe(0)
     })
 
@@ -323,6 +341,15 @@ describe('request module', () => {
       const result = await del('/test/1')
 
       expect(mockAxiosInstance.delete).toHaveBeenCalledWith('/test/1', { data: undefined })
+      expect(result.code).toBe(0)
+    })
+
+    it('should send DELETE request with custom config', async () => {
+      const data = { reason: 'deleted' }
+      const config = { headers: { 'X-Custom': 'value' } }
+      const result = await del('/test/1', data, config)
+
+      expect(mockAxiosInstance.delete).toHaveBeenCalledWith('/test/1', { ...config, data: data })
       expect(result.code).toBe(0)
     })
   })
