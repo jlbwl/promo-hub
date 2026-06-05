@@ -2,9 +2,13 @@ import { Request, Response, NextFunction, RequestHandler } from 'express'
 import session, { Session } from 'express-session'
 import jwt from 'jsonwebtoken'
 
-// 确保有默认值的环境变量
-const SESSION_SECRET = process.env.SESSION_SECRET || 'default-session-secret-change-in-production-please'
-const JWT_SECRET = process.env.JWT_SECRET || 'default-jwt-secret-change-in-production-please'
+// 安全验证：确保必需的密钥环境变量已设置
+if (!process.env.JWT_SECRET || !process.env.SESSION_SECRET) {
+  throw new Error('致命错误：JWT_SECRET 和 SESSION_SECRET 环境变量未设置')
+}
+
+const SESSION_SECRET = process.env.SESSION_SECRET
+const JWT_SECRET = process.env.JWT_SECRET
 
 export interface AuthUser {
   id: string
