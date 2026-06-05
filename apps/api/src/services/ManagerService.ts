@@ -13,6 +13,7 @@ import {
   writeProducts,
   writeOrders,
 } from '../data.js'
+import { ErrorCode, throwNotFound, throwBadRequest, throwForbidden, throwConflict, throwUnauthorized } from '@promo/shared'
 
 const SALT_ROUNDS = 12
 
@@ -96,9 +97,7 @@ export const managerService: ManagerService = {
     const manager = managers.find((m: any) => m.id === managerId)
 
     if (!manager) {
-      const error = new Error('经理不存在')
-      ;(error as any).code = 404
-      throw error
+      throwNotFound('经理不存在')
     }
 
     const { password: _, ...safeManager } = manager
@@ -117,18 +116,14 @@ export const managerService: ManagerService = {
 
     // 验证必填字段
     if (!teamName || !password) {
-      const error = new Error('渠道名称和密码不能为空')
-      ;(error as any).code = 400
-      throw error
+      throwBadRequest('渠道名称和密码不能为空')
     }
 
     const managers = await readManagers()
 
     // 检查渠道名称唯一性
     if (managers.find((m: any) => m.teamName === teamName)) {
-      const error = new Error('该渠道名称已存在')
-      ;(error as any).code = 409
-      throw error
+      throwConflict('该渠道名称已存在')
     }
 
     // 检查团队名称是否已被用户使用
@@ -136,9 +131,7 @@ export const managerService: ManagerService = {
       const { readUsers } = await import('../data.js')
       const users = await readUsers()
       if (users.find((u: any) => u.teamName === teamName)) {
-        const error = new Error('该团队名称已存在')
-        ;(error as any).code = 409
-        throw error
+        throwConflict('该团队名称已存在')
       }
     } catch {
       // 如果无法导入用户模块，忽略检查
@@ -179,17 +172,13 @@ export const managerService: ManagerService = {
     )
 
     if (!manager) {
-      const error = new Error('渠道名称或密码错误')
-      ;(error as any).code = 401
-      throw error
+      throwUnauthorized('渠道名称或密码错误')
     }
 
     // 验证密码
     const passwordValid = await bcrypt.compare(password, manager.password)
     if (!passwordValid) {
-      const error = new Error('渠道名称或密码错误')
-      ;(error as any).code = 401
-      throw error
+      throwUnauthorized('渠道名称或密码错误')
     }
 
     const { password: _, ...safeManager } = manager
@@ -208,18 +197,14 @@ export const managerService: ManagerService = {
     const index = managers.findIndex((m: any) => m.id === managerId)
 
     if (index === -1) {
-      const error = new Error('经理不存在')
-      ;(error as any).code = 404
-      throw error
+      throwNotFound('经理不存在')
     }
 
     // 如果更新了渠道名称，检查唯一性
     if (updateData.teamName) {
       const existing = managers.find((m: any) => m.teamName === updateData.teamName && m.id !== managerId)
       if (existing) {
-        const error = new Error('该渠道名称已存在')
-        ;(error as any).code = 409
-        throw error
+        throwConflict('该渠道名称已存在')
       }
     }
 
@@ -245,9 +230,7 @@ export const managerService: ManagerService = {
     const manager = managers.find((m: any) => m.id === managerId)
 
     if (!manager) {
-      const error = new Error('经理不存在')
-      ;(error as any).code = 404
-      throw error
+      throwNotFound('经理不存在')
     }
 
     await deleteManager(managerId)

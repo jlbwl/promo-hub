@@ -9,6 +9,7 @@ import {
   readProducts,
   writeProducts,
 } from '../data.js'
+import { ErrorCode, throwBadRequest, throwNotFound, throwConflict, throwUnauthorized } from '@promo/shared'
 
 const SALT_ROUNDS = 12
 
@@ -58,36 +59,26 @@ export const userService: UserService = {
 
     // 验证手机号格式
     if (!/^1[3-9]\d{9}$/.test(phone)) {
-      const error = new Error('手机号格式不正确')
-      ;(error as any).code = 400
-      ;(error as any).errorCode = 'INVALID_PHONE'
-      throw error
+      throwBadRequest('手机号格式不正确', ErrorCode.INVALID_PHONE)
     }
 
     // 验证密码长度
     if (password.length < 6) {
-      const error = new Error('密码长度不能少于6位')
-      ;(error as any).code = 400
-      throw error
+      throwBadRequest('密码长度不能少于6位')
     }
 
     // 检查重复注册
     const users = await readUsers()
     const existingPhone = users.find((u: any) => u.phone === phone)
     if (existingPhone) {
-      const error = new Error('该手机号已注册')
-      ;(error as any).code = 409
-      ;(error as any).errorCode = 'USER_ALREADY_EXISTS'
-      throw error
+      throwConflict('该手机号已注册', ErrorCode.USER_ALREADY_EXISTS)
     }
 
     // 检查团队名称
     if (teamName) {
       const existingTeam = users.find((u: any) => u.teamName === teamName)
       if (existingTeam) {
-        const error = new Error('该团队名称已存在')
-        ;(error as any).code = 409
-        throw error
+        throwConflict('该团队名称已存在')
       }
     }
 
@@ -127,19 +118,13 @@ export const userService: UserService = {
       (u: any) => u.phone === phone && u.status === 'active'
     )
     if (!user) {
-      const error = new Error('手机号或密码错误，或账号已被禁用')
-      ;(error as any).code = 401
-      ;(error as any).errorCode = 'INVALID_CREDENTIALS'
-      throw error
+      throwUnauthorized('手机号或密码错误，或账号已被禁用', ErrorCode.INVALID_CREDENTIALS)
     }
 
     // 验证密码
     const passwordValid = await verifyPassword(password, user.password)
     if (!passwordValid) {
-      const error = new Error('手机号或密码错误，或账号已被禁用')
-      ;(error as any).code = 401
-      ;(error as any).errorCode = 'INVALID_CREDENTIALS'
-      throw error
+      throwUnauthorized('手机号或密码错误，或账号已被禁用', ErrorCode.INVALID_CREDENTIALS)
     }
 
     // 返回不包含密码的用户信息
@@ -158,9 +143,7 @@ export const userService: UserService = {
     const user = users.find((u: any) => u.id === userId)
 
     if (!user) {
-      const error = new Error('用户不存在')
-      ;(error as any).code = 404
-      throw error
+      throwNotFound('用户不存在', ErrorCode.USER_NOT_FOUND)
     }
 
     const { password: _, ...safeUser } = user
@@ -179,18 +162,14 @@ export const userService: UserService = {
     const index = users.findIndex((u: any) => u.id === userId)
 
     if (index === -1) {
-      const error = new Error('用户不存在')
-      ;(error as any).code = 404
-      throw error
+      throwNotFound('用户不存在', ErrorCode.USER_NOT_FOUND)
     }
 
     // 如果更新了手机号，检查唯一性
     if (updateData.phone) {
       const existingPhone = users.find((u: any) => u.phone === updateData.phone && u.id !== userId)
       if (existingPhone) {
-        const error = new Error('该手机号已被使用')
-        ;(error as any).code = 409
-        throw error
+        throwConflict('该手机号已被使用')
       }
     }
 
@@ -198,9 +177,7 @@ export const userService: UserService = {
     if (updateData.teamName) {
       const existingTeam = users.find((u: any) => u.teamName === updateData.teamName && u.id !== userId)
       if (existingTeam) {
-        const error = new Error('该团队名称已被使用')
-        ;(error as any).code = 409
-        throw error
+        throwConflict('该团队名称已被使用')
       }
     }
 

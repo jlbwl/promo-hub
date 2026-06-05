@@ -1,78 +1,10 @@
 import { Response, Request, NextFunction } from 'express'
 import logger from './logger.js'
+import { AppError, ErrorCode, HttpStatus, ApiResponse } from '@promo/shared'
 
-/**
- * 标准 API 响应格式
- */
-export interface ApiResponse<T> {
-  code: number
-  message: string
-  data: T | null
-  timestamp?: number
-}
-
-/**
- * HTTP 状态码常量
- */
-export enum HttpStatus {
-  OK = 200,
-  CREATED = 201,
-  BAD_REQUEST = 400,
-  UNAUTHORIZED = 401,
-  FORBIDDEN = 403,
-  NOT_FOUND = 404,
-  CONFLICT = 409,
-  UNPROCESSABLE_ENTITY = 422,
-  INTERNAL_SERVER_ERROR = 500,
-}
-
-/**
- * 错误码枚举
- */
-export enum ErrorCode {
-  // 通用错误 (1xxx)
-  SUCCESS = 0,
-  BAD_REQUEST = 400,
-  UNAUTHORIZED = 401,
-  FORBIDDEN = 403,
-  NOT_FOUND = 404,
-  CONFLICT = 409,
-  INTERNAL_SERVER_ERROR = 500,
-  
-  // 用户/认证错误 (2xxx)
-  USER_NOT_FOUND = 2001,
-  USER_ALREADY_EXISTS = 2002,
-  INVALID_CREDENTIALS = 2003,
-  INVALID_PHONE = 2004,
-  INVALID_CODE = 2005,
-  CODE_EXPIRED = 2006,
-  
-  // 业务错误 (3xxx)
-  PRODUCT_NOT_FOUND = 3001,
-  INSUFFICIENT_STOCK = 3002,
-}
-
-/**
- * 应用错误类 - 自定义业务错误
- */
-export class AppError extends Error {
-  public readonly code: number
-  public readonly statusCode: number
-  public readonly details?: Record<string, any>
-
-  constructor(
-    message: string,
-    code: number = ErrorCode.BAD_REQUEST,
-    statusCode: number = HttpStatus.BAD_REQUEST,
-    details?: Record<string, any>
-  ) {
-    super(message)
-    this.name = 'AppError'
-    this.code = code
-    this.statusCode = statusCode
-    this.details = details
-  }
-}
+// 重新导出共享的类型和错误类，保持向后兼容
+export { AppError, ErrorCode, HttpStatus }
+export type { ApiResponse }
 
 /**
  * 发送成功响应

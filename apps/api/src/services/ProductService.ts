@@ -15,6 +15,7 @@ import {
   query
 } from '../data.js'
 import { CacheService, CacheKeys, CacheTTL } from './cache/index.js'
+import { ErrorCode, throwNotFound, throwBadRequest, throwForbidden, throwConflict } from '@promo/shared'
 
 /**
  * 产品服务接口
@@ -201,9 +202,7 @@ export const productService: ProductService = {
     const product = products.find((p: any) => p.id === id)
 
     if (!product) {
-      const error = new Error('产品不存在')
-      ;(error as any).code = 404
-      throw error
+      throwNotFound('产品不存在', ErrorCode.PRODUCT_NOT_FOUND)
     }
 
     // 统计做单量
@@ -231,31 +230,23 @@ export const productService: ProductService = {
 
     // 验证标题不能为空
     if (!title) {
-      const error = new Error('产品标题不能为空')
-      ;(error as any).code = 400
-      throw error
+      throwBadRequest('产品标题不能为空')
     }
 
     // 验证 managerId 不能为空且对应经理存在（经理端创建）
     const managerId = (productData.managerId || '').trim()
     if (!managerId) {
-      const error = new Error('经理信息缺失，请重新登录')
-      ;(error as any).code = 400
-      throw error
+      throwBadRequest('经理信息缺失，请重新登录')
     }
     
     // 验证经理是否存在且状态正常
     const manager = await queryOne('SELECT id, status FROM managers WHERE id = ?', [managerId])
     if (!manager) {
-      const error = new Error('经理账户不存在，请重新登录')
-      ;(error as any).code = 400
-      throw error
+      throwBadRequest('经理账户不存在，请重新登录')
     }
     
     if (manager.status !== 'active') {
-      const error = new Error('经理账户状态异常，无法创建产品')
-      ;(error as any).code = 400
-      throw error
+      throwBadRequest('经理账户状态异常，无法创建产品')
     }
     
     console.log('[createProduct] 经理验证通过，经理ID:', managerId, '状态:', manager.status)
@@ -263,9 +254,7 @@ export const productService: ProductService = {
     // 检查标题唯一性
     const duplicate = await queryOne('SELECT id FROM products WHERE title = ?', [title])
     if (duplicate) {
-      const error = new Error('产品标题已存在，请修改后重新发布')
-      ;(error as any).code = 409
-      throw error
+      throwConflict('产品标题已存在，请修改后重新发布')
     }
 
     // 获取分类信息
@@ -327,16 +316,12 @@ export const productService: ProductService = {
     // 检查产品是否存在
     const existing = await queryOne('SELECT * FROM products WHERE id = ?', [id])
     if (!existing) {
-      const error = new Error('产品不存在')
-      ;(error as any).code = 404
-      throw error
+      throwNotFound('产品不存在', ErrorCode.PRODUCT_NOT_FOUND)
     }
 
     // 验证归属权限
     if (updateData.managerId && existing.managerId !== updateData.managerId) {
-      const error = new Error('无权操作此产品')
-      ;(error as any).code = 403
-      throw error
+      throwForbidden('无权操作此产品')
     }
 
     // 检查标题唯一性
@@ -344,9 +329,7 @@ export const productService: ProductService = {
     if (title) {
       const duplicate = await queryOne('SELECT id FROM products WHERE title = ? AND id != ?', [title, id])
       if (duplicate) {
-        const error = new Error('产品标题已存在，请修改后重新发布')
-        ;(error as any).code = 409
-        throw error
+        throwConflict('产品标题已存在，请修改后重新发布')
       }
     }
 
@@ -395,17 +378,13 @@ export const productService: ProductService = {
 
     if (!product) {
       console.log('[ProductService] 产品不存在:', id)
-      const error = new Error('产品不存在')
-      ;(error as any).code = 404
-      throw error
+      throwNotFound('产品不存在', ErrorCode.PRODUCT_NOT_FOUND)
     }
 
     // 验证归属权限
     if (managerId && product.managerId !== managerId) {
       console.log('[ProductService] 无权删除, 请求者:', managerId, '所有者:', product.managerId)
-      const error = new Error('无权操作此产品')
-      ;(error as any).code = 403
-      throw error
+      throwForbidden('无权操作此产品')
     }
 
     console.log('[ProductService] 开始删除, ID:', id)

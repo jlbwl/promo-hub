@@ -17,6 +17,7 @@ import {
   deleteOrder,
   getOrdersPaginated,
 } from '../data.js'
+import { ErrorCode, throwNotFound, throwBadRequest, throwForbidden } from '@promo/shared'
 
 /**
  * 订单服务接口
@@ -122,9 +123,7 @@ export const orderService: OrderService = {
     const products = await readProducts()
     const index = products.findIndex((p: any) => p.id === productId)
     if (index === -1) {
-      const error = new Error('产品不存在')
-      ;(error as any).code = 404
-      throw error
+      throwNotFound('产品不存在', ErrorCode.PRODUCT_NOT_FOUND)
     }
 
     const product = products[index]
@@ -132,17 +131,13 @@ export const orderService: OrderService = {
 
     // 验证产品状态
     if (product.status !== 'published') {
-      const error = new Error('该产品已下架')
-      ;(error as any).code = 400
-      throw error
+      throwBadRequest('该产品已下架')
     }
 
     // 扣减库存
     if (product.stock && product.stock > 0) {
       if (product.stock < 1) {
-        const error = new Error('库存不足')
-        ;(error as any).code = 400
-        throw error
+        throwBadRequest('库存不足', ErrorCode.INSUFFICIENT_STOCK)
       }
       console.log('[OrderService] 扣减库存, 原库存:', product.stock, '新库存:', product.stock - 1)
       await updateProduct(product.id, { stock: product.stock - 1, updatedAt: new Date().toISOString() })
@@ -210,9 +205,7 @@ export const orderService: OrderService = {
 
     const order = await readOrder(orderId)
     if (!order) {
-      const error = new Error('订单不存在')
-      ;(error as any).code = 404
-      throw error
+      throwNotFound('订单不存在')
     }
 
     await deleteOrder(orderId)
@@ -231,15 +224,11 @@ export const orderService: OrderService = {
   async deleteUserOrder(orderId, userId) {
     const order = await readOrder(orderId)
     if (!order) {
-      const error = new Error('订单不存在')
-      ;(error as any).code = 404
-      throw error
+      throwNotFound('订单不存在')
     }
 
     if (order.userId !== userId) {
-      const error = new Error('无权操作此订单')
-      ;(error as any).code = 403
-      throw error
+      throwForbidden('无权操作此订单')
     }
 
     await deleteOrder(orderId)
@@ -268,15 +257,11 @@ export const orderService: OrderService = {
     const order = orders.find((o: any) => o.id === orderId)
 
     if (!order) {
-      const error = new Error('订单不存在或不在回收站')
-      ;(error as any).code = 404
-      throw error
+      throwNotFound('订单不存在或不在回收站')
     }
 
     if (order.userId !== userId) {
-      const error = new Error('无权操作此订单')
-      ;(error as any).code = 403
-      throw error
+      throwForbidden('无权操作此订单')
     }
 
     await restoreOrder(orderId)
@@ -294,15 +279,11 @@ export const orderService: OrderService = {
   async submitFundAccount(orderId, userId, fundAccount) {
     const order = await readOrder(orderId)
     if (!order) {
-      const error = new Error('订单不存在')
-      ;(error as any).code = 404
-      throw error
+      throwNotFound('订单不存在')
     }
 
     if (order.userId !== userId) {
-      const error = new Error('无权操作此订单')
-      ;(error as any).code = 403
-      throw error
+      throwForbidden('无权操作此订单')
     }
 
     await updateOrder(orderId, { fundAccount })
