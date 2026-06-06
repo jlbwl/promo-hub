@@ -167,6 +167,7 @@ export interface ApiResponse<T = unknown> {
   code: number
   message: string
   data: T
+  timestamp?: number
 }
 
 export interface PaginationParams {
