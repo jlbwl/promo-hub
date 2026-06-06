@@ -8,7 +8,11 @@
     "skipLibCheck": true,
     "outDir": "dist",
     "rootDir": "src",
-    "declaration": true
+    "declaration": true,
+    "baseUrl": ".",
+    "paths": {
+      "@promo/shared": ["../../packages/shared/src"]
+    }
   },
   "include": ["src"]
 }
