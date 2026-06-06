@@ -232,7 +232,10 @@
         >
           <div class="upload-area">
             <!-- 已上传的图片预览 -->
-            <div v-if="form.cover" class="image-preview-wrapper">
+            <div
+              v-if="form.cover"
+              class="image-preview-wrapper"
+            >
               <el-image
                 :src="form.cover"
                 fit="cover"
@@ -255,7 +258,10 @@
                   删除图片
                 </el-button>
               </div>
-              <div class="image-info" v-if="coverImageInfo">
+              <div
+                v-if="coverImageInfo"
+                class="image-info"
+              >
                 <span>尺寸: {{ coverImageInfo.width }}x{{ coverImageInfo.height }}</span>
                 <span v-if="coverImageInfo.size">
                   大小: {{ (coverImageInfo.size / 1024).toFixed(1) }}KB
@@ -275,7 +281,9 @@
                 accept="image/jpeg,image/jpg,image/png,image/webp"
                 drag
               >
-                <el-icon class="el-icon--upload"><UploadFilled /></el-icon>
+                <el-icon class="el-icon--upload">
+                  <UploadFilled />
+                </el-icon>
                 <div class="el-upload__text">
                   拖拽图片到此处或 <em>点击上传</em>
                 </div>
