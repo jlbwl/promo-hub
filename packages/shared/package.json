@@ -10,6 +10,7 @@
     "./utils/request": "./src/utils/request.ts",
     "./utils/helpers": "./src/utils/helpers.ts",
     "./utils/constants": "./src/utils/constants.ts",
+    "./utils/errors": "./src/utils/errors.ts",
     "./types": "./src/types/index.ts",
     "./stores/*": "./src/stores/*.ts"
   },
