@@ -1,5 +1,4 @@
 export * from './types/index.js'
-export * from './utils/request.js'
 export * from './utils/helpers.js'
 export * from './utils/constants.js'
 export { HttpStatus, ErrorCode, AppError, throwBadRequest, throwUnauthorized, throwForbidden, throwNotFound, throwConflict, throwServerError } from './utils/errors.js'
