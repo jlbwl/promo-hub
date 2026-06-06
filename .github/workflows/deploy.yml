@@ -113,6 +113,12 @@ jobs:
       - name: Build API
         run: pnpm --filter @promo/api build
 
+      - name: Upload Shared artifacts
+        uses: actions/upload-artifact@v5
+        with:
+          name: shared-dist
+          path: packages/shared/dist
+
       - name: Upload Admin artifacts
         uses: actions/upload-artifact@v5
         with:
@@ -173,6 +179,12 @@ jobs:
           name: api-dist
           path: api-dist
 
+      - name: Download Shared artifacts
+        uses: actions/download-artifact@v5
+        with:
+          name: shared-dist
+          path: shared-dist
+
       - name: Upload Admin to server
         uses: appleboy/scp-action@v0.1.7
         with:
@@ -217,6 +229,17 @@ jobs:
           target: "${{ env.DEPLOY_DIR }}/api/"
           rm: true
 
+      - name: Upload Shared to server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          port: ${{ secrets.SERVER_PORT || 22 }}
+          source: "shared-dist/"
+          target: "${{ env.DEPLOY_DIR }}/shared/"
+          rm: true
+
       - name: 部署业务代码（保护已有配置）
         uses: appleboy/ssh-action@v1.2.0
         with:
@@ -253,7 +276,25 @@ jobs:
             fi
 
             # =======================
-            # 2. 修复 API 目录结构
+            # 2. 修复 Shared 目录结构
+            # =======================
+            echo "🔍 检查 Shared 目录..."
+            cd "$DEPLOY_DIR/shared"
+            if [ -d "shared-dist" ]; then
+              echo "✅ 找到 shared-dist 目录，正在复制内容..."
+              ls -la shared-dist/ 2>&1
+              cp -r shared-dist/* ./ 2>&1
+              rm -rf shared-dist 2>&1
+              echo "✅ shared-dist 内容已复制"
+            fi
+
+            # =======================
+            # 创建 Shared package.json
+            # =======================
+            echo '{"name":"@promo/shared","version":"1.0.0","private":true,"type":"module","main":"./index.js","types":"./index.d.ts","exports":{".":"./index.js","./utils/request":"./utils/request.js","./utils/helpers":"./utils/helpers.js","./utils/constants":"./utils/constants.js","./utils/errors":"./utils/errors.js","./types":"./types/index.js"}}' > package.json
+
+            # =======================
+            # 3. 修复 API 目录结构
             # =======================
             echo "🔍 检查 API 目录..."
             cd "$DEPLOY_DIR/api"
@@ -370,7 +411,7 @@ jobs:
             # 6. 安装依赖
             # =======================
             if [ ! -f "package.json" ]; then
-              echo '{"name":"promo-api","version":"1.0.0","type":"module","dependencies":{"@fastify/csrf":"^8.0.1","bcryptjs":"^3.0.3","connect-mongo":"^5.1.0","cookie-parser":"^1.4.7","cors":"^2.8.5","csurf":"^1.11.0","dotenv":"^17.4.2","express":"^4.21.0","express-rate-limit":"^8.5.1","express-session":"^1.18.1","jsonwebtoken":"^9.0.3","multer":"^1.4.5-lts.1","mysql2":"^3.22.3","redis":"^5.12.1","uuid":"^11.0.0","sharp":"^0.33.5"}}' > package.json
+              echo '{"name":"promo-api","version":"1.0.0","type":"module","dependencies":{"@promo/shared":"file:../shared","@fastify/csrf":"^8.0.1","bcryptjs":"^3.0.3","connect-mongo":"^5.1.0","cookie-parser":"^1.4.7","cors":"^2.8.5","csurf":"^1.11.0","dotenv":"^17.4.2","express":"^4.21.0","express-rate-limit":"^8.5.1","express-session":"^1.18.1","jsonwebtoken":"^9.0.3","multer":"^1.4.5-lts.1","mysql2":"^3.22.3","redis":"^5.12.1","uuid":"^11.0.0","sharp":"^0.33.5"}}' > package.json
               echo "✅ package.json已创建"
             fi
 
