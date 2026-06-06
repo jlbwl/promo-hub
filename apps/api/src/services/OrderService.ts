@@ -17,7 +17,7 @@ import {
   deleteOrder,
   getOrdersPaginated,
 } from '../data.js'
-import { ErrorCode, throwNotFound, throwBadRequest, throwForbidden } from '@promo/shared'
+import { ErrorCode, throwNotFound, throwBadRequest, throwForbidden } from '../../packages/shared/src/utils/errors'
 
 /**
  * 订单服务接口

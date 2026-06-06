@@ -1,6 +1,7 @@
 import { Response, Request, NextFunction } from 'express'
 import logger from './logger.js'
-import { AppError, ErrorCode, HttpStatus, ApiResponse } from '@promo/shared'
+import { AppError, ErrorCode, HttpStatus } from '../../packages/shared/src/utils/errors'
+import type { ApiResponse } from '../../packages/shared/src/types'
 
 // 重新导出共享的类型和错误类，保持向后兼容
 export { AppError, ErrorCode, HttpStatus }
