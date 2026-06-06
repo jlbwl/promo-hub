@@ -2,7 +2,7 @@
  * API 请求层封装
  */
 import axios, { type AxiosInstance, type AxiosRequestConfig, type AxiosResponse } from 'axios'
-import type { ApiResponse } from '../types'
+import type { ApiResponse } from '../types/index.js'
 
 const BASE_URL = import.meta.env?.VITE_API_BASE_URL || '/api'
 

@@ -3,8 +3,8 @@
  */
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import type { Commission, CommissionSummary, PaginatedResponse, PaginationParams } from '../types'
-import { get, post } from '../utils/request'
+import type { Commission, CommissionSummary, PaginatedResponse, PaginationParams } from '../types/index.js'
+import { get, post } from '../utils/request.js'
 
 export const useCommissionStore = defineStore('commission', () => {
   const commissions = ref<Commission[]>([])

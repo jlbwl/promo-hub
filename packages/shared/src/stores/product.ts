@@ -3,8 +3,8 @@
  */
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import type { Product, PaginatedResponse, PaginationParams } from '../types'
-import { get, post, put, del } from '../utils/request'
+import type { Product, PaginatedResponse, PaginationParams } from '../types/index.js'
+import { get, post, put, del } from '../utils/request.js'
 
 export const useProductStore = defineStore('product', () => {
   const products = ref<Product[]>([])

@@ -3,8 +3,8 @@
  */
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import type { User, LoginParams, LoginResult } from '../types'
-import { post } from '../utils/request'
+import type { User, LoginParams, LoginResult } from '../types/index.js'
+import { post } from '../utils/request.js'
 
 // 角色配置 - 各角色的 API 路径和 localStorage key
 type RoleType = 'admin' | 'manager' | 'user' | 'employee'

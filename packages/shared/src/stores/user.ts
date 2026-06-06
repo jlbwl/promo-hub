@@ -3,8 +3,8 @@
  */
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import type { User, Manager, PaginatedResponse, PaginationParams } from '../types'
-import { get, post, put, del } from '../utils/request'
+import type { User, Manager, PaginatedResponse, PaginationParams } from '../types/index.js'
+import { get, post, put, del } from '../utils/request.js'
 
 export const useUserStore = defineStore('user', () => {
   const users = ref<User[]>([])
