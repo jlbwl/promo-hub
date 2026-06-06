@@ -20,7 +20,7 @@
     "lint": "eslint . --ext .vue,.js,.ts,.tsx",
     "lint:fix": "eslint . --ext .vue,.js,.ts,.tsx --fix",
     "type-check": "pnpm --filter @promo/admin exec vue-tsc --noEmit && pnpm --filter @promo/manager exec vue-tsc --noEmit && pnpm --filter @promo/user exec vue-tsc --noEmit && pnpm --filter @promo/shared exec tsc --noEmit",
-    "test": "vitest run",
+    "test": "pnpm build:shared && vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "test:ui": "vitest --ui",
