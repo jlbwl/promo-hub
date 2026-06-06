@@ -15,7 +15,7 @@ import {
   query
 } from '../data.js'
 import { CacheService, CacheKeys, CacheTTL } from './cache/index.js'
-import { ErrorCode, throwNotFound, throwBadRequest, throwForbidden, throwConflict } from '../../packages/shared/src/utils/errors'
+import { ErrorCode, throwNotFound, throwBadRequest, throwForbidden, throwConflict } from '@promo/shared'
 
 /**
  * 产品服务接口

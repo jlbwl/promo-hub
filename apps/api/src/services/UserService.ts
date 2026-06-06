@@ -9,7 +9,7 @@ import {
   readProducts,
   writeProducts,
 } from '../data.js'
-import { ErrorCode, throwBadRequest, throwNotFound, throwConflict, throwUnauthorized } from '../../packages/shared/src/utils/errors'
+import { ErrorCode, throwBadRequest, throwNotFound, throwConflict, throwUnauthorized } from '@promo/shared'
 
 const SALT_ROUNDS = 12
 

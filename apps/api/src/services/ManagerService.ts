@@ -13,7 +13,7 @@ import {
   writeProducts,
   writeOrders,
 } from '../data.js'
-import { ErrorCode, throwNotFound, throwBadRequest, throwForbidden, throwConflict, throwUnauthorized } from '../../packages/shared/src/utils/errors'
+import { ErrorCode, throwNotFound, throwBadRequest, throwForbidden, throwConflict, throwUnauthorized } from '@promo/shared'
 
 const SALT_ROUNDS = 12
 
