@@ -1,4 +1,4 @@
-import { AggregateRoot } from './AggregateRoot'
+import { AggregateRoot } from './AggregateRoot.js'
 
 /**
  * 仓储接口基类 - 定义聚合根的基本增删改查

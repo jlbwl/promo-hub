@@ -1,10 +1,10 @@
 import { Request, Response } from 'express'
 import { injectable } from 'tsyringe'
-import { resolve } from '../../../container'
-import { CreateUserCommandHandler } from '../../../application/command-handlers/CreateUserCommandHandler'
-import { UserQueryHandler } from '../../../application/query-handlers/UserQueryHandler'
-import { UserPresenter } from '../../presenters/UserPresenter'
-import { DomainError, NotFoundError } from '../../../domain/shared/errors/DomainError'
+import { resolve } from '../../../../container.js'
+import { CreateUserCommandHandler } from '../../../application/command-handlers/CreateUserCommandHandler.js'
+import { UserQueryHandler } from '../../../application/query-handlers/UserQueryHandler.js'
+import { UserPresenter } from '../../presenters/UserPresenter.js'
+import { DomainError, NotFoundError } from '../../../domain/shared/errors/DomainError.js'
 
 /**
  * 用户控制器（DDD 架构版本）
@@ -55,13 +55,14 @@ export class UserControllerDDD {
    */
   async getById(req: Request, res: Response) {
     try {
-      const query = { userId: req.params.id }
+      const userId = req.params.id as string
+      const query = { userId }
 
       // 调用查询处理器（绕过领域层，直接查询优化性能）
       const userDTO = await this.queryHandler.handleGetById(query)
 
       if (!userDTO) {
-        throw new NotFoundError('User', req.params.id)
+        throw new NotFoundError('User', userId)
       }
 
       res.json({

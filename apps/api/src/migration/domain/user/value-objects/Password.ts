@@ -1,5 +1,5 @@
-import { ValueObject } from '../../shared/ValueObject'
-import { ValidationError } from '../../shared/errors/DomainError'
+import { ValueObject } from '../../shared/ValueObject.js'
+import { ValidationError } from '../../shared/errors/DomainError.js'
 import crypto from 'crypto'
 
 /**

@@ -1,5 +1,5 @@
-import { User } from '../../../domain/user/entities/User'
-import { UserRole, UserStatus } from '../../../domain/user/value-objects/UserRole'
+import { User } from '../../../domain/user/entities/User.js'
+import { UserRole, UserStatus } from '../../../domain/user/value-objects/UserRole.js'
 
 /**
  * 用户 Mapper - 负责数据库模型与领域模型之间的转换

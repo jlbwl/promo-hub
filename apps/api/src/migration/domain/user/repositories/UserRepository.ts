@@ -1,5 +1,5 @@
-import { IRepository } from '../../shared/Repository'
-import { User } from '../entities/User'
+import { IRepository } from '../../shared/Repository.js'
+import { User } from '../entities/User.js'
 
 /**
  * 用户仓储接口

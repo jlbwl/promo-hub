@@ -1,9 +1,9 @@
 import { injectable, inject } from 'tsyringe'
-import { User } from '../../domain/user/entities/User'
-import { IUserRepository } from '../../domain/user/repositories/UserRepository'
-import { UserRole } from '../../domain/user/value-objects/UserRole'
-import { CreateUserDTO, UpdateUserDTO, ChangePasswordDTO } from '../dtos/CreateUserDTO'
-import { NotFoundError, ConflictError } from '../../domain/shared/errors/DomainError'
+import { User } from '../../domain/user/entities/User.js'
+import { IUserRepository } from '../../domain/user/repositories/UserRepository.js'
+import { UserRole } from '../../domain/user/value-objects/UserRole.js'
+import { CreateUserDTO, UpdateUserDTO, ChangePasswordDTO } from '../dtos/CreateUserDTO.js'
+import { NotFoundError, ConflictError } from '../../domain/shared/errors/DomainError.js'
 
 /**
  * 用户应用服务 - 编排用户相关的用例

@@ -1,9 +1,9 @@
-import { AggregateRoot } from '../../shared/AggregateRoot'
-import { Phone } from '../value-objects/Phone'
-import { Password } from '../value-objects/Password'
-import { UserRole, UserStatus } from '../value-objects/UserRole'
-import { UserRegistered } from '../events/UserRegistered'
-import { BusinessRuleError, ValidationError } from '../../shared/errors/DomainError'
+import { AggregateRoot } from '../../shared/AggregateRoot.js'
+import { Phone } from '../value-objects/Phone.js'
+import { Password } from '../value-objects/Password.js'
+import { UserRole, UserStatus } from '../value-objects/UserRole.js'
+import { UserRegistered } from '../events/UserRegistered.js'
+import { BusinessRuleError, ValidationError } from '../../shared/errors/DomainError.js'
 
 /**
  * 用户聚合根 - 用户上下文的核心聚合

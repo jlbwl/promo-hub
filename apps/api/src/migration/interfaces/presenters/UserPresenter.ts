@@ -1,4 +1,4 @@
-import { User } from '../../domain/user/entities/User'
+import { User } from '../../domain/user/entities/User.js'
 
 /**
  * 用户展示器 - 将领域模型转换为前端视图模型（VO）

@@ -1,12 +1,12 @@
 import { injectable, inject } from 'tsyringe'
-import * as data from '../../data'
+import * as data from '../../../data.js'
 import {
   GetUserByIdQuery,
   GetUserByPhoneQuery,
   ListUsersQuery,
   UserDTO,
   UserListDTO
-} from '../queries/UserQueries'
+} from '../queries/UserQueries.js'
 
 /**
  * 用户查询处理器

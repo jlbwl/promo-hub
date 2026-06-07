@@ -1,5 +1,5 @@
-import { DomainEvent } from '../../shared/DomainEvent'
-import { UserRole } from '../value-objects/UserRole'
+import { DomainEvent } from '../../shared/DomainEvent.js'
+import { UserRole } from '../value-objects/UserRole.js'
 
 export class UserRegistered extends DomainEvent {
   constructor(

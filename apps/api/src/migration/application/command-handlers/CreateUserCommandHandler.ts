@@ -1,9 +1,9 @@
 import { injectable, inject } from 'tsyringe'
-import { User } from '../../domain/user/entities/User'
-import { IUserRepository } from '../../domain/user/repositories/UserRepository'
-import { CreateUserCommand } from '../commands/CreateUserCommand'
-import { UserRole } from '../../domain/user/value-objects/UserRole'
-import { ConflictError } from '../../domain/shared/errors/DomainError'
+import { User } from '../../domain/user/entities/User.js'
+import { IUserRepository } from '../../domain/user/repositories/UserRepository.js'
+import { CreateUserCommand } from '../commands/CreateUserCommand.js'
+import { UserRole } from '../../domain/user/value-objects/UserRole.js'
+import { ConflictError } from '../../domain/shared/errors/DomainError.js'
 
 /**
  * 创建用户命令处理器
