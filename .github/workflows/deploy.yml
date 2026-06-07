@@ -110,6 +110,25 @@ jobs:
           VITE_ICP_NUMBER: ${{ secrets.VITE_ICP_NUMBER || '' }}
         run: pnpm --filter @promo/user build
 
+      - name: Build shared
+        run: |
+          cd packages/shared
+          pnpm build
+          # 修改 package.json 指向构建产物
+          node << 'EOF'
+            const fs = require('fs');
+            const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+            pkg.main = pkg.main.replace('./src/', './dist/').replace('.ts', '.js');
+            pkg.types = pkg.types.replace('./src/', './dist/').replace('.ts', '.d.ts');
+            Object.keys(pkg.exports).forEach(key => {
+              const val = pkg.exports[key];
+              if (typeof val === 'string' && val.startsWith('./src/')) {
+                pkg.exports[key] = val.replace('./src/', './dist/').replace('.ts', '.js');
+              }
+            });
+            fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2));
+          EOF
+
       - name: Build API
         run: pnpm --filter @promo/api build
 
@@ -117,7 +136,9 @@ jobs:
         uses: actions/upload-artifact@v5
         with:
           name: shared-dist
-          path: packages/shared/dist
+          path: |
+            packages/shared/dist
+            packages/shared/package.json
 
       - name: Upload Admin artifacts
         uses: actions/upload-artifact@v5
@@ -287,11 +308,6 @@ jobs:
               rm -rf shared-dist 2>&1
               echo "✅ shared-dist 内容已复制"
             fi
-
-            # =======================
-            # 创建 Shared package.json
-            # =======================
-            echo '{"name":"@promo/shared","version":"1.0.0","private":true,"type":"module","main":"./index.js","types":"./index.d.ts","exports":{".":"./index.js","./utils/request":"./utils/request.js","./utils/helpers":"./utils/helpers.js","./utils/constants":"./utils/constants.js","./utils/errors":"./utils/errors.js","./types":"./types/index.js"}}' > package.json
 
             # =======================
             # 3. 修复 API 目录结构
