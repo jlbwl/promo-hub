@@ -471,7 +471,29 @@ jobs:
             echo "✅ npm依赖已安装（包括 reflect-metadata 和 tsyringe）"
 
             # =======================
-            # 7. 检查 index.js
+            # 7. 验证 Shared 包链接
+            # =======================
+            echo "🔍 验证 @promo/shared 包链接..."
+            if [ ! -d "../shared/node_modules/@promo/shared" ] && [ ! -d "node_modules/@promo/shared" ]; then
+              echo "⚠️ @promo/shared 未正确链接，尝试修复..."
+              # 尝试创建符号链接或复制文件
+              mkdir -p "node_modules/@promo"
+              if [ -d "../shared" ]; then
+                echo "✅ 找到 packages/shared，复制到 node_modules"
+                cp -r ../shared/. "node_modules/@promo/shared/." 2>/dev/null || \
+                  cp -r ../shared "node_modules/@promo/shared"
+              fi
+            fi
+
+            # 验证关键文件是否存在
+            if [ -f "node_modules/@promo/shared/dist/index.js" ] || [ -f "node_modules/@promo/shared/src/index.ts" ]; then
+              echo "✅ @promo/shared 包已正确部署"
+            else
+              echo "⚠️ 警告：@promo/shared 包可能不完整"
+            fi
+
+            # =======================
+            # 8. 检查 index.js
             # =======================
             if [ ! -f "index.js" ]; then
               echo "❌ 错误：index.js文件不存在！"
@@ -481,12 +503,12 @@ jobs:
             fi
 
             # =======================
-            # 8. 验证 Nginx 配置
+            # 9. 验证 Nginx 配置
             # =======================
             nginx -t || true
 
             # =======================
-            # 9. 重启 API 服务
+            # 10. 重启 API 服务
             # =======================
             if command -v pm2 >/dev/null 2>&1; then
               pm2 delete promo-api 2>/dev/null || true
@@ -497,7 +519,7 @@ jobs:
             fi
 
             # =======================
-            # 10. 重载 Nginx
+            # 11. 重载 Nginx
             # =======================
             nginx -t && nginx -s reload || true
             echo "✅ Nginx已重载"
