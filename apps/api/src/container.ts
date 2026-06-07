@@ -28,7 +28,7 @@ export function initContainer(): void {
   container.registerSingleton(DatabaseService, DatabaseService)
   container.registerSingleton(CacheService, CacheService)
 
-  // 注册业务服务（单例）
+  // 注册业务服务（单例）- 旧版 Service 层（向后兼容）
   container.registerSingleton('UserService', UserServiceImpl)
   container.registerSingleton('ProductService', ProductServiceImpl)
   container.registerSingleton('OrderService', OrderServiceImpl)
