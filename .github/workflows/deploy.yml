@@ -89,9 +89,6 @@ jobs:
       - name: Install dependencies
         run: pnpm install --no-frozen-lockfile
 
-      - name: Build Shared
-        run: pnpm --filter @promo/shared build
-
       - name: Build Admin
         env:
           VITE_API_BASE_URL: /api
@@ -110,7 +107,7 @@ jobs:
           VITE_ICP_NUMBER: ${{ secrets.VITE_ICP_NUMBER || '' }}
         run: pnpm --filter @promo/user build
 
-      - name: Build shared
+      - name: Build shared and prepare for API
         run: |
           cd packages/shared
           pnpm build
