@@ -1,0 +1,6 @@
+export { User } from './entities/User.js'
+export * from './value-objects/Phone.js'
+export * from './value-objects/Password.js'
+export * from './value-objects/UserRole.js'
+export * from './events/UserRegistered.js'
+export * from './repositories/UserRepository.js'
