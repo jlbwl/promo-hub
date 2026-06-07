@@ -107,9 +107,12 @@ jobs:
           VITE_ICP_NUMBER: ${{ secrets.VITE_ICP_NUMBER || '' }}
         run: pnpm --filter @promo/user build
 
-      - name: Build shared and prepare for API
+      - name: Prepare shared for API build
         run: |
           cd packages/shared
+          # 备份原始 package.json
+          cp package.json package.json.original
+          # 先构建 shared
           pnpm build
           # 修改 package.json 指向构建产物
           node << 'EOF'
@@ -129,13 +132,19 @@ jobs:
       - name: Build API
         run: pnpm --filter @promo/api build
 
+      - name: Prepare shared artifacts
+        run: |
+          cd packages/shared
+          cp package.json package.json.build
+          mv package.json.original package.json
+
       - name: Upload Shared artifacts
         uses: actions/upload-artifact@v5
         with:
           name: shared-dist
           path: |
             packages/shared/dist
-            packages/shared/package.json
+            packages/shared/package.json.build
 
       - name: Upload Admin artifacts
         uses: actions/upload-artifact@v5
@@ -304,6 +313,9 @@ jobs:
               cp -r shared-dist/* ./ 2>&1
               rm -rf shared-dist 2>&1
               echo "✅ shared-dist 内容已复制"
+            fi
+            if [ -f "package.json.build" ]; then
+              mv package.json.build package.json
             fi
 
             # =======================
