@@ -4,6 +4,8 @@
  */
 import { container } from 'tsyringe'
 import { ConfigService } from './services/ConfigService.js'
+import { DatabaseService } from './services/DatabaseService.js'
+import { UserServiceImpl } from './services/UserService.js'
 
 // 单例标志，防止重复初始化
 let isInitialized = false
@@ -19,6 +21,8 @@ export function initContainer(): void {
 
   // 注册服务
   container.registerSingleton('ConfigService', ConfigService)
+  container.registerSingleton(DatabaseService, DatabaseService)
+  container.registerSingleton('UserService', UserServiceImpl)
 
   isInitialized = true
 }

@@ -4,10 +4,11 @@
  */
 export { productService, initializeCache, closeCache, type ProductService } from './ProductService.js'
 export { orderService, type OrderService } from './OrderService.js'
-export { userService, type UserService } from './UserService.js'
+export { userService, UserServiceImpl, type UserService } from './UserService.js'
 export { managerService, type ManagerService } from './ManagerService.js'
 export { CacheService, CacheKeys, CacheTTL } from './cache/index.js'
 export { ConfigService, type AppConfig } from './ConfigService.js'
+export { DatabaseService } from './DatabaseService.js'
 
 // 同时导出 DI 相关工具
 export { initContainer, getContainer, resolve } from '../container.js'

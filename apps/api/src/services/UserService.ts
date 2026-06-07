@@ -3,13 +3,9 @@
  * 负责处理用户相关的所有业务逻辑，包括注册、登录、密码管理等
  */
 import bcrypt from 'bcryptjs'
-import {
-  readUsers,
-  writeUsers,
-  readProducts,
-  writeProducts,
-} from '../data.js'
+import { injectable, inject } from 'tsyringe'
 import { ErrorCode, throwBadRequest, throwNotFound, throwConflict, throwUnauthorized } from '@promo/shared'
+import { DatabaseService } from './DatabaseService.js'
 
 const SALT_ROUNDS = 12
 
@@ -44,9 +40,14 @@ export interface UserService {
 }
 
 /**
- * 用户服务实现
+ * 用户服务实现类（可注入版本）
  */
-export const userService: UserService = {
+@injectable()
+export class UserServiceImpl implements UserService {
+  constructor(
+    @inject(DatabaseService) private db: DatabaseService
+  ) {}
+
   /**
    * 注册用户
    * 验证手机号格式和密码强度，检查手机号和团队名称唯一性
@@ -54,7 +55,12 @@ export const userService: UserService = {
    * @returns 新用户信息（不包含密码）
    * @throws 手机号格式不正确、密码太短、手机号已注册、团队名称已存在时抛出错误
    */
-  async registerUser(userData) {
+  async registerUser(userData: {
+    phone: string
+    password: string
+    nickname?: string
+    teamName?: string
+  }) {
     const { phone, password, nickname, teamName } = userData
 
     // 验证手机号格式
@@ -68,7 +74,7 @@ export const userService: UserService = {
     }
 
     // 检查重复注册
-    const users = await readUsers()
+    const users = await this.db.readUsers()
     const existingPhone = users.find((u: any) => u.phone === phone)
     if (existingPhone) {
       throwConflict('该手机号已注册', ErrorCode.USER_ALREADY_EXISTS)
@@ -97,12 +103,12 @@ export const userService: UserService = {
       updatedAt: now,
     }
     users.push(user)
-    await writeUsers(users)
+    await this.db.writeUsers(users)
 
     // 返回不包含密码的用户信息
     const { password: _, ...safeUser } = user
     return safeUser
-  },
+  }
 
   /**
    * 密码登录
@@ -112,8 +118,8 @@ export const userService: UserService = {
    * @returns 登录用户信息（不包含密码）
    * @throws 手机号或密码错误时抛出错误
    */
-  async login(phone, password) {
-    const users = await readUsers()
+  async login(phone: string, password: string) {
+    const users = await this.db.readUsers()
     const user = users.find(
       (u: any) => u.phone === phone && u.status === 'active'
     )
@@ -130,7 +136,7 @@ export const userService: UserService = {
     // 返回不包含密码的用户信息
     const { password: _, ...safeUser } = user
     return safeUser
-  },
+  }
 
   /**
    * 获取用户信息
@@ -138,8 +144,8 @@ export const userService: UserService = {
    * @returns 用户信息（不包含密码）
    * @throws 用户不存在时抛出错误
    */
-  async getUserById(userId) {
-    const users = await readUsers()
+  async getUserById(userId: string) {
+    const users = await this.db.readUsers()
     const user = users.find((u: any) => u.id === userId)
 
     if (!user) {
@@ -148,7 +154,7 @@ export const userService: UserService = {
 
     const { password: _, ...safeUser } = user
     return safeUser
-  },
+  }
 
   /**
    * 更新用户信息
@@ -157,8 +163,8 @@ export const userService: UserService = {
    * @returns 更新后的用户信息
    * @throws 用户不存在时抛出错误
    */
-  async updateUser(userId, updateData) {
-    const users = await readUsers()
+  async updateUser(userId: string, updateData: any) {
+    const users = await this.db.readUsers()
     const index = users.findIndex((u: any) => u.id === userId)
 
     if (index === -1) {
@@ -182,6 +188,122 @@ export const userService: UserService = {
     }
 
     // 更新用户
+    users[index] = {
+      ...users[index],
+      ...updateData,
+      updatedAt: new Date().toISOString(),
+    }
+    await this.db.writeUsers(users)
+
+    const { password: _, ...safeUser } = users[index]
+    return safeUser
+  }
+}
+
+/**
+ * 用户服务单例（保持向后兼容）
+ */
+// 为了保持向后兼容，我们保留原始的 userService 导出
+// 实际实现将委托给可注入的 UserServiceImpl
+import { readUsers, writeUsers, readProducts, writeProducts } from '../data.js'
+
+export const userService: UserService = {
+  async registerUser(userData) {
+    const { phone, password, nickname, teamName } = userData
+
+    if (!/^1[3-9]\d{9}$/.test(phone)) {
+      throwBadRequest('手机号格式不正确', ErrorCode.INVALID_PHONE)
+    }
+
+    if (password.length < 6) {
+      throwBadRequest('密码长度不能少于6位')
+    }
+
+    const users = await readUsers()
+    const existingPhone = users.find((u: any) => u.phone === phone)
+    if (existingPhone) {
+      throwConflict('该手机号已注册', ErrorCode.USER_ALREADY_EXISTS)
+    }
+
+    if (teamName) {
+      const existingTeam = users.find((u: any) => u.teamName === teamName)
+      if (existingTeam) {
+        throwConflict('该团队名称已存在')
+      }
+    }
+
+    const now = new Date().toISOString()
+    const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS)
+    const user = {
+      id: `u_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+      phone,
+      password: hashedPassword,
+      nickname: nickname || `用户${phone.slice(-4)}`,
+      teamName: teamName || '',
+      role: 'user',
+      status: 'active',
+      createdAt: now,
+      updatedAt: now,
+    }
+    users.push(user)
+    await writeUsers(users)
+
+    const { password: _, ...safeUser } = user
+    return safeUser
+  },
+
+  async login(phone, password) {
+    const users = await readUsers()
+    const user = users.find(
+      (u: any) => u.phone === phone && u.status === 'active'
+    )
+    if (!user) {
+      throwUnauthorized('手机号或密码错误，或账号已被禁用', ErrorCode.INVALID_CREDENTIALS)
+    }
+
+    const passwordValid = await verifyPassword(password, user.password)
+    if (!passwordValid) {
+      throwUnauthorized('手机号或密码错误，或账号已被禁用', ErrorCode.INVALID_CREDENTIALS)
+    }
+
+    const { password: _, ...safeUser } = user
+    return safeUser
+  },
+
+  async getUserById(userId) {
+    const users = await readUsers()
+    const user = users.find((u: any) => u.id === userId)
+
+    if (!user) {
+      throwNotFound('用户不存在', ErrorCode.USER_NOT_FOUND)
+    }
+
+    const { password: _, ...safeUser } = user
+    return safeUser
+  },
+
+  async updateUser(userId, updateData) {
+    const users = await readUsers()
+    const index = users.findIndex((u: any) => u.id === userId)
+
+    if (index === -1) {
+      throwNotFound('用户不存在', ErrorCode.USER_NOT_FOUND)
+    }
+
+    if (updateData.phone) {
+      const existingPhone = users.find((u: any) => u.phone === updateData.phone && u.id !== userId)
+      if (existingPhone) {
+        throwConflict('该手机号已被使用')
+      }
+    }
+
+    if (updateData.teamName) {
+      const existingTeam = users.find((u: any) => u.teamName === updateData.teamName && u.id !== userId)
+      if (existingTeam) {
+        throwConflict('该团队名称已被使用')
+      }
+    }
+
     users[index] = {
       ...users[index],
       ...updateData,
