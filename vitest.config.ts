@@ -9,6 +9,7 @@ export default defineConfig({
     globals: true,
     include: ['**/*.{test,spec}.{js,ts,tsx}'],
     exclude: ['**/node_modules/**', '**/dist/**', '**/e2e/**'],
+    setupFiles: ['./test-setup.ts'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
