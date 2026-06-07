@@ -337,7 +337,21 @@ jobs:
             if [ -f ".env" ]; then
               echo "🔒 .env 文件已存在，保持原样，不覆盖"
             else
-              echo "⚠️ .env 文件不存在，创建新的（注意：需手动配置）"
+              echo "⚠️ .env 文件不存在，创建新的"
+              
+              # 生成安全的随机密钥（如果 Secrets 未配置）
+              GENERATED_SESSION_SECRET="${{ secrets.SESSION_SECRET }}"
+              if [ -z "$GENERATED_SESSION_SECRET" ]; then
+                GENERATED_SESSION_SECRET=$(openssl rand -base64 32)
+                echo "🔑 自动生成了 SESSION_SECRET"
+              fi
+              
+              GENERATED_JWT_SECRET="${{ secrets.JWT_SECRET || secrets.SESSION_SECRET }}"
+              if [ -z "$GENERATED_JWT_SECRET" ]; then
+                GENERATED_JWT_SECRET=$(openssl rand -base64 32)
+                echo "🔑 自动生成了 JWT_SECRET"
+              fi
+              
               echo "# 数据库配置" > .env
               echo "DB_HOST=${{ secrets.DB_HOST }}" >> .env
               echo "DB_PORT=${{ secrets.DB_PORT }}" >> .env
@@ -350,8 +364,8 @@ jobs:
               echo "NODE_ENV=production" >> .env
               echo "" >> .env
               echo "# Session 配置" >> .env
-              echo "SESSION_SECRET=${{ secrets.SESSION_SECRET }}" >> .env
-              echo "JWT_SECRET=${{ secrets.JWT_SECRET || secrets.SESSION_SECRET }}" >> .env
+              echo "SESSION_SECRET=$GENERATED_SESSION_SECRET" >> .env
+              echo "JWT_SECRET=$GENERATED_JWT_SECRET" >> .env
               echo "" >> .env
               echo "# 管理员配置" >> .env
               echo "ADMIN_PHONE=${{ secrets.ADMIN_PHONE }}" >> .env
