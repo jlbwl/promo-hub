@@ -12,7 +12,9 @@
     "baseUrl": ".",
     "paths": {
       "@promo/shared": ["../../packages/shared/src"]
-    }
+    },
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true
   },
   "include": ["src"]
 }

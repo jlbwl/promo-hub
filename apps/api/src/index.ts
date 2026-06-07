@@ -1,3 +1,4 @@
+import 'reflect-metadata'
 import 'dotenv/config'
 import express from 'express'
 import cors from 'cors'
@@ -13,7 +14,7 @@ import { csrfGenerate, csrfVerify, getCsrfToken } from './middleware/csrf-v2.js'
 import routes from './routes/index.js'
 import { errorHandler } from './utils/response.js'
 import { logRequest } from './utils/logger.js'
-import { initializeCache, closeCache, CacheService } from './services/index.js'
+import { initializeCache, closeCache, CacheService, ConfigService, initContainer, resolve } from './services/index.js'
 import bcrypt from 'bcryptjs'
 import {
   processCoverImage,
@@ -24,16 +25,6 @@ import {
 } from './utils/imageProcessor.js'
 
 // ✅ 启动时检查必要环境变量 - 放宽要求，允许服务启动但输出警告
-const SESSION_SECRET = process.env.SESSION_SECRET
-const JWT_SECRET = process.env.JWT_SECRET
-
-if (!SESSION_SECRET || !JWT_SECRET) {
-  console.warn('⚠️ 警告：未设置 SESSION_SECRET 和/或 JWT_SECRET 环境变量！')
-  console.warn('⚠️ 建议：在生产环境中必须设置这些密钥！')
-} else {
-  logger.info('✅ 环境变量检查通过')
-}
-
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const DATA_DIR = process.env.DATA_DIR || join(__dirname, '..', 'data')
 const SALT_ROUNDS = 12
@@ -55,7 +46,6 @@ const verifyPassword = async (password: string, hash: string): Promise<boolean> 
 }
 
 const app = express()
-const PORT = process.env.PORT || 3000
 
 // 设置 trust proxy 支持 rate limit 正确识别客户端 IP
 app.set('trust proxy', 1)
@@ -270,6 +260,12 @@ app.use('/api', routes)
 app.use(errorHandler)
 
 async function start() {
+  // 初始化 DI 容器
+  initContainer()
+  const configService = resolve<ConfigService>('ConfigService')
+  
+  // 使用配置服务获取配置
+  const PORT = configService.get('port')
   const isDatabaseMode = process.env.DB_HOST && process.env.DB_NAME
 
   // 初始化数据库
