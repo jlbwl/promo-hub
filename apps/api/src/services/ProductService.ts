@@ -3,6 +3,7 @@
  * 负责处理产品相关的所有业务逻辑，包括创建、更新、删除、查询等
  * 集成了Redis缓存以提升性能
  */
+import { injectable, inject } from 'tsyringe'
 import {
   readProduct,
   readProducts,
@@ -15,6 +16,7 @@ import {
   query
 } from '../data.js'
 import { CacheService, CacheKeys, CacheTTL } from './cache/index.js'
+import { DatabaseService } from './DatabaseService.js'
 import { ErrorCode, throwNotFound, throwBadRequest, throwForbidden, throwConflict } from '@promo/shared'
 
 /**
@@ -66,6 +68,269 @@ export interface ProductService {
    * 删除产品
    */
   deleteProduct(id: string, managerId: string): Promise<void>
+}
+
+/**
+ * 产品服务实现类（可注入版本）
+ */
+@injectable()
+export class ProductServiceImpl implements ProductService {
+  constructor(
+    @inject(DatabaseService) private db: DatabaseService,
+    @inject(CacheService) private cache: CacheService
+  ) {}
+
+  /**
+   * 生成产品列表缓存键
+   */
+  private getProductListCacheKey(params: any): string {
+    const { page, pageSize, category, status, managerId, keyword, adminMode } = params
+    const pageStr = String(page || 1)
+    const pageSizeStr = String(pageSize || 10)
+    const categoryStr = category || 'all'
+    const statusStr = status || 'all'
+    const managerIdStr = managerId || 'all'
+    const keywordStr = keyword || 'none'
+    const adminModeStr = adminMode ? 'admin' : 'normal'
+    
+    return `:${pageStr}:${pageSizeStr}:${categoryStr}:${statusStr}:${managerIdStr}:${keywordStr}:${adminModeStr}`
+  }
+
+  /**
+   * 根据分类值或分类ID获取分类信息
+   */
+  private async getCategoryInfo(categoryValue?: string, categoryId?: string) {
+    console.log('[getCategoryInfo] 输入 - categoryValue:', categoryValue, 'categoryId:', categoryId)
+    
+    if (categoryId) {
+      const category = await queryOne('SELECT * FROM product_categories WHERE id = ?', [categoryId])
+      if (category) {
+        console.log('[getCategoryInfo] 方式1成功 - 找到分类:', category.name)
+        return category
+      }
+    }
+    
+    if (categoryValue) {
+      const category = await queryOne('SELECT * FROM product_categories WHERE value = ? AND status = ?', [categoryValue, 'active'])
+      if (category) {
+        console.log('[getCategoryInfo] 方式2成功 - 找到分类:', category.name)
+        return category
+      }
+    }
+    
+    if (categoryValue) {
+      const category = await queryOne('SELECT * FROM product_categories WHERE value = ?', [categoryValue])
+      if (category) {
+        console.log('[getCategoryInfo] 方式3成功 - 找到分类（可能已归档）:', category.name)
+        return category
+      }
+    }
+    
+    if (categoryValue) {
+      const category = await queryOne('SELECT * FROM product_categories WHERE name LIKE ? AND status = ?', [`%${categoryValue}%`, 'active'])
+      if (category) {
+        console.log('[getCategoryInfo] 方式4成功 - 通过名称模糊匹配找到:', category.name)
+        return category
+      }
+    }
+    
+    console.log('[getCategoryInfo] 未找到匹配的分类')
+    return null
+  }
+
+  /**
+   * 获取产品列表
+   */
+  async getProducts(params) {
+    const { page = 1, pageSize = 10, category, status, managerId, keyword, adminMode } = params
+
+    console.log('[getProducts] 输入参数:', { page, pageSize, category, status, managerId, keyword, adminMode })
+    console.log('[getProducts] 直接查询数据库，确保数据最新')
+    const result = await getProductsPaginated({
+      page,
+      pageSize,
+      category,
+      status,
+      managerId,
+      keyword,
+      adminMode,
+    })
+
+    console.log('[getProducts] 查询完成，共', result.total, '条记录')
+    console.log('[getProducts] 返回的产品列表:', JSON.stringify(result.list.map(p => ({ id: p.id, title: p.title, status: p.status, managerId: p.managerId })), null, 2))
+
+    return result
+  }
+
+  /**
+   * 获取单个产品详情
+   */
+  async getProductById(id) {
+    const cacheKey = CacheKeys.PRODUCT_DETAIL(id)
+
+    const cached = await this.cache.get<{ product: any; sales: number }>(cacheKey)
+    if (cached) {
+      return cached
+    }
+
+    const products = await this.db.readProducts()
+    const product = products.find((p: any) => p.id === id)
+
+    if (!product) {
+      throwNotFound('产品不存在', ErrorCode.PRODUCT_NOT_FOUND)
+    }
+
+    const orders = await this.db.readOrders()
+    const sales = orders.filter((o: any) => o.productId === product.id).length
+    const result = { product, sales }
+
+    await this.cache.set(cacheKey, result, CacheTTL.MEDIUM)
+    return result
+  }
+
+  /**
+   * 创建产品
+   */
+  async createProduct(productData) {
+    const title = (productData.title || '').trim()
+    console.log('[createProduct] 输入数据:', JSON.stringify(productData, null, 2))
+
+    if (!title) {
+      throwBadRequest('产品标题不能为空')
+    }
+
+    const managerId = (productData.managerId || '').trim()
+    if (!managerId) {
+      throwBadRequest('经理信息缺失，请重新登录')
+    }
+    
+    const manager = await queryOne('SELECT id, status FROM managers WHERE id = ?', [managerId])
+    if (!manager) {
+      throwBadRequest('经理账户不存在，请重新登录')
+    }
+    
+    if (manager.status !== 'active') {
+      throwBadRequest('经理账户状态异常，无法创建产品')
+    }
+    
+    console.log('[createProduct] 经理验证通过，经理ID:', managerId, '状态:', manager.status)
+
+    const duplicate = await queryOne('SELECT id FROM products WHERE title = ?', [title])
+    if (duplicate) {
+      throwConflict('产品标题已存在，请修改后重新发布')
+    }
+
+    const categoryInfo = await this.getCategoryInfo(productData.category, productData.categoryId)
+    
+    const now = new Date().toISOString()
+    const normalizedStatus = (productData.status || 'published').toLowerCase().trim()
+    const validStatuses = ['draft', 'published', 'offline', 'admin_offline']
+    const finalStatus = validStatuses.includes(normalizedStatus) ? normalizedStatus : 'published'
+    
+    const product = {
+      id: `p_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+      ...productData,
+      managerId: managerId,
+      categoryId: categoryInfo?.id || productData.categoryId || '',
+      categoryNameSnapshot: categoryInfo?.name || productData.categoryNameSnapshot || '',
+      status: finalStatus,
+      publishedAt: finalStatus === 'published' ? now : undefined,
+      createdAt: now,
+      updatedAt: now,
+    }
+    console.log('[createProduct] 状态标准化:', { input: productData.status, normalized: normalizedStatus, final: finalStatus })
+    console.log('[createProduct] 创建的产品对象:', JSON.stringify(product, null, 2))
+
+    await insertProduct(product)
+    console.log('[createProduct] insertProduct 完成')
+    
+    const savedProduct = await readProduct(product.id)
+    console.log('[createProduct] readProduct 返回:', JSON.stringify(savedProduct, null, 2))
+
+    console.log('[createProduct] 开始清除缓存')
+    try {
+      await this.cache.flush()
+      console.log('[createProduct] 完全清空所有缓存完成')
+    } catch (cacheError) {
+      console.error('[createProduct] 缓存清除失败，但产品已创建:', cacheError)
+    }
+
+    return savedProduct
+  }
+
+  /**
+   * 更新产品
+   */
+  async updateProduct(id, managerId, updateData) {
+    const existing = await queryOne('SELECT * FROM products WHERE id = ?', [id])
+    if (!existing) {
+      throwNotFound('产品不存在', ErrorCode.PRODUCT_NOT_FOUND)
+    }
+
+    if (updateData.managerId && existing.managerId !== updateData.managerId) {
+      throwForbidden('无权操作此产品')
+    }
+
+    const title = (updateData.title || '').trim()
+    if (title) {
+      const duplicate = await queryOne('SELECT id FROM products WHERE title = ? AND id != ?', [title, id])
+      if (duplicate) {
+        throwConflict('产品标题已存在，请修改后重新发布')
+      }
+    }
+
+    let updatedFields = { ...updateData }
+    if (updateData.category || updateData.categoryId) {
+      const categoryInfo = await this.getCategoryInfo(updateData.category, updateData.categoryId)
+      if (categoryInfo) {
+        updatedFields.categoryId = categoryInfo.id
+        updatedFields.categoryNameSnapshot = categoryInfo.name
+        if (!updateData.category) {
+          updatedFields.category = categoryInfo.value
+        }
+      }
+    }
+
+    const now = new Date()
+    const nowStr = now.toISOString().replace('T', ' ').substring(0, 19)
+    updatedFields.publishedAt = updateData.status === 'published' && !existing.publishedAt ? nowStr : existing.publishedAt
+
+    await updateProduct(id, updatedFields)
+    const updated = await readProduct(id)
+
+    await this.cache.delete(CacheKeys.PRODUCT_DETAIL(id))
+    await this.cache.deletePattern('product:list:*')
+    console.log('[updateProduct] 相关缓存已清除')
+
+    return updated
+  }
+
+  /**
+   * 删除产品
+   */
+  async deleteProduct(id, managerId) {
+    console.log('[ProductService] 删除产品, ID:', id, 'ManagerId:', managerId)
+
+    const products = await this.db.readProducts()
+    const product = products.find((p: any) => p.id === id)
+
+    if (!product) {
+      console.log('[ProductService] 产品不存在:', id)
+      throwNotFound('产品不存在', ErrorCode.PRODUCT_NOT_FOUND)
+    }
+
+    if (managerId && product.managerId !== managerId) {
+      console.log('[ProductService] 无权删除, 请求者:', managerId, '所有者:', product.managerId)
+      throwForbidden('无权操作此产品')
+    }
+
+    console.log('[ProductService] 开始删除, ID:', id)
+    await deleteProduct(id)
+
+    await this.cache.delete(CacheKeys.PRODUCT_DETAIL(id))
+    await this.cache.deletePattern('product:list:*')
+    console.log('[ProductService] 缓存已清除，删除成功, ID:', id)
+  }
 }
 
 // 缓存服务实例（延迟初始化）

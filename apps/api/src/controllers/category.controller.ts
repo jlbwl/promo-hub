@@ -68,7 +68,7 @@ export async function updateCategory(req: Request, res: Response) {
   const id = req.params.id as string
   const { name, sort, status } = req.body
 
-  let category = null
+  let category: any = null
   
   try {
     category = await categoryService.updateCategory(id, { name, sort, status })

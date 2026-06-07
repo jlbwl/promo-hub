@@ -1,5 +1,5 @@
 import { injectable } from 'tsyringe'
-import { readUsers, writeUsers, readProducts, writeProducts, readEmployees, writeEmployees, readOrders, writeOrders, readCommissions, writeCommissions } from '../data.js'
+import { readUsers, writeUsers, readProducts, writeProducts, readEmployees, writeEmployees, readOrders, writeOrders, readCommissions, writeCommissions, readManagers, writeManagers } from '../data.js'
 
 @injectable()
 export class DatabaseService {
@@ -41,5 +41,13 @@ export class DatabaseService {
 
   async writeCommissions(commissions: any[]): Promise<void> {
     return await writeCommissions(commissions)
+  }
+
+  async readManagers(): Promise<any[]> {
+    return await readManagers()
+  }
+
+  async writeManagers(managers: any[]): Promise<void> {
+    return await writeManagers(managers)
   }
 }

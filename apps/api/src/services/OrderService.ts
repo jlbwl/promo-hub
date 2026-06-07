@@ -2,6 +2,7 @@
  * OrderService - 订单业务逻辑层
  * 负责处理订单相关的所有业务逻辑，包括创建订单、审核、删除、恢复等
  */
+import { injectable, inject } from 'tsyringe'
 import {
   readProducts,
   readProduct,
@@ -17,6 +18,7 @@ import {
   deleteOrder,
   getOrdersPaginated,
 } from '../data.js'
+import { DatabaseService } from './DatabaseService.js'
 import { ErrorCode, throwNotFound, throwBadRequest, throwForbidden } from '@promo/shared'
 
 /**
@@ -79,6 +81,172 @@ export interface OrderService {
    * 提交资金号
    */
   submitFundAccount(orderId: string, userId: string, fundAccount: string): Promise<void>
+}
+
+/**
+ * 订单服务实现类（可注入版本）
+ */
+@injectable()
+export class OrderServiceImpl implements OrderService {
+  constructor(
+    @inject(DatabaseService) private db: DatabaseService
+  ) {}
+
+  /**
+   * 获取订单列表
+   */
+  async getOrders(params) {
+    const { page = 1, pageSize = 20, userId, managerId, employeeId, status, keyword, managedBy } = params
+    return await getOrdersPaginated({ page, pageSize, userId, managerId, employeeId, status, keyword, managedBy })
+  }
+
+  /**
+   * 创建订单（做单）
+   */
+  async createOrder(orderData) {
+    const { productId, userId, employeeId, optionLabel, redirectUrl, userName, userPhone } = orderData
+    console.log('[OrderService] 创建订单, productId:', productId)
+
+    const products = await this.db.readProducts()
+    const index = products.findIndex((p: any) => p.id === productId)
+    if (index === -1) {
+      throwNotFound('产品不存在', ErrorCode.PRODUCT_NOT_FOUND)
+    }
+
+    const product = products[index]
+    console.log('[OrderService] 产品信息:', { title: product.title, options: product.options, managerId: product.managerId })
+
+    if (product.status !== 'published') {
+      throwBadRequest('该产品已下架')
+    }
+
+    if (product.stock && product.stock > 0) {
+      if (product.stock < 1) {
+        throwBadRequest('库存不足', ErrorCode.INSUFFICIENT_STOCK)
+      }
+      console.log('[OrderService] 扣减库存, 原库存:', product.stock, '新库存:', product.stock - 1)
+      await updateProduct(product.id, { stock: product.stock - 1, updatedAt: new Date().toISOString() })
+    }
+
+    let finalUserId = userId || 'guest'
+    if (employeeId) {
+      console.log('[OrderService] 员工做单, employeeId:', employeeId)
+      const employee = await readEmployeeById(employeeId)
+      if (employee) {
+        finalUserId = employee.userId
+        console.log('[OrderService] 员工主账户ID:', finalUserId)
+      }
+    }
+
+    let teamName = ''
+    if (finalUserId !== 'guest') {
+      const user = await readUser(finalUserId)
+      if (user) {
+        teamName = user.teamName || ''
+      }
+    }
+
+    const cleanRedirectUrl = (redirectUrl || '').replace(/`/g, '')
+    console.log('[OrderService] 原始redirectUrl:', redirectUrl, '清理后:', cleanRedirectUrl)
+
+    const order = {
+      id: `o_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+      productId,
+      userId: finalUserId,
+      managerId: product.managerId,
+      employeeId: employeeId || '',
+      productName: product.title,
+      productPrice: product.price,
+      optionLabel: optionLabel || '',
+      redirectUrl: cleanRedirectUrl,
+      userName: userName || '',
+      userPhone: userPhone || '',
+      teamName,
+      status: 'pending',
+      createdAt: new Date().toISOString(),
+    }
+    console.log('[OrderService] 创建订单:', JSON.stringify(order))
+    await insertOrder(order)
+    console.log('[OrderService] 订单已保存成功, ID:', order.id)
+
+    const remainingStock = product.stock && product.stock > 0 ? product.stock - 1 : (product.stock || -1)
+    return { order, remainingStock }
+  }
+
+  /**
+   * 管理员删除订单
+   */
+  async adminDeleteOrder(orderId, adminInfo) {
+    const { reason, adminId, adminPhone, adminName } = adminInfo
+
+    const order = await readOrder(orderId)
+    if (!order) {
+      throwNotFound('订单不存在')
+    }
+
+    await deleteOrder(orderId)
+    console.log('[OrderService] 管理员删除订单:', orderId, '原因:', reason)
+  }
+
+  /**
+   * 用户端删除订单（软删除）
+   */
+  async deleteUserOrder(orderId, userId) {
+    const order = await readOrder(orderId)
+    if (!order) {
+      throwNotFound('订单不存在')
+    }
+
+    if (order.userId !== userId) {
+      throwForbidden('无权操作此订单')
+    }
+
+    await deleteOrder(orderId)
+    console.log('[OrderService] 用户删除订单:', orderId)
+  }
+
+  /**
+   * 获取用户已删除的订单（回收站）
+   */
+  async getDeletedOrders(userId) {
+    return await readDeletedOrders(userId)
+  }
+
+  /**
+   * 恢复订单（从回收站找回）
+   */
+  async restoreOrder(orderId, userId) {
+    const orders = await readDeletedOrders(userId)
+    const order = orders.find((o: any) => o.id === orderId)
+
+    if (!order) {
+      throwNotFound('订单不存在或不在回收站')
+    }
+
+    if (order.userId !== userId) {
+      throwForbidden('无权操作此订单')
+    }
+
+    await restoreOrder(orderId)
+    console.log('[OrderService] 恢复订单:', orderId)
+  }
+
+  /**
+   * 提交资金号
+   */
+  async submitFundAccount(orderId, userId, fundAccount) {
+    const order = await readOrder(orderId)
+    if (!order) {
+      throwNotFound('订单不存在')
+    }
+
+    if (order.userId !== userId) {
+      throwForbidden('无权操作此订单')
+    }
+
+    await updateOrder(orderId, { fundAccount })
+    console.log('[OrderService] 提交资金号:', orderId, fundAccount)
+  }
 }
 
 /**

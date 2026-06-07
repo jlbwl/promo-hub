@@ -3,6 +3,7 @@
  * 负责处理渠道经理相关的所有业务逻辑，包括注册、登录、产品管理、订单审核等
  */
 import bcrypt from 'bcryptjs'
+import { injectable, inject } from 'tsyringe'
 import {
   readManagers,
   insertManager,
@@ -13,6 +14,7 @@ import {
   writeProducts,
   writeOrders,
 } from '../data.js'
+import { DatabaseService } from './DatabaseService.js'
 import { ErrorCode, throwNotFound, throwBadRequest, throwForbidden, throwConflict, throwUnauthorized } from '@promo/shared'
 
 const SALT_ROUNDS = 12
@@ -65,6 +67,174 @@ export interface ManagerService {
    * 获取经理的订单统计
    */
   getManagerStats(managerId: string): Promise<any>
+}
+
+/**
+ * 经理服务实现类（可注入版本）
+ */
+@injectable()
+export class ManagerServiceImpl implements ManagerService {
+  constructor(
+    @inject(DatabaseService) private db: DatabaseService
+  ) {}
+
+  /**
+   * 获取经理列表
+   */
+  async getManagers() {
+    const managers = await this.db.readManagers()
+    return managers.map((m: any) => {
+      const { password: _, ...safeManager } = m
+      return safeManager
+    })
+  }
+
+  /**
+   * 获取单个经理信息
+   */
+  async getManagerById(managerId) {
+    const managers = await this.db.readManagers()
+    const manager = managers.find((m: any) => m.id === managerId)
+
+    if (!manager) {
+      throwNotFound('经理不存在')
+    }
+
+    const { password: _, ...safeManager } = manager
+    return safeManager
+  }
+
+  /**
+   * 创建经理
+   */
+  async createManager(managerData) {
+    const { teamName, password, phone, name } = managerData
+
+    if (!teamName || !password) {
+      throwBadRequest('渠道名称和密码不能为空')
+    }
+
+    const managers = await this.db.readManagers()
+
+    if (managers.find((m: any) => m.teamName === teamName)) {
+      throwConflict('该渠道名称已存在')
+    }
+
+    try {
+      const { readUsers } = await import('../data.js')
+      const users = await readUsers()
+      if (users.find((u: any) => u.teamName === teamName)) {
+        throwConflict('该团队名称已存在')
+      }
+    } catch {
+    }
+
+    const now = new Date().toISOString()
+    const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS)
+    const manager = {
+      id: `m_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+      username: teamName,
+      password: hashedPassword,
+      name: name || teamName,
+      teamName,
+      phone: phone || '',
+      status: 'active',
+      createdAt: now,
+      updatedAt: now,
+    }
+    await insertManager(manager)
+
+    const { password: _, ...safeManager } = manager
+    return safeManager
+  }
+
+  /**
+   * 经理登录
+   */
+  async login(teamName, password) {
+    const managers = await this.db.readManagers()
+    const manager = managers.find(
+      (m: any) => m.teamName === teamName && m.status === 'active'
+    )
+
+    if (!manager) {
+      throwUnauthorized('渠道名称或密码错误')
+    }
+
+    const passwordValid = await bcrypt.compare(password, manager.password)
+    if (!passwordValid) {
+      throwUnauthorized('渠道名称或密码错误')
+    }
+
+    const { password: _, ...safeManager } = manager
+    return safeManager
+  }
+
+  /**
+   * 更新经理信息
+   */
+  async updateManager(managerId, updateData) {
+    const managers = await this.db.readManagers()
+    const index = managers.findIndex((m: any) => m.id === managerId)
+
+    if (index === -1) {
+      throwNotFound('经理不存在')
+    }
+
+    if (updateData.teamName) {
+      const existing = managers.find((m: any) => m.teamName === updateData.teamName && m.id !== managerId)
+      if (existing) {
+        throwConflict('该渠道名称已存在')
+      }
+    }
+
+    if (updateData.password) {
+      updateData.password = await bcrypt.hash(updateData.password, SALT_ROUNDS)
+    }
+
+    await updateManager(managerId, updateData)
+    return await this.getManagerById(managerId)
+  }
+
+  /**
+   * 删除经理
+   */
+  async deleteManager(managerId) {
+    const managers = await this.db.readManagers()
+    const manager = managers.find((m: any) => m.id === managerId)
+
+    if (!manager) {
+      throwNotFound('经理不存在')
+    }
+
+    await deleteManager(managerId)
+    console.log('[ManagerService] 删除经理:', managerId)
+  }
+
+  /**
+   * 获取经理的产品列表
+   */
+  async getManagerProducts(managerId) {
+    const products = await this.db.readProducts()
+    return products.filter((p: any) => p.managerId === managerId)
+  }
+
+  /**
+   * 获取经理的订单统计
+   */
+  async getManagerStats(managerId) {
+    const orders = await this.db.readOrders()
+    const managerOrders = orders.filter((o: any) => o.managerId === managerId)
+
+    return {
+      total: managerOrders.length,
+      pending: managerOrders.filter((o: any) => o.status === 'pending').length,
+      approved: managerOrders.filter((o: any) => o.status === 'approved').length,
+      pendingPayment: managerOrders.filter((o: any) => o.status === 'pending_payment').length,
+      settled: managerOrders.filter((o: any) => o.status === 'settled').length,
+      rejected: managerOrders.filter((o: any) => o.status === 'rejected').length,
+    }
+  }
 }
 
 /**

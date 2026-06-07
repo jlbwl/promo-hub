@@ -6,23 +6,33 @@ import { container } from 'tsyringe'
 import { ConfigService } from './services/ConfigService.js'
 import { DatabaseService } from './services/DatabaseService.js'
 import { UserServiceImpl } from './services/UserService.js'
+import { ProductServiceImpl } from './services/ProductService.js'
+import { OrderServiceImpl } from './services/OrderService.js'
+import { ManagerServiceImpl } from './services/ManagerService.js'
+import { CacheService } from './services/cache/index.js'
 
 // 单例标志，防止重复初始化
 let isInitialized = false
 
 /**
  * 初始化 DI 容器
- * 注册所有的服务到容器中
+ * 注册所有服务到容器中
  */
 export function initContainer(): void {
   if (isInitialized) {
     return
   }
 
-  // 注册服务
+  // 注册基础设施服务（单例）
   container.registerSingleton('ConfigService', ConfigService)
   container.registerSingleton(DatabaseService, DatabaseService)
+  container.registerSingleton(CacheService, CacheService)
+
+  // 注册业务服务（单例）
   container.registerSingleton('UserService', UserServiceImpl)
+  container.registerSingleton('ProductService', ProductServiceImpl)
+  container.registerSingleton('OrderService', OrderServiceImpl)
+  container.registerSingleton('ManagerService', ManagerServiceImpl)
 
   isInitialized = true
 }
