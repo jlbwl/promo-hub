@@ -10,5 +10,4 @@ export { CacheService, CacheKeys, CacheTTL } from './cache/index.js'
 export { ConfigService, type AppConfig } from './ConfigService.js'
 export { DatabaseService } from './DatabaseService.js'
 
-// 同时导出 DI 相关工具
-export { initContainer, getContainer, resolve } from '../container.js'
+// 注意：DI 相关工具（resolve, initContainer）请从 ./container.js 导入

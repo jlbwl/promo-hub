@@ -14,7 +14,9 @@ import { csrfGenerate, csrfVerify, getCsrfToken } from './middleware/csrf-v2.js'
 import routes from './routes/index.js'
 import { errorHandler } from './utils/response.js'
 import { logRequest } from './utils/logger.js'
-import { initializeCache, closeCache, CacheService, ConfigService, initContainer, resolve } from './services/index.js'
+import { initializeCache, closeCache, CacheService } from './services/index.js'
+import { resolve } from './container.js'
+import type { ConfigService } from './services/ConfigService.js'
 import bcrypt from 'bcryptjs'
 import {
   processCoverImage,
@@ -260,8 +262,8 @@ app.use('/', routes)
 app.use(errorHandler)
 
 async function start() {
-  // 初始化 DI 容器
-  initContainer()
+  // DI 容器已在 container.ts 中自动初始化
+  // 所有服务都已注册为单例，可直接使用 resolve() 获取
   const configService = resolve<ConfigService>('ConfigService')
   
   // 使用配置服务获取配置
