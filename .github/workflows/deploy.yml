@@ -495,10 +495,18 @@ jobs:
             # =======================
             # 8. 检查 index.js
             # =======================
-            if [ ! -f "index.js" ]; then
-              echo "❌ 错误：index.js文件不存在！"
+            if [ -f "dist/index.js" ]; then
+              echo "✅ dist/index.js 存在"
+              API_ENTRY="dist/index.js"
+            elif [ -f "index.js" ]; then
+              echo "✅ index.js 存在"
+              API_ENTRY="index.js"
+            else
+              echo "❌ 错误：入口文件不存在！"
               echo "🔍 当前目录内容："
               ls -la
+              echo "🔍 dist目录内容（如果存在）："
+              ls -la dist 2>/dev/null || true
               exit 1
             fi
 
@@ -512,8 +520,8 @@ jobs:
             # =======================
             if command -v pm2 >/dev/null 2>&1; then
               pm2 delete promo-api 2>/dev/null || true
-              pm2 start index.js --name promo-api
-              echo "✅ API服务已启动"
+              pm2 start "$API_ENTRY" --name promo-api
+              echo "✅ API服务已启动 (入口文件: $API_ENTRY)"
             else
               echo "⚠️ PM2未安装，跳过PM2启动"
             fi

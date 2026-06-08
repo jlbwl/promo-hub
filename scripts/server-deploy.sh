@@ -220,14 +220,27 @@ echo "========================================================"
 echo " 部署 API 服务"
 echo "========================================================"
 
-if [ -f "${DEPLOY_DIR}/api/index.js" ]; then
+if [ -d "${DEPLOY_DIR}/api" ]; then
     cd "${DEPLOY_DIR}/api" || exit 1
     npm install --production 2>&1 || true
     
-    if command -v pm2 >/dev/null 2>&1; then
+    # 确定入口文件
+    if [ -f "dist/index.js" ]; then
+        API_ENTRY="dist/index.js"
+    elif [ -f "index.js" ]; then
+        API_ENTRY="index.js"
+    else
+        echo "❌ 错误：找不到 API 入口文件！"
+        echo "🔍 当前目录内容："
+        ls -la
+        echo "🔍 dist目录内容（如果存在）："
+        ls -la dist 2>/dev/null || true
+    fi
+    
+    if command -v pm2 >/dev/null 2>&1 && [ -n "$API_ENTRY" ]; then
         pm2 delete promo-api 2>/dev/null || true
-        pm2 start index.js --name promo-api
-        echo "✅ API 服务已启动"
+        pm2 start "$API_ENTRY" --name promo-api
+        echo "✅ API 服务已启动 (入口文件: $API_ENTRY)"
     fi
 fi
 
