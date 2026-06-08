@@ -2,11 +2,11 @@
  * 值对象基类 - DDD 中的值对象通过属性值判断相等性
  */
 export abstract class ValueObject {
-  public abstract equals(other?: ValueObject): boolean
+  public abstract equals(other?: ValueObject | null): boolean
 
   protected abstract getEqualityComponents(): unknown[]
 
-  public static equals(left?: ValueObject, right?: ValueObject): boolean {
+  public static equals(left?: ValueObject | null, right?: ValueObject | null): boolean {
     if (left == null && right == null) {
       return true
     }

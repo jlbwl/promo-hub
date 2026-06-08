@@ -28,7 +28,7 @@ export class Phone extends ValueObject {
     return this._value
   }
 
-  public equals(other?: ValueObject): boolean {
+  public equals(other?: ValueObject | null): boolean {
     if (!(other instanceof Phone)) {
       return false
     }

@@ -66,7 +66,7 @@ export class Password extends ValueObject {
     }
   }
 
-  public equals(other?: ValueObject): boolean {
+  public equals(other?: ValueObject | null): boolean {
     if (!(other instanceof Password)) {
       return false
     }
