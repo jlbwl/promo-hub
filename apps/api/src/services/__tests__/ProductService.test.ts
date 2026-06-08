@@ -1,6 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { productService } from '../ProductService.js'
 
+// Mock console to keep test output clean
+vi.spyOn(console, 'log').mockImplementation(() => {})
+vi.spyOn(console, 'error').mockImplementation(() => {})
+
 // Mock cache module
 vi.mock('../cache/index.js', () => ({
   CacheService: class {
