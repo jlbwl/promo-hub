@@ -52,7 +52,7 @@ export class Password extends ValueObject {
     return Password.hash(plainPassword) === this._hashedValue
   }
 
-  public equals(other?: ValueObject): boolean {
+  public equals(other?: ValueObject | null): boolean {
     if (!(other instanceof Password)) {
       return false
     }

@@ -100,12 +100,12 @@ describe('User 聚合根', () => {
   describe('业务方法 - 更新用户名称', () => {
     it('应该成功更新用户名称', () => {
       const user = User.register(uuidv4(), '原名字', '13800138000', 'password123')
-      const originalUpdatedAt = new Date(user.updatedAt)
-
-      // 稍微等待一下确保时间戳有变化
+      
+      // 先调用更新方法确保 updatedAt 被设置
       user.updateName('新名字')
-
+      
       expect(user.name).toBe('新名字')
+      expect(user.updatedAt).toBeDefined()
     })
 
     it('应该对空名称抛出 ValidationError', () => {
