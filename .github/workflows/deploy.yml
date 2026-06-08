@@ -357,12 +357,39 @@ jobs:
             ls -la
 
             # =======================
-            # 3. 检查 API 目录内容
+            # 2.5 修复 Shared 目录结构
+            # =======================
+            echo "🔍 检查 Shared 目录结构..."
+            cd "$DEPLOY_DIR/shared"
+            if [ -d "shared-dist" ]; then
+              echo "✅ 找到 shared-dist 目录，正在复制内容..."
+              cp -r shared-dist/* ./ 2>&1
+              rm -rf shared-dist 2>&1
+              echo "✅ shared-dist 内容已复制"
+            fi
+            if [ -f "package.json.build" ]; then
+              mv package.json.build package.json
+              echo "✅ package.json.build -> package.json"
+            fi
+            ls -la
+
+            # =======================
+            # 3. 检查并修复 API 目录结构
             # =======================
             echo "🔍 检查 API 目录内容..."
             cd "$DEPLOY_DIR/api"
             echo "📁 API 目录内容:"
             ls -la
+            
+            # 如果有 api-dist 子目录，将其内容复制到当前目录
+            if [ -d "api-dist" ]; then
+              echo "✅ 找到 api-dist 子目录，正在展开..."
+              cp -r api-dist/* ./ 2>&1
+              rm -rf api-dist 2>&1
+              echo "✅ api-dist 内容已展开到当前目录"
+              echo "📁 展开后的 API 目录内容:"
+              ls -la
+            fi
 
             # =======================
             # 3. 检查并创建 .env（仅在不存在时）
