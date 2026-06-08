@@ -253,8 +253,8 @@ app.delete('/api/categories/:id', async (req, res) => {
   }
 })
 
-// 主路由（添加 /api 前缀） - 先注册所有路由，不应用 CSRF 验证
-app.use('/api', routes)
+// 主路由（不添加 /api 前缀，已由 Nginx 代理处理） - 先注册所有路由，不应用 CSRF 验证
+app.use('/', routes)
 
 // 全局错误处理 - 必须在路由之后注册
 app.use(errorHandler)
