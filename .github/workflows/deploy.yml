@@ -168,44 +168,55 @@ jobs:
         run: |
           cd apps/api
           
-          # 1. 复制 package.json
+          # 1. 复制 package.json 并修改 workspace 依赖为本地路径
           cp package.json dist/package.json
           
-          # 2. 创建 node_modules/@promo/shared 目录并复制 shared 的构建产物
-          # 这样 API 部署后可以找到 @promo/shared 依赖
+          # 2. 修改 package.json，移除 workspace:* 依赖（因为我们会内联 shared）
+          node << 'EOF'
+            const fs = require('fs');
+            const pkg = JSON.parse(fs.readFileSync('dist/package.json', 'utf8'));
+            
+            // 移除 workspace:* 依赖（部署环境不支持）
+            if (pkg.dependencies && pkg.dependencies['@promo/shared']) {
+              delete pkg.dependencies['@promo/shared'];
+              console.log("✅ 已移除 @promo/shared workspace 依赖");
+            }
+            
+            fs.writeFileSync('dist/package.json', JSON.stringify(pkg, null, 2));
+          EOF
+          
+          # 3. 创建 node_modules/@promo/shared 目录并复制 shared 的构建产物
           mkdir -p dist/node_modules/@promo/shared
           
-          # 复制 shared 的 dist 目录（如果存在）
+          # 复制 shared 的 dist 目录
           if [ -d "../../packages/shared/dist" ]; then
             cp -r ../../packages/shared/dist/* dist/node_modules/@promo/shared/
+            
             # 创建 shared 的 package.json
             cat > dist/node_modules/@promo/shared/package.json << 'EOF'
-          {
-            "name": "@promo/shared",
-            "version": "1.0.0",
-            "type": "module",
-            "main": "./index.js",
-            "exports": {
-              ".": "./index.js",
-              "./utils/request": "./utils/request.js",
-              "./utils/helpers": "./utils/helpers.js",
-              "./utils/constants": "./utils/constants.js",
-              "./utils/errors": "./utils/errors.js",
-              "./types": "./types/index.js"
-            }
-          }
-          EOF
+{
+  "name": "@promo/shared",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "./index.js",
+  "exports": {
+    ".": "./index.js",
+    "./utils/request": "./utils/request.js",
+    "./utils/helpers": "./utils/helpers.js",
+    "./utils/constants": "./utils/constants.js",
+    "./utils/errors": "./utils/errors.js",
+    "./types": "./types/index.js"
+  }
+}
+EOF
             echo "✅ shared 依赖已内联到 API 包"
           else
-            echo "⚠️ 警告: packages/shared/dist 不存在，尝试备选方案"
+            echo "❌ 错误: packages/shared/dist 不存在！"
+            exit 1
           fi
           
           echo "✅ 部署包准备完成"
           ls -la dist/
-          
-          # 验证关键文件
-          echo "📋 dist 目录内容:"
-          find dist -maxdepth 2 -type f | head -20
 
       - name: Upload API artifacts
         uses: actions/upload-artifact@v5
