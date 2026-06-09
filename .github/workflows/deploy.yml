@@ -192,23 +192,26 @@ jobs:
           if [ -d "../../packages/shared/dist" ]; then
             cp -r ../../packages/shared/dist/* dist/node_modules/@promo/shared/
             
-            # 创建 shared 的 package.json
-            cat > dist/node_modules/@promo/shared/package.json << 'EOF'
-{
-  "name": "@promo/shared",
-  "version": "1.0.0",
-  "type": "module",
-  "main": "./index.js",
-  "exports": {
-    ".": "./index.js",
-    "./utils/request": "./utils/request.js",
-    "./utils/helpers": "./utils/helpers.js",
-    "./utils/constants": "./utils/constants.js",
-    "./utils/errors": "./utils/errors.js",
-    "./types": "./types/index.js"
-  }
-}
-EOF
+            # 创建 shared 的 package.json（使用 node 命令避免 YAML 解析问题）
+            node -e "
+              const fs = require('fs');
+              const pkg = {
+                name: '@promo/shared',
+                version: '1.0.0',
+                type: 'module',
+                main: './index.js',
+                exports: {
+                  '.': './index.js',
+                  './utils/request': './utils/request.js',
+                  './utils/helpers': './utils/helpers.js',
+                  './utils/constants': './utils/constants.js',
+                  './utils/errors': './utils/errors.js',
+                  './types': './types/index.js'
+                }
+              };
+              fs.writeFileSync('dist/node_modules/@promo/shared/package.json', JSON.stringify(pkg, null, 2));
+              console.log('✅ created shared package.json');
+            "
             echo "✅ shared 依赖已内联到 API 包"
           else
             echo "❌ 错误: packages/shared/dist 不存在！"
