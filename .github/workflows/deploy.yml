@@ -145,24 +145,28 @@ jobs:
           path: |
             packages/shared/dist
             packages/shared/package.json.build
+          retention-days: 1
 
       - name: Upload Admin artifacts
         uses: actions/upload-artifact@v5
         with:
           name: admin-dist
           path: apps/admin/dist
+          retention-days: 1
 
       - name: Upload Manager artifacts
         uses: actions/upload-artifact@v5
         with:
           name: manager-dist
           path: apps/manager/dist
+          retention-days: 1
 
       - name: Upload User artifacts
         uses: actions/upload-artifact@v5
         with:
           name: user-dist
           path: apps/user/dist
+          retention-days: 1
 
       - name: Prepare API deployment package
         run: |
@@ -226,12 +230,14 @@ jobs:
         with:
           name: api-dist
           path: apps/api/dist
+          retention-days: 1
 
       - name: Upload Nginx config template
         uses: actions/upload-artifact@v5
         with:
           name: nginx-config-template
           path: config/nginx.conf.template
+          retention-days: 1
 
   deploy:
     name: 部署业务代码到服务器
