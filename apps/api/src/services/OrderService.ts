@@ -81,6 +81,21 @@ export interface OrderService {
    * 提交资金号
    */
   submitFundAccount(orderId: string, userId: string, fundAccount: string): Promise<void>
+
+  /**
+   * 订单审核（通过/驳回）
+   */
+  reviewOrder(orderId: string, params: {
+    action: 'approve' | 'reject'
+    reason?: string
+  }): Promise<void>
+
+  /**
+   * 订单结算（添加到待付款/已付款）
+   */
+  settleOrder(orderId: string, params: {
+    action: 'pending_payment' | 'paid'
+  }): Promise<void>
 }
 
 /**
@@ -246,6 +261,58 @@ export class OrderServiceImpl implements OrderService {
 
     await updateOrder(orderId, { fundAccount })
     console.log('[OrderService] 提交资金号:', orderId, fundAccount)
+  }
+
+  /**
+   * 订单审核（通过/驳回）
+   */
+  async reviewOrder(orderId, params) {
+    const { action, reason } = params
+    const order = await readOrder(orderId)
+    if (!order) {
+      throwNotFound('订单不存在')
+    }
+
+    if (order.status !== 'pending') {
+      throwBadRequest('订单状态不允许审核操作')
+    }
+
+    if (action === 'approve') {
+      await updateOrder(orderId, { status: 'approved', reviewedAt: new Date().toISOString() })
+      console.log('[OrderService] 审核通过订单:', orderId)
+    } else if (action === 'reject') {
+      await updateOrder(orderId, { status: 'rejected', reviewReason: reason || '', reviewedAt: new Date().toISOString() })
+      console.log('[OrderService] 驳回订单:', orderId, '原因:', reason)
+    } else {
+      throwBadRequest('无效的审核操作')
+    }
+  }
+
+  /**
+   * 订单结算（添加到待付款/已付款）
+   */
+  async settleOrder(orderId, params) {
+    const { action } = params
+    const order = await readOrder(orderId)
+    if (!order) {
+      throwNotFound('订单不存在')
+    }
+
+    if (action === 'pending_payment') {
+      if (order.status !== 'approved') {
+        throwBadRequest('订单状态不允许添加到待发放')
+      }
+      await updateOrder(orderId, { status: 'pending_payment', settledAt: new Date().toISOString() })
+      console.log('[OrderService] 订单添加到待发放:', orderId)
+    } else if (action === 'paid') {
+      if (order.status !== 'pending_payment') {
+        throwBadRequest('订单状态不允许结算')
+      }
+      await updateOrder(orderId, { status: 'paid', paidAt: new Date().toISOString() })
+      console.log('[OrderService] 订单已结算:', orderId)
+    } else {
+      throwBadRequest('无效的结算操作')
+    }
   }
 }
 
@@ -456,5 +523,63 @@ export const orderService: OrderService = {
 
     await updateOrder(orderId, { fundAccount })
     console.log('[OrderService] 提交资金号:', orderId, fundAccount)
+  },
+
+  /**
+   * 订单审核（通过/驳回）
+   * @param orderId - 订单ID
+   * @param params - 审核参数（action: approve/reject, reason: 驳回原因）
+   * @throws 订单不存在、状态不合法时抛出错误
+   */
+  async reviewOrder(orderId, params) {
+    const { action, reason } = params
+    const order = await readOrder(orderId)
+    if (!order) {
+      throwNotFound('订单不存在')
+    }
+
+    if (order.status !== 'pending') {
+      throwBadRequest('订单状态不允许审核操作')
+    }
+
+    if (action === 'approve') {
+      await updateOrder(orderId, { status: 'approved', reviewedAt: new Date().toISOString() })
+      console.log('[OrderService] 审核通过订单:', orderId)
+    } else if (action === 'reject') {
+      await updateOrder(orderId, { status: 'rejected', reviewReason: reason || '', reviewedAt: new Date().toISOString() })
+      console.log('[OrderService] 驳回订单:', orderId, '原因:', reason)
+    } else {
+      throwBadRequest('无效的审核操作')
+    }
+  },
+
+  /**
+   * 订单结算（添加到待付款/已付款）
+   * @param orderId - 订单ID
+   * @param params - 结算参数（action: pending_payment/paid）
+   * @throws 订单不存在、状态不合法时抛出错误
+   */
+  async settleOrder(orderId, params) {
+    const { action } = params
+    const order = await readOrder(orderId)
+    if (!order) {
+      throwNotFound('订单不存在')
+    }
+
+    if (action === 'pending_payment') {
+      if (order.status !== 'approved') {
+        throwBadRequest('订单状态不允许添加到待发放')
+      }
+      await updateOrder(orderId, { status: 'pending_payment', settledAt: new Date().toISOString() })
+      console.log('[OrderService] 订单添加到待发放:', orderId)
+    } else if (action === 'paid') {
+      if (order.status !== 'pending_payment') {
+        throwBadRequest('订单状态不允许结算')
+      }
+      await updateOrder(orderId, { status: 'paid', paidAt: new Date().toISOString() })
+      console.log('[OrderService] 订单已结算:', orderId)
+    } else {
+      throwBadRequest('无效的结算操作')
+    }
   },
 }

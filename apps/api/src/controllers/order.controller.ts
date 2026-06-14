@@ -203,3 +203,53 @@ export const submitFundAccount = async (req: Request, res: Response): Promise<vo
     sendError(res, error.message || '提交失败', error.code || 500)
   }
 }
+
+/**
+ * 订单审核（通过/驳回）
+ * 渠道经理审核订单，决定是否通过或驳回
+ * @param req - HTTP请求对象，包含订单ID（req.params.id）和审核参数（action, reason）
+ * @param res - HTTP响应对象
+ * @returns 审核结果
+ */
+export const reviewOrder = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const orderId = req.params.id as string
+    const { action, reason } = req.body
+
+    if (!action || (action !== 'approve' && action !== 'reject')) {
+      return sendError(res, '无效的审核操作', 400)
+    }
+
+    await orderService.reviewOrder(orderId, { action, reason })
+
+    const message = action === 'approve' ? '审核通过' : '已驳回'
+    sendSuccess(res, null, message)
+  } catch (error: any) {
+    sendError(res, error.message || '审核失败', error.code || 500)
+  }
+}
+
+/**
+ * 订单结算（添加到待发放/已付款）
+ * 渠道经理将订单添加到待发放列表，或标记为已付款
+ * @param req - HTTP请求对象，包含订单ID（req.params.id）和结算参数（action）
+ * @param res - HTTP响应对象
+ * @returns 结算结果
+ */
+export const settleOrder = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const orderId = req.params.id as string
+    const { action } = req.body
+
+    if (!action || (action !== 'pending_payment' && action !== 'paid')) {
+      return sendError(res, '无效的结算操作', 400)
+    }
+
+    await orderService.settleOrder(orderId, { action })
+
+    const message = action === 'pending_payment' ? '已添加到待发放' : '已结算'
+    sendSuccess(res, null, message)
+  } catch (error: any) {
+    sendError(res, error.message || '结算失败', error.code || 500)
+  }
+}

@@ -8,6 +8,8 @@ import {
   getDeletedOrders,
   restoreUserOrder,
   submitFundAccount,
+  reviewOrder,
+  settleOrder,
 } from '../controllers/order.controller.js'
 
 const router: Router = Router()
@@ -19,5 +21,7 @@ router.delete('/user/orders/:id', deleteUserOrder)
 router.get('/user/orders/deleted', getDeletedOrders)
 router.post('/user/orders/:id/restore', restoreUserOrder)
 router.post('/user/orders/fund-account', submitFundAccount)
+router.put('/orders/:id/review', reviewOrder)
+router.put('/orders/:id/settle', settleOrder)
 
 export default router
