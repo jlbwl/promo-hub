@@ -90,10 +90,19 @@ export const reviewOrder = async (req: Request, res: Response): Promise<void> =>
       return sendError(res, '该订单已审核', 400)
     }
 
-    const now = new Date().toISOString()
+    const now = new Date()
+    // 转换为 MySQL DATETIME 格式（不接受 ISO 8601 带 Z 后缀）
+    const nowMySQL = now.getFullYear() + '-' +
+      String(now.getMonth() + 1).padStart(2, '0') + '-' +
+      String(now.getDate()).padStart(2, '0') + ' ' +
+      String(now.getHours()).padStart(2, '0') + ':' +
+      String(now.getMinutes()).padStart(2, '0') + ':' +
+      String(now.getSeconds()).padStart(2, '0')
+    const nowISO = now.toISOString()
+    
     if (action === 'approve') {
       order.status = 'approved'
-      order.reviewedAt = now
+      order.reviewedAt = nowMySQL
       const commissions = await readCommissions()
       commissions.push({
         id: `c_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
@@ -103,13 +112,13 @@ export const reviewOrder = async (req: Request, res: Response): Promise<void> =>
         productName: order.productName,
         amount: order.productPrice,
         status: 'pending',
-        createdAt: now,
+        createdAt: nowISO,
       })
       await writeCommissions(commissions)
     } else {
       order.status = 'rejected'
-      order.rejectReason = reason || '推广无效'
-      order.reviewedAt = now
+      order.reviewReason = reason || '推广无效'
+      order.reviewedAt = nowMySQL
       let products = await readProducts()
       const pIdx = products.findIndex((p: any) => p.id === order.productId)
       if (pIdx !== -1 && products[pIdx].stock >= 0) {
@@ -154,13 +163,27 @@ export const settleOrder = async (req: Request, res: Response): Promise<void> =>
         return sendError(res, '仅已通过的订单可添加到待付款', 400)
       }
       order.status = 'pending_payment'
-      order.addedToPaymentAt = new Date().toISOString()
+      // 转换为 MySQL DATETIME 格式
+      const now = new Date()
+      order.addedToPaymentAt = now.getFullYear() + '-' +
+        String(now.getMonth() + 1).padStart(2, '0') + '-' +
+        String(now.getDate()).padStart(2, '0') + ' ' +
+        String(now.getHours()).padStart(2, '0') + ':' +
+        String(now.getMinutes()).padStart(2, '0') + ':' +
+        String(now.getSeconds()).padStart(2, '0')
     } else {
       if (order.status !== 'pending_payment') {
         return sendError(res, '仅待付款的订单可确认结算', 400)
       }
       order.status = 'settled'
-      order.settledAt = new Date().toISOString()
+      // 转换为 MySQL DATETIME 格式
+      const now = new Date()
+      order.settledAt = now.getFullYear() + '-' +
+        String(now.getMonth() + 1).padStart(2, '0') + '-' +
+        String(now.getDate()).padStart(2, '0') + ' ' +
+        String(now.getHours()).padStart(2, '0') + ':' +
+        String(now.getMinutes()).padStart(2, '0') + ':' +
+        String(now.getSeconds()).padStart(2, '0')
       let commissions = await readCommissions()
       const cIdx = commissions.findIndex((c: any) => c.orderId === order.id)
       if (cIdx !== -1) {
