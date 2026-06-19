@@ -277,11 +277,19 @@ export class OrderServiceImpl implements OrderService {
       throwBadRequest('订单状态不允许审核操作')
     }
 
+    const now = new Date()
+    const mysqlDateTime = now.getFullYear() + '-' +
+      String(now.getMonth() + 1).padStart(2, '0') + '-' +
+      String(now.getDate()).padStart(2, '0') + ' ' +
+      String(now.getHours()).padStart(2, '0') + ':' +
+      String(now.getMinutes()).padStart(2, '0') + ':' +
+      String(now.getSeconds()).padStart(2, '0')
+
     if (action === 'approve') {
-      await updateOrder(orderId, { status: 'approved', reviewedAt: new Date().toISOString() })
+      await updateOrder(orderId, { status: 'approved', reviewedAt: mysqlDateTime })
       console.log('[OrderService] 审核通过订单:', orderId)
     } else if (action === 'reject') {
-      await updateOrder(orderId, { status: 'rejected', reviewReason: reason || '', reviewedAt: new Date().toISOString() })
+      await updateOrder(orderId, { status: 'rejected', rejectReason: reason || '', reviewedAt: mysqlDateTime })
       console.log('[OrderService] 驳回订单:', orderId, '原因:', reason)
     } else {
       throwBadRequest('无效的审核操作')
@@ -298,17 +306,25 @@ export class OrderServiceImpl implements OrderService {
       throwNotFound('订单不存在')
     }
 
+    const now = new Date()
+    const mysqlDateTime = now.getFullYear() + '-' +
+      String(now.getMonth() + 1).padStart(2, '0') + '-' +
+      String(now.getDate()).padStart(2, '0') + ' ' +
+      String(now.getHours()).padStart(2, '0') + ':' +
+      String(now.getMinutes()).padStart(2, '0') + ':' +
+      String(now.getSeconds()).padStart(2, '0')
+
     if (action === 'pending_payment') {
       if (order.status !== 'approved') {
         throwBadRequest('订单状态不允许添加到待发放')
       }
-      await updateOrder(orderId, { status: 'pending_payment', settledAt: new Date().toISOString() })
+      await updateOrder(orderId, { status: 'pending_payment', settledAt: mysqlDateTime })
       console.log('[OrderService] 订单添加到待发放:', orderId)
     } else if (action === 'paid') {
       if (order.status !== 'pending_payment') {
         throwBadRequest('订单状态不允许结算')
       }
-      await updateOrder(orderId, { status: 'paid', paidAt: new Date().toISOString() })
+      await updateOrder(orderId, { status: 'paid', paidAt: mysqlDateTime })
       console.log('[OrderService] 订单已结算:', orderId)
     } else {
       throwBadRequest('无效的结算操作')
@@ -542,11 +558,19 @@ export const orderService: OrderService = {
       throwBadRequest('订单状态不允许审核操作')
     }
 
+    const now = new Date()
+    const mysqlDateTime = now.getFullYear() + '-' +
+      String(now.getMonth() + 1).padStart(2, '0') + '-' +
+      String(now.getDate()).padStart(2, '0') + ' ' +
+      String(now.getHours()).padStart(2, '0') + ':' +
+      String(now.getMinutes()).padStart(2, '0') + ':' +
+      String(now.getSeconds()).padStart(2, '0')
+
     if (action === 'approve') {
-      await updateOrder(orderId, { status: 'approved', reviewedAt: new Date().toISOString() })
+      await updateOrder(orderId, { status: 'approved', reviewedAt: mysqlDateTime })
       console.log('[OrderService] 审核通过订单:', orderId)
     } else if (action === 'reject') {
-      await updateOrder(orderId, { status: 'rejected', reviewReason: reason || '', reviewedAt: new Date().toISOString() })
+      await updateOrder(orderId, { status: 'rejected', rejectReason: reason || '', reviewedAt: mysqlDateTime })
       console.log('[OrderService] 驳回订单:', orderId, '原因:', reason)
     } else {
       throwBadRequest('无效的审核操作')
@@ -566,17 +590,25 @@ export const orderService: OrderService = {
       throwNotFound('订单不存在')
     }
 
+    const now = new Date()
+    const mysqlDateTime = now.getFullYear() + '-' +
+      String(now.getMonth() + 1).padStart(2, '0') + '-' +
+      String(now.getDate()).padStart(2, '0') + ' ' +
+      String(now.getHours()).padStart(2, '0') + ':' +
+      String(now.getMinutes()).padStart(2, '0') + ':' +
+      String(now.getSeconds()).padStart(2, '0')
+
     if (action === 'pending_payment') {
       if (order.status !== 'approved') {
         throwBadRequest('订单状态不允许添加到待发放')
       }
-      await updateOrder(orderId, { status: 'pending_payment', settledAt: new Date().toISOString() })
+      await updateOrder(orderId, { status: 'pending_payment', settledAt: mysqlDateTime })
       console.log('[OrderService] 订单添加到待发放:', orderId)
     } else if (action === 'paid') {
       if (order.status !== 'pending_payment') {
         throwBadRequest('订单状态不允许结算')
       }
-      await updateOrder(orderId, { status: 'paid', paidAt: new Date().toISOString() })
+      await updateOrder(orderId, { status: 'paid', paidAt: mysqlDateTime })
       console.log('[OrderService] 订单已结算:', orderId)
     } else {
       throwBadRequest('无效的结算操作')

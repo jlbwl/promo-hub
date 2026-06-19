@@ -117,7 +117,7 @@ export const reviewOrder = async (req: Request, res: Response): Promise<void> =>
       await writeCommissions(commissions)
     } else {
       order.status = 'rejected'
-      order.reviewReason = reason || '推广无效'
+      order.rejectReason = reason || '推广无效'
       order.reviewedAt = nowMySQL
       let products = await readProducts()
       const pIdx = products.findIndex((p: any) => p.id === order.productId)
