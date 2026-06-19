@@ -65,11 +65,17 @@ export class CategoryService {
    */
   async createCategory(name: string, value: string, sort?: number): Promise<Category> {
     const id = generateId()
-    const now = new Date().toISOString()
+    const now = new Date()
+    const mysqlNow = now.getFullYear() + '-' +
+      String(now.getMonth() + 1).padStart(2, '0') + '-' +
+      String(now.getDate()).padStart(2, '0') + ' ' +
+      String(now.getHours()).padStart(2, '0') + ':' +
+      String(now.getMinutes()).padStart(2, '0') + ':' +
+      String(now.getSeconds()).padStart(2, '0')
 
     await query(
       'INSERT INTO product_categories (id, name, value, sort, status, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      [id, name, value, sort || 0, 'active', now, now]
+      [id, name, value, sort || 0, 'active', mysqlNow, mysqlNow]
     )
 
     return this.getCategoryById(id) as Promise<Category>
@@ -112,8 +118,15 @@ export class CategoryService {
       return category
     }
 
+    const now = new Date()
+    const mysqlNow = now.getFullYear() + '-' +
+      String(now.getMonth() + 1).padStart(2, '0') + '-' +
+      String(now.getDate()).padStart(2, '0') + ' ' +
+      String(now.getHours()).padStart(2, '0') + ':' +
+      String(now.getMinutes()).padStart(2, '0') + ':' +
+      String(now.getSeconds()).padStart(2, '0')
     updates.push('updatedAt = ?')
-    params.push(new Date().toISOString())
+    params.push(mysqlNow)
     params.push(id)
 
     await query(`UPDATE product_categories SET ${updates.join(', ')} WHERE id = ?`, params)
@@ -130,9 +143,17 @@ export class CategoryService {
       return false
     }
 
+    const now = new Date()
+    const mysqlNow = now.getFullYear() + '-' +
+      String(now.getMonth() + 1).padStart(2, '0') + '-' +
+      String(now.getDate()).padStart(2, '0') + ' ' +
+      String(now.getHours()).padStart(2, '0') + ':' +
+      String(now.getMinutes()).padStart(2, '0') + ':' +
+      String(now.getSeconds()).padStart(2, '0')
+
     await query('UPDATE product_categories SET status = ?, updatedAt = ? WHERE id = ?', [
       'archived',
-      new Date().toISOString(),
+      mysqlNow,
       id
     ])
 
