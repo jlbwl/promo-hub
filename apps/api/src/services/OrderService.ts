@@ -324,7 +324,7 @@ export class OrderServiceImpl implements OrderService {
       if (order.status !== 'pending_payment') {
         throwBadRequest('订单状态不允许结算')
       }
-      await updateOrder(orderId, { status: 'paid', paidAt: mysqlDateTime })
+      await updateOrder(orderId, { status: 'settled', settledAt: mysqlDateTime })
       console.log('[OrderService] 订单已结算:', orderId)
     } else {
       throwBadRequest('无效的结算操作')
@@ -608,7 +608,7 @@ export const orderService: OrderService = {
       if (order.status !== 'pending_payment') {
         throwBadRequest('订单状态不允许结算')
       }
-      await updateOrder(orderId, { status: 'paid', paidAt: mysqlDateTime })
+      await updateOrder(orderId, { status: 'settled', settledAt: mysqlDateTime })
       console.log('[OrderService] 订单已结算:', orderId)
     } else {
       throwBadRequest('无效的结算操作')
