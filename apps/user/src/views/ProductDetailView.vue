@@ -212,6 +212,11 @@ const fetchProductDetail = async () => {
       product.requireName = p.requireName || false
       product.requirePhone = p.requirePhone || false
       console.log('[产品详情] options:', JSON.stringify(product.options))
+      if (product.options.length > 0) {
+        selectedOption.value = 0
+      } else {
+        selectedOption.value = -1
+      }
     }
   } catch (error) {
     console.error('获取产品详情失败:', error)
