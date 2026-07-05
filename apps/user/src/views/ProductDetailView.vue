@@ -226,26 +226,29 @@ onMounted(() => {
 // 检查是否已登录
 const isLoggedIn = () => !!localStorage.getItem('user_token')
 
-// 需要登录的操作
-const requireLogin = (action: string) => {
-  if (!isLoggedIn()) {
-    showDialog({
+// 需要登录的操作（支持访客模式）
+const requireLogin = async (action: string): Promise<boolean> => {
+  if (isLoggedIn()) {
+    return true
+  }
+  try {
+    await showDialog({
       title: '提示',
       message: `${action}需要先登录，是否前往登录？`,
       showCancelButton: true,
       confirmButtonText: '去登录',
-      cancelButtonText: '再看看',
-    }).then(() => {
-      router.push({ name: 'Login', query: { redirect: route.fullPath } })
-    }).catch(() => {})
+      cancelButtonText: '访客继续',
+    })
+    router.push({ name: 'Login', query: { redirect: route.fullPath } })
     return false
+  } catch {
+    return true
   }
-  return true
 }
 
 // 去做单
-const handleGoOrder = () => {
-  if (!requireLogin('去做单')) return
+const handleGoOrder = async () => {
+  if (!(await requireLogin('去做单'))) return
 
   // 如果有单选框组，必须先选择
   if (product.options.length > 0 && selectedOption.value < 0) {
