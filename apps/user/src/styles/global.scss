@@ -38,19 +38,72 @@ img {
   height: 0;
 }
 
-// 确保对话框按钮可见
-.van-dialog__footer {
-  .van-button {
-    flex: 1;
-    height: 48px;
-    font-size: 16px;
+// 美化对话框
+.van-dialog {
+  border-radius: 20px !important;
+  overflow: hidden;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+  width: 85% !important;
+  max-width: 340px;
+
+  .van-dialog__header {
+    padding: 28px 24px 12px;
+    text-align: center;
+
+    .van-dialog__title {
+      font-size: 18px;
+      font-weight: 600;
+      color: #323233;
+    }
   }
-  .van-dialog__confirm {
-    color: #ee0a24 !important;
-    font-weight: 500;
+
+  .van-dialog__body {
+    padding: 16px 24px 24px;
+    text-align: center;
+
+    .van-dialog__message {
+      font-size: 15px;
+      color: #646566;
+      line-height: 1.6;
+      white-space: normal;
+    }
   }
-  .van-dialog__cancel {
-    color: #323233 !important;
-    border-right: 1px solid #ebedf0;
+
+  .van-dialog__footer {
+    display: flex;
+    border-top: none;
+
+    .van-button {
+      flex: 1;
+      height: 48px;
+      font-size: 16px;
+      border-radius: 0;
+      background: transparent;
+      border: none;
+
+      &::after {
+        border: none;
+      }
+    }
+
+    .van-dialog__cancel {
+      color: #969799;
+      font-weight: 500;
+      background: #f7f8fa;
+
+      &:active {
+        background: #ebedf0;
+      }
+    }
+
+    .van-dialog__confirm {
+      color: #1989fa !important;
+      font-weight: 600;
+      background: #e8f4ff;
+
+      &:active {
+        background: #d4ecff;
+      }
+    }
   }
 }
