@@ -100,7 +100,7 @@
       />
       <van-action-bar-button
         type="primary"
-        text="了解详情"
+        text="去做单"
         @click="handleGoOrder"
       />
     </van-action-bar>
