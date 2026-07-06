@@ -400,7 +400,7 @@ const handleExportProducts = async () => {
 
     const headerRow = worksheet.addRow(headers)
 
-    headerRow.eachCell((cell, colNumber) => {
+    headerRow.eachCell((cell) => {
       cell.fill = {
         type: 'pattern',
         pattern: 'solid',
@@ -452,7 +452,7 @@ const handleExportProducts = async () => {
     })
 
     const maxLengths: number[] = [0, 0, 0, 0]
-    worksheet.eachRow((row, rowNumber) => {
+    worksheet.eachRow((row) => {
       row.eachCell((cell, colNumber) => {
         const value = cell.value?.toString() || ''
         const length = value.length
