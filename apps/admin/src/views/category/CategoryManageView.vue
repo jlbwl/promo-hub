@@ -9,13 +9,21 @@
         :gutter="20"
         align="middle"
       >
-        <el-col :span="4">
+        <el-col :span="8">
           <el-button
             type="primary"
             icon="Plus"
             @click="showAddDialog"
           >
             添加分类
+          </el-button>
+          <el-button
+            type="success"
+            icon="Download"
+            style="margin-left: 12px;"
+            @click="handleExportProducts"
+          >
+            一键派单
           </el-button>
         </el-col>
         <el-col
@@ -195,7 +203,8 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
 import { get, post, put } from '@promo/shared/utils/request'
-import type { ProductCategory } from '@promo/shared/types'
+import type { ProductCategory, Product } from '@promo/shared/types'
+import * as XLSX from 'xlsx'
 
 // 格式化时间（北京时区 UTC+8）
 const formatTime = (iso: string) => {
@@ -343,6 +352,45 @@ const handleToggleStatus = async (row: ProductCategory) => {
     if (error !== 'cancel') {
       ElMessage.error(error.message || '操作失败')
     }
+  }
+}
+
+// 一键派单导出Excel
+const handleExportProducts = async () => {
+  try {
+    const res = await get<{ list: Product[] }>('/products', { adminMode: 'true', status: 'published', page: '1', pageSize: '1000' })
+    const products = res.data?.list || []
+
+    if (products.length === 0) {
+      ElMessage.info('暂无开放的产品')
+      return
+    }
+
+    const categories = await get<{ list: ProductCategory[] }>('/categories')
+    const categoryMap = new Map(categories.data?.list?.map(c => [c.value, c.name]) || [])
+
+    const exportData = products.map((product: Product) => ({
+      '产品分类': categoryMap.get(product.category) || product.category || '未分类',
+      '产品名称': product.title,
+      '产品描述': product.description || '',
+      '产品配置': (product.options || []).map((opt: any) => opt.label).join('；') || '',
+      '积分值': product.price
+    }))
+
+    const ws = XLSX.utils.json_to_sheet(exportData)
+
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, '派单表')
+
+    const today = new Date()
+    const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+    const fileName = `派单表_${dateStr}.xlsx`
+
+    XLSX.writeFile(wb, fileName)
+
+    ElMessage.success('派单表导出成功')
+  } catch (error: any) {
+    ElMessage.error(error.message || '导出失败')
   }
 }
 
