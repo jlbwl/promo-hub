@@ -531,9 +531,6 @@ const handleExportProducts = async () => {
       applyHeaderStyle(categoryHeaderRow)
       categoryHeaderRow.height = rowHeight
 
-      const categoryNameRow = worksheet.addRow([categoryName, '', '', ''])
-      categoryNameRow.height = rowHeight
-
       const productRows: ExcelJS.Row[] = []
       groupedProducts[categoryName].forEach(product => {
         const dataRow = worksheet.addRow(['', product.title, product.price, product.description])
@@ -542,23 +539,9 @@ const handleExportProducts = async () => {
       })
 
       if (productRows.length > 0) {
-        worksheet.mergeCells(`A${categoryNameRow.number}:A${productRows[productRows.length - 1].number}`)
+        productRows[0].getCell(1).value = categoryName
+        worksheet.mergeCells(`A${productRows[0].number}:A${productRows[productRows.length - 1].number}`)
       }
-
-      categoryNameRow.eachCell((cell, colNumber) => {
-        if (colNumber === 1) {
-          cell.alignment = {
-            vertical: 'middle',
-            horizontal: 'left'
-          }
-        }
-        cell.border = {
-          top: { style: 'thin' },
-          left: { style: 'thin' },
-          bottom: { style: 'thin' },
-          right: { style: 'thin' }
-        }
-      })
 
       productRows.forEach(dataRow => {
         dataRow.eachCell((cell) => {
