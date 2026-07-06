@@ -378,6 +378,14 @@ const handleExportProducts = async () => {
 
     mappedProducts.sort((a, b) => a.categoryName.localeCompare(b.categoryName, 'zh-CN'))
 
+    const groupedProducts = mappedProducts.reduce((acc, product) => {
+      if (!acc[product.categoryName]) {
+        acc[product.categoryName] = []
+      }
+      acc[product.categoryName].push(product)
+      return acc
+    }, {} as Record<string, typeof mappedProducts>)
+
     const workbook = new ExcelJS.Workbook()
     const worksheet = workbook.addWorksheet('派单表')
 
@@ -397,58 +405,65 @@ const handleExportProducts = async () => {
         wrapText: true
       }
     })
+    declarationRow.height = 60
 
-    const headerRow = worksheet.addRow(headers)
-
-    headerRow.eachCell((cell) => {
-      cell.fill = {
-        type: 'pattern',
-        pattern: 'solid',
-        fgColor: { argb: 'FFD700' }
-      }
-      cell.font = {
-        bold: true,
-        color: { argb: 'FF000000' }
-      }
-      cell.alignment = {
-        horizontal: 'center',
-        vertical: 'middle'
-      }
-      cell.border = {
-        top: { style: 'thin' },
-        left: { style: 'thin' },
-        bottom: { style: 'thin' },
-        right: { style: 'thin' }
-      }
-    })
-
-    mappedProducts.forEach(product => {
-      worksheet.addRow([product.categoryName, product.title, product.price, product.description])
-    })
-
-    const categoryRows: Record<string, { start: number; end: number }> = {}
-    mappedProducts.forEach((product, index) => {
-      const rowNum = index + 3
-      if (!categoryRows[product.categoryName]) {
-        categoryRows[product.categoryName] = { start: rowNum, end: rowNum }
-      } else {
-        categoryRows[product.categoryName].end = rowNum
-      }
-    })
-
-    Object.values(categoryRows).forEach(range => {
-      if (range.start !== range.end) {
-        worksheet.mergeCells(`A${range.start}:A${range.end}`)
-      }
-    })
-
-    worksheet.getColumn(1).eachCell((cell, rowNumber) => {
-      if (rowNumber > 2) {
-        cell.alignment = {
-          vertical: 'middle',
-          horizontal: 'left'
+    const applyHeaderStyle = (row: ExcelJS.Row) => {
+      row.eachCell((cell) => {
+        cell.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FFD700' }
         }
-      }
+        cell.font = {
+          bold: true,
+          color: { argb: 'FF000000' }
+        }
+        cell.alignment = {
+          horizontal: 'center',
+          vertical: 'middle'
+        }
+        cell.border = {
+          top: { style: 'thin' },
+          left: { style: 'thin' },
+          bottom: { style: 'thin' },
+          right: { style: 'thin' }
+        }
+      })
+    }
+
+    Object.keys(groupedProducts).forEach((categoryName) => {
+      const categoryHeaderRow = worksheet.addRow(headers)
+      applyHeaderStyle(categoryHeaderRow)
+
+      const categoryNameRow = worksheet.addRow([categoryName, '', '', ''])
+      worksheet.mergeCells(`A${categoryNameRow.number}:A${categoryNameRow.number + groupedProducts[categoryName].length - 1}`)
+
+      categoryNameRow.eachCell((cell, colNumber) => {
+        if (colNumber === 1) {
+          cell.alignment = {
+            vertical: 'middle',
+            horizontal: 'left'
+          }
+        }
+        cell.border = {
+          top: { style: 'thin' },
+          left: { style: 'thin' },
+          bottom: { style: 'thin' },
+          right: { style: 'thin' }
+        }
+      })
+
+      groupedProducts[categoryName].forEach(product => {
+        const dataRow = worksheet.addRow(['', product.title, product.price, product.description])
+        dataRow.eachCell((cell) => {
+          cell.border = {
+            top: { style: 'thin' },
+            left: { style: 'thin' },
+            bottom: { style: 'thin' },
+            right: { style: 'thin' }
+          }
+        })
+      })
     })
 
     const maxLengths: number[] = [0, 0, 0, 0]
