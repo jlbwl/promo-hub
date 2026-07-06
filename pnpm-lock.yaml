@@ -87,6 +87,9 @@ importers:
         specifier: ^4.4.0
         version: 4.6.4(vue@3.5.33(typescript@5.9.3))
     devDependencies:
+      '@types/qrcode':
+        specifier: ^1.5.6
+        version: 1.5.6
       '@vitejs/plugin-vue':
         specifier: ^5.2.0
         version: 5.2.4(vite@6.4.2(@types/node@25.9.1)(sass-embedded@1.99.0)(sass@1.99.0)(tsx@4.21.0))(vue@3.5.33(typescript@5.9.3))
@@ -1305,6 +1308,9 @@ packages:
 
   '@types/node@25.9.1':
     resolution: {integrity: sha512-xfrlY7UD5rMJk3ZVJP8BNzS28J36YJg+xp+LPXV1TdWxr8uMH5A860QNxYDGQe/ylDSgjxE52Q9VnO7p75tJxg==}
+
+  '@types/qrcode@1.5.6':
+    resolution: {integrity: sha512-te7NQcV2BOvdj2b1hCAHzAoMNuj65kNBMz0KBaxM6c3VGBOhU0dURQKOtH8CFNI/dsKkwlv32p26qYQTWoB5bw==}
 
   '@types/qs@6.15.0':
     resolution: {integrity: sha512-JawvT8iBVWpzTrz3EGw9BTQFg3BQNmwERdKE22vlTxawwtbyUSlMppvZYKLZzB5zgACXdXxbD3m1bXaMqP/9ow==}
@@ -4572,6 +4578,10 @@ snapshots:
   '@types/node@25.9.1':
     dependencies:
       undici-types: 7.24.6
+
+  '@types/qrcode@1.5.6':
+    dependencies:
+      '@types/node': 25.9.1
 
   '@types/qs@6.15.0': {}
 
