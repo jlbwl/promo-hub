@@ -382,6 +382,22 @@ const handleExportProducts = async () => {
     const worksheet = workbook.addWorksheet('派单表')
 
     const headers = ['产品分类', '产品名称', '推广费', '产品描述']
+
+    const declaration = '声明：填写人需承诺所填信息已获授权，不侵犯他人合法权益，您提交的个人信息仅用于本次收集审核，我们承诺会严格保护您的隐私，不得将信息用于审核以外的任何用途,审核完毕也会定时删除清理。提交数据即表示您已充分理解并同意本条款，请自觉履行公民隐私保护义务，共同维护良好网络生态。'
+    const declarationRow = worksheet.addRow([declaration])
+    worksheet.mergeCells(`A1:D1`)
+    declarationRow.eachCell((cell) => {
+      cell.font = {
+        color: { argb: 'FFFF0000' },
+        size: 11
+      }
+      cell.alignment = {
+        horizontal: 'left',
+        vertical: 'middle',
+        wrapText: true
+      }
+    })
+
     const headerRow = worksheet.addRow(headers)
 
     headerRow.eachCell((cell, colNumber) => {
@@ -412,7 +428,7 @@ const handleExportProducts = async () => {
 
     const categoryRows: Record<string, { start: number; end: number }> = {}
     mappedProducts.forEach((product, index) => {
-      const rowNum = index + 2
+      const rowNum = index + 3
       if (!categoryRows[product.categoryName]) {
         categoryRows[product.categoryName] = { start: rowNum, end: rowNum }
       } else {
@@ -427,7 +443,7 @@ const handleExportProducts = async () => {
     })
 
     worksheet.getColumn(1).eachCell((cell, rowNumber) => {
-      if (rowNumber > 1) {
+      if (rowNumber > 2) {
         cell.alignment = {
           vertical: 'middle',
           horizontal: 'left'
