@@ -369,15 +369,63 @@ const handleExportProducts = async () => {
     const categories = await get<{ list: ProductCategory[] }>('/categories')
     const categoryMap = new Map(categories.data?.list?.map(c => [c.value, c.name]) || [])
 
-    const exportData = products.map((product: Product) => ({
-      '产品分类': categoryMap.get(product.category) || product.category || '未分类',
-      '产品名称': product.title,
-      '产品描述': product.description || '',
-      '产品配置': (product.options || []).map((opt: any) => opt.label).join('；') || '',
-      '推广费': product.price
+    const mappedProducts = products.map((product: Product) => ({
+      categoryName: categoryMap.get(product.category) || product.category || '未分类',
+      title: product.title,
+      price: product.price,
+      description: product.description || ''
     }))
 
-    const ws = XLSX.utils.json_to_sheet(exportData)
+    mappedProducts.sort((a, b) => a.categoryName.localeCompare(b.categoryName, 'zh-CN'))
+
+    const headers = ['产品分类', '产品名称', '推广费', '产品描述']
+    const ws = XLSX.utils.aoa_to_sheet([headers])
+
+    mappedProducts.forEach((product, index) => {
+      XLSX.utils.sheet_add_aoa(ws, [
+        [product.categoryName, product.title, product.price, product.description]
+      ], { origin: index + 1 })
+    })
+
+    const categoryRows: Record<string, { start: number; end: number }> = {}
+    mappedProducts.forEach((product, index) => {
+      const rowNum = index + 1
+      if (!categoryRows[product.categoryName]) {
+        categoryRows[product.categoryName] = { start: rowNum, end: rowNum }
+      } else {
+        categoryRows[product.categoryName].end = rowNum
+      }
+    })
+
+    const merges: { s: { r: number; c: number }; e: { r: number; c: number } }[] = []
+    Object.values(categoryRows).forEach(range => {
+      if (range.start !== range.end) {
+        merges.push({
+          s: { r: range.start, c: 0 },
+          e: { r: range.end, c: 0 }
+        })
+      }
+    })
+    ws['!merges'] = merges
+
+    ws['!cols'] = [
+      { wch: 12 },
+      { wch: 25 },
+      { wch: 10 },
+      { wch: 40 }
+    ]
+
+    const headerStyle = {
+      fill: { fgColor: { rgb: 'FFD700' } },
+      font: { bold: true, color: { rgb: '000000' } },
+      alignment: { horizontal: 'center', vertical: 'center' }
+    }
+
+    Object.keys(ws).forEach(key => {
+      if (/^A1|^B1|^C1|^D1$/.test(key)) {
+        ws[key] = { ...ws[key], s: headerStyle }
+      }
+    })
 
     const wb = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(wb, ws, '派单表')
