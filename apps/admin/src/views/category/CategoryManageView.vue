@@ -204,7 +204,7 @@ import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
 import { get, post, put } from '@promo/shared/utils/request'
 import type { ProductCategory, Product } from '@promo/shared/types'
-import * as XLSX from 'xlsx'
+import ExcelJS from 'exceljs'
 
 // 格式化时间（北京时区 UTC+8）
 const formatTime = (iso: string) => {
@@ -378,18 +378,41 @@ const handleExportProducts = async () => {
 
     mappedProducts.sort((a, b) => a.categoryName.localeCompare(b.categoryName, 'zh-CN'))
 
-    const headers = ['产品分类', '产品名称', '推广费', '产品描述']
-    const ws = XLSX.utils.aoa_to_sheet([headers])
+    const workbook = new ExcelJS.Workbook()
+    const worksheet = workbook.addWorksheet('派单表')
 
-    mappedProducts.forEach((product, index) => {
-      XLSX.utils.sheet_add_aoa(ws, [
-        [product.categoryName, product.title, product.price, product.description]
-      ], { origin: index + 1 })
+    const headers = ['产品分类', '产品名称', '推广费', '产品描述']
+    const headerRow = worksheet.addRow(headers)
+
+    headerRow.eachCell((cell, colNumber) => {
+      cell.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FFD700' }
+      }
+      cell.font = {
+        bold: true,
+        color: { argb: 'FF000000' }
+      }
+      cell.alignment = {
+        horizontal: 'center',
+        vertical: 'middle'
+      }
+      cell.border = {
+        top: { style: 'thin' },
+        left: { style: 'thin' },
+        bottom: { style: 'thin' },
+        right: { style: 'thin' }
+      }
+    })
+
+    mappedProducts.forEach(product => {
+      worksheet.addRow([product.categoryName, product.title, product.price, product.description])
     })
 
     const categoryRows: Record<string, { start: number; end: number }> = {}
     mappedProducts.forEach((product, index) => {
-      const rowNum = index + 1
+      const rowNum = index + 2
       if (!categoryRows[product.categoryName]) {
         categoryRows[product.categoryName] = { start: rowNum, end: rowNum }
       } else {
@@ -397,44 +420,58 @@ const handleExportProducts = async () => {
       }
     })
 
-    const merges: { s: { r: number; c: number }; e: { r: number; c: number } }[] = []
     Object.values(categoryRows).forEach(range => {
       if (range.start !== range.end) {
-        merges.push({
-          s: { r: range.start, c: 0 },
-          e: { r: range.end, c: 0 }
-        })
-      }
-    })
-    ws['!merges'] = merges
-
-    ws['!cols'] = [
-      { wch: 12 },
-      { wch: 25 },
-      { wch: 10 },
-      { wch: 40 }
-    ]
-
-    const headerStyle = {
-      fill: { fgColor: { rgb: 'FFD700' } },
-      font: { bold: true, color: { rgb: '000000' } },
-      alignment: { horizontal: 'center', vertical: 'center' }
-    }
-
-    Object.keys(ws).forEach(key => {
-      if (/^A1|^B1|^C1|^D1$/.test(key)) {
-        ws[key] = { ...ws[key], s: headerStyle }
+        worksheet.mergeCells(`A${range.start}:A${range.end}`)
       }
     })
 
-    const wb = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(wb, ws, '派单表')
+    worksheet.getColumn(1).eachCell((cell, rowNumber) => {
+      if (rowNumber > 1) {
+        cell.alignment = {
+          vertical: 'middle',
+          horizontal: 'left'
+        }
+      }
+    })
+
+    const maxLengths: number[] = [0, 0, 0, 0]
+    worksheet.eachRow((row, rowNumber) => {
+      row.eachCell((cell, colNumber) => {
+        const value = cell.value?.toString() || ''
+        const length = value.length
+        if (length > maxLengths[colNumber - 1]) {
+          maxLengths[colNumber - 1] = length
+        }
+      })
+    })
+
+    headers.forEach((header, index) => {
+      const headerLength = header.length
+      if (headerLength > maxLengths[index]) {
+        maxLengths[index] = headerLength
+      }
+    })
+
+    const columnWidths = maxLengths.map(len => Math.min(len * 1.5 + 2, 50))
+    worksheet.columns.forEach((col, index) => {
+      col.width = columnWidths[index]
+    })
 
     const today = new Date()
     const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
     const fileName = `派单表_${dateStr}.xlsx`
 
-    XLSX.writeFile(wb, fileName)
+    const buffer = await workbook.xlsx.writeBuffer()
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = fileName
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
 
     ElMessage.success('派单表导出成功')
   } catch (error: any) {
