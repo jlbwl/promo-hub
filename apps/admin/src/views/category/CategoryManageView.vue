@@ -626,9 +626,13 @@ const handleExportProducts = async () => {
         extension: 'png'
       })
 
+      const pointsToEMU = (points: number) => points * 9525
+      const qrCodeWidthPoints = 200
+      const qrCodeHeightPoints = 200
+
       worksheet.addImage(qrCodeImage, {
         tl: { col: 0, row: qrCodeRow.number - 1 },
-        ext: { width: 200, height: 200 }
+        ext: { width: pointsToEMU(qrCodeWidthPoints), height: pointsToEMU(qrCodeHeightPoints) }
       })
     }
 
