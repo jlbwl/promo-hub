@@ -71,7 +71,7 @@
         <el-row :gutter="20">
           <el-col :span="12">
             <el-form-item
-              label="积分值"
+              label="推广费"
               prop="price"
             >
               <el-input-number
@@ -421,7 +421,7 @@ const formRules: FormRules = {
     { required: true, message: '请选择产品分类', trigger: 'change' }
   ],
   price: [
-    { required: true, message: '请输入积分值', trigger: 'blur' }
+    { required: true, message: '请输入推广费', trigger: 'blur' }
   ]
 }
 

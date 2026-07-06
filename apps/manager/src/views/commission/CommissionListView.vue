@@ -301,7 +301,7 @@
       </el-table-column>
       <el-table-column
         prop="productPrice"
-        label="积分值"
+        label="推广费"
         width="100"
         align="right"
       >
@@ -487,7 +487,7 @@
           </el-table-column>
           <el-table-column
             prop="productPrice"
-            label="积分值"
+            label="推广费"
             width="90"
             align="right"
           >
@@ -613,7 +613,7 @@
         <div class="payment-summary">
           <span>共 <strong>{{ statDialogOrders.length }}</strong> 条记录</span>
           <span class="payment-total">
-            合计积分值：<strong>{{ statDialogTotal }}</strong>
+            合计推广费：<strong>{{ statDialogTotal }}</strong>
           </span>
         </div>
 
@@ -677,7 +677,7 @@
           </el-table-column>
           <el-table-column
             prop="productPrice"
-            label="积分值"
+            label="推广费"
             width="90"
             align="right"
           >

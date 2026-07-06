@@ -374,7 +374,7 @@ const handleExportProducts = async () => {
       '产品名称': product.title,
       '产品描述': product.description || '',
       '产品配置': (product.options || []).map((opt: any) => opt.label).join('；') || '',
-      '积分值': product.price
+      '推广费': product.price
     }))
 
     const ws = XLSX.utils.json_to_sheet(exportData)

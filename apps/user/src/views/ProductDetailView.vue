@@ -54,7 +54,7 @@
       class="option-section"
     >
       <h3 class="section-title">
-        选择产品配置
+        产品选项
       </h3>
       <van-radio-group
         v-model="selectedOption"

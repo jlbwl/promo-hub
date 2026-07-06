@@ -108,7 +108,7 @@
       </el-table-column>
       <el-table-column
         prop="price"
-        label="积分值"
+        label="推广费"
         width="100"
         align="right"
       >

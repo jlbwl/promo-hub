@@ -351,7 +351,7 @@
       </el-table-column>
       <el-table-column
         prop="productPrice"
-        label="积分值"
+        label="推广费"
         width="100"
         align="right"
       >
@@ -570,7 +570,7 @@
           </el-table-column>
           <el-table-column
             prop="productPrice"
-            label="积分值"
+            label="推广费"
             width="80"
             align="right"
           >
