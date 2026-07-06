@@ -25,6 +25,14 @@
           >
             一键派单
           </el-button>
+          <el-button
+            type="info"
+            icon="Scan"
+            style="margin-left: 12px;"
+            @click="showQrCodeDialog"
+          >
+            网址转二维码
+          </el-button>
         </el-col>
         <el-col
           :span="20"
@@ -195,6 +203,47 @@
           {{ isEdit ? '保存' : '添加' }}
         </el-button>
       </template>
+</el-dialog>
+
+    <!-- 网址转二维码弹窗 -->
+    <el-dialog
+      v-model="qrCodeDialogVisible"
+      title="网址转二维码"
+      width="450px"
+      @close="resetQrCodeForm"
+    >
+      <el-form
+        ref="qrCodeFormRef"
+        :model="qrCodeForm"
+        :rules="qrCodeFormRules"
+        label-width="100px"
+      >
+        <el-form-item
+          label="网址链接"
+          prop="url"
+        >
+          <el-input
+            v-model="qrCodeForm.url"
+            placeholder="请输入网址链接"
+          />
+        </el-form-item>
+      </el-form>
+      <div v-if="qrCodeDataUrl" style="text-align: center; margin-top: 20px;">
+        <img :src="qrCodeDataUrl" alt="二维码" style="width: 200px; height: 200px;" />
+        <div style="margin-top: 10px; color: #666;">二维码预览</div>
+      </div>
+      <template #footer>
+        <el-button @click="qrCodeDialogVisible = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="qrCodeLoading"
+          @click="generateQrCode"
+        >
+          生成二维码
+        </el-button>
+      </template>
     </el-dialog>
   </div>
 </template>
@@ -205,6 +254,7 @@ import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'elem
 import { get, post, put } from '@promo/shared/utils/request'
 import type { ProductCategory, Product } from '@promo/shared/types'
 import ExcelJS from 'exceljs'
+import QRCode from 'qrcode'
 
 // 格式化时间（北京时区 UTC+8）
 const formatTime = (iso: string) => {
@@ -257,6 +307,49 @@ const formRules: FormRules = {
   status: [
     { required: true, message: '请选择状态', trigger: 'change' }
   ]
+}
+
+// 二维码相关
+const qrCodeDialogVisible = ref(false)
+const qrCodeLoading = ref(false)
+const qrCodeFormRef = ref<FormInstance>()
+const qrCodeForm = reactive({
+  url: ''
+})
+const qrCodeDataUrl = ref('')
+const qrCodeFormRules: FormRules = {
+  url: [
+    { required: true, message: '请输入网址链接', trigger: 'blur' },
+    { type: 'url', message: '请输入有效的网址', trigger: 'blur' }
+  ]
+}
+
+const showQrCodeDialog = () => {
+  qrCodeDialogVisible.value = true
+}
+
+const resetQrCodeForm = () => {
+  qrCodeForm.url = ''
+  qrCodeDataUrl.value = ''
+}
+
+const generateQrCode = async () => {
+  if (!qrCodeForm.url) {
+    ElMessage.warning('请输入网址链接')
+    return
+  }
+  qrCodeLoading.value = true
+  try {
+    qrCodeDataUrl.value = await QRCode.toDataURL(qrCodeForm.url, {
+      width: 200,
+      margin: 2
+    })
+    ElMessage.success('二维码生成成功')
+  } catch (error: any) {
+    ElMessage.error(error.message || '二维码生成失败')
+  } finally {
+    qrCodeLoading.value = false
+  }
 }
 
 // 加载数据
@@ -505,6 +598,39 @@ const handleExportProducts = async () => {
     worksheet.columns.forEach((col, index) => {
       col.width = columnWidths[index]
     })
+
+    if (qrCodeDataUrl.value) {
+      worksheet.addRow(['', '', '', ''])
+
+      const qrCodeRow = worksheet.addRow([''])
+      qrCodeRow.height = 200
+
+      worksheet.mergeCells(`A${qrCodeRow.number}:D${qrCodeRow.number}`)
+
+      qrCodeRow.eachCell((cell) => {
+        cell.alignment = {
+          horizontal: 'center',
+          vertical: 'middle'
+        }
+      })
+
+      const base64Data = qrCodeDataUrl.value.split(',')[1]
+      const binaryData = atob(base64Data)
+      const buffer = new Uint8Array(binaryData.length)
+      for (let i = 0; i < binaryData.length; i++) {
+        buffer[i] = binaryData.charCodeAt(i)
+      }
+
+      const qrCodeImage = workbook.addImage({
+        buffer: buffer as any,
+        extension: 'png'
+      })
+
+      worksheet.addImage(qrCodeImage, {
+        tl: { col: 0, row: qrCodeRow.number - 1 },
+        ext: { width: 200, height: 200 }
+      })
+    }
 
     const today = new Date()
     const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
