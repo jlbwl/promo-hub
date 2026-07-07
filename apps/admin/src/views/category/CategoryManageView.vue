@@ -805,7 +805,7 @@ const handleExportProducts = async () => {
         const buffer = Buffer.from(base64Data, 'base64')
 
         const qrCodeImage = workbook.addImage({
-          buffer: buffer as unknown as Buffer,
+          buffer: buffer as any,
           extension: 'png'
         })
 
