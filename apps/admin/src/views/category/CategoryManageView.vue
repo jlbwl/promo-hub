@@ -663,6 +663,23 @@ const handleExportProducts = async () => {
     })
     declarationRow.height = 60
 
+    const nextDay = new Date()
+    nextDay.setDate(nextDay.getDate() + 1)
+    const nextDayStr = `${nextDay.getFullYear()}-${String(nextDay.getMonth() + 1).padStart(2, '0')}-${String(nextDay.getDate()).padStart(2, '0')}`
+    const titleRow = worksheet.addRow([`金卢比网络 ${nextDayStr} 派单表`])
+    worksheet.mergeCells(`A2:D2`)
+    titleRow.eachCell((cell) => {
+      cell.font = {
+        bold: true,
+        size: 14
+      }
+      cell.alignment = {
+        horizontal: 'center',
+        vertical: 'middle'
+      }
+    })
+    titleRow.height = 30
+
     const applyHeaderStyle = (row: ExcelJS.Row) => {
       row.eachCell((cell) => {
         cell.fill = {
