@@ -321,6 +321,7 @@ import { get, post, put } from '@promo/shared/utils/request'
 import type { ProductCategory, Product } from '@promo/shared/types'
 import ExcelJS from 'exceljs'
 import QRCode from 'qrcode'
+import { Buffer } from 'buffer'
 
 // 格式化时间（北京时区 UTC+8）
 const formatTime = (iso: string) => {
@@ -748,10 +749,14 @@ const handleExportProducts = async () => {
     const loadDefaultQrCode = () => {
       const saved = localStorage.getItem('qrCodes')
       if (saved) {
-        const list: QrCodeItem[] = JSON.parse(saved)
-        const defaultQrCode = list.find(item => item.isDefault)
-        if (defaultQrCode) {
-          return defaultQrCode.dataUrl
+        try {
+          const list: QrCodeItem[] = JSON.parse(saved)
+          const defaultQrCode = list.find(item => item.isDefault)
+          if (defaultQrCode && defaultQrCode.dataUrl) {
+            return defaultQrCode.dataUrl
+          }
+        } catch (e) {
+          console.error('Failed to parse qrCodes from localStorage:', e)
         }
       }
       return qrCodeDataUrl.value
@@ -774,26 +779,32 @@ const handleExportProducts = async () => {
         }
       })
 
-      const base64Data = currentQrCodeDataUrl.split(',')[1]
-      const binaryData = atob(base64Data)
-      const buffer = new Uint8Array(binaryData.length)
-      for (let i = 0; i < binaryData.length; i++) {
-        buffer[i] = binaryData.charCodeAt(i)
+      try {
+        const base64Data = currentQrCodeDataUrl.split(',')[1]
+        const binaryString = atob(base64Data)
+        const len = binaryString.length
+        const bytes = new Uint8Array(len)
+        for (let i = 0; i < len; i++) {
+          bytes[i] = binaryString.charCodeAt(i)
+        }
+
+        const blob = new Blob([bytes], { type: 'image/png' })
+        const arrayBuffer = await blob.arrayBuffer()
+        const nodeBuffer = Buffer.from(arrayBuffer)
+
+        const qrCodeImage = workbook.addImage({
+          buffer: nodeBuffer,
+          extension: 'png'
+        })
+
+        worksheet.addImage(qrCodeImage, {
+          tl: { col: 0, row: qrCodeRow.number - 1 },
+          br: { col: 4, row: qrCodeRow.number }
+        })
+      } catch (error) {
+        console.error('Failed to add QR code to Excel:', error)
+        ElMessage.warning('二维码插入失败')
       }
-
-      const qrCodeImage = workbook.addImage({
-        buffer: buffer as any,
-        extension: 'png'
-      })
-
-      const pointsToEMU = (points: number) => points * 9525
-      const qrCodeWidthPoints = 200
-      const qrCodeHeightPoints = 200
-
-      worksheet.addImage(qrCodeImage, {
-        tl: { col: 0, row: qrCodeRow.number - 1 },
-        ext: { width: pointsToEMU(qrCodeWidthPoints), height: pointsToEMU(qrCodeHeightPoints) }
-      })
     }
 
     const today = new Date()

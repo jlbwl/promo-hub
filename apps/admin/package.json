@@ -11,6 +11,7 @@
   "dependencies": {
     "@element-plus/icons-vue": "^2.3.0",
     "@promo/shared": "workspace:*",
+    "buffer": "^6.0.3",
     "element-plus": "^2.9.0",
     "exceljs": "^4.4.0",
     "pinia": "^2.2.0",
