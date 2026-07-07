@@ -792,9 +792,10 @@ const handleExportProducts = async () => {
           extension: 'png'
         })
 
+        const pointsToEMU = (points: number) => points * 9525
         worksheet.addImage(qrCodeImage, {
           tl: { col: 0, row: qrCodeRow.number - 1 } as any,
-          br: { col: 4, row: qrCodeRow.number } as any
+          ext: { width: pointsToEMU(200), height: pointsToEMU(200) } as any
         })
       } catch (error) {
         console.error('Failed to add QR code to Excel:', error)
