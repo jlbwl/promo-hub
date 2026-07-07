@@ -645,11 +645,11 @@ const handleExportProducts = async () => {
     const workbook = new ExcelJS.Workbook()
     const worksheet = workbook.addWorksheet('派单表')
 
-    const headers = ['产品分类', '产品名称', '推广费', '产品描述']
+    const headers = ['产品分类', '产品名称', '更新备注', '推广费', '产品描述']
 
     const declaration = '声明：填写人需承诺所填信息已获授权，不侵犯他人合法权益，您提交的个人信息仅用于本次收集审核，我们承诺会严格保护您的隐私，不得将信息用于审核以外的任何用途,审核完毕也会定时删除清理。提交数据即表示您已充分理解并同意本条款，请自觉履行公民隐私保护义务，共同维护良好网络生态。'
     const declarationRow = worksheet.addRow([declaration])
-    worksheet.mergeCells(`A1:D1`)
+    worksheet.mergeCells(`A1:E1`)
     declarationRow.eachCell((cell) => {
       cell.font = {
         color: { argb: 'FFFF0000' },
@@ -667,7 +667,7 @@ const handleExportProducts = async () => {
     nextDay.setDate(nextDay.getDate() + 1)
     const nextDayStr = `${nextDay.getFullYear()}-${String(nextDay.getMonth() + 1).padStart(2, '0')}-${String(nextDay.getDate()).padStart(2, '0')}`
     const titleRow = worksheet.addRow([`金卢比网络 ${nextDayStr} 派单表`])
-    worksheet.mergeCells(`A2:D2`)
+    worksheet.mergeCells(`A2:E2`)
     titleRow.eachCell((cell) => {
       cell.font = {
         bold: true,
@@ -713,7 +713,7 @@ const handleExportProducts = async () => {
 
       const productRows: ExcelJS.Row[] = []
       groupedProducts[categoryName].forEach(product => {
-        const dataRow = worksheet.addRow(['', product.title, product.price, product.description])
+        const dataRow = worksheet.addRow(['', product.title, '', product.price, product.description])
         dataRow.height = rowHeight
         productRows.push(dataRow)
       })
@@ -739,7 +739,7 @@ const handleExportProducts = async () => {
       })
     })
 
-    const maxLengths: number[] = [0, 0, 0, 0]
+    const maxLengths: number[] = [0, 0, 0, 0, 0]
     worksheet.eachRow((row) => {
       row.eachCell((cell, colNumber) => {
         const value = cell.value?.toString() || ''
@@ -781,12 +781,12 @@ const handleExportProducts = async () => {
     const currentQrCodeDataUrl = loadDefaultQrCode()
 
     if (currentQrCodeDataUrl) {
-      worksheet.addRow(['', '', '', ''])
+      worksheet.addRow(['', '', '', '', ''])
 
       const qrCodeRow = worksheet.addRow([''])
       qrCodeRow.height = 200
 
-      worksheet.mergeCells(`A${qrCodeRow.number}:D${qrCodeRow.number}`)
+      worksheet.mergeCells(`A${qrCodeRow.number}:E${qrCodeRow.number}`)
 
       qrCodeRow.eachCell((cell) => {
         cell.alignment = {
