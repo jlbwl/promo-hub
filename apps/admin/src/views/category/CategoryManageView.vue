@@ -321,7 +321,6 @@ import { get, post, put } from '@promo/shared/utils/request'
 import type { ProductCategory, Product } from '@promo/shared/types'
 import ExcelJS from 'exceljs'
 import QRCode from 'qrcode'
-import { Buffer } from 'buffer'
 
 // 格式化时间（北京时区 UTC+8）
 const formatTime = (iso: string) => {
@@ -788,18 +787,14 @@ const handleExportProducts = async () => {
           bytes[i] = binaryString.charCodeAt(i)
         }
 
-        const blob = new Blob([bytes], { type: 'image/png' })
-        const arrayBuffer = await blob.arrayBuffer()
-        const nodeBuffer = Buffer.from(arrayBuffer)
-
         const qrCodeImage = workbook.addImage({
-          buffer: nodeBuffer,
+          buffer: bytes as unknown as Buffer,
           extension: 'png'
         })
 
         worksheet.addImage(qrCodeImage, {
-          tl: { col: 0, row: qrCodeRow.number - 1 },
-          br: { col: 4, row: qrCodeRow.number }
+          tl: { col: 0, row: qrCodeRow.number - 1, nativeCol: 0, nativeColOff: 0, nativeRow: qrCodeRow.number - 1, nativeRowOff: 0 },
+          br: { col: 4, row: qrCodeRow.number, nativeCol: 4, nativeColOff: 0, nativeRow: qrCodeRow.number, nativeRowOff: 0 }
         })
       } catch (error) {
         console.error('Failed to add QR code to Excel:', error)
