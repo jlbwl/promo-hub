@@ -788,13 +788,13 @@ const handleExportProducts = async () => {
         }
 
         const qrCodeImage = workbook.addImage({
-          buffer: bytes as unknown as Buffer,
+          buffer: bytes as any,
           extension: 'png'
         })
 
         worksheet.addImage(qrCodeImage, {
-          tl: { col: 0, row: qrCodeRow.number - 1, nativeCol: 0, nativeColOff: 0, nativeRow: qrCodeRow.number - 1, nativeRowOff: 0 },
-          br: { col: 4, row: qrCodeRow.number, nativeCol: 4, nativeColOff: 0, nativeRow: qrCodeRow.number, nativeRowOff: 0 }
+          tl: { col: 0, row: qrCodeRow.number - 1 } as any,
+          br: { col: 4, row: qrCodeRow.number } as any
         })
       } catch (error) {
         console.error('Failed to add QR code to Excel:', error)
