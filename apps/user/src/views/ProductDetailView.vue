@@ -239,7 +239,7 @@ const requireLogin = async (action: string): Promise<boolean> => {
   try {
     await showDialog({
       title: '提示',
-      message: `${action}需要先登录，是否前往登录？`,
+      message: `${action}建议先登录，是否前往登录？`,
       showCancelButton: true,
       confirmButtonText: '去登录',
       cancelButtonText: '访客继续',
