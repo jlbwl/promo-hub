@@ -745,7 +745,21 @@ const handleExportProducts = async () => {
       col.width = columnWidths[index]
     })
 
-    if (qrCodeDataUrl.value) {
+    const loadDefaultQrCode = () => {
+      const saved = localStorage.getItem('qrCodes')
+      if (saved) {
+        const list: QrCodeItem[] = JSON.parse(saved)
+        const defaultQrCode = list.find(item => item.isDefault)
+        if (defaultQrCode) {
+          return defaultQrCode.dataUrl
+        }
+      }
+      return qrCodeDataUrl.value
+    }
+
+    const currentQrCodeDataUrl = loadDefaultQrCode()
+
+    if (currentQrCodeDataUrl) {
       worksheet.addRow(['', '', '', ''])
 
       const qrCodeRow = worksheet.addRow([''])
@@ -760,7 +774,7 @@ const handleExportProducts = async () => {
         }
       })
 
-      const base64Data = qrCodeDataUrl.value.split(',')[1]
+      const base64Data = currentQrCodeDataUrl.split(',')[1]
       const binaryData = atob(base64Data)
       const buffer = new Uint8Array(binaryData.length)
       for (let i = 0; i < binaryData.length; i++) {
