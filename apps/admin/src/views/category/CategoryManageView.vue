@@ -321,6 +321,7 @@ import { get, post, put } from '@promo/shared/utils/request'
 import type { ProductCategory, Product } from '@promo/shared/types'
 import ExcelJS from 'exceljs'
 import QRCode from 'qrcode'
+import { Buffer } from 'buffer'
 
 // 格式化时间（北京时区 UTC+8）
 const formatTime = (iso: string) => {
@@ -801,15 +802,10 @@ const handleExportProducts = async () => {
 
       try {
         const base64Data = currentQrCodeDataUrl.split(',')[1]
-        const binaryString = atob(base64Data)
-        const len = binaryString.length
-        const bytes = new Uint8Array(len)
-        for (let i = 0; i < len; i++) {
-          bytes[i] = binaryString.charCodeAt(i)
-        }
+        const buffer = Buffer.from(base64Data, 'base64')
 
         const qrCodeImage = workbook.addImage({
-          base64: base64Data,
+          buffer: buffer,
           extension: 'png'
         })
 
