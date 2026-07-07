@@ -724,10 +724,10 @@ const handleExportProducts = async () => {
       }
 
       productRows.forEach(dataRow => {
-        dataRow.eachCell((cell) => {
+        dataRow.eachCell((cell, colNumber) => {
           cell.alignment = {
             vertical: 'middle',
-            horizontal: 'left'
+            horizontal: (colNumber === 1 || colNumber === 4) ? 'center' : 'left'
           }
           cell.border = {
             top: { style: 'thin' },
@@ -759,7 +759,11 @@ const handleExportProducts = async () => {
 
     const columnWidths = maxLengths.map(len => Math.min(len * 1.5 + 2, 50))
     worksheet.columns.forEach((col, index) => {
-      col.width = columnWidths[index]
+      if (index === 0 || index === 3) {
+        col.width = 20
+      } else {
+        col.width = columnWidths[index]
+      }
     })
 
     const loadDefaultQrCode = () => {
