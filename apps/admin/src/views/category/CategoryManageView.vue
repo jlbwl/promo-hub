@@ -209,7 +209,7 @@
     <el-dialog
       v-model="qrCodeDialogVisible"
       title="网址转二维码"
-      width="450px"
+      width="600px"
       @close="resetQrCodeForm"
     >
       <el-form
@@ -229,12 +229,78 @@
         </el-form-item>
       </el-form>
       <div v-if="qrCodeDataUrl" style="text-align: center; margin-top: 20px;">
-        <img :src="qrCodeDataUrl" alt="二维码" style="width: 200px; height: 200px;" />
+        <img :src="qrCodeDataUrl" alt="二维码" style="width: 150px; height: 150px;" />
         <div style="margin-top: 10px; color: #666;">二维码预览</div>
+      </div>
+      <div v-if="qrCodeList.length > 0" style="margin-top: 20px;">
+        <div style="font-weight: bold; margin-bottom: 10px;">已保存的二维码</div>
+        <el-table
+          :data="qrCodeList"
+          size="small"
+          border
+        >
+          <el-table-column
+            prop="url"
+            label="网址"
+            width="300"
+            show-overflow-tooltip
+          />
+          <el-table-column
+            label="二维码"
+            width="80"
+            align="center"
+          >
+            <template #default="{ row }">
+              <img :src="row.dataUrl" alt="二维码" style="width: 50px; height: 50px;" />
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="状态"
+            width="80"
+            align="center"
+          >
+            <template #default="{ row }">
+              <el-tag v-if="row.isDefault" type="success">已应用</el-tag>
+              <span v-else style="color: #999;">未应用</span>
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="操作"
+            width="120"
+            align="center"
+          >
+            <template #default="{ row }">
+              <el-button
+                size="small"
+                type="primary"
+                text
+                @click="applyQrCode(row)"
+              >
+                {{ row.isDefault ? '已应用' : '应用' }}
+              </el-button>
+              <el-button
+                size="small"
+                type="danger"
+                text
+                @click="deleteQrCode(row.id)"
+              >
+                删除
+              </el-button>
+            </template>
+          </el-table-column>
+        </el-table>
       </div>
       <template #footer>
         <el-button @click="qrCodeDialogVisible = false">
           取消
+        </el-button>
+        <el-button
+          type="success"
+          :loading="qrCodeLoading"
+          :disabled="!qrCodeDataUrl"
+          @click="saveQrCode"
+        >
+          保存二维码
         </el-button>
         <el-button
           type="primary"
@@ -309,7 +375,14 @@ const formRules: FormRules = {
   ]
 }
 
-// 二维码相关
+interface QrCodeItem {
+  id: string
+  url: string
+  dataUrl: string
+  isDefault: boolean
+  createdAt: number
+}
+
 const qrCodeDialogVisible = ref(false)
 const qrCodeLoading = ref(false)
 const qrCodeFormRef = ref<FormInstance>()
@@ -317,6 +390,8 @@ const qrCodeForm = reactive({
   url: ''
 })
 const qrCodeDataUrl = ref('')
+const qrCodeList = ref<QrCodeItem[]>([])
+
 const qrCodeFormRules: FormRules = {
   url: [
     { required: true, message: '请输入网址链接', trigger: 'blur' },
@@ -324,7 +399,19 @@ const qrCodeFormRules: FormRules = {
   ]
 }
 
+const loadQrCodeList = () => {
+  const saved = localStorage.getItem('qrCodes')
+  if (saved) {
+    qrCodeList.value = JSON.parse(saved)
+  }
+}
+
+const saveQrCodeList = () => {
+  localStorage.setItem('qrCodes', JSON.stringify(qrCodeList.value))
+}
+
 const showQrCodeDialog = () => {
+  loadQrCodeList()
   qrCodeDialogVisible.value = true
 }
 
@@ -351,6 +438,82 @@ const generateQrCode = async () => {
     qrCodeLoading.value = false
   }
 }
+
+const saveQrCode = () => {
+  if (!qrCodeDataUrl.value || !qrCodeForm.url) {
+    ElMessage.warning('请先生成二维码')
+    return
+  }
+
+  const exists = qrCodeList.value.find(item => item.url === qrCodeForm.url)
+  if (exists) {
+    ElMessage.warning('该网址的二维码已存在')
+    return
+  }
+
+  const newItem: QrCodeItem = {
+    id: Date.now().toString(),
+    url: qrCodeForm.url,
+    dataUrl: qrCodeDataUrl.value,
+    isDefault: qrCodeList.value.length === 0,
+    createdAt: Date.now()
+  }
+
+  if (qrCodeList.value.length === 0) {
+    qrCodeDataUrl.value = newItem.dataUrl
+  }
+
+  qrCodeList.value.push(newItem)
+  saveQrCodeList()
+  ElMessage.success('二维码保存成功')
+}
+
+const applyQrCode = (item: QrCodeItem) => {
+  qrCodeList.value.forEach(i => {
+    i.isDefault = i.id === item.id
+  })
+  qrCodeDataUrl.value = item.dataUrl
+  saveQrCodeList()
+  ElMessage.success('二维码已应用，一键派单将使用该二维码')
+}
+
+const deleteQrCode = async (id: string) => {
+  try {
+    await ElMessageBox.confirm('确定要删除该二维码吗？', '提示', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning'
+    })
+
+    const index = qrCodeList.value.findIndex(item => item.id === id)
+    if (index !== -1) {
+      const wasDefault = qrCodeList.value[index].isDefault
+      qrCodeList.value.splice(index, 1)
+
+      if (wasDefault && qrCodeList.value.length > 0) {
+        qrCodeList.value[0].isDefault = true
+        qrCodeDataUrl.value = qrCodeList.value[0].dataUrl
+      } else if (qrCodeList.value.length === 0) {
+        qrCodeDataUrl.value = ''
+      }
+
+      saveQrCodeList()
+      ElMessage.success('删除成功')
+    }
+  } catch (error) {
+    if (error !== 'cancel') {
+      ElMessage.error('删除失败')
+    }
+  }
+}
+
+onMounted(() => {
+  loadQrCodeList()
+  const defaultQrCode = qrCodeList.value.find(item => item.isDefault)
+  if (defaultQrCode) {
+    qrCodeDataUrl.value = defaultQrCode.dataUrl
+  }
+})
 
 // 加载数据
 const loadData = async () => {
