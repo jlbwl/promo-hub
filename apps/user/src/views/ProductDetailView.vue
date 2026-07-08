@@ -98,12 +98,46 @@
         icon="chat-o"
         text="客服"
       />
+      <van-action-bar-icon
+        icon="share-o"
+        text="转发分享"
+        @click="handleShare"
+      />
       <van-action-bar-button
         type="primary"
         text="去做单"
         @click="handleGoOrder"
       />
     </van-action-bar>
+
+    <!-- 分享弹窗 -->
+    <van-popup
+      v-model:show="shareVisible"
+      position="center"
+      :style="{ width: '300px' }"
+    >
+      <div class="share-container">
+        <div class="share-header">
+          <span class="share-title">{{ product.title }}</span>
+          <van-icon
+            name="cross"
+            @click="shareVisible = false"
+          />
+        </div>
+        <div class="share-qrcode">
+          <img
+            v-if="shareQrCode"
+            :src="shareQrCode"
+            alt="分享二维码"
+            class="qrcode-image"
+          />
+          <div v-else class="qrcode-loading">
+            <van-loading type="spinner" />
+          </div>
+        </div>
+        <div class="share-tip">扫码即可做单</div>
+      </div>
+    </van-popup>
 
     <!-- 用户信息填写弹窗 -->
     <van-popup
@@ -162,6 +196,7 @@ import { reactive, ref, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { showToast, showDialog } from 'vant'
 import { get, post } from '@promo/shared/utils/request'
+import QRCode from 'qrcode'
 
 // 路由实例
 const router = useRouter()
@@ -194,6 +229,10 @@ const infoForm = reactive({
   name: '',
   phone: ''
 })
+
+// 分享弹窗
+const shareVisible = ref(false)
+const shareQrCode = ref('')
 
 // 加载产品详情
 const fetchProductDetail = async () => {
@@ -248,6 +287,24 @@ const requireLogin = async (action: string): Promise<boolean> => {
     return false
   } catch {
     return true
+  }
+}
+
+// 转发分享
+const handleShare = async () => {
+  shareVisible.value = true
+  shareQrCode.value = ''
+  
+  const shareUrl = `${window.location.origin}/#/product/${productId}`
+  
+  try {
+    shareQrCode.value = await QRCode.toDataURL(shareUrl, {
+      width: 200,
+      margin: 2
+    })
+  } catch (error) {
+    console.error('生成分享二维码失败:', error)
+    showToast('生成分享二维码失败')
   }
 }
 
@@ -550,6 +607,52 @@ const submitGoOrder = (userInfo: any) => {
 
   .info-form-footer {
     padding: 16px 20px 0;
+  }
+}
+
+// 分享弹窗
+.share-container {
+  background: #fff;
+  border-radius: 16px;
+  padding: 20px;
+  text-align: center;
+
+  .share-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+
+    .share-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: #323233;
+    }
+  }
+
+  .share-qrcode {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 16px;
+
+    .qrcode-image {
+      width: 200px;
+      height: 200px;
+    }
+
+    .qrcode-loading {
+      width: 200px;
+      height: 200px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+  }
+
+  .share-tip {
+    font-size: 14px;
+    color: #969799;
   }
 }
 </style>
