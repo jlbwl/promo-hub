@@ -50,6 +50,7 @@ export interface OrderService {
     redirectUrl?: string
     userName?: string
     userPhone?: string
+    sharerId?: string
   }): Promise<{ order: any; remainingStock: number }>
 
   /**
@@ -119,7 +120,7 @@ export class OrderServiceImpl implements OrderService {
    * 创建订单（做单）
    */
   async createOrder(orderData) {
-    const { productId, userId, employeeId, optionLabel, redirectUrl, userName, userPhone } = orderData
+    const { productId, userId, employeeId, optionLabel, redirectUrl, userName, userPhone, sharerId } = orderData
     console.log('[OrderService] 创建订单, productId:', productId)
 
     const products = await this.db.readProducts()
@@ -153,6 +154,11 @@ export class OrderServiceImpl implements OrderService {
       }
     }
 
+    if (sharerId && finalUserId === 'guest') {
+      console.log('[OrderService] 分享者做单, sharerId:', sharerId)
+      finalUserId = sharerId
+    }
+
     let teamName = ''
     if (finalUserId !== 'guest') {
       const user = await readUser(finalUserId)
@@ -177,6 +183,7 @@ export class OrderServiceImpl implements OrderService {
       userName: userName || '',
       userPhone: userPhone || '',
       teamName,
+      sharerId: sharerId || '',
       status: 'pending',
       createdAt: new Date().toISOString(),
     }
@@ -366,7 +373,7 @@ export const orderService: OrderService = {
    * @throws 产品不存在、产品已下架、库存不足时抛出错误
    */
   async createOrder(orderData) {
-    const { productId, userId, employeeId, optionLabel, redirectUrl, userName, userPhone } = orderData
+    const { productId, userId, employeeId, optionLabel, redirectUrl, userName, userPhone, sharerId } = orderData
 
     console.log('[OrderService] 创建订单, productId:', productId)
 
@@ -405,6 +412,12 @@ export const orderService: OrderService = {
       }
     }
 
+    // 分享者做单（访客通过分享链接做单时，业绩归分享者）
+    if (sharerId && finalUserId === 'guest') {
+      console.log('[OrderService] 分享者做单, sharerId:', sharerId)
+      finalUserId = sharerId
+    }
+
     // 获取团队名称
     let teamName = ''
     if (finalUserId !== 'guest') {
@@ -432,6 +445,7 @@ export const orderService: OrderService = {
       userName: userName || '',
       userPhone: userPhone || '',
       teamName,
+      sharerId: sharerId || '',
       status: 'pending',
       createdAt: new Date().toISOString(),
     }

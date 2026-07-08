@@ -279,6 +279,9 @@ const requireLogin = async (action: string): Promise<boolean> => {
   if (isLoggedIn()) {
     return true
   }
+  if (isShareMode.value) {
+    return true
+  }
   try {
     await showDialog({
       title: '提示',
@@ -299,7 +302,14 @@ const handleShare = async () => {
   shareVisible.value = true
   shareQrCode.value = ''
   
-  const shareUrl = `${window.location.origin}/user/product/${productId}?share=true`
+  const sharerId = (() => {
+    try { return JSON.parse(localStorage.getItem('user_info') || '{}').id || '' } catch { return '' }
+  })()
+  
+  let shareUrl = `${window.location.origin}/user/product/${productId}?share=true`
+  if (sharerId) {
+    shareUrl += `&sharerId=${sharerId}`
+  }
   
   try {
     shareQrCode.value = await QRCode.toDataURL(shareUrl, {
@@ -369,6 +379,11 @@ const submitGoOrder = (userInfo: any) => {
   const payload: any = { productId: product.id, userId, ...userInfo }
   if (isEmployee && employeeId) {
     payload.employeeId = employeeId
+  }
+
+  const sharerId = route.query.sharerId as string
+  if (sharerId) {
+    payload.sharerId = sharerId
   }
 
   let cleanUrlForJump = ''

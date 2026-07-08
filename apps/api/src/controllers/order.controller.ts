@@ -13,7 +13,7 @@ import { insertOperationLog } from '../data.js'
  */
 export const createOrder = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { productId, userId, employeeId, optionLabel, redirectUrl, userName, userPhone } = req.body
+    const { productId, userId, employeeId, optionLabel, redirectUrl, userName, userPhone, sharerId } = req.body
 
     if (!productId) {
       return sendError(res, '缺少产品ID', 400)
@@ -27,6 +27,7 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
       redirectUrl,
       userName,
       userPhone,
+      sharerId,
     })
 
     sendSuccess(res, { order, remainingStock }, '做单成功')
