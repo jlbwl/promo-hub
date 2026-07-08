@@ -555,4 +555,30 @@ onMounted(() => {
     }
   }
 }
+
+@media (max-width: 768px) {
+  .dashboard {
+    .stat-row {
+      :deep(.el-col) {
+        margin-bottom: 12px;
+      }
+
+      .stat-card {
+        :deep(.el-statistic__head) {
+          font-size: 12px;
+        }
+
+        :deep(.el-statistic__content) {
+          font-size: 22px;
+        }
+      }
+    }
+  }
+
+  .product-dialog-content {
+    .payment-summary {
+      font-size: 13px;
+    }
+  }
+}
 </style>

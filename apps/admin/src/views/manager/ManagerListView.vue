@@ -563,5 +563,65 @@ onMounted(() => {
       padding-bottom: 2px;
     }
   }
+
+  :deep(.el-table) {
+    min-width: 768px;
+  }
+}
+
+@media (max-width: 768px) {
+  .manager-list {
+    .search-card {
+      :deep(.el-card__body) {
+        padding: 12px;
+      }
+
+      :deep(.el-row) {
+        flex-direction: column;
+        gap: 12px;
+
+        :deep(.el-col) {
+          width: 100%;
+          text-align: left !important;
+        }
+      }
+
+      :deep(.el-input) {
+        width: 100%;
+      }
+    }
+
+    :deep(.el-table) {
+      font-size: 12px;
+    }
+
+    :deep(.el-table th) {
+      font-size: 12px;
+      padding: 8px 4px;
+    }
+
+    :deep(.el-table td) {
+      padding: 8px 4px;
+    }
+
+    :deep(.el-button-group) {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    :deep(.el-dialog) {
+      width: 95% !important;
+    }
+
+    :deep(.el-form-item__label) {
+      width: 80px !important;
+      font-size: 13px;
+    }
+
+    :deep(.el-form-item__content) {
+      margin-left: 80px !important;
+    }
+  }
 }
 </style>

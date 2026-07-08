@@ -297,5 +297,74 @@ fetchLogs()
       }
     }
   }
+
+  :deep(.el-table) {
+    min-width: 768px;
+  }
+}
+
+@media (max-width: 768px) {
+  .operation-log {
+    .search-card {
+      :deep(.el-card__body) {
+        padding: 12px;
+      }
+    }
+
+    .search-form {
+      flex-direction: column;
+      gap: 12px;
+
+      :deep(.el-form-item) {
+        margin-bottom: 0;
+      }
+
+      :deep(.el-select) {
+        width: 100%;
+      }
+    }
+
+    :deep(.el-table) {
+      font-size: 12px;
+    }
+
+    :deep(.el-table th) {
+      font-size: 12px;
+      padding: 8px 4px;
+    }
+
+    :deep(.el-table td) {
+      padding: 8px 4px;
+    }
+
+    :deep(.el-dialog) {
+      width: 95% !important;
+    }
+
+    .pagination-container {
+      justify-content: center;
+    }
+
+    .detail-content {
+      .detail-row {
+        flex-direction: column;
+        gap: 4px;
+
+        .detail-label {
+          width: 100%;
+          font-size: 13px;
+        }
+
+        .detail-value {
+          font-size: 13px;
+        }
+
+        .detail-json {
+          font-size: 11px;
+          padding: 10px;
+        }
+      }
+    }
+  }
 }
 </style>

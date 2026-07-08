@@ -204,4 +204,43 @@ onMounted(() => {
 .settings-view {
   max-width: 800px;
 }
+
+@media (max-width: 768px) {
+  .settings-view {
+    max-width: 100%;
+
+    :deep(.el-card) {
+      margin-bottom: 12px;
+    }
+
+    :deep(.el-card__body) {
+      padding: 12px;
+    }
+
+    :deep(.el-card__header) {
+      padding: 16px 12px;
+    }
+
+    :deep(.el-form) {
+      max-width: 100%;
+    }
+
+    :deep(.el-form-item__label) {
+      width: 90px !important;
+      font-size: 13px;
+    }
+
+    :deep(.el-form-item__content) {
+      margin-left: 90px !important;
+    }
+
+    :deep(.el-input) {
+      width: 100%;
+    }
+
+    :deep(.el-divider) {
+      margin: 16px 0;
+    }
+  }
+}
 </style>

@@ -538,5 +538,72 @@ onMounted(() => {
     justify-content: flex-end;
     margin-top: 16px;
   }
+
+  :deep(.el-table) {
+    min-width: 768px;
+  }
+}
+
+@media (max-width: 768px) {
+  .user-list {
+    .search-card {
+      :deep(.el-card__body) {
+        padding: 12px;
+      }
+
+      :deep(.el-row) {
+        flex-direction: column;
+        gap: 12px;
+
+        :deep(.el-col) {
+          width: 100%;
+        }
+      }
+
+      :deep(.el-input) {
+        width: 100%;
+      }
+
+      :deep(.el-select) {
+        width: 100%;
+      }
+    }
+
+    :deep(.el-table) {
+      font-size: 12px;
+    }
+
+    :deep(.el-table th) {
+      font-size: 12px;
+      padding: 8px 4px;
+    }
+
+    :deep(.el-table td) {
+      padding: 8px 4px;
+    }
+
+    :deep(.el-button-group) {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    :deep(.el-dialog) {
+      width: 95% !important;
+    }
+
+    :deep(.el-form-item__label) {
+      width: 100px !important;
+      font-size: 13px;
+    }
+
+    :deep(.el-form-item__content) {
+      margin-left: 100px !important;
+    }
+
+    .pagination-wrapper {
+      justify-content: center;
+    }
+  }
 }
 </style>

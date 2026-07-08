@@ -804,5 +804,105 @@ onMounted(() => { fetchStats(); fetchData(); fetchManagers(); fetchUsers() })
       .el-textarea { width: 100%; }
     }
   }
+
+  :deep(.el-table) {
+    min-width: 900px;
+  }
+}
+
+@media (max-width: 768px) {
+  .commission-admin {
+    .stat-cards {
+      :deep(.el-col) {
+        margin-bottom: 12px;
+      }
+    }
+
+    .stat-card {
+      .stat-content {
+        .stat-info {
+          .stat-label {
+            font-size: 12px;
+          }
+        }
+        .stat-icon {
+          width: 48px;
+          height: 48px;
+          font-size: 24px;
+        }
+      }
+      .card-badge {
+        font-size: 10px;
+        padding: 2px 6px;
+      }
+    }
+
+    .search-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: flex-start;
+
+      :deep(.el-input) {
+        width: 100%;
+        max-width: none;
+      }
+
+      :deep(.el-select) {
+        width: 100%;
+        max-width: none;
+        margin-left: 0 !important;
+      }
+
+      :deep(.el-button) {
+        margin-left: 0 !important;
+      }
+    }
+
+    :deep(.el-table) {
+      font-size: 11px;
+    }
+
+    :deep(.el-table th) {
+      font-size: 11px;
+      padding: 6px 4px;
+    }
+
+    :deep(.el-table td) {
+      padding: 6px 4px;
+    }
+
+    :deep(.el-dialog) {
+      width: 95% !important;
+    }
+
+    .pagination-container {
+      justify-content: center;
+    }
+
+    .payment-summary {
+      flex-direction: column;
+      gap: 8px;
+      font-size: 13px;
+
+      .payment-total {
+        font-size: 14px;
+      }
+    }
+
+    .payment-actions {
+      justify-content: center;
+    }
+
+    .delete-dialog-content {
+      padding: 16px 0;
+
+      .warning-text {
+        p {
+          font-size: 13px;
+        }
+      }
+    }
+  }
 }
 </style>

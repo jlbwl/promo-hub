@@ -239,9 +239,11 @@ const handleSmsLogin = async () => {
   align-items: center;
   justify-content: center;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 20px;
 
   .login-card {
-    width: 420px;
+    width: 100%;
+    max-width: 420px;
     border-radius: 8px;
 
     .login-header {
@@ -275,6 +277,26 @@ const handleSmsLogin = async () => {
       width: 50%;
       text-align: center;
       font-size: 15px;
+    }
+  }
+}
+
+@media (max-width: 768px) {
+  .login-container {
+    padding: 15px;
+  }
+
+  .login-card {
+    .login-header {
+      h2 {
+        font-size: 20px;
+      }
+    }
+  }
+
+  .login-tabs {
+    :deep(.el-tabs__item) {
+      font-size: 13px;
     }
   }
 }
