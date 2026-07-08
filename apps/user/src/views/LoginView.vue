@@ -261,6 +261,9 @@ onUnmounted(() => {
 const onLoginSuccess = (data: any) => {
   localStorage.setItem('user_token', data.token)
   localStorage.setItem('user_info', JSON.stringify(data.user))
+  if (data.refreshToken) {
+    localStorage.setItem('user_refresh_token', data.refreshToken)
+  }
   showToast('登录成功')
   const redirect = (route.query.redirect as string) || '/home'
   router.replace(redirect)

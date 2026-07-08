@@ -9,7 +9,7 @@ import {
   readProducts,
   readCommissions,
 } from '../data.js'
-import { login as sessionLogin, generateAuthToken } from '../middleware/auth.js'
+import { login as sessionLogin, generateTokens } from '../middleware/auth.js'
 import { generateSmsCode, saveSmsCode, verifySmsCode, deleteSmsCode } from '../utils/sms.js'
 import { sendSmsCode } from '../sms.js'
 
@@ -56,11 +56,12 @@ export const adminLogin = async (req: Request, res: Response): Promise<void> => 
   }
 
   const user = { id: admin.id, phone: admin.phone, role: 'admin' as const, nickname: admin.name }
-  const token = generateAuthToken(user)
-  sessionLogin(req, { ...user, token })
+  const tokens = generateTokens(user)
+  sessionLogin(req, { ...user, token: tokens.token })
 
   sendSuccess(res, {
-    token,
+    token: tokens.token,
+    refreshToken: tokens.refreshToken,
     admin: { id: admin.id, phone: admin.phone, name: admin.name }
   }, '登录成功')
 }
@@ -86,11 +87,12 @@ export const adminSmsLogin = async (req: Request, res: Response): Promise<void> 
   }
 
   const user = { id: admin.id, phone: admin.phone, role: 'admin' as const, nickname: admin.name }
-  const token = generateAuthToken(user)
-  sessionLogin(req, { ...user, token })
+  const tokens = generateTokens(user)
+  sessionLogin(req, { ...user, token: tokens.token })
 
   sendSuccess(res, {
-    token,
+    token: tokens.token,
+    refreshToken: tokens.refreshToken,
     admin: { id: admin.id, phone: admin.phone, name: admin.name }
   }, '登录成功')
 }

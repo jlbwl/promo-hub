@@ -175,7 +175,14 @@ const handlePasswordLogin = async () => {
       if (res.data?.manager) {
         localStorage.setItem('manager_info', JSON.stringify(res.data.manager))
       }
-      localStorage.setItem('manager_token', 'logged_in')
+      if (res.data?.token) {
+        localStorage.setItem('manager_token', res.data.token)
+      } else {
+        localStorage.setItem('manager_token', 'logged_in')
+      }
+      if (res.data?.refreshToken) {
+        localStorage.setItem('manager_refresh_token', res.data.refreshToken)
+      }
       ElMessage.success('登录成功')
       const redirect = (route.query.redirect as string) || '/dashboard'
       router.push(redirect)
@@ -223,7 +230,14 @@ const handleSmsLogin = async () => {
       if (res.data?.manager) {
         localStorage.setItem('manager_info', JSON.stringify(res.data.manager))
       }
-      localStorage.setItem('manager_token', 'logged_in')
+      if (res.data?.token) {
+        localStorage.setItem('manager_token', res.data.token)
+      } else {
+        localStorage.setItem('manager_token', 'logged_in')
+      }
+      if (res.data?.refreshToken) {
+        localStorage.setItem('manager_refresh_token', res.data.refreshToken)
+      }
       ElMessage.success('登录成功')
       const redirect = (route.query.redirect as string) || '/dashboard'
       router.push(redirect)

@@ -16,17 +16,68 @@ function createRequest(): AxiosInstance {
     withCredentials: true,
   })
 
+  let isRefreshing = false
+  let failedQueue: Array<{ resolve: (token: string) => void; reject: (error: Error) => void }> = []
+
+  const processQueue = (token: string, error?: Error) => {
+    failedQueue.forEach(({ resolve, reject }) => {
+      if (error) {
+        reject(error)
+      } else {
+        resolve(token)
+      }
+    })
+    failedQueue = []
+  }
+
+  const refreshToken = async (): Promise<string> => {
+    const refreshToken = 
+      localStorage.getItem('admin_refresh_token') ||
+      localStorage.getItem('manager_refresh_token') ||
+      localStorage.getItem('user_refresh_token') ||
+      localStorage.getItem('employee_refresh_token') ||
+      localStorage.getItem('refresh_token')
+    
+    if (!refreshToken) {
+      throw new Error('没有可用的刷新令牌')
+    }
+
+    try {
+      const res = await axios.post<ApiResponse>(`${BASE_URL}/auth/refresh`, { refreshToken }, { withCredentials: true })
+      if (res.data.code === 0 && res.data.data) {
+        const newToken = res.data.data.token
+        const newRefreshToken = res.data.data.refreshToken
+        
+        const tokenKey = 
+          localStorage.getItem('admin_token') ? 'admin_token' :
+          localStorage.getItem('manager_token') ? 'manager_token' :
+          localStorage.getItem('user_token') ? 'user_token' :
+          localStorage.getItem('employee_token') ? 'employee_token' : 'token'
+        
+        const refreshTokenKey = tokenKey.replace('_token', '_refresh_token')
+        
+        localStorage.setItem(tokenKey, newToken)
+        localStorage.setItem(refreshTokenKey, newRefreshToken)
+        
+        return newToken
+      } else {
+        throw new Error('刷新令牌失败')
+      }
+    } catch (error) {
+      throw error
+    }
+  }
+
   // 请求拦截器 — 自动携带 token（跳过登录相关接口）
   instance.interceptors.request.use(
     (config) => {
-      // 跳过登录相关接口的Authorization头
       const isLoginOrRegister = 
         config.url?.includes('/login') || 
         config.url?.includes('/register') ||
-        config.url?.includes('/sms/send')
+        config.url?.includes('/sms/send') ||
+        config.url?.includes('/auth/refresh')
       
       if (!isLoginOrRegister) {
-        // 尝试从所有角色的token key中读取
         const token = 
           localStorage.getItem('admin_token') || 
           localStorage.getItem('manager_token') || 
@@ -35,6 +86,16 @@ function createRequest(): AxiosInstance {
           localStorage.getItem('token')
         if (token) {
           config.headers.Authorization = `Bearer ${token}`
+        }
+        
+        const refreshToken = 
+          localStorage.getItem('admin_refresh_token') ||
+          localStorage.getItem('manager_refresh_token') ||
+          localStorage.getItem('user_refresh_token') ||
+          localStorage.getItem('employee_refresh_token') ||
+          localStorage.getItem('refresh_token')
+        if (refreshToken) {
+          config.headers['X-Refresh-Token'] = refreshToken
         }
       }
       return config
@@ -45,16 +106,73 @@ function createRequest(): AxiosInstance {
   // 响应拦截器 — 统一错误处理
   instance.interceptors.response.use(
     (response: AxiosResponse<ApiResponse>) => {
+      const newToken = response.headers['x-new-token'] as string
+      const newRefreshToken = response.headers['x-new-refresh-token'] as string
+      
+      if (newToken) {
+        const tokenKey = 
+          localStorage.getItem('admin_token') ? 'admin_token' :
+          localStorage.getItem('manager_token') ? 'manager_token' :
+          localStorage.getItem('user_token') ? 'user_token' :
+          localStorage.getItem('employee_token') ? 'employee_token' : 'token'
+        
+        const refreshTokenKey = tokenKey.replace('_token', '_refresh_token')
+        
+        localStorage.setItem(tokenKey, newToken)
+        if (newRefreshToken) {
+          localStorage.setItem(refreshTokenKey, newRefreshToken)
+        }
+      }
+
       const { code, message } = response.data
       if (code === 0) {
         return response
       }
-      // 401 未授权 — 仅在非登录页时跳转
       if (code === 401 && !window.location.pathname.includes('/login')) {
-        localStorage.removeItem('token')
-        localStorage.removeItem('manager_token')
-        localStorage.removeItem('admin_token')
-        window.location.reload()
+        if (isRefreshing) {
+          return new Promise((resolve, reject) => {
+            failedQueue.push({ resolve, reject })
+          }).then((token) => {
+            response.config.headers.Authorization = `Bearer ${token}`
+            return instance(response.config)
+          }).catch((error) => {
+            localStorage.removeItem('token')
+            localStorage.removeItem('manager_token')
+            localStorage.removeItem('admin_token')
+            localStorage.removeItem('user_token')
+            localStorage.removeItem('employee_token')
+            localStorage.removeItem('refresh_token')
+            localStorage.removeItem('admin_refresh_token')
+            localStorage.removeItem('manager_refresh_token')
+            localStorage.removeItem('user_refresh_token')
+            localStorage.removeItem('employee_refresh_token')
+            window.location.reload()
+            return Promise.reject(error)
+          })
+        }
+
+        isRefreshing = true
+        return refreshToken().then((token) => {
+          processQueue(token)
+          response.config.headers.Authorization = `Bearer ${token}`
+          return instance(response.config)
+        }).catch((error) => {
+          processQueue('', error)
+          localStorage.removeItem('token')
+          localStorage.removeItem('manager_token')
+          localStorage.removeItem('admin_token')
+          localStorage.removeItem('user_token')
+          localStorage.removeItem('employee_token')
+          localStorage.removeItem('refresh_token')
+          localStorage.removeItem('admin_refresh_token')
+          localStorage.removeItem('manager_refresh_token')
+          localStorage.removeItem('user_refresh_token')
+          localStorage.removeItem('employee_refresh_token')
+          window.location.reload()
+          return Promise.reject(error)
+        }).finally(() => {
+          isRefreshing = false
+        })
       }
       return Promise.reject(new Error(message || '请求失败'))
     },

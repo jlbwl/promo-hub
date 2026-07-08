@@ -92,8 +92,11 @@ const handleSubmit = async () => {
       // 保存员工信息到 localStorage
       localStorage.setItem('employee_info', JSON.stringify(res.data.employee))
       localStorage.setItem('user_info', JSON.stringify(res.data.user))
-      localStorage.setItem('user_token', `employee_${res.data.employee.id}`)
+      localStorage.setItem('employee_token', res.data.token)
       localStorage.setItem('login_type', 'employee')
+      if (res.data.refreshToken) {
+        localStorage.setItem('employee_refresh_token', res.data.refreshToken)
+      }
 
       showToast('登录成功')
       setTimeout(() => {

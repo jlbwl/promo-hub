@@ -170,6 +170,9 @@ const handlePasswordLogin = async () => {
         localStorage.setItem('token', res.data.token)
         localStorage.setItem('admin_token', res.data.token)
         localStorage.setItem('admin_info', JSON.stringify(res.data.admin))
+        if (res.data.refreshToken) {
+          localStorage.setItem('admin_refresh_token', res.data.refreshToken)
+        }
         ElMessage.success('登录成功')
         const redirect = (route.query.redirect as string) || '/dashboard'
         router.push(redirect)
@@ -219,6 +222,9 @@ const handleSmsLogin = async () => {
         localStorage.setItem('token', res.data.token)
         localStorage.setItem('admin_token', res.data.token)
         localStorage.setItem('admin_info', JSON.stringify(res.data.admin))
+        if (res.data.refreshToken) {
+          localStorage.setItem('admin_refresh_token', res.data.refreshToken)
+        }
         ElMessage.success('登录成功')
         const redirect = (route.query.redirect as string) || '/dashboard'
         router.push(redirect)

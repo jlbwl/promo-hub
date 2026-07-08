@@ -14,7 +14,7 @@ import {
   writeManagers,
   updateUser,
 } from '../data.js'
-import { login as sessionLogin, generateAuthToken } from '../middleware/auth.js'
+import { login as sessionLogin, generateTokens } from '../middleware/auth.js'
 import { sendSmsCode } from '../sms.js'
 import { generateSmsCode, saveSmsCode, verifySmsCode, deleteSmsCode } from '../utils/sms.js'
 import logger from '../utils/logger.js'
@@ -310,11 +310,11 @@ export const managerLogin = async (req: Request, res: Response): Promise<void> =
   }
   
   const user = { id: manager.id, phone: manager.phone, role: 'manager' as const, nickname: manager.name, teamName: manager.teamName }
-  const token = generateAuthToken(user)
-  sessionLogin(req, { ...user, token })
+  const tokens = generateTokens(user)
+  sessionLogin(req, { ...user, token: tokens.token })
   
   const { password: _, ...safeManager } = manager
-  sendSuccess(res, { token, manager: safeManager }, '登录成功')
+  sendSuccess(res, { token: tokens.token, refreshToken: tokens.refreshToken, manager: safeManager }, '登录成功')
 }
 
 /**
@@ -355,11 +355,11 @@ export const managerSmsLogin = async (req: Request, res: Response): Promise<void
   }
   
   const user = { id: manager.id, phone: manager.phone, role: 'manager' as const, nickname: manager.name, teamName: manager.teamName }
-  const token = generateAuthToken(user)
-  sessionLogin(req, { ...user, token })
+  const tokens = generateTokens(user)
+  sessionLogin(req, { ...user, token: tokens.token })
   
   const { password: _, ...safeManager } = manager
-  sendSuccess(res, { token, manager: safeManager }, '登录成功')
+  sendSuccess(res, { token: tokens.token, refreshToken: tokens.refreshToken, manager: safeManager }, '登录成功')
 }
 
 /**

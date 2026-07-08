@@ -42,10 +42,10 @@ export const sessionMiddleware: RequestHandler = (() => {
       const MongoStore = require('connect-mongo').default
       store = MongoStore.create({
         mongoUrl: process.env.MONGODB_URI,
-        ttl: 7 * 24 * 60 * 60,
+        ttl: 90 * 24 * 60 * 60,
         touchAfter: 24 * 60 * 60,
       })
-      console.log('[Session] 使用 MongoDB 存储')
+      console.log('[Session] 使用 MongoDB 存储，有效期90天')
     } catch (err) {
       console.warn('[Session] MongoDB 连接失败，降级到内存存储:', err)
     }
@@ -61,7 +61,7 @@ export const sessionMiddleware: RequestHandler = (() => {
     cookie: {
       secure: process.env.NODE_ENV === 'production',
       httpOnly: true,
-      maxAge: 7 * 24 * 60 * 60 * 1000,
+      maxAge: 90 * 24 * 60 * 60 * 1000,
       sameSite: 'lax',
     },
   })
@@ -116,6 +116,7 @@ export const authMiddleware = (allowedRoles?: Array<'admin' | 'manager' | 'user'
   return (req: Request, res: Response, next: NextFunction) => {
     const authHeader = req.headers.authorization
     const bearerToken = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null
+    const refreshToken = req.headers['x-refresh-token'] as string | undefined
 
     // 1. 优先检查 Session
     if (req.session && req.session.isAuthenticated && req.session.user) {
@@ -130,7 +131,6 @@ export const authMiddleware = (allowedRoles?: Array<'admin' | 'manager' | 'user'
           return
         }
       }
-      // 将用户信息附加到 request
       ;(req as any).user = req.session.user
       next()
       return
@@ -150,10 +150,44 @@ export const authMiddleware = (allowedRoles?: Array<'admin' | 'manager' | 'user'
             return
           }
         }
-        // 将用户信息附加到 request
         ;(req as any).user = user
         next()
         return
+      }
+    }
+
+    // 3. 尝试使用 Refresh Token 刷新 Access Token
+    if (refreshToken) {
+      const newTokens = refreshAuthToken(refreshToken)
+      if (newTokens) {
+        try {
+          const decoded = jwt.verify(newTokens.token, JWT_SECRET) as any
+          const user: AuthUser = {
+            id: decoded.id,
+            phone: decoded.phone,
+            role: decoded.role,
+            token: newTokens.token
+          }
+          
+          if (allowedRoles && allowedRoles.length > 0) {
+            if (!allowedRoles.includes(user.role)) {
+              res.status(403).json({
+                code: 403,
+                message: '您没有权限执行此操作',
+                data: null
+              })
+              return
+            }
+          }
+          
+          ;(req as any).user = user
+          res.setHeader('X-New-Token', newTokens.token)
+          res.setHeader('X-New-Refresh-Token', newTokens.refreshToken)
+          next()
+          return
+        } catch {
+          console.warn('[Auth] 刷新后的 Token 验证失败')
+        }
       }
     }
 
