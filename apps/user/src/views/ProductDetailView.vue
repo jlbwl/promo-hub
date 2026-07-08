@@ -295,7 +295,7 @@ const handleShare = async () => {
   shareVisible.value = true
   shareQrCode.value = ''
   
-  const shareUrl = `${window.location.origin}/#/product/${productId}`
+  const shareUrl = `${window.location.origin}/user/product/${productId}`
   
   try {
     shareQrCode.value = await QRCode.toDataURL(shareUrl, {
