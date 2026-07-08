@@ -95,10 +95,12 @@
     <!-- 底部操作栏 -->
     <van-action-bar>
       <van-action-bar-icon
+        v-if="!isShareMode"
         icon="chat-o"
         text="客服"
       />
       <van-action-bar-icon
+        v-if="!isShareMode"
         icon="share-o"
         text="转发分享"
         @click="handleShare"
