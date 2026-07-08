@@ -13,7 +13,7 @@
 
     <!-- 产品基本信息 -->
     <div class="product-info">
-      <div class="price-row">
+      <div class="price-row" v-if="!isShareMode">
         <span class="price">{{ product.price }}</span>
         <span
           v-if="product.stock > 0"
@@ -234,6 +234,9 @@ const infoForm = reactive({
 const shareVisible = ref(false)
 const shareQrCode = ref('')
 
+// 是否是分享模式
+const isShareMode = ref(false)
+
 // 加载产品详情
 const fetchProductDetail = async () => {
   try {
@@ -264,6 +267,7 @@ const fetchProductDetail = async () => {
 }
 
 onMounted(() => {
+  isShareMode.value = route.query.share === 'true'
   fetchProductDetail()
 })
 
@@ -295,7 +299,7 @@ const handleShare = async () => {
   shareVisible.value = true
   shareQrCode.value = ''
   
-  const shareUrl = `${window.location.origin}/user/product/${productId}`
+  const shareUrl = `${window.location.origin}/user/product/${productId}?share=true`
   
   try {
     shareQrCode.value = await QRCode.toDataURL(shareUrl, {
