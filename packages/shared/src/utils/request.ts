@@ -42,30 +42,26 @@ function createRequest(): AxiosInstance {
       throw new Error('没有可用的刷新令牌')
     }
 
-    try {
-      const res = await axios.post<ApiResponse<RefreshTokenResult>>(`${BASE_URL}/auth/refresh`, { refreshToken }, { withCredentials: true })
-      if (res.data.code === 0 && res.data.data) {
-        const data = res.data.data as RefreshTokenResult
-        const newToken = data.token
-        const newRefreshToken = data.refreshToken
-        
-        const tokenKey = 
-          localStorage.getItem('admin_token') ? 'admin_token' :
-          localStorage.getItem('manager_token') ? 'manager_token' :
-          localStorage.getItem('user_token') ? 'user_token' :
-          localStorage.getItem('employee_token') ? 'employee_token' : 'token'
-        
-        const refreshTokenKey = tokenKey.replace('_token', '_refresh_token')
-        
-        localStorage.setItem(tokenKey, newToken)
-        localStorage.setItem(refreshTokenKey, newRefreshToken)
-        
-        return newToken
-      } else {
-        throw new Error('刷新令牌失败')
-      }
-    } catch (error) {
-      throw error
+    const res = await axios.post<ApiResponse<RefreshTokenResult>>(`${BASE_URL}/auth/refresh`, { refreshToken }, { withCredentials: true })
+    if (res.data.code === 0 && res.data.data) {
+      const data = res.data.data as RefreshTokenResult
+      const newToken = data.token
+      const newRefreshToken = data.refreshToken
+      
+      const tokenKey = 
+        localStorage.getItem('admin_token') ? 'admin_token' :
+        localStorage.getItem('manager_token') ? 'manager_token' :
+        localStorage.getItem('user_token') ? 'user_token' :
+        localStorage.getItem('employee_token') ? 'employee_token' : 'token'
+      
+      const refreshTokenKey = tokenKey.replace('_token', '_refresh_token')
+      
+      localStorage.setItem(tokenKey, newToken)
+      localStorage.setItem(refreshTokenKey, newRefreshToken)
+      
+      return newToken
+    } else {
+      throw new Error('刷新令牌失败')
     }
   }
 

@@ -203,7 +203,7 @@
           {{ isEdit ? '保存' : '添加' }}
         </el-button>
       </template>
-</el-dialog>
+    </el-dialog>
 
     <!-- 网址转二维码弹窗 -->
     <el-dialog
@@ -229,11 +229,19 @@
         </el-form-item>
       </el-form>
       <div v-if="qrCodeDataUrl" style="text-align: center; margin-top: 20px;">
-        <img :src="qrCodeDataUrl" alt="二维码" style="width: 150px; height: 150px;" />
-        <div style="margin-top: 10px; color: #666;">二维码预览</div>
+        <img
+          :src="qrCodeDataUrl"
+          alt="二维码"
+          style="width: 150px; height: 150px;"
+        >
+        <div style="margin-top: 10px; color: #666;">
+          二维码预览
+        </div>
       </div>
       <div v-if="qrCodeList.length > 0" style="margin-top: 20px; overflow: hidden;">
-        <div style="font-weight: bold; margin-bottom: 10px;">已保存的二维码</div>
+        <div style="font-weight: bold; margin-bottom: 10px;">
+          已保存的二维码
+        </div>
         <el-table
           :data="qrCodeList"
           size="small"

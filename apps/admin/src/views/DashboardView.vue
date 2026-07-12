@@ -131,7 +131,10 @@
       width="850px"
       destroy-on-close
     >
-      <div class="product-dialog-content" style="overflow: hidden;">
+      <div
+        class="product-dialog-content"
+        style="overflow: hidden;"
+      >
         <div class="payment-summary">
           <span>当前上架 <strong>{{ publishedProducts.length }}</strong> 个产品</span>
         </div>
