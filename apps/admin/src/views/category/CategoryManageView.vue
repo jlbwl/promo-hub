@@ -537,11 +537,17 @@ const addTextToQrCode = async (qrCodeDataUrl: string, topText: string, centerTex
 
       if (centerText) {
         ctx.font = 'bold 14px Microsoft YaHei'
-        ctx.fillStyle = '#000000'
         ctx.textAlign = 'center'
         ctx.textBaseline = 'middle'
         const centerX = canvas.width / 2
         const centerY = currentY + img.height / 2
+
+        const textWidth = ctx.measureText(centerText).width
+        const bgPadding = 6
+        ctx.fillStyle = '#ffffff'
+        ctx.fillRect(centerX - textWidth / 2 - bgPadding, centerY - 12, textWidth + bgPadding * 2, 24)
+
+        ctx.fillStyle = '#000000'
         ctx.fillText(centerText, centerX, centerY)
       }
 
