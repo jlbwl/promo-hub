@@ -227,6 +227,22 @@
             placeholder="请输入网址链接"
           />
         </el-form-item>
+        <el-form-item
+          label="上方文字"
+        >
+          <el-input
+            v-model="qrCodeForm.topText"
+            placeholder="输入二维码上方显示的文字"
+          />
+        </el-form-item>
+        <el-form-item
+          label="中心文字"
+        >
+          <el-input
+            v-model="qrCodeForm.centerText"
+            placeholder="输入二维码中心显示的文字"
+          />
+        </el-form-item>
       </el-form>
       <div
         v-if="qrCodeDataUrl"
@@ -295,7 +311,7 @@
           </el-table-column>
           <el-table-column
             label="操作"
-            width="100"
+            width="140"
             align="center"
           >
             <template #default="{ row }">
@@ -306,6 +322,14 @@
                 @click="applyQrCode(row)"
               >
                 {{ row.isDefault ? '已应用' : '应用' }}
+              </el-button>
+              <el-button
+                size="small"
+                type="warning"
+                text
+                @click="editQrCode(row)"
+              >
+                编辑
               </el-button>
               <el-button
                 size="small"
@@ -410,13 +434,17 @@ interface QrCodeItem {
   dataUrl: string
   isDefault: boolean
   createdAt: number
+  centerText?: string
+  topText?: string
 }
 
 const qrCodeDialogVisible = ref(false)
 const qrCodeLoading = ref(false)
 const qrCodeFormRef = ref<FormInstance>()
 const qrCodeForm = reactive({
-  url: ''
+  url: '',
+  centerText: '',
+  topText: ''
 })
 const qrCodeDataUrl = ref('')
 const qrCodeList = ref<QrCodeItem[]>([])
@@ -456,16 +484,74 @@ const generateQrCode = async () => {
   }
   qrCodeLoading.value = true
   try {
-    qrCodeDataUrl.value = await QRCode.toDataURL(qrCodeForm.url, {
+    const baseQrCode = await QRCode.toDataURL(qrCodeForm.url, {
       width: 200,
       margin: 2
     })
+    qrCodeDataUrl.value = await addTextToQrCode(baseQrCode, qrCodeForm.topText, qrCodeForm.centerText)
     ElMessage.success('二维码生成成功')
   } catch (error: any) {
     ElMessage.error(error.message || '二维码生成失败')
   } finally {
     qrCodeLoading.value = false
   }
+}
+
+const addTextToQrCode = async (qrCodeDataUrl: string, topText: string, centerText: string): Promise<string> => {
+  if (!topText && !centerText) {
+    return qrCodeDataUrl
+  }
+  return new Promise((resolve) => {
+    const canvas = document.createElement('canvas')
+    const ctx = canvas.getContext('2d')
+    if (!ctx) {
+      resolve(qrCodeDataUrl)
+      return
+    }
+
+    const img = new Image()
+    img.onload = () => {
+      const padding = 30
+      const textHeight = 30
+      const totalHeight = img.height + (topText ? textHeight : 0) + padding * 2
+      const totalWidth = Math.max(img.width, 260)
+
+      canvas.width = totalWidth
+      canvas.height = totalHeight
+
+      ctx.fillStyle = '#ffffff'
+      ctx.fillRect(0, 0, canvas.width, canvas.height)
+
+      let currentY = padding
+      if (topText) {
+        ctx.font = 'bold 16px Microsoft YaHei'
+        ctx.fillStyle = '#000000'
+        ctx.textAlign = 'center'
+        ctx.textBaseline = 'middle'
+        ctx.fillText(topText, canvas.width / 2, currentY + textHeight / 2)
+        currentY += textHeight
+      }
+
+      const imgX = (canvas.width - img.width) / 2
+      ctx.drawImage(img, imgX, currentY)
+
+      if (centerText) {
+        ctx.font = 'bold 14px Microsoft YaHei'
+        ctx.fillStyle = '#000000'
+        ctx.textAlign = 'center'
+        ctx.textBaseline = 'middle'
+        const centerX = canvas.width / 2
+        const centerY = currentY + img.height / 2
+        ctx.fillText(centerText, centerX, centerY)
+      }
+
+      resolve(canvas.toDataURL('image/png'))
+    }
+    img.onerror = () => {
+      resolve(qrCodeDataUrl)
+    }
+    img.src = qrCodeDataUrl
+  })
 }
 
 const saveQrCode = () => {
@@ -485,7 +571,9 @@ const saveQrCode = () => {
     url: qrCodeForm.url,
     dataUrl: qrCodeDataUrl.value,
     isDefault: qrCodeList.value.length === 0,
-    createdAt: Date.now()
+    createdAt: Date.now(),
+    centerText: qrCodeForm.centerText,
+    topText: qrCodeForm.topText
   }
 
   if (qrCodeList.value.length === 0) {
@@ -534,6 +622,13 @@ const deleteQrCode = async (id: string) => {
       ElMessage.error('删除失败')
     }
   }
+}
+
+const editQrCode = (item: QrCodeItem) => {
+  qrCodeForm.url = item.url
+  qrCodeForm.topText = item.topText || ''
+  qrCodeForm.centerText = item.centerText || ''
+  qrCodeDataUrl.value = item.dataUrl
 }
 
 onMounted(() => {
