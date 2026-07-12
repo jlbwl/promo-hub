@@ -835,9 +835,13 @@ const handleExportProducts = async () => {
           extension: 'png'
         })
 
+        const pointsToEMU = (points: number) => points * 9525
+        const imgWidth = pointsToEMU(120)
+        const imgHeight = pointsToEMU(120)
+
         worksheet.addImage(qrCodeImage, {
           tl: { col: 0, row: qrCodeRow.number - 1 } as any,
-          br: { col: 5, row: qrCodeRow.number } as any,
+          ext: { width: imgWidth, height: imgHeight } as any,
           editAs: 'oneCell' as any
         })
       } catch (error) {
