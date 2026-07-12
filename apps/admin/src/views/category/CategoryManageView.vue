@@ -918,7 +918,7 @@ const handleExportProducts = async () => {
       worksheet.addRow(['', '', '', '', ''])
 
       const qrCodeRow = worksheet.addRow([''])
-      qrCodeRow.height = 150
+      qrCodeRow.height = 200
 
       worksheet.mergeCells(`A${qrCodeRow.number}:E${qrCodeRow.number}`)
 
