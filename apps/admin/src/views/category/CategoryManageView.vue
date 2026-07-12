@@ -209,7 +209,7 @@
     <el-dialog
       v-model="qrCodeDialogVisible"
       title="网址转二维码"
-      width="600px"
+      width="800px"
       @close="resetQrCodeForm"
     >
       <el-form

@@ -487,7 +487,7 @@
     <el-dialog
       v-model="statDialogVisible"
       :title="statDialogTitle"
-      width="850px"
+      width="950px"
       destroy-on-close
     >
       <div
@@ -513,7 +513,7 @@
           <el-table-column
             prop="productName"
             label="产品名称"
-            min-width="150"
+            min-width="200"
             show-overflow-tooltip
           >
             <template #default="{ row }">
