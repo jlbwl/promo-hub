@@ -788,10 +788,10 @@ const handleExportProducts = async () => {
 
     const columnWidths = maxLengths.map(len => Math.min(len * 1.5 + 2, 50))
     worksheet.columns.forEach((col, index) => {
-      if (index === 0 || index === 3) {
+      if (index === 0 || index === 2 || index === 3) {
         col.width = 20
       } else {
-        col.width = columnWidths[index]
+        col.width = columnWidths[index] + 5
       }
     })
 
