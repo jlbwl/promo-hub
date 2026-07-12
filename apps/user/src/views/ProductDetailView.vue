@@ -13,7 +13,10 @@
 
     <!-- 产品基本信息 -->
     <div class="product-info">
-      <div class="price-row" v-if="!isShareMode">
+      <div
+        v-if="!isShareMode"
+        class="price-row"
+      >
         <span class="price">{{ product.price }}</span>
         <span
           v-if="product.stock > 0"
@@ -132,12 +135,17 @@
             :src="shareQrCode"
             alt="分享二维码"
             class="qrcode-image"
-          />
-          <div v-else class="qrcode-loading">
+          >
+          <div
+            v-else
+            class="qrcode-loading"
+          >
             <van-loading type="spinner" />
           </div>
         </div>
-        <div class="share-tip">扫码即可做单</div>
+        <div class="share-tip">
+          扫码即可做单
+        </div>
       </div>
     </van-popup>
 

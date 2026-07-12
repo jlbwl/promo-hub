@@ -127,6 +127,28 @@ function createRequest(): AxiosInstance {
         return response
       }
       if (code === 401 && !window.location.pathname.includes('/login')) {
+        const hasRefreshToken = 
+          localStorage.getItem('admin_refresh_token') ||
+          localStorage.getItem('manager_refresh_token') ||
+          localStorage.getItem('user_refresh_token') ||
+          localStorage.getItem('employee_refresh_token') ||
+          localStorage.getItem('refresh_token')
+
+        if (!hasRefreshToken) {
+          localStorage.removeItem('token')
+          localStorage.removeItem('manager_token')
+          localStorage.removeItem('admin_token')
+          localStorage.removeItem('user_token')
+          localStorage.removeItem('employee_token')
+          localStorage.removeItem('refresh_token')
+          localStorage.removeItem('admin_refresh_token')
+          localStorage.removeItem('manager_refresh_token')
+          localStorage.removeItem('user_refresh_token')
+          localStorage.removeItem('employee_refresh_token')
+          window.location.reload()
+          return Promise.reject(new Error(message || '未登录或会话已过期'))
+        }
+
         if (isRefreshing) {
           return new Promise((resolve, reject) => {
             failedQueue.push({ resolve, reject })

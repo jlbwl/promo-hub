@@ -285,7 +285,12 @@
               >
                 已应用
               </el-tag>
-              <span v-else style="color: #999;">未应用</span>
+              <span
+                v-else
+                style="color: #999;"
+              >
+                未应用
+              </span>
             </template>
           </el-table-column>
           <el-table-column
