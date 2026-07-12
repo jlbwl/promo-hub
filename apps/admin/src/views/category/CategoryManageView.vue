@@ -232,17 +232,18 @@
         <img :src="qrCodeDataUrl" alt="二维码" style="width: 150px; height: 150px;" />
         <div style="margin-top: 10px; color: #666;">二维码预览</div>
       </div>
-      <div v-if="qrCodeList.length > 0" style="margin-top: 20px;">
+      <div v-if="qrCodeList.length > 0" style="margin-top: 20px; overflow: hidden;">
         <div style="font-weight: bold; margin-bottom: 10px;">已保存的二维码</div>
         <el-table
           :data="qrCodeList"
           size="small"
           border
+          style="width: 100%;"
         >
           <el-table-column
             prop="url"
             label="网址"
-            width="300"
+            min-width="150"
             show-overflow-tooltip
           />
           <el-table-column
@@ -256,7 +257,7 @@
           </el-table-column>
           <el-table-column
             label="状态"
-            width="80"
+            width="70"
             align="center"
           >
             <template #default="{ row }">
@@ -266,7 +267,7 @@
           </el-table-column>
           <el-table-column
             label="操作"
-            width="120"
+            width="100"
             align="center"
           >
             <template #default="{ row }">
