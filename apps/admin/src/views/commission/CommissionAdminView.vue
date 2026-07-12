@@ -487,10 +487,10 @@
     <el-dialog
       v-model="statDialogVisible"
       :title="statDialogTitle"
-      width="750px"
+      width="850px"
       destroy-on-close
     >
-      <div class="stat-dialog-content">
+      <div class="stat-dialog-content" style="overflow: hidden;">
         <div class="payment-summary">
           <span>共 <strong>{{ statDialogOrders.length }}</strong> 条记录</span>
           <span class="payment-total">合计积分：<strong>{{ statDialogTotal }}</strong></span>
@@ -500,6 +500,7 @@
           border
           size="small"
           max-height="450"
+          style="width: 100%;"
         >
           <el-table-column
             type="index"
@@ -536,7 +537,7 @@
           <el-table-column
             prop="userName"
             label="用户姓名"
-            width="100"
+            width="90"
             show-overflow-tooltip
           >
             <template #default="{ row }">
@@ -545,7 +546,7 @@
           </el-table-column>
           <el-table-column
             label="渠道名称"
-            width="120"
+            width="110"
             show-overflow-tooltip
           >
             <template #default="{ row }">
@@ -555,13 +556,13 @@
           <el-table-column
             prop="teamName"
             label="团队名称"
-            width="120"
+            width="110"
             show-overflow-tooltip
           />
           <el-table-column
             prop="userPhone"
             label="手机号"
-            width="110"
+            width="100"
             show-overflow-tooltip
           >
             <template #default="{ row }">
@@ -571,7 +572,7 @@
           <el-table-column
             prop="productPrice"
             label="推广费"
-            width="80"
+            width="70"
             align="right"
           >
             <template #default="{ row }">
@@ -580,7 +581,7 @@
           </el-table-column>
           <el-table-column
             label="做单时间"
-            width="140"
+            width="130"
             align="center"
           >
             <template #default="{ row }">

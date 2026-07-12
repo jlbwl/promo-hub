@@ -128,10 +128,10 @@
     <el-dialog
       v-model="productDialogVisible"
       title="上架产品列表"
-      width="800px"
+      width="850px"
       destroy-on-close
     >
-      <div class="product-dialog-content">
+      <div class="product-dialog-content" style="overflow: hidden;">
         <div class="payment-summary">
           <span>当前上架 <strong>{{ publishedProducts.length }}</strong> 个产品</span>
         </div>
@@ -142,6 +142,7 @@
           border
           size="small"
           max-height="450"
+          style="width: 100%;"
         >
           <el-table-column
             type="index"
@@ -178,7 +179,7 @@
           <el-table-column
             prop="price"
             label="推广费"
-            width="80"
+            width="70"
             align="right"
           >
             <template #default="{ row }">
@@ -188,7 +189,7 @@
           <el-table-column
             prop="stock"
             label="库存"
-            width="70"
+            width="60"
             align="center"
           >
             <template #default="{ row }">
@@ -200,7 +201,7 @@
           <el-table-column
             prop="category"
             label="分类"
-            width="100"
+            width="90"
             show-overflow-tooltip
           >
             <template #default="{ row }">
@@ -212,7 +213,7 @@
           <el-table-column
             prop="managerId"
             label="所属经理"
-            width="100"
+            width="90"
             show-overflow-tooltip
           >
             <template #default="{ row }">
@@ -222,7 +223,7 @@
           <el-table-column
             prop="publishedAt"
             label="上架时间"
-            width="150"
+            width="140"
             align="center"
           >
             <template #default="{ row }">
@@ -231,9 +232,8 @@
           </el-table-column>
           <el-table-column
             label="操作"
-            width="80"
+            width="70"
             align="center"
-            fixed="right"
           >
             <template #default="{ row }">
               <el-button

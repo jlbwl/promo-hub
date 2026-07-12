@@ -412,13 +412,14 @@
     <el-dialog
       v-model="paymentDialogVisible"
       title="待发放发放"
-      width="700px"
+      width="750px"
       destroy-on-close
     >
       <!-- 待付款列表 -->
       <div
         v-if="paymentStep === 'list'"
         class="payment-dialog-content"
+        style="overflow: hidden;"
       >
         <div class="payment-summary">
           <span>共 <strong>{{ paymentOrders.length }}</strong> 笔待发放</span>
@@ -432,6 +433,7 @@
           border
           size="small"
           max-height="400"
+          style="width: 100%;"
         >
           <el-table-column
             type="index"
@@ -468,7 +470,7 @@
           <el-table-column
             prop="userName"
             label="姓名"
-            width="100"
+            width="90"
             show-overflow-tooltip
           >
             <template #default="{ row }">
@@ -478,7 +480,7 @@
           <el-table-column
             prop="userPhone"
             label="手机号"
-            width="110"
+            width="100"
             show-overflow-tooltip
           >
             <template #default="{ row }">
@@ -488,7 +490,7 @@
           <el-table-column
             prop="productPrice"
             label="推广费"
-            width="90"
+            width="80"
             align="right"
           >
             <template #default="{ row }">
@@ -498,7 +500,7 @@
           <el-table-column
             prop="createdAt"
             label="做单时间"
-            width="150"
+            width="130"
             align="center"
           />
         </el-table>
@@ -606,10 +608,10 @@
     <el-dialog
       v-model="statDialogVisible"
       :title="statDialogTitle"
-      width="750px"
+      width="850px"
       destroy-on-close
     >
-      <div class="stat-dialog-content">
+      <div class="stat-dialog-content" style="overflow: hidden;">
         <div class="payment-summary">
           <span>共 <strong>{{ statDialogOrders.length }}</strong> 条记录</span>
           <span class="payment-total">
@@ -622,6 +624,7 @@
           border
           size="small"
           max-height="450"
+          style="width: 100%;"
         >
           <el-table-column
             type="index"
@@ -658,7 +661,7 @@
           <el-table-column
             prop="userName"
             label="姓名"
-            width="100"
+            width="80"
             show-overflow-tooltip
           >
             <template #default="{ row }">
@@ -668,7 +671,7 @@
           <el-table-column
             prop="userPhone"
             label="手机号"
-            width="110"
+            width="100"
             show-overflow-tooltip
           >
             <template #default="{ row }">
@@ -678,7 +681,7 @@
           <el-table-column
             prop="productPrice"
             label="推广费"
-            width="90"
+            width="70"
             align="right"
           >
             <template #default="{ row }">
@@ -688,7 +691,7 @@
           <el-table-column
             prop="status"
             label="状态"
-            width="80"
+            width="70"
             align="center"
           >
             <template #default="{ row }">
@@ -702,7 +705,7 @@
           </el-table-column>
           <el-table-column
             label="做单时间"
-            width="150"
+            width="130"
             align="center"
           >
             <template #default="{ row }">
@@ -712,7 +715,7 @@
           <el-table-column
             prop="rejectReason"
             label="驳回原因"
-            width="120"
+            width="100"
             show-overflow-tooltip
           >
             <template #default="{ row }">
@@ -722,7 +725,7 @@
           <el-table-column
             prop="settledAt"
             label="结算日期"
-            width="150"
+            width="130"
             align="center"
           >
             <template #default="{ row }">
