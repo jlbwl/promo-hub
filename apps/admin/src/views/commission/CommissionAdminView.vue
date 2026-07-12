@@ -490,7 +490,10 @@
       width="850px"
       destroy-on-close
     >
-      <div class="stat-dialog-content" style="overflow: hidden;">
+      <div
+        class="stat-dialog-content"
+        style="overflow: hidden;"
+      >
         <div class="payment-summary">
           <span>共 <strong>{{ statDialogOrders.length }}</strong> 条记录</span>
           <span class="payment-total">合计积分：<strong>{{ statDialogTotal }}</strong></span>

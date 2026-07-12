@@ -103,8 +103,9 @@ function createRequest(): AxiosInstance {
   // 响应拦截器 — 统一错误处理
   instance.interceptors.response.use(
     (response: AxiosResponse<ApiResponse>) => {
-      const newToken = response.headers['x-new-token'] as string
-      const newRefreshToken = response.headers['x-new-refresh-token'] as string
+      const headers = response.headers || {}
+      const newToken = headers['x-new-token'] as string
+      const newRefreshToken = headers['x-new-refresh-token'] as string
       
       if (newToken) {
         const tokenKey = 

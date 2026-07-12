@@ -228,7 +228,10 @@
           />
         </el-form-item>
       </el-form>
-      <div v-if="qrCodeDataUrl" style="text-align: center; margin-top: 20px;">
+      <div
+        v-if="qrCodeDataUrl"
+        style="text-align: center; margin-top: 20px;"
+      >
         <img
           :src="qrCodeDataUrl"
           alt="二维码"
@@ -238,7 +241,10 @@
           二维码预览
         </div>
       </div>
-      <div v-if="qrCodeList.length > 0" style="margin-top: 20px; overflow: hidden;">
+      <div
+        v-if="qrCodeList.length > 0"
+        style="margin-top: 20px; overflow: hidden;"
+      >
         <div style="font-weight: bold; margin-bottom: 10px;">
           已保存的二维码
         </div>
@@ -260,7 +266,11 @@
             align="center"
           >
             <template #default="{ row }">
-              <img :src="row.dataUrl" alt="二维码" style="width: 50px; height: 50px;" />
+              <img
+                :src="row.dataUrl"
+                alt="二维码"
+                style="width: 50px; height: 50px;"
+              >
             </template>
           </el-table-column>
           <el-table-column
@@ -269,7 +279,12 @@
             align="center"
           >
             <template #default="{ row }">
-              <el-tag v-if="row.isDefault" type="success">已应用</el-tag>
+              <el-tag
+                v-if="row.isDefault"
+                type="success"
+              >
+                已应用
+              </el-tag>
               <span v-else style="color: #999;">未应用</span>
             </template>
           </el-table-column>
