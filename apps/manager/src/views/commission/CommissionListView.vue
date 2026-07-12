@@ -412,7 +412,7 @@
     <el-dialog
       v-model="paymentDialogVisible"
       title="待发放发放"
-      width="750px"
+      width="850px"
       destroy-on-close
     >
       <!-- 待付款列表 -->
@@ -608,7 +608,7 @@
     <el-dialog
       v-model="statDialogVisible"
       :title="statDialogTitle"
-      width="850px"
+      width="950px"
       destroy-on-close
     >
       <div

@@ -128,7 +128,7 @@
     <el-dialog
       v-model="productDialogVisible"
       title="上架产品列表"
-      width="850px"
+      width="900px"
       destroy-on-close
     >
       <div
