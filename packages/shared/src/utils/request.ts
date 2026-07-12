@@ -2,7 +2,7 @@
  * API 请求层封装
  */
 import axios, { type AxiosInstance, type AxiosRequestConfig, type AxiosResponse } from 'axios'
-import type { ApiResponse } from '../types/index.js'
+import type { ApiResponse, RefreshTokenResult } from '../types/index.js'
 
 const BASE_URL = import.meta.env?.VITE_API_BASE_URL || '/api'
 
@@ -43,10 +43,11 @@ function createRequest(): AxiosInstance {
     }
 
     try {
-      const res = await axios.post<ApiResponse>(`${BASE_URL}/auth/refresh`, { refreshToken }, { withCredentials: true })
+      const res = await axios.post<ApiResponse<RefreshTokenResult>>(`${BASE_URL}/auth/refresh`, { refreshToken }, { withCredentials: true })
       if (res.data.code === 0 && res.data.data) {
-        const newToken = res.data.data.token
-        const newRefreshToken = res.data.data.refreshToken
+        const data = res.data.data as RefreshTokenResult
+        const newToken = data.token
+        const newRefreshToken = data.refreshToken
         
         const tokenKey = 
           localStorage.getItem('admin_token') ? 'admin_token' :

@@ -186,6 +186,11 @@ export interface LoginResult {
   user: User
 }
 
+export interface RefreshTokenResult {
+  token: string
+  refreshToken: string
+}
+
 // ============ 订单统计 ============
 export interface OrderStats {
   total: number
