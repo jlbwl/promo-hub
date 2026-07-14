@@ -55,7 +55,7 @@ export const createQrCode = async (req: Request, res: Response): Promise<void> =
 
 export const updateQrCodeById = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { id } = req.params
+    const id = String(req.params.id)
     const { url, dataUrl, centerText, topText, isDefault } = req.body
 
     if (isDefault) {
@@ -78,7 +78,7 @@ export const updateQrCodeById = async (req: Request, res: Response): Promise<voi
 
 export const deleteQrCodeById = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { id } = req.params
+    const id = String(req.params.id)
 
     await deleteQrCode(id)
 
@@ -90,7 +90,7 @@ export const deleteQrCodeById = async (req: Request, res: Response): Promise<voi
 
 export const applyQrCode = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { id } = req.params
+    const id = String(req.params.id)
 
     await setDefaultQrCode(id)
 
