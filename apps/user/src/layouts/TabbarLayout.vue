@@ -31,13 +31,13 @@
       >
         收藏
       </van-tabbar-item>
-      <!-- 主账户和员工账户都显示积分 -->
+      <!-- 主账户和员工账户都显示佣金 -->
       <van-tabbar-item
         to="/commissions"
         icon="gold-coin"
         name="commissions"
       >
-        积分
+        佣金
       </van-tabbar-item>
       <van-tabbar-item
         :to="isEmployee ? '/employee-profile' : '/profile'"

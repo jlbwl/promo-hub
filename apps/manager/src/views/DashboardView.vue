@@ -62,7 +62,7 @@
         >
           <div class="stat-content">
             <div class="stat-info">
-              <span class="stat-label">待审核积分</span>
+              <span class="stat-label">待审核佣金</span>
               <el-statistic :value="stats.pendingCommissions" />
             </div>
             <el-icon
@@ -85,7 +85,7 @@
         >
           <div class="stat-content">
             <div class="stat-info">
-              <span class="stat-label">累计积分</span>
+              <span class="stat-label">累计佣金</span>
               <el-statistic :value="stats.totalCommissions" />
             </div>
             <el-icon
@@ -129,7 +129,7 @@
               @click="$router.push('/commissions')"
             >
               <el-icon><Money /></el-icon>
-              积分管理
+              佣金管理
             </el-button>
           </div>
         </el-card>

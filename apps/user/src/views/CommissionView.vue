@@ -2,14 +2,14 @@
   <div class="commission-page">
     <!-- 顶部导航栏 -->
     <van-nav-bar
-      title="我的积分"
+      title="我的佣金"
       fixed
       placeholder
       right-text="回收站"
       @click-right="openRecycleBin"
     />
 
-    <!-- 积分概览卡片 -->
+    <!-- 佣金概览卡片 -->
     <div class="commission-overview">
       <div class="overview-card">
         <div class="total-commission">

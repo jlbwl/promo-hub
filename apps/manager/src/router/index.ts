@@ -53,7 +53,7 @@ const routes: RouteRecordRaw[] = [
         path: 'commissions',
         name: 'CommissionList',
         component: CommissionListView,
-        meta: { title: '积分管理' }
+        meta: { title: '佣金管理' }
       },
       {
         path: 'profile',

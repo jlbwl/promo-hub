@@ -40,7 +40,7 @@
           </el-menu-item>
           <el-menu-item index="/commissions">
             <el-icon><Wallet /></el-icon>
-            <span>积分管理</span>
+            <span>佣金管理</span>
           </el-menu-item>
           <el-menu-item index="/categories">
             <el-icon><Grid /></el-icon>

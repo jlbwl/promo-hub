@@ -70,7 +70,7 @@
           class="stat-card"
         >
           <el-statistic
-            title="积分总额"
+            title="佣金总额"
             :value="stats.totalCommission"
             :precision="2"
           >

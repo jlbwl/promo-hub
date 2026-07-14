@@ -496,7 +496,7 @@
       >
         <div class="payment-summary">
           <span>共 <strong>{{ statDialogOrders.length }}</strong> 条记录</span>
-          <span class="payment-total">合计积分：<strong>{{ statDialogTotal }}</strong></span>
+          <span class="payment-total">合计佣金：<strong>{{ statDialogTotal }}</strong></span>
         </div>
         <el-table
           :data="statDialogOrders"

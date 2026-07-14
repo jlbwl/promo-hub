@@ -43,7 +43,7 @@
           color="#1989fa"
         />
         <span class="stat-value">{{ stats.totalCommission }}</span>
-        <span class="stat-label">累计积分</span>
+        <span class="stat-label">累计佣金</span>
       </div>
       <div class="stat-divider" />
       <div
@@ -85,7 +85,7 @@
         @click="showCreateEmployee = true"
       />
       <van-cell
-        title="累计积分"
+        title="累计佣金"
         icon="gold-coin"
         is-link
         :value="stats.totalCommission"
