@@ -370,7 +370,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
-import { get, post, put } from '@promo/shared/utils/request'
+import { get, post, put, del } from '@promo/shared/utils/request'
 import type { ProductCategory, Product } from '@promo/shared/types'
 import ExcelJS from 'exceljs'
 import QRCode from 'qrcode'
@@ -456,15 +456,14 @@ const qrCodeFormRules: FormRules = {
   ]
 }
 
-const loadQrCodeList = () => {
-  const saved = localStorage.getItem('qrCodes')
-  if (saved) {
-    qrCodeList.value = JSON.parse(saved)
+const loadQrCodeList = async () => {
+  try {
+    const res = await get<QrCodeItem[]>('/admin/qrcodes')
+    qrCodeList.value = res.data || []
+  } catch (error) {
+    console.error('加载二维码列表失败:', error)
+    qrCodeList.value = []
   }
-}
-
-const saveQrCodeList = () => {
-  localStorage.setItem('qrCodes', JSON.stringify(qrCodeList.value))
 }
 
 const showQrCodeDialog = () => {
@@ -560,44 +559,44 @@ const addTextToQrCode = async (qrCodeDataUrl: string, topText: string, centerTex
   })
 }
 
-const saveQrCode = () => {
+const saveQrCode = async () => {
   if (!qrCodeDataUrl.value || !qrCodeForm.url) {
     ElMessage.warning('请先生成二维码')
     return
   }
 
-  const exists = qrCodeList.value.find(item => item.url === qrCodeForm.url)
-  if (exists) {
-    ElMessage.warning('该网址的二维码已存在')
-    return
+  try {
+    await post('/admin/qrcodes', {
+      url: qrCodeForm.url,
+      dataUrl: qrCodeDataUrl.value,
+      centerText: qrCodeForm.centerText,
+      topText: qrCodeForm.topText,
+      isDefault: qrCodeList.value.length === 0
+    })
+    await loadQrCodeList()
+    const defaultQrCode = qrCodeList.value.find(item => item.isDefault)
+    if (defaultQrCode) {
+      qrCodeDataUrl.value = defaultQrCode.dataUrl
+    }
+    ElMessage.success('二维码保存成功')
+  } catch (error: any) {
+    if (error.response?.status === 409) {
+      ElMessage.warning('该网址的二维码已存在')
+    } else {
+      ElMessage.error(error.message || '保存失败')
+    }
   }
-
-  const newItem: QrCodeItem = {
-    id: Date.now().toString(),
-    url: qrCodeForm.url,
-    dataUrl: qrCodeDataUrl.value,
-    isDefault: qrCodeList.value.length === 0,
-    createdAt: Date.now(),
-    centerText: qrCodeForm.centerText,
-    topText: qrCodeForm.topText
-  }
-
-  if (qrCodeList.value.length === 0) {
-    qrCodeDataUrl.value = newItem.dataUrl
-  }
-
-  qrCodeList.value.push(newItem)
-  saveQrCodeList()
-  ElMessage.success('二维码保存成功')
 }
 
-const applyQrCode = (item: QrCodeItem) => {
-  qrCodeList.value.forEach(i => {
-    i.isDefault = i.id === item.id
-  })
-  qrCodeDataUrl.value = item.dataUrl
-  saveQrCodeList()
-  ElMessage.success('二维码已应用，一键派单将使用该二维码')
+const applyQrCode = async (item: QrCodeItem) => {
+  try {
+    await post(`/admin/qrcodes/${item.id}/apply`)
+    await loadQrCodeList()
+    qrCodeDataUrl.value = item.dataUrl
+    ElMessage.success('二维码已应用，一键派单将使用该二维码')
+  } catch (error: any) {
+    ElMessage.error(error.message || '应用失败')
+  }
 }
 
 const deleteQrCode = async (id: string) => {
@@ -608,21 +607,11 @@ const deleteQrCode = async (id: string) => {
       type: 'warning'
     })
 
-    const index = qrCodeList.value.findIndex(item => item.id === id)
-    if (index !== -1) {
-      const wasDefault = qrCodeList.value[index].isDefault
-      qrCodeList.value.splice(index, 1)
-
-      if (wasDefault && qrCodeList.value.length > 0) {
-        qrCodeList.value[0].isDefault = true
-        qrCodeDataUrl.value = qrCodeList.value[0].dataUrl
-      } else if (qrCodeList.value.length === 0) {
-        qrCodeDataUrl.value = ''
-      }
-
-      saveQrCodeList()
-      ElMessage.success('删除成功')
-    }
+    await del(`/admin/qrcodes/${id}`)
+    await loadQrCodeList()
+    const defaultQrCode = qrCodeList.value.find(item => item.isDefault)
+    qrCodeDataUrl.value = defaultQrCode?.dataUrl || ''
+    ElMessage.success('删除成功')
   } catch (error) {
     if (error !== 'cancel') {
       ElMessage.error('删除失败')
@@ -896,23 +885,15 @@ const handleExportProducts = async () => {
       }
     })
 
-    const loadDefaultQrCode = () => {
-      const saved = localStorage.getItem('qrCodes')
-      if (saved) {
-        try {
-          const list: QrCodeItem[] = JSON.parse(saved)
-          const defaultQrCode = list.find(item => item.isDefault)
-          if (defaultQrCode && defaultQrCode.dataUrl) {
-            return defaultQrCode.dataUrl
-          }
-        } catch (e) {
-          console.error('Failed to parse qrCodes from localStorage:', e)
-        }
+    let currentQrCodeDataUrl = qrCodeDataUrl.value
+    try {
+      const res = await get<QrCodeItem>('/admin/qrcodes/default')
+      if (res.data && res.data.dataUrl) {
+        currentQrCodeDataUrl = res.data.dataUrl
       }
-      return qrCodeDataUrl.value
+    } catch (error) {
+      console.error('获取默认二维码失败:', error)
     }
-
-    const currentQrCodeDataUrl = loadDefaultQrCode()
 
     if (currentQrCodeDataUrl) {
       worksheet.addRow(['', '', '', '', ''])
