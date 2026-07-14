@@ -1130,6 +1130,7 @@ export async function ensureQrCodesTable(): Promise<void> {
 }
 
 export async function readQrCodes(): Promise<any[]> {
+  await ensureQrCodesTable()
   const rows = await query('SELECT * FROM qr_codes ORDER BY created_at DESC')
   return (rows as any[]).map(row => ({
     id: row.id,
@@ -1144,6 +1145,7 @@ export async function readQrCodes(): Promise<any[]> {
 }
 
 export async function readQrCodeById(id: string): Promise<any> {
+  await ensureQrCodesTable()
   const row = await queryOne('SELECT * FROM qr_codes WHERE id = ?', [id])
   if (!row) return null
   return {
@@ -1174,6 +1176,7 @@ export async function insertQrCode(qrCode: {
 }
 
 export async function updateQrCode(id: string, fields: Record<string, any>): Promise<void> {
+  await ensureQrCodesTable()
   const sets: string[] = []
   const values: any[] = []
   for (const [key, val] of Object.entries(fields)) {
@@ -1200,15 +1203,18 @@ export async function updateQrCode(id: string, fields: Record<string, any>): Pro
 }
 
 export async function deleteQrCode(id: string): Promise<void> {
+  await ensureQrCodesTable()
   await query('DELETE FROM qr_codes WHERE id = ?', [id])
 }
 
 export async function setDefaultQrCode(id: string): Promise<void> {
+  await ensureQrCodesTable()
   await query('UPDATE qr_codes SET is_default = 0')
   await query('UPDATE qr_codes SET is_default = 1 WHERE id = ?', [id])
 }
 
 export async function readDefaultQrCode(): Promise<any> {
+  await ensureQrCodesTable()
   const row = await queryOne('SELECT * FROM qr_codes WHERE is_default = 1 LIMIT 1')
   if (!row) return null
   return {
