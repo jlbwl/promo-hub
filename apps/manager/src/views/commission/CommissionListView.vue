@@ -498,11 +498,14 @@
             </template>
           </el-table-column>
           <el-table-column
-            prop="createdAt"
             label="做单时间"
             width="130"
             align="center"
-          />
+          >
+            <template #default="{ row }">
+              {{ formatTime(row.createdAt) }}
+            </template>
+          </el-table-column>
         </el-table>
 
         <div class="payment-actions">
