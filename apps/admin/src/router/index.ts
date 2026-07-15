@@ -68,6 +68,14 @@ const router = createRouter({
   routes
 })
 
+// 处理动态导入失败（部署后缓存问题）
+router.onError((error: any) => {
+  const pattern = /Failed to fetch dynamically imported module/i
+  if (pattern.test(error.message)) {
+    window.location.reload()
+  }
+})
+
 // 路由守卫：检查登录状态
 router.beforeEach((to, _from, next) => {
   // 设置页面标题

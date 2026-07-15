@@ -75,6 +75,14 @@ const router = createRouter({
   routes
 })
 
+// 处理动态导入失败（部署后缓存问题）
+router.onError((error: any) => {
+  const pattern = /Failed to fetch dynamically imported module/i
+  if (pattern.test(error.message)) {
+    window.location.reload()
+  }
+})
+
 // 全局前置守卫 - 检查渠道经理登录状态
 router.beforeEach((to, _from, next) => {
   document.title = (to.meta.title as string) ? `${to.meta.title} - 渠道经理后台` : '渠道经理后台'
