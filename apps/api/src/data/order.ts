@@ -139,7 +139,7 @@ export async function getOrdersPaginated(params: {
 
   try {
     const countResult = await queryOne(
-      `SELECT COUNT(*) as total FROM orders WHERE ${whereClause}`,
+      `SELECT COUNT(1) as total FROM orders WHERE ${whereClause}`,
       values
     )
     const total = Number(countResult?.total) || 0

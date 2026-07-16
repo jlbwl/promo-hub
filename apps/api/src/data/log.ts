@@ -49,7 +49,7 @@ export async function readOperationLogs(params?: {
 
   queryStr += ' ORDER BY createdAt DESC'
 
-  const total = await queryOne('SELECT COUNT(*) as count FROM operation_logs' + (conditions.length > 0 ? ' WHERE ' + conditions.join(' AND ') : ''), values)
+  const total = await queryOne('SELECT COUNT(1) as count FROM operation_logs' + (conditions.length > 0 ? ' WHERE ' + conditions.join(' AND ') : ''), values)
   const totalCount = total?.count || 0
 
   const pageNum = parseInt(String(params?.page || 1), 10)
