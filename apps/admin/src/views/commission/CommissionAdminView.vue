@@ -334,11 +334,28 @@
         </template>
       </el-table-column>
       <el-table-column
-        prop="teamName"
         label="团队名称"
         width="140"
         show-overflow-tooltip
-      />
+      >
+        <template #default="{ row }">
+          <div class="editable-cell" v-if="row.teamName">
+            {{ row.teamName }}
+            <el-icon
+              class="edit-icon"
+              @click="editTeamName(row)"
+            >
+              <Edit />
+            </el-icon>
+          </div>
+          <div v-else class="editable-cell empty" @click="editTeamName(row)">
+            <span class="empty-text">点击编辑</span>
+            <el-icon class="edit-icon">
+              <Edit />
+            </el-icon>
+          </div>
+        </template>
+      </el-table-column>
       <el-table-column
         prop="userPhone"
         label="手机号"
@@ -479,6 +496,45 @@
           @click="confirmDelete"
         >
           确定删除
+        </el-button>
+      </template>
+    </el-dialog>
+
+    <!-- ====== 编辑团队名称模态框 ====== -->
+    <el-dialog
+      v-model="editTeamNameDialogVisible"
+      title="编辑团队名称"
+      width="420px"
+      :close-on-click-modal="false"
+    >
+      <div class="edit-team-name-content">
+        <el-form :model="editTeamNameForm" :rules="editTeamNameRules" ref="editTeamNameFormRef" label-width="80px">
+          <el-form-item label="产品名称">
+            <el-input :value="editTeamNameRow?.productName" disabled />
+          </el-form-item>
+          <el-form-item label="用户姓名">
+            <el-input :value="maskName(editTeamNameRow?.userName)" disabled />
+          </el-form-item>
+          <el-form-item label="团队名称" prop="teamName">
+            <el-input
+              v-model="editTeamNameForm.teamName"
+              placeholder="请输入团队名称"
+              maxlength="50"
+              show-word-limit
+            />
+          </el-form-item>
+        </el-form>
+      </div>
+      <template #footer>
+        <el-button @click="editTeamNameDialogVisible = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="editTeamNameLoading"
+          @click="confirmEditTeamName"
+        >
+          保存
         </el-button>
       </template>
     </el-dialog>
@@ -769,6 +825,55 @@ const closeDeleteDialog = () => {
   deleteReason.value = ''
 }
 
+// 编辑团队名称相关状态
+import { put } from '@promo/shared/utils/request'
+import { Edit } from '@element-plus/icons-vue'
+import type { FormInstance, FormRules } from 'element-plus'
+
+const editTeamNameDialogVisible = ref(false)
+const editTeamNameRow = ref<any>(null)
+const editTeamNameLoading = ref(false)
+const editTeamNameFormRef = ref<FormInstance>()
+const editTeamNameForm = reactive({ teamName: '' })
+const editTeamNameRules: FormRules = {
+  teamName: [{ required: true, message: '请输入团队名称', trigger: 'blur' }]
+}
+
+// 打开编辑团队名称弹窗
+const editTeamName = (row: any) => {
+  editTeamNameRow.value = row
+  editTeamNameForm.teamName = row.teamName || ''
+  editTeamNameDialogVisible.value = true
+}
+
+// 确认编辑团队名称
+const confirmEditTeamName = async () => {
+  await editTeamNameFormRef.value?.validate()
+  if (!editTeamNameRow.value) return
+
+  editTeamNameLoading.value = true
+  try {
+    const res = await put(`/orders/${editTeamNameRow.value.id}/team-name`, {
+      teamName: editTeamNameForm.teamName.trim()
+    })
+
+    if (res.code === 0) {
+      ElMessage.success('团队名称更新成功')
+      editTeamNameDialogVisible.value = false
+      editTeamNameRow.value = null
+      editTeamNameForm.teamName = ''
+      fetchData()
+      fetchStats()
+    } else {
+      ElMessage.error(res.message || '更新失败')
+    }
+  } catch (error: any) {
+    ElMessage.error(error.message || '更新失败')
+  } finally {
+    editTeamNameLoading.value = false
+  }
+}
+
 onMounted(() => { fetchStats(); fetchData(); fetchManagers(); fetchUsers() })
 </script>
 
@@ -811,6 +916,40 @@ onMounted(() => { fetchStats(); fetchData(); fetchManagers(); fetchUsers() })
 
   :deep(.el-table) {
     min-width: 900px;
+  }
+
+  .editable-cell {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+    padding: 2px 4px;
+    border-radius: 4px;
+    transition: all 0.2s;
+
+    &:hover {
+      background: #ecf5ff;
+    }
+
+    &.empty {
+      color: #909399;
+
+      .empty-text {
+        font-size: 13px;
+      }
+    }
+
+    .edit-icon {
+      font-size: 14px;
+      color: #409eff;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+
+    &:hover .edit-icon,
+    &.empty .edit-icon {
+      opacity: 1;
+    }
   }
 }
 

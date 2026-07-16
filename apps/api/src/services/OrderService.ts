@@ -97,6 +97,11 @@ export interface OrderService {
   settleOrder(orderId: string, params: {
     action: 'pending_payment' | 'paid'
   }): Promise<void>
+
+  /**
+   * 更新订单团队名称
+   */
+  updateOrderTeamName(orderId: string, teamName: string): Promise<void>
 }
 
 /**
@@ -336,6 +341,18 @@ export class OrderServiceImpl implements OrderService {
     } else {
       throwBadRequest('无效的结算操作')
     }
+  }
+
+  /**
+   * 更新订单团队名称
+   */
+  async updateOrderTeamName(orderId: string, teamName: string): Promise<void> {
+    const order = await readOrder(orderId)
+    if (!order) {
+      throwNotFound('订单不存在')
+    }
+    await updateOrder(orderId, { teamName })
+    console.log('[OrderService] 更新订单团队名称:', orderId, teamName)
   }
 }
 
@@ -627,5 +644,17 @@ export const orderService: OrderService = {
     } else {
       throwBadRequest('无效的结算操作')
     }
+  },
+
+  /**
+   * 更新订单团队名称
+   */
+  async updateOrderTeamName(orderId: string, teamName: string): Promise<void> {
+    const order = await readOrder(orderId)
+    if (!order) {
+      throwNotFound('订单不存在')
+    }
+    await updateOrder(orderId, { teamName })
+    console.log('[OrderService] 更新订单团队名称:', orderId, teamName)
   },
 }

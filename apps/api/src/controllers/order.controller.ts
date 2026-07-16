@@ -254,3 +254,23 @@ export const settleOrder = async (req: Request, res: Response): Promise<void> =>
     sendError(res, error.message || '结算失败', error.code || 500)
   }
 }
+
+/**
+ * 更新订单团队名称
+ * 管理员可手动修改订单的团队名称
+ * @param req - HTTP请求对象，包含订单ID（req.params.id）和团队名称（req.body.teamName）
+ * @param res - HTTP响应对象
+ * @returns 更新结果
+ */
+export const updateOrderTeamName = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const orderId = req.params.id as string
+    const { teamName } = req.body
+
+    await orderService.updateOrderTeamName(orderId, teamName)
+
+    sendSuccess(res, null, '团队名称更新成功')
+  } catch (error: any) {
+    sendError(res, error.message || '更新失败', error.code || 500)
+  }
+}
