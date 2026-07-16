@@ -64,11 +64,14 @@ app.use(express.json())
 app.use(cookieParser())
 app.use(sessionMiddleware)
 
-// CSRF token 中间件（仅生成，不验证）
+// CSRF token 中间件（生成 + 验证）
 app.use(csrfGenerate)
 
 // 提供 CSRF token 获取接口
 app.get('/api/csrf-token', getCsrfToken)
+
+// CSRF 验证中间件（验证非 GET 请求的 CSRF token）
+app.use(csrfVerify)
 
 // 请求日志中间件
 app.use((req, _res, next) => {

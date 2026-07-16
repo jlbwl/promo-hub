@@ -95,6 +95,18 @@ function createRequest(): AxiosInstance {
           config.headers['X-Refresh-Token'] = refreshToken
         }
       }
+
+      // 自动携带 CSRF token（从 cookie 中读取）
+      if (typeof document !== 'undefined') {
+        const csrfToken = document.cookie
+          .split('; ')
+          .find(row => row.startsWith('csrfToken='))
+          ?.split('=')[1]
+        if (csrfToken) {
+          config.headers['X-CSRF-Token'] = csrfToken
+        }
+      }
+      
       return config
     },
     (error) => Promise.reject(error),

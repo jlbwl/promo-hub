@@ -58,7 +58,8 @@ export function csrfVerify(req: Request, res: Response, next: NextFunction) {
     '/api/user/sms/send',
     '/api/user/sms/login',
     '/api/user/register',
-    
+    '/api/auth/refresh',
+
     // CSRF token 接口本身
     '/api/csrf-token'
   ]
