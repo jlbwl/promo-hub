@@ -6,27 +6,41 @@ vi.spyOn(console, 'log').mockImplementation(() => {})
 vi.spyOn(console, 'error').mockImplementation(() => {})
 
 // Mock cache module
-vi.mock('../cache/index.js', () => ({
-  CacheService: class {
-    get = vi.fn().mockResolvedValue(null)
-    set = vi.fn().mockResolvedValue(undefined)
-    delete = vi.fn().mockResolvedValue(undefined)
-    deletePattern = vi.fn().mockResolvedValue(undefined)
-    connect = vi.fn().mockResolvedValue(undefined)
-    disconnect = vi.fn().mockResolvedValue(undefined)
-    getStats = vi.fn().mockReturnValue({ redisConnected: false, memoryCacheSize: 0, memoryCacheKeys: [] })
-  },
-  CacheKeys: {
-    PRODUCT: 'product',
-    PRODUCT_LIST: 'product:list',
-    PRODUCT_DETAIL: (id: string) => `product:${id}`
-  },
-  CacheTTL: {
-    SHORT: 60,
-    MEDIUM: 300,
-    LONG: 1800
+vi.mock('../cache/index.js', () => {
+  const mockCacheService = {
+    get: vi.fn().mockResolvedValue(null),
+    set: vi.fn().mockResolvedValue(undefined),
+    delete: vi.fn().mockResolvedValue(undefined),
+    deletePattern: vi.fn().mockResolvedValue(undefined),
+    connect: vi.fn().mockResolvedValue(undefined),
+    disconnect: vi.fn().mockResolvedValue(undefined),
+    getStats: vi.fn().mockReturnValue({ redisConnected: false, memoryCacheSize: 0, memoryCacheKeys: [] })
   }
-}))
+  return {
+    CacheService: class {
+      get = mockCacheService.get
+      set = mockCacheService.set
+      delete = mockCacheService.delete
+      deletePattern = mockCacheService.deletePattern
+      connect = mockCacheService.connect
+      disconnect = mockCacheService.disconnect
+      getStats = mockCacheService.getStats
+    },
+    getCacheService: vi.fn().mockReturnValue(mockCacheService),
+    initCacheService: vi.fn().mockResolvedValue(undefined),
+    closeCacheService: vi.fn().mockResolvedValue(undefined),
+    CacheKeys: {
+      PRODUCT: 'product',
+      PRODUCT_LIST: 'product:list',
+      PRODUCT_DETAIL: (id: string) => `product:${id}`
+    },
+    CacheTTL: {
+      SHORT: 60,
+      MEDIUM: 300,
+      LONG: 1800
+    }
+  }
+})
 
 // Mock data module
 vi.mock('../../data/index.js', () => ({
