@@ -10,8 +10,13 @@ dotenv.config({ path: join(__dirname, '..', '.env') })
 const SALT_ROUNDS = 12
 
 // 日志工具（简单的 console.log）
+const SLOW_QUERY_THRESHOLD = 1000
+const isDev = process.env.NODE_ENV !== 'production'
+
 const logger = {
-  info: (msg: string, meta?: any) => console.log(`[DB] ${msg}`, meta || ''),
+  info: (msg: string, meta?: any) => {
+    if (isDev) console.log(`[DB] ${msg}`, meta || '')
+  },
   error: (msg: string, meta?: any) => console.error(`[DB ERROR] ${msg}`, meta || ''),
   warn: (msg: string, meta?: any) => console.warn(`[DB WARN] ${msg}`, meta || ''),
 }
@@ -41,6 +46,9 @@ export async function query(sql: string, params?: any[]): Promise<any> {
     const [rows] = await Promise.race([queryPromise, timeoutPromise]) as any
     const duration = Date.now() - startTime
     logger.info(`Query completed in ${duration}ms`, { sql: sql.substring(0, 100) })
+    if (!isDev && duration >= SLOW_QUERY_THRESHOLD) {
+      logger.warn(`Slow query: ${duration}ms`, { sql: sql.substring(0, 200) })
+    }
     return rows
   } catch (error: any) {
     const duration = Date.now() - startTime
@@ -63,6 +71,9 @@ export async function queryOne(sql: string, params?: any[]): Promise<any> {
     const [rows] = await Promise.race([queryPromise, timeoutPromise]) as any
     const duration = Date.now() - startTime
     logger.info(`QueryOne completed in ${duration}ms`, { sql: sql.substring(0, 100) })
+    if (!isDev && duration >= SLOW_QUERY_THRESHOLD) {
+      logger.warn(`Slow query (queryOne): ${duration}ms`, { sql: sql.substring(0, 200) })
+    }
     return (rows as any[])[0] || null
   } catch (error: any) {
     const duration = Date.now() - startTime
