@@ -8,7 +8,7 @@ import { fileURLToPath } from 'url'
 import multer from 'multer'
 import logger from './utils/logger.js'
 import cookieParser from 'cookie-parser'
-import { sessionMiddleware, requireManager } from './middleware/auth.js'
+import { sessionMiddleware, requireManager, requireAdmin } from './middleware/auth.js'
 import { smsLimiter, loginLimiter } from './middleware/rateLimit.js'
 import { csrfGenerate, csrfVerify, getCsrfToken } from './middleware/csrf-v2.js'
 import routes from './routes/index.js'
@@ -170,7 +170,7 @@ app.get('/api/health', (_req, res) => {
 })
 
 // 缓存清理接口（仅管理员）
-app.post('/api/cache/clear', async (_req, res) => {
+app.post('/api/cache/clear', requireAdmin, async (_req, res) => {
   try {
     const cacheService = new CacheService()
     await cacheService.connect()
