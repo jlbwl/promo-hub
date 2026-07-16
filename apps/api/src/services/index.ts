@@ -6,7 +6,7 @@ export { productService, initializeCache, closeCache, type ProductService, Produ
 export { orderService, type OrderService, OrderServiceImpl } from './OrderService.js'
 export { userService, UserServiceImpl, type UserService } from './UserService.js'
 export { managerService, type ManagerService, ManagerServiceImpl } from './ManagerService.js'
-export { CacheService, CacheKeys, CacheTTL } from './cache/index.js'
+export { CacheService, CacheKeys, CacheTTL, getCacheService, initCacheService, closeCacheService } from './cache/index.js'
 export { ConfigService, type AppConfig } from './ConfigService.js'
 export { DatabaseService } from './DatabaseService.js'
 

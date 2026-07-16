@@ -328,3 +328,25 @@ export const CacheTTL = {
   LONG: 1800,     // 30分钟 - 相对稳定的数据
   VERY_LONG: 3600 // 1小时 - 几乎不变的数据
 }
+
+let cacheServiceInstance: CacheService | null = null
+
+export function getCacheService(): CacheService {
+  if (!cacheServiceInstance) {
+    cacheServiceInstance = new CacheService()
+  }
+  return cacheServiceInstance
+}
+
+export async function initCacheService(): Promise<void> {
+  const svc = getCacheService()
+  await svc.connect()
+  console.log('[Cache] 全局缓存服务初始化完成')
+}
+
+export async function closeCacheService(): Promise<void> {
+  if (cacheServiceInstance) {
+    await cacheServiceInstance.disconnect()
+    cacheServiceInstance = null
+  }
+}

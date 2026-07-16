@@ -14,7 +14,7 @@ import { csrfGenerate, csrfVerify, getCsrfToken } from './middleware/csrf-v2.js'
 import routes from './routes/index.js'
 import { errorHandler } from './utils/response.js'
 import { logRequest } from './utils/logger.js'
-import { initializeCache, closeCache, CacheService } from './services/index.js'
+import { initializeCache, closeCache, getCacheService } from './services/index.js'
 import { resolve } from './container.js'
 import type { ConfigService } from './services/ConfigService.js'
 import bcrypt from 'bcryptjs'
@@ -157,7 +157,7 @@ app.use('/api/uploads', express.static(UPLOAD_DIR))
 app.use('/api/uploads/covers', express.static(COVER_DIR))
 
 app.get('/api/health', (_req, res) => {
-  const cacheService = new CacheService()
+  const cacheService = getCacheService()
   const stats = cacheService.getStats()
   res.json({
     code: 0,
@@ -172,10 +172,8 @@ app.get('/api/health', (_req, res) => {
 // 缓存清理接口（仅管理员）
 app.post('/api/cache/clear', requireAdmin, async (_req, res) => {
   try {
-    const cacheService = new CacheService()
-    await cacheService.connect()
+    const cacheService = getCacheService()
     await cacheService.flush()
-    await cacheService.disconnect()
     res.json({ code: 0, message: '缓存已清空', data: null })
   } catch (error: any) {
     res.json({ code: 500, message: '清空缓存失败: ' + error.message, data: null })

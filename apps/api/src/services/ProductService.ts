@@ -15,7 +15,7 @@ import {
   queryOne,
   query
 } from '../data/index.js'
-import { CacheService, CacheKeys, CacheTTL } from './cache/index.js'
+import { CacheService, CacheKeys, CacheTTL, getCacheService as getGlobalCacheService } from './cache/index.js'
 import { DatabaseService } from './DatabaseService.js'
 import { ErrorCode, throwNotFound, throwBadRequest, throwForbidden, throwConflict } from '@promo/shared'
 
@@ -336,12 +336,9 @@ export class ProductServiceImpl implements ProductService {
 // 缓存服务实例（延迟初始化）
 let cacheService: CacheService | null = null
 
-/**
- * 获取缓存服务实例
- */
 function getCacheService(): CacheService {
   if (!cacheService) {
-    cacheService = new CacheService()
+    cacheService = getGlobalCacheService()
   }
   return cacheService
 }
@@ -663,18 +660,12 @@ export const productService: ProductService = {
   },
 }
 
-/**
- * 初始化缓存服务
- */
 export async function initializeCache(): Promise<void> {
   const cache = getCacheService()
   await cache.connect()
   console.log('[ProductService] 缓存服务初始化完成')
 }
 
-/**
- * 关闭缓存服务
- */
 export async function closeCache(): Promise<void> {
   if (cacheService) {
     await cacheService.disconnect()
