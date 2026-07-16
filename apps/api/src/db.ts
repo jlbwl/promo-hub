@@ -38,13 +38,15 @@ const pool = mysql.createPool({
 // 通用查询方法（带超时和日志）
 export async function query(sql: string, params?: any[]): Promise<any> {
   const startTime = Date.now()
+  let timeoutId: ReturnType<typeof setTimeout>
   try {
     const timeoutPromise = new Promise<never>((_, reject) => {
-      setTimeout(() => reject(new Error('Query timeout after 20s')), 20000)
+      timeoutId = setTimeout(() => reject(new Error('Query timeout after 20s')), 20000)
     })
     const queryPromise = pool.query(sql, params)
     const [rows] = await Promise.race([queryPromise, timeoutPromise]) as any
     const duration = Date.now() - startTime
+    clearTimeout(timeoutId!)
     logger.info(`Query completed in ${duration}ms`, { sql: sql.substring(0, 100) })
     if (!isDev && duration >= SLOW_QUERY_THRESHOLD) {
       logger.warn(`Slow query: ${duration}ms`, { sql: sql.substring(0, 200) })
@@ -52,6 +54,7 @@ export async function query(sql: string, params?: any[]): Promise<any> {
     return rows
   } catch (error: any) {
     const duration = Date.now() - startTime
+    clearTimeout(timeoutId!)
     logger.error(`Query failed after ${duration}ms`, { 
       sql: sql.substring(0, 100), 
       error: error.message,
@@ -63,13 +66,15 @@ export async function query(sql: string, params?: any[]): Promise<any> {
 
 export async function queryOne(sql: string, params?: any[]): Promise<any> {
   const startTime = Date.now()
+  let timeoutId: ReturnType<typeof setTimeout>
   try {
     const timeoutPromise = new Promise<never>((_, reject) => {
-      setTimeout(() => reject(new Error('Query timeout after 20s')), 20000)
+      timeoutId = setTimeout(() => reject(new Error('Query timeout after 20s')), 20000)
     })
     const queryPromise = pool.query(sql, params)
     const [rows] = await Promise.race([queryPromise, timeoutPromise]) as any
     const duration = Date.now() - startTime
+    clearTimeout(timeoutId!)
     logger.info(`QueryOne completed in ${duration}ms`, { sql: sql.substring(0, 100) })
     if (!isDev && duration >= SLOW_QUERY_THRESHOLD) {
       logger.warn(`Slow query (queryOne): ${duration}ms`, { sql: sql.substring(0, 200) })
@@ -77,6 +82,7 @@ export async function queryOne(sql: string, params?: any[]): Promise<any> {
     return (rows as any[])[0] || null
   } catch (error: any) {
     const duration = Date.now() - startTime
+    clearTimeout(timeoutId!)
     logger.error(`QueryOne failed after ${duration}ms`, { 
       sql: sql.substring(0, 100), 
       error: error.message,
