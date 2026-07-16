@@ -200,7 +200,15 @@ export async function initDatabase(): Promise<void> {
       deleted TINYINT(1) DEFAULT 0,
       deletedAt DATETIME DEFAULT NULL,
       INDEX idx_deleted (deleted),
-      INDEX idx_deleted_manager (deleted, managerId)
+      INDEX idx_deleted_manager (deleted, managerId),
+      INDEX idx_deleted_status_createdAt (deleted, status, createdAt),
+      INDEX idx_deleted_managerId_status (deleted, managerId, status),
+      INDEX idx_deleted_userId_status (deleted, userId, status),
+      INDEX idx_deleted_employeeId_status (deleted, employeeId, status),
+      INDEX idx_userId (userId),
+      INDEX idx_managerId (managerId),
+      INDEX idx_status (status),
+      INDEX idx_createdAt (createdAt)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   `)
 
@@ -235,6 +243,30 @@ export async function initDatabase(): Promise<void> {
   } catch (e) { /* 索引可能已存在，忽略错误 */ }
   try {
     await pool.execute('ALTER TABLE orders ADD INDEX idx_deleted_manager (deleted, managerId)')
+  } catch (e) { /* 索引可能已存在，忽略错误 */ }
+  try {
+    await pool.execute('ALTER TABLE orders ADD INDEX idx_deleted_status_createdAt (deleted, status, createdAt)')
+  } catch (e) { /* 索引可能已存在，忽略错误 */ }
+  try {
+    await pool.execute('ALTER TABLE orders ADD INDEX idx_deleted_managerId_status (deleted, managerId, status)')
+  } catch (e) { /* 索引可能已存在，忽略错误 */ }
+  try {
+    await pool.execute('ALTER TABLE orders ADD INDEX idx_deleted_userId_status (deleted, userId, status)')
+  } catch (e) { /* 索引可能已存在，忽略错误 */ }
+  try {
+    await pool.execute('ALTER TABLE orders ADD INDEX idx_deleted_employeeId_status (deleted, employeeId, status)')
+  } catch (e) { /* 索引可能已存在，忽略错误 */ }
+  try {
+    await pool.execute('ALTER TABLE orders ADD INDEX idx_userId (userId)')
+  } catch (e) { /* 索引可能已存在，忽略错误 */ }
+  try {
+    await pool.execute('ALTER TABLE orders ADD INDEX idx_managerId (managerId)')
+  } catch (e) { /* 索引可能已存在，忽略错误 */ }
+  try {
+    await pool.execute('ALTER TABLE orders ADD INDEX idx_status (status)')
+  } catch (e) { /* 索引可能已存在，忽略错误 */ }
+  try {
+    await pool.execute('ALTER TABLE orders ADD INDEX idx_createdAt (createdAt)')
   } catch (e) { /* 索引可能已存在，忽略错误 */ }
 
   // 佣金表
