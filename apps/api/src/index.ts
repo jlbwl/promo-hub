@@ -8,7 +8,7 @@ import { fileURLToPath } from 'url'
 import multer from 'multer'
 import logger from './utils/logger.js'
 import cookieParser from 'cookie-parser'
-import { sessionMiddleware } from './middleware/auth.js'
+import { sessionMiddleware, requireManager } from './middleware/auth.js'
 import { smsLimiter, loginLimiter } from './middleware/rateLimit.js'
 import { csrfGenerate, csrfVerify, getCsrfToken } from './middleware/csrf-v2.js'
 import routes from './routes/index.js'
@@ -84,17 +84,6 @@ app.use((req, _res, next) => {
   next()
 })
 
-// 通用上传存储配置
-const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => cb(null, UPLOAD_DIR),
-  filename: (_req, file, cb) => {
-    const ext = file.originalname.split('.').pop()
-    cb(null, `${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`)
-  },
-})
-
-const upload = multer({ storage, limits: { fileSize: 5 * 1024 * 1024 } })
-
 // 封面图片临时上传存储
 const tempCoverStorage = multer.diskStorage({
   destination: (_req, _file, cb) => cb(null, UPLOAD_DIR),
@@ -109,20 +98,10 @@ const coverUpload = multer({
   limits: { fileSize: COVER_IMAGE_CONFIG.maxFileSize },
 })
 
-// 通用文件上传接口
-app.post('/api/upload', upload.single('file'), (req, res) => {
-  if (!req.file) {
-    res.json({ code: 400, message: '请选择文件', data: null })
-    return
-  }
-  const url = `/api/uploads/${req.file.filename}`
-  res.json({ code: 0, message: '上传成功', data: { url, filename: req.file.filename } })
-})
-
-// 封面图片上传接口 - 带压缩和尺寸统一
+// 封面图片上传接口 - 带压缩和尺寸统一（仅经理和管理员可上传）
 app.post(
   '/api/upload/cover',
-  sessionMiddleware,
+  requireManager,
   coverUpload.single('cover'),
   async (req, res) => {
     try {
