@@ -21,7 +21,7 @@ import {
   deserialize,
   insertUser,
   updateUser,
-} from '../data.js'
+} from '../data/index.js'
 import { login as sessionLogin, loginSync as sessionLoginSync, generateAuthToken, logout as sessionLogout, generateTokens, refreshAuthToken } from '../middleware/auth.js'
 import { sendSmsCode } from '../sms.js'
 import { generateSmsCode, saveSmsCode, verifySmsCode, deleteSmsCode } from '../utils/sms.js'

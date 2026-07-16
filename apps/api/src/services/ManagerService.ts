@@ -13,7 +13,7 @@ import {
   readOrders,
   writeProducts,
   writeOrders,
-} from '../data.js'
+} from '../data/index.js'
 import { DatabaseService } from './DatabaseService.js'
 import { ErrorCode, throwNotFound, throwBadRequest, throwForbidden, throwConflict, throwUnauthorized } from '@promo/shared'
 
@@ -121,7 +121,7 @@ export class ManagerServiceImpl implements ManagerService {
     }
 
     try {
-      const { readUsers } = await import('../data.js')
+      const { readUsers } = await import('../data/index.js')
       const users = await readUsers()
       if (users.find((u: any) => u.teamName === teamName)) {
         throwConflict('该团队名称已存在')
@@ -298,7 +298,7 @@ export const managerService: ManagerService = {
 
     // 检查团队名称是否已被用户使用
     try {
-      const { readUsers } = await import('../data.js')
+      const { readUsers } = await import('../data/index.js')
       const users = await readUsers()
       if (users.find((u: any) => u.teamName === teamName)) {
         throwConflict('该团队名称已存在')

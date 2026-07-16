@@ -1,5 +1,5 @@
 import { injectable } from 'tsyringe'
-import { readUsers, writeUsers, readProducts, writeProducts, readEmployees, writeEmployees, readOrders, writeOrders, readCommissions, writeCommissions, readManagers, writeManagers } from '../data.js'
+import { readUsers, writeUsers, readProducts, writeProducts, readEmployees, writeEmployees, readOrders, writeOrders, readCommissions, writeCommissions, readManagers, writeManagers } from '../data/index.js'
 
 @injectable()
 export class DatabaseService {

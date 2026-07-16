@@ -8,7 +8,7 @@ import {
   UserQueryResult,
   UserListQueryResult
 } from '../queries/UserQueries.js'
-import * as data from '../../../../data.js'
+import * as data from '../../../../data/index.js'
 
 /**
  * 用户查询处理器

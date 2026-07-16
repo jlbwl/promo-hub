@@ -6,7 +6,7 @@ import {
   addToCart,
   removeFromCart,
   isInCart,
-} from '../data.js'
+} from '../data/index.js'
 
 /**
  * 获取购物车列表

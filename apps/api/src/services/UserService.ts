@@ -205,7 +205,7 @@ export class UserServiceImpl implements UserService {
  */
 // 为了保持向后兼容，我们保留原始的 userService 导出
 // 实际实现将委托给可注入的 UserServiceImpl
-import { readUsers, writeUsers, readProducts, writeProducts } from '../data.js'
+import { readUsers, writeUsers, readProducts, writeProducts } from '../data/index.js'
 
 export const userService: UserService = {
   async registerUser(userData) {

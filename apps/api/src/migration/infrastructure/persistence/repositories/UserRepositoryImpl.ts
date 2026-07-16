@@ -2,7 +2,7 @@ import { injectable } from 'tsyringe'
 import { User } from '../../../domain/user/entities/User.js'
 import { IUserRepository } from '../../../domain/user/repositories/UserRepository.js'
 import { UserMapper } from '../mappers/UserMapper.js'
-import * as data from '../../../../data.js'
+import * as data from '../../../../data/index.js'
 
 /**
  * 用户仓储实现 - 适配现有的数据访问层

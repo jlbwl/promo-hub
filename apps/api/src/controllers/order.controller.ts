@@ -1,7 +1,7 @@
 import { Request, Response } from 'express'
 import { sendSuccess, sendError, sendPagination } from '../utils/response.js'
 import { orderService } from '../services/index.js'
-import { insertOperationLog } from '../data.js'
+import { insertOperationLog } from '../data/index.js'
 
 /**
  * 做单（创建订单）

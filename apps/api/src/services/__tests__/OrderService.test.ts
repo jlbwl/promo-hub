@@ -6,7 +6,7 @@ vi.spyOn(console, 'log').mockImplementation(() => {})
 vi.spyOn(console, 'error').mockImplementation(() => {})
 
 // Mock data module
-vi.mock('../../data.js', () => ({
+vi.mock('../../data/index.js', () => ({
   readProducts: vi.fn(),
   readOrders: vi.fn(),
   readOrder: vi.fn(),
@@ -18,7 +18,7 @@ import {
   readOrders,
   readOrder,
   getOrdersPaginated
-} from '../../data.js'
+} from '../../data/index.js'
 
 describe('OrderService', () => {
   beforeEach(() => {

@@ -1,5 +1,5 @@
 import { injectable, inject } from 'tsyringe'
-import * as data from '../../../data.js'
+import * as data from '../../../data/index.js'
 import {
   GetUserByIdQuery,
   GetUserByPhoneQuery,

@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express'
-import { queryOne } from '../data.js'
+import { queryOne } from '../data/index.js'
 import logger from '../utils/logger.js'
 
 // 资源类型定义

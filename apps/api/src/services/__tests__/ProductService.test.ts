@@ -29,7 +29,7 @@ vi.mock('../cache/index.js', () => ({
 }))
 
 // Mock data module
-vi.mock('../../data.js', () => ({
+vi.mock('../../data/index.js', () => ({
   readProducts: vi.fn(),
   readOrders: vi.fn(),
   queryOne: vi.fn(),
@@ -47,7 +47,7 @@ import {
   updateProduct,
   deleteProduct,
   getProductsPaginated
-} from '../../data.js'
+} from '../../data/index.js'
 
 describe('ProductService', () => {
   beforeEach(() => {

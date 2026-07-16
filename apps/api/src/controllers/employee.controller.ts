@@ -9,7 +9,7 @@ import {
   deleteEmployee,
   updateEmployee,
   readUser,
-} from '../data.js'
+} from '../data/index.js'
 import { login as sessionLogin, generateTokens } from '../middleware/auth.js'
 
 const SALT_ROUNDS = 12

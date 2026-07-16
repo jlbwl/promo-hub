@@ -7,7 +7,7 @@ import {
   readProducts,
   writeCommissions,
   writeProducts,
-} from '../data.js'
+} from '../data/index.js'
 
 /**
  * 获取订单统计
@@ -128,7 +128,7 @@ export const reviewOrder = async (req: Request, res: Response): Promise<void> =>
     }
 
     orders[index] = order
-    const { writeOrders } = await import('../data.js')
+    const { writeOrders } = await import('../data/index.js')
     await writeOrders(orders)
 
     sendSuccess(res, order, action === 'approve' ? '审核通过' : '已驳回')
@@ -194,7 +194,7 @@ export const settleOrder = async (req: Request, res: Response): Promise<void> =>
     }
 
     orders[index] = order
-    const { writeOrders } = await import('../data.js')
+    const { writeOrders } = await import('../data/index.js')
     await writeOrders(orders)
 
     const msg = action === 'pending_payment' ? '已添加到待付款' : '已确认结算'

@@ -17,7 +17,7 @@ import {
   insertOrder,
   deleteOrder,
   getOrdersPaginated,
-} from '../data.js'
+} from '../data/index.js'
 import { DatabaseService } from './DatabaseService.js'
 import { ErrorCode, throwNotFound, throwBadRequest, throwForbidden } from '@promo/shared'
 

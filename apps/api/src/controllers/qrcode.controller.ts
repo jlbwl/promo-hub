@@ -1,5 +1,5 @@
 import { Request, Response } from 'express'
-import { readQrCodes, insertQrCode, updateQrCode, deleteQrCode, setDefaultQrCode, readDefaultQrCode } from '../data.js'
+import { readQrCodes, insertQrCode, updateQrCode, deleteQrCode, setDefaultQrCode, readDefaultQrCode } from '../data/index.js'
 import { sendSuccess, sendError } from '../utils/response.js'
 
 export const getQrCodes = async (req: Request, res: Response): Promise<void> => {

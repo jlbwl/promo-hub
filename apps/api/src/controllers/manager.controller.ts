@@ -13,7 +13,7 @@ import {
   writeOrders,
   writeManagers,
   updateUser,
-} from '../data.js'
+} from '../data/index.js'
 import { login as sessionLogin, generateTokens } from '../middleware/auth.js'
 import { sendSmsCode } from '../sms.js'
 import { generateSmsCode, saveSmsCode, verifySmsCode, deleteSmsCode } from '../utils/sms.js'

@@ -14,7 +14,7 @@ import {
   getProductsPaginated,
   queryOne,
   query
-} from '../data.js'
+} from '../data/index.js'
 import { CacheService, CacheKeys, CacheTTL } from './cache/index.js'
 import { DatabaseService } from './DatabaseService.js'
 import { ErrorCode, throwNotFound, throwBadRequest, throwForbidden, throwConflict } from '@promo/shared'
