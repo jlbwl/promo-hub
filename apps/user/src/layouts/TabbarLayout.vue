@@ -65,9 +65,14 @@ const activeTab = ref('home')
 // 购物车数量
 const cartCount = ref(0)
 
-// 获取当前用户ID
+// 获取当前用户ID（支持员工账户）
 const getUserId = () => {
   try {
+    const loginType = localStorage.getItem('login_type')
+    if (loginType === 'employee') {
+      const employeeInfo = JSON.parse(localStorage.getItem('employee_info') || '{}')
+      return employeeInfo.userId || employeeInfo.id || ''
+    }
     const info = JSON.parse(localStorage.getItem('user_info') || '{}')
     return info.id || ''
   } catch { return '' }
