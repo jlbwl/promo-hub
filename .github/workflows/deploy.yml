@@ -175,7 +175,17 @@ jobs:
           # 1. 复制 package.json 并修改 workspace 依赖为本地路径
           cp package.json dist/package.json
           
-          # 2. 修改 package.json，移除 workspace:* 依赖（因为我们会内联 shared）
+          # 2. 复制 migrations 和 seeds 目录到 dist
+          if [ -d "migrations" ]; then
+            cp -r migrations dist/migrations
+            echo "✅ migrations 目录已复制到 dist"
+          fi
+          if [ -d "seeds" ]; then
+            cp -r seeds dist/seeds
+            echo "✅ seeds 目录已复制到 dist"
+          fi
+          
+          # 3. 修改 package.json，移除 workspace:* 依赖（因为我们会内联 shared）
           node << 'EOF'
             const fs = require('fs');
             const pkg = JSON.parse(fs.readFileSync('dist/package.json', 'utf8'));
@@ -540,15 +550,34 @@ jobs:
                 echo "⚠️ package.json 缺少 tsyringe，正在添加..."
                 npm pkg set dependencies.tsyringe="^4.10.0"
               fi
+              if ! grep -q "knex" package.json; then
+                echo "⚠️ package.json 缺少 knex，正在添加..."
+                npm pkg set dependencies.knex="^3.1.0"
+              fi
             else
               echo "❌ package.json 不存在，创建包含所有依赖的完整版本"
               printf '%s\n' \
-                '{"name":"@promo/api","version":"1.0.0","private":true,"type":"module","dependencies":{"@promo/shared":"workspace:*","@fastify/csrf":"^8.0.1","bcryptjs":"^3.0.3","connect-mongo":"^5.1.0","cookie-parser":"^1.4.7","cors":"^2.8.5","csurf":"^1.11.0","dotenv":"^17.4.2","express":"^4.21.0","express-rate-limit":"^8.5.1","express-session":"^1.18.1","jsonwebtoken":"^9.0.3","multer":"^1.4.5-lts.1","mysql2":"^3.22.3","redis":"^5.12.1","reflect-metadata":"^0.2.2","sharp":"^0.33.5","tsyringe":"^4.10.0","uuid":"^11.0.0"}}' \
+                '{"name":"@promo/api","version":"1.0.0","private":true,"type":"module","dependencies":{"@promo/shared":"workspace:*","@fastify/csrf":"^8.0.1","bcryptjs":"^3.0.3","connect-mongo":"^5.1.0","cookie-parser":"^1.4.7","cors":"^2.8.5","csurf":"^1.11.0","dotenv":"^17.4.2","express":"^4.21.0","express-rate-limit":"^8.5.1","express-session":"^1.18.1","jsonwebtoken":"^9.0.3","knex":"^3.1.0","multer":"^1.4.5-lts.1","mysql2":"^3.22.3","redis":"^5.12.1","reflect-metadata":"^0.2.2","sharp":"^0.33.5","tsyringe":"^4.10.0","uuid":"^11.0.0"}}' \
                 > package.json
             fi
 
             npm install --production --legacy-peer-deps 2>&1 || true
-            echo "✅ npm依赖已安装（包括 reflect-metadata 和 tsyringe）"
+            echo "✅ npm依赖已安装（包括 reflect-metadata、tsyringe 和 knex）"
+
+            # =======================
+            # 6.5 执行数据库迁移
+            # =======================
+            echo "🔄 执行数据库迁移..."
+            if [ -d "migrations" ]; then
+              if command -v npx >/dev/null 2>&1; then
+                npx knex migrate:latest --env production 2>&1 || true
+                echo "✅ 数据库迁移完成"
+              else
+                echo "⚠️ npx 不可用，跳过数据库迁移"
+              fi
+            else
+              echo "⚠️ migrations 目录不存在，跳过数据库迁移"
+            fi
 
             # =======================
             # 7. 验证 Shared 包并确保正确部署

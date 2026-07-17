@@ -10,7 +10,6 @@ import multer from 'multer'
 import logger from './utils/logger.js'
 import cookieParser from 'cookie-parser'
 import { sessionMiddleware, requireManager, requireAdmin } from './middleware/auth.js'
-import { smsLimiter, loginLimiter } from './middleware/rateLimit.js'
 import { csrfGenerate, csrfVerify, getCsrfToken } from './middleware/csrf-v2.js'
 import routes from './routes/index.js'
 import { errorHandler } from './utils/response.js'
@@ -246,29 +245,24 @@ app.use('/', routes)
 app.use(errorHandler)
 
 async function start() {
-  // DI 容器已在 container.ts 中自动初始化
-  // 所有服务都已注册为单例，可直接使用 resolve() 获取
   const configService = resolve<ConfigService>('ConfigService')
   
-  // 使用配置服务获取配置
   const PORT = configService.get('port')
-  const isDatabaseMode = process.env.DB_HOST && process.env.DB_NAME
 
-  // 初始化数据库
-  if (isDatabaseMode) {
+  if (process.env.DB_HOST && process.env.DB_NAME) {
     try {
-      const { initDatabase } = await import('./db.js')
-      await initDatabase()
-      logger.info(`API server running on port ${PORT} (MySQL)`)
+      const pool = (await import('./db.js')).default
+      const connection = await pool.getConnection()
+      connection.release()
+      logger.info('[DB] MySQL connection established')
     } catch (err) {
-      logger.warn(`[INFO] MySQL connection failed, falling back to file storage`, { error: err })
-      logger.info(`API server running on port ${PORT} (File Storage)`)
+      logger.error('[DB] MySQL connection failed', { error: err })
+      process.exit(1)
     }
   } else {
-    logger.info(`API server running on port ${PORT} (File Storage)`)
+    logger.warn('[DB] No database configuration found, API may not work properly')
   }
 
-  // 初始化Redis缓存
   try {
     await initializeCache()
     logger.info('[Cache] Redis缓存服务初始化完成')
@@ -276,7 +270,9 @@ async function start() {
     logger.warn('[Cache] Redis连接失败，将使用内存缓存模式', { error: err })
   }
 
-  app.listen(PORT)
+  app.listen(PORT, () => {
+    logger.info(`API server running on port ${PORT}`)
+  })
 }
 
 // 优雅关闭
