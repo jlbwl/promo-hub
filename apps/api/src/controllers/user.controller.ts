@@ -147,7 +147,7 @@ export const userLogin = asyncHandler(
     }
 
     const authUser = { id: user.id, phone: user.phone, role: 'user' as const, nickname: user.nickname, teamName: user.teamName }
-    const tokens = generateTokens(authUser)
+    const tokens = await generateTokens(authUser)
     sessionLogin(req, { ...authUser, token: tokens.token })
 
     logger.info('User logged in', { userId: user.id, method: 'password' })
@@ -281,7 +281,7 @@ export const userSmsLogin = asyncHandler(
       
       // 生成 Token
       const authUser = { id: user.id, phone: user.phone, role: user.role || 'user' as const, nickname: user.nickname, teamName: user.teamName }
-      const tokens = generateTokens(authUser)
+      const tokens = await generateTokens(authUser)
       
       const { password: _, ...safeUser } = user
       sendSuccess(res, { token: tokens.token, refreshToken: tokens.refreshToken, user: safeUser }, '登录成功')

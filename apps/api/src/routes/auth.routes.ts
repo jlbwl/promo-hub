@@ -4,14 +4,14 @@ import { sendSuccess, sendError } from '../utils/response.js'
 
 const router: Router = Router()
 
-router.post('/auth/refresh', (req, res) => {
+router.post('/auth/refresh', async (req, res) => {
   const { refreshToken } = req.body
   
   if (!refreshToken) {
     return sendError(res, '缺少刷新令牌', 400)
   }
   
-  const newTokens = refreshAuthToken(refreshToken)
+  const newTokens = await refreshAuthToken(refreshToken)
   
   if (newTokens) {
     sendSuccess(res, { token: newTokens.token, refreshToken: newTokens.refreshToken }, 'Token刷新成功')

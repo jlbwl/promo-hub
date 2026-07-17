@@ -38,7 +38,7 @@ router.post('/users/refresh', async (req, res) => {
       return
     }
     
-    const tokens = refreshAuthToken(refreshToken)
+    const tokens = await refreshAuthToken(refreshToken)
     
     if (!tokens) {
       sendError(res, 'Refresh Token 无效或已过期', 401)

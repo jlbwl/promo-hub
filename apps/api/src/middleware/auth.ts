@@ -91,7 +91,7 @@ export function generateAuthToken(user: AuthUser): string {
 }
 
 // 生成 Refresh Token（长期有效）
-export function generateRefreshToken(user: AuthUser): string {
+export async function generateRefreshToken(user: AuthUser): Promise<string> {
   const refreshToken = jwt.sign(
     { id: user.id, phone: user.phone, role: user.role, type: 'refresh' },
     JWT_SECRET,
@@ -100,16 +100,16 @@ export function generateRefreshToken(user: AuthUser): string {
   
   const cacheService = getTokenStore()
   if (cacheService) {
-    cacheService.set(REFRESH_TOKEN_PREFIX + refreshToken, JSON.stringify(user), 7 * 24 * 60 * 60)
+    await cacheService.set(REFRESH_TOKEN_PREFIX + refreshToken, JSON.stringify(user), 7 * 24 * 60 * 60)
   }
   
   return refreshToken
 }
 
 // 同时生成 Access Token 和 Refresh Token
-export function generateTokens(user: AuthUser): { token: string; refreshToken: string } {
+export async function generateTokens(user: AuthUser): Promise<{ token: string; refreshToken: string }> {
   const token = generateAuthToken(user)
-  const refreshToken = generateRefreshToken(user)
+  const refreshToken = await generateRefreshToken(user)
   return { token, refreshToken }
 }
 
@@ -129,7 +129,7 @@ function verifyAuthToken(token: string): AuthUser | null {
 }
 
 export const authMiddleware = (allowedRoles?: Array<'admin' | 'manager' | 'user' | 'employee'>) => {
-  return (req: Request, res: Response, next: NextFunction) => {
+  return async (req: Request, res: Response, next: NextFunction) => {
     const authHeader = req.headers.authorization
     const bearerToken = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null
     const refreshToken = req.headers['x-refresh-token'] as string | undefined
@@ -174,7 +174,7 @@ export const authMiddleware = (allowedRoles?: Array<'admin' | 'manager' | 'user'
 
     // 3. 尝试使用 Refresh Token 刷新 Access Token
     if (refreshToken) {
-      const newTokens = refreshAuthToken(refreshToken)
+      const newTokens = await refreshAuthToken(refreshToken)
       if (newTokens) {
         try {
           const decoded = jwt.verify(newTokens.token, JWT_SECRET) as any
@@ -255,7 +255,7 @@ export const logout = (req: Request) => {
 }
 
 // 刷新 Token
-export function refreshAuthToken(refreshToken: string): { token: string; refreshToken: string } | null {
+export async function refreshAuthToken(refreshToken: string): Promise<{ token: string; refreshToken: string } | null> {
   try {
     const decoded = jwt.verify(refreshToken, JWT_SECRET) as any
     
@@ -267,14 +267,7 @@ export function refreshAuthToken(refreshToken: string): { token: string; refresh
     let user: AuthUser | null = null
     
     if (cacheService) {
-      const storedUser = await cacheService.get(REFRESH_TOKEN_PREFIX + refreshToken)
-      if (storedUser) {
-        try {
-          user = JSON.parse(storedUser)
-        } catch {
-          return null
-        }
-      }
+      user = await cacheService.get<AuthUser>(REFRESH_TOKEN_PREFIX + refreshToken)
       await cacheService.delete(REFRESH_TOKEN_PREFIX + refreshToken)
     }
     
@@ -288,7 +281,7 @@ export function refreshAuthToken(refreshToken: string): { token: string; refresh
       role: decoded.role
     }
     
-    return generateTokens(authUser)
+    return await generateTokens(authUser)
   } catch {
     return null
   }
