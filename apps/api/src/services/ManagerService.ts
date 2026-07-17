@@ -208,7 +208,6 @@ export class ManagerServiceImpl implements ManagerService {
     }
 
     await deleteManager(managerId)
-    console.log('[ManagerService] 删除经理:', managerId)
   }
 
   /**
@@ -404,7 +403,6 @@ export const managerService: ManagerService = {
     }
 
     await deleteManager(managerId)
-    console.log('[ManagerService] 删除经理:', managerId)
   },
 
   /**

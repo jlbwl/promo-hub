@@ -1,5 +1,5 @@
 
-import { query, queryOne } from '../db.js'
+import { queryOne } from '../db.js'
 import bcrypt from 'bcryptjs'
 
 async function verifyPassword(password: string, hash: string): Promise<boolean> {
@@ -13,7 +13,7 @@ async function verifyPassword(password: string, hash: string): Promise<boolean> 
 function serialize(val: any): string {
   try {
     if (val === null || val === undefined) {
-      return JSON.stringify(["sms"])
+      return JSON.stringify([])
     }
     if (Array.isArray(val)) {
       return JSON.stringify(val)
@@ -27,10 +27,9 @@ function serialize(val: any): string {
       } catch {
       }
     }
-    return JSON.stringify(["sms"])
-  } catch (e) {
-    console.warn('[serialize] 序列化失败，返回默认值', e)
-    return JSON.stringify(["sms"])
+    return JSON.stringify([])
+  } catch {
+    return JSON.stringify([])
   }
 }
 
@@ -41,20 +40,20 @@ function formatDateTime(dateStr: string | undefined | null): string | null {
 }
 
 export function deserialize(val: any): any {
-  if (val === null || val === undefined) return null
+  if (val === null || val === undefined) return []
   if (typeof val === 'string') {
     try { 
       const parsed = JSON.parse(val)
       if (!Array.isArray(parsed)) {
-        return ["sms"]
+        return []
       }
       return parsed
     } catch { 
-      return ["sms"]
+      return []
     }
   }
   if (!Array.isArray(val)) {
-    return ["sms"]
+    return []
   }
   return val
 }
@@ -62,29 +61,14 @@ export function deserialize(val: any): any {
 async function columnExists(tableName: string, columnName: string): Promise<boolean> {
   try {
     const result = await queryOne(
-      `SHOW COLUMNS FROM ${tableName} LIKE ?`,
-      [columnName]
+      `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS 
+       WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?`,
+      [tableName, columnName]
     )
     return !!result
-  } catch (e) {
-    console.warn(`[columnExists] Failed to check column ${tableName}.${columnName}:`, e)
+  } catch {
     return false
   }
 }
 
-async function ensureProductCategoryColumns(): Promise<void> {
-  try {
-    await query('ALTER TABLE products ADD COLUMN IF NOT EXISTS categoryId VARCHAR(100) DEFAULT "" AFTER category')
-    console.log('[DB] Added/verified categoryId column')
-  } catch (e) {
-    console.warn('[DB] categoryId column already exists or failed to add:', e)
-  }
-  try {
-    await query('ALTER TABLE products ADD COLUMN IF NOT EXISTS categoryNameSnapshot VARCHAR(200) DEFAULT "" AFTER categoryId')
-    console.log('[DB] Added/verified categoryNameSnapshot column')
-  } catch (e) {
-    console.warn('[DB] categoryNameSnapshot column already exists or failed to add:', e)
-  }
-}
-
-export { verifyPassword, serialize, formatDateTime, columnExists, ensureProductCategoryColumns }
+export { verifyPassword, serialize, formatDateTime, columnExists }

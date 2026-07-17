@@ -284,7 +284,6 @@ export function getCacheService(): CacheService {
 export async function initCacheService(): Promise<void> {
   const svc = getCacheService()
   await svc.connect()
-  console.log('[Cache] 全局缓存服务初始化完成')
 }
 
 export async function closeCacheService(): Promise<void> {

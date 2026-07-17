@@ -6,14 +6,14 @@ export async function readUsers(): Promise<any[]> {
   const rows = await query('SELECT * FROM users ORDER BY createdAt DESC')
   return (rows as any[]).map(row => ({
     ...row,
-    loginMethods: deserialize(row.loginMethods),
+    loginMethods: deserialize(row.loginMethods) || ['sms'],
   }))
 }
 
 export async function readUser(id: string): Promise<any> {
   const row = await queryOne('SELECT * FROM users WHERE id = ?', [id])
   if (!row) return null
-  return { ...row, loginMethods: deserialize(row.loginMethods) }
+  return { ...row, loginMethods: deserialize(row.loginMethods) || ['sms'] }
 }
 
 export async function writeUsers(users: any[]): Promise<void> {
@@ -38,7 +38,6 @@ export async function writeUsers(users: any[]): Promise<void> {
           const safeUpdateColumns = updateColumns.filter(c => c !== 'loginMethods=?')
           const safeUpdateValues = updateValues.filter((_, i) => updateColumns[i] !== 'loginMethods=?')
           await query(`UPDATE users SET ${safeUpdateColumns.join(', ')} WHERE id=?`, safeUpdateValues)
-          console.log('[writeUsers] 安全更新成功（跳过 loginMethods）', { userId: u.id })
         } catch (e2) {
           console.error('[writeUsers] 安全更新也失败了', { userId: u.id, error: e2 })
           throw e2
@@ -69,7 +68,6 @@ export async function writeUsers(users: any[]): Promise<void> {
           safePlaceholders[safePlaceholders.length - 1] = 'NOW()'
           
           await query(`INSERT INTO users (${safeInsertColumns.join(', ')}) VALUES (${safePlaceholders.join(', ')})`, safeInsertValues)
-          console.log('[writeUsers] 安全插入成功（使用默认 loginMethods）', { userId: u.id })
         } catch (e2) {
           console.error('[writeUsers] 安全插入也失败了', { userId: u.id, error: e2 })
           throw e2

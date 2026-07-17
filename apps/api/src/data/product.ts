@@ -1,6 +1,6 @@
 
 import { query, queryOne } from '../db.js'
-import { deserialize, serialize, formatDateTime, columnExists, ensureProductCategoryColumns } from './utils.js'
+import { deserialize, serialize, formatDateTime, columnExists } from './utils.js'
 
 export async function readProducts(): Promise<any[]> {
   const rows = await query('SELECT * FROM products ORDER BY createdAt DESC')
@@ -32,7 +32,6 @@ export async function readProduct(id: string): Promise<any> {
 }
 
 export async function writeProducts(products: any[]): Promise<void> {
-  await ensureProductCategoryColumns()
   const hasCategoryId = await columnExists('products', 'categoryId')
   const hasCategoryNameSnapshot = await columnExists('products', 'categoryNameSnapshot')
 
@@ -102,7 +101,6 @@ export async function writeProducts(products: any[]): Promise<void> {
 }
 
 export async function insertProduct(p: any): Promise<void> {
-  await ensureProductCategoryColumns()
   const hasCategoryId = await columnExists('products', 'categoryId')
   const hasCategoryNameSnapshot = await columnExists('products', 'categoryNameSnapshot')
 
@@ -154,7 +152,6 @@ export async function insertProduct(p: any): Promise<void> {
 }
 
 export async function updateProduct(id: string, fields: Record<string, any>): Promise<void> {
-  await ensureProductCategoryColumns()
   const hasCategoryId = await columnExists('products', 'categoryId')
   const hasCategoryNameSnapshot = await columnExists('products', 'categoryNameSnapshot')
 

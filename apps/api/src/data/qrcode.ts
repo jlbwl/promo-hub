@@ -16,9 +16,7 @@ export async function ensureQrCodesTable(): Promise<void> {
         UNIQUE KEY idx_url (url)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     `)
-    console.log('[DB] qr_codes table created/verified')
-  } catch (e) {
-    console.warn('[DB] qr_codes table creation failed:', e)
+  } catch {
   }
 }
 
