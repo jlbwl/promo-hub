@@ -281,8 +281,8 @@ onMounted(() => {
   fetchProductDetail()
 })
 
-// 检查是否已登录
-const isLoggedIn = () => !!localStorage.getItem('user_token')
+// 检查是否已登录（支持员工账户）
+const isLoggedIn = () => !!localStorage.getItem('user_token') || !!localStorage.getItem('employee_token')
 
 // 需要登录的操作（支持访客模式）
 const requireLogin = async (action: string): Promise<boolean> => {
