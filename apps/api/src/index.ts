@@ -2,6 +2,7 @@ import 'reflect-metadata'
 import 'dotenv/config'
 import express from 'express'
 import cors from 'cors'
+import helmet from 'helmet'
 import { existsSync, mkdirSync } from 'fs'
 import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
@@ -52,12 +53,15 @@ const app = express()
 // 设置 trust proxy 支持 rate limit 正确识别客户端 IP
 app.set('trust proxy', 1)
 
+// Helmet 安全头中间件（应放在其他中间件之前）
+app.use(helmet())
+
 // 中间件
 const corsOptions: cors.CorsOptions = {
   origin: process.env.CORS_ORIGIN?.split(',').map(o => o.trim()) || ['http://localhost:5173', 'http://localhost:5174'],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token'],
 }
 app.use(cors(corsOptions))
 app.use(express.json())

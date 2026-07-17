@@ -39,6 +39,8 @@ export const COVER_IMAGE_CONFIG = {
   quality: 85,
   // 支持的格式
   supportedFormats: ['jpeg', 'jpg', 'png', 'webp'],
+  // 支持的 MIME 类型（白名单校验）
+  supportedMimeTypes: ['image/jpeg', 'image/png', 'image/webp'],
   // 最大文件大小（5MB）
   maxFileSize: 5 * 1024 * 1024,
 }
@@ -121,12 +123,12 @@ export function validateImageFile(file: MulterFile): {
     }
   }
 
-  // 检查文件类型
+  // 检查文件类型（白名单校验）
   const mimeType = file.mimetype.toLowerCase()
-  if (!mimeType.startsWith('image/')) {
+  if (!COVER_IMAGE_CONFIG.supportedMimeTypes.includes(mimeType)) {
     return {
       valid: false,
-      error: '只支持图片文件',
+      error: '只支持 JPEG/PNG/WebP 格式',
     }
   }
 
