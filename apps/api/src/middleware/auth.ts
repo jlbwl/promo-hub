@@ -130,34 +130,16 @@ function verifyAuthToken(token: string): AuthUser | null {
 
 export const authMiddleware = (allowedRoles?: Array<'admin' | 'manager' | 'user' | 'employee'>) => {
   return async (req: Request, res: Response, next: NextFunction) => {
-    const authHeader = req.headers.authorization
-    const bearerToken = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null
-    const refreshToken = req.headers['x-refresh-token'] as string | undefined
+    try {
+      const authHeader = req.headers.authorization
+      const bearerToken = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null
+      const refreshToken = req.headers['x-refresh-token'] as string | undefined
 
-    // 1. 优先检查 Session
-    if (req.session && req.session.isAuthenticated && req.session.user) {
-      if (allowedRoles && allowedRoles.length > 0) {
-        const userRole = req.session.user.role
-        if (!allowedRoles.includes(userRole)) {
-          res.status(403).json({
-            code: 403,
-            message: '您没有权限执行此操作',
-            data: null
-          })
-          return
-        }
-      }
-      ;(req as any).user = req.session.user
-      next()
-      return
-    }
-
-    // 2. 检查 Bearer Token（JWT）
-    if (bearerToken) {
-      const user = verifyAuthToken(bearerToken)
-      if (user) {
+      // 1. 优先检查 Session
+      if (req.session && req.session.isAuthenticated && req.session.user) {
         if (allowedRoles && allowedRoles.length > 0) {
-          if (!allowedRoles.includes(user.role)) {
+          const userRole = req.session.user.role
+          if (!allowedRoles.includes(userRole)) {
             res.status(403).json({
               code: 403,
               message: '您没有权限执行此操作',
@@ -166,25 +148,15 @@ export const authMiddleware = (allowedRoles?: Array<'admin' | 'manager' | 'user'
             return
           }
         }
-        ;(req as any).user = user
+        ;(req as any).user = req.session.user
         next()
         return
       }
-    }
 
-    // 3. 尝试使用 Refresh Token 刷新 Access Token
-    if (refreshToken) {
-      const newTokens = await refreshAuthToken(refreshToken)
-      if (newTokens) {
-        try {
-          const decoded = jwt.verify(newTokens.token, JWT_SECRET) as any
-          const user: AuthUser = {
-            id: decoded.id,
-            phone: decoded.phone,
-            role: decoded.role,
-            token: newTokens.token
-          }
-          
+      // 2. 检查 Bearer Token（JWT）
+      if (bearerToken) {
+        const user = verifyAuthToken(bearerToken)
+        if (user) {
           if (allowedRoles && allowedRoles.length > 0) {
             if (!allowedRoles.includes(user.role)) {
               res.status(403).json({
@@ -195,23 +167,56 @@ export const authMiddleware = (allowedRoles?: Array<'admin' | 'manager' | 'user'
               return
             }
           }
-          
           ;(req as any).user = user
-          res.setHeader('X-New-Token', newTokens.token)
-          res.setHeader('X-New-Refresh-Token', newTokens.refreshToken)
           next()
           return
-        } catch {
-          console.warn('[Auth] 刷新后的 Token 验证失败')
         }
       }
-    }
 
-    res.status(401).json({
-      code: 401,
-      message: '未登录或会话已过期，请重新登录',
-      data: null
-    })
+      // 3. 尝试使用 Refresh Token 刷新 Access Token
+      if (refreshToken) {
+        const newTokens = await refreshAuthToken(refreshToken)
+        if (newTokens) {
+          try {
+            const decoded = jwt.verify(newTokens.token, JWT_SECRET) as any
+            const user: AuthUser = {
+              id: decoded.id,
+              phone: decoded.phone,
+              role: decoded.role,
+              token: newTokens.token
+            }
+            
+            if (allowedRoles && allowedRoles.length > 0) {
+              if (!allowedRoles.includes(user.role)) {
+                res.status(403).json({
+                  code: 403,
+                  message: '您没有权限执行此操作',
+                  data: null
+                })
+                return
+              }
+            }
+            
+            ;(req as any).user = user
+            res.setHeader('X-New-Token', newTokens.token)
+            res.setHeader('X-New-Refresh-Token', newTokens.refreshToken)
+            next()
+            return
+          } catch {
+            console.warn('[Auth] 刷新后的 Token 验证失败')
+          }
+        }
+      }
+
+      res.status(401).json({
+        code: 401,
+        message: '未登录或会话已过期，请重新登录',
+        data: null
+      })
+    } catch (error: any) {
+      console.error('[Auth] Middleware error:', error)
+      res.status(500).json({ code: 500, message: '认证服务异常', data: null })
+    }
   }
 }
 
@@ -268,7 +273,6 @@ export async function refreshAuthToken(refreshToken: string): Promise<{ token: s
     
     if (cacheService) {
       user = await cacheService.get<AuthUser>(REFRESH_TOKEN_PREFIX + refreshToken)
-      await cacheService.delete(REFRESH_TOKEN_PREFIX + refreshToken)
     }
     
     if (!user) {
@@ -281,17 +285,23 @@ export async function refreshAuthToken(refreshToken: string): Promise<{ token: s
       role: decoded.role
     }
     
-    return await generateTokens(authUser)
+    const newTokens = await generateTokens(authUser)
+    
+    if (cacheService) {
+      await cacheService.delete(REFRESH_TOKEN_PREFIX + refreshToken)
+    }
+    
+    return newTokens
   } catch {
     return null
   }
 }
 
 // 使 Refresh Token 失效（用于登出）
-export function revokeRefreshToken(refreshToken: string): boolean {
+export async function revokeRefreshToken(refreshToken: string): Promise<boolean> {
   const cacheService = getTokenStore()
   if (cacheService) {
-    cacheService.delete(REFRESH_TOKEN_PREFIX + refreshToken)
+    await cacheService.delete(REFRESH_TOKEN_PREFIX + refreshToken)
     return true
   }
   return false

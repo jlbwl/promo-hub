@@ -64,8 +64,8 @@ export function csrfVerify(req: Request, res: Response, next: NextFunction) {
     '/api/csrf-token'
   ]
   
-  // 检查路径是否需要绕过
-  if (bypassPaths.some(path => req.path === path || req.path.startsWith(path + '/'))) {
+  // 检查路径是否需要绕过（仅精确匹配）
+  if (bypassPaths.some(path => req.path === path)) {
     logger.info('[CSRF] Bypassing CSRF for safe path', {
       path: req.path,
       method: req.method

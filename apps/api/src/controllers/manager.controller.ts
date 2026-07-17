@@ -1,8 +1,10 @@
 import { Request, Response } from 'express'
 import bcrypt from 'bcryptjs'
 import { sendSuccess, sendError } from '../utils/response.js'
+import { withTransaction } from '../db.js'
 import {
   readManagers,
+  readManager,
   readUsers,
   insertManager,
   updateManager,
@@ -143,48 +145,43 @@ export const createManager = async (req: Request, res: Response): Promise<void> 
 export const deleteManagerWithCascade = async (req: Request, res: Response): Promise<void> => {
   const smsCode = req.query.smsCode as string
   
-  if (!smsCode) {
-    return sendError(res, '验证码不能为空', 400)
+  const adminInfo = req.session?.user || (req as any).user
+  if (!adminInfo?.phone) {
+    return sendError(res, '未登录', 401)
   }
   
-  let managers = await readManagers()
+  if (!smsCode || !verifySmsCode(adminInfo.phone, smsCode)) {
+    return sendError(res, '验证码错误或已过期', 400)
+  }
+  
   const managerId = req.params.id as string
-  const index = managers.findIndex((m: any) => m.id === managerId)
-  if (index === -1) {
+  const manager = await readManager(managerId)
+  if (!manager) {
     return sendError(res, '经理不存在', 404)
   }
-  const managerName = managers[index].name || ''
-  await deleteManager(managerId)
-
-  let products = await readProducts()
-  let offlineCount = 0
+  const managerName = manager.name || ''
+  
   const now = new Date().toISOString()
-  const updatedProducts = products.map((p: any) => {
-    if (p.managerId === managerId && p.status === 'published') {
-      offlineCount++
-      return { ...p, status: 'offline', updatedAt: now }
-    }
-    return p
+  
+  await withTransaction(async (conn) => {
+    await conn.execute('DELETE FROM managers WHERE id = ?', [managerId])
+    
+    const [productResult] = await conn.execute(
+      'UPDATE products SET status = ?, updatedAt = ? WHERE managerId = ? AND status = ?',
+      ['offline', now, managerId, 'published']
+    )
+    const offlineCount = (productResult as any).affectedRows || 0
+    
+    const [orderResult] = await conn.execute(
+      'UPDATE orders SET transferredFromManager = ?, transferredAt = ?, managedBy = ? WHERE managerId = ? AND status IN (?, ?, ?)',
+      [managerName, now, 'admin', managerId, 'pending', 'approved', 'pending_payment']
+    )
+    const transferredOrders = (orderResult as any).affectedRows || 0
+    
+    return { offlineCount, transferredOrders }
   })
-  await writeProducts(updatedProducts)
-
-  let orders = await readOrders()
-  let transferredOrders = 0
-  const updatedOrders = orders.map((o: any) => {
-    if (o.managerId === managerId && (o.status === 'pending' || o.status === 'approved' || o.status === 'pending_payment')) {
-      transferredOrders++
-      return {
-        ...o,
-        transferredFromManager: managerName,
-        transferredAt: now,
-        managedBy: 'admin',
-      }
-    }
-    return o
-  })
-  await writeOrders(updatedOrders)
-
-  sendSuccess(res, null, `删除成功，已下架 ${offlineCount} 个产品，转移 ${transferredOrders} 笔订单至管理后台`)
+  
+  sendSuccess(res, null, `删除成功，已下架 ${manager.productCount || 0} 个产品，转移订单至管理后台`)
 }
 
 /**
@@ -346,7 +343,6 @@ export const managerSmsLogin = async (req: Request, res: Response): Promise<void
   if (!valid) {
     return sendError(res, '验证码错误或已过期', 400)
   }
-  deleteSmsCode(phone)
 
   const managers = await readManagers()
   const manager = managers.find((m: any) => m.phone === phone && m.status === 'active')
@@ -393,7 +389,6 @@ export const setManagerPassword = async (req: Request, res: Response): Promise<v
   if (!valid) {
     return sendError(res, '验证码错误或已过期', 400)
   }
-  deleteSmsCode(phone)
 
   let managers = await readManagers()
   const index = managers.findIndex((m: any) => m.phone === phone)

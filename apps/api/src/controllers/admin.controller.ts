@@ -4,11 +4,8 @@ import { sendSuccess, sendError } from '../utils/response.js'
 import {
   readAdminByPhone,
   updateAdmin,
-  readUsers,
-  readManagers,
-  readProducts,
-  readCommissions,
 } from '../data/index.js'
+import { queryOne } from '../db.js'
 import { login as sessionLogin, generateTokens } from '../middleware/auth.js'
 import { generateSmsCode, saveSmsCode, verifySmsCode, deleteSmsCode } from '../utils/sms.js'
 import { sendSmsCode } from '../utils/sms.js'
@@ -79,7 +76,6 @@ export const adminSmsLogin = async (req: Request, res: Response): Promise<void> 
   if (!valid) {
     return sendError(res, '验证码错误或已过期', 400)
   }
-  deleteSmsCode(phone)
 
   const admin = await readAdminByPhone(phone)
   if (!admin) {
@@ -157,6 +153,9 @@ export const adminPasswordUpdate = async (req: Request, res: Response): Promise<
 
   // 获取管理员信息
   const adminPhone = phone || user.phone
+  if (phone && phone !== user.phone) {
+    return sendError(res, '无权修改其他管理员密码', 403)
+  }
   const admin = await readAdminByPhone(adminPhone)
   if (!admin) {
     return sendError(res, '管理员不存在', 404)
@@ -168,7 +167,6 @@ export const adminPasswordUpdate = async (req: Request, res: Response): Promise<
     if (!valid) {
       return sendError(res, '验证码错误或已过期', 400)
     }
-    deleteSmsCode(adminPhone) // 验证成功后删除验证码
   } 
   // 模式2：旧密码模式
   else if (oldPassword) {
@@ -192,37 +190,20 @@ export const adminPasswordUpdate = async (req: Request, res: Response): Promise<
  */
 export const getAdminStats = async (req: Request, res: Response): Promise<void> => {
   try {
-    let users: any[] = []
-    let managers: any[] = []
-    let products: any[] = []
-    let commissions: any[] = []
-
-    try {
-      users = await readUsers()
-      managers = await readManagers()
-      products = await readProducts()
-      commissions = await readCommissions()
-    } catch (dbError: any) {
-      console.warn('[管理员统计] 数据库查询失败，尝试降级到内存:', dbError)
-      const { readUsers: memReadUsers, readManagers: memReadManagers, readProducts: memReadProducts, readCommissions: memReadCommissions } = await import('../data-memory.js')
-      users = await memReadUsers()
-      managers = await memReadManagers()
-      products = await memReadProducts()
-      commissions = await memReadCommissions()
-    }
-
-    const managerCount = managers.filter((m: any) => m.status === 'active').length
-    const userCount = users.filter((u: any) => u.status === 'active').length
-    const publishedProductCount = products.filter((p: any) => p.status === 'published').length
-    const totalCommission = commissions
-      .filter((c: any) => c.status === 'paid')
-      .reduce((sum: number, c: any) => sum + (c.amount || 0), 0)
+    const sql = `
+      SELECT
+        (SELECT COUNT(*) FROM managers WHERE status = 'active') as managerCount,
+        (SELECT COUNT(*) FROM users WHERE status = 'active') as userCount,
+        (SELECT COUNT(*) FROM products WHERE status = 'published') as publishedProductCount,
+        (SELECT COALESCE(SUM(amount), 0) FROM commissions WHERE status = 'paid') as totalCommission
+    `
+    const result = await queryOne(sql)
 
     sendSuccess(res, {
-      managerCount,
-      userCount,
-      publishedProductCount,
-      totalCommission: Math.round(totalCommission * 100) / 100,
+      managerCount: Number(result?.managerCount) || 0,
+      userCount: Number(result?.userCount) || 0,
+      publishedProductCount: Number(result?.publishedProductCount) || 0,
+      totalCommission: Math.round((Number(result?.totalCommission) || 0) * 100) / 100,
     })
   } catch (error: any) {
     console.error('[管理员统计] 错误:', error)

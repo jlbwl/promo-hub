@@ -201,7 +201,6 @@ export const userSmsLogin = asyncHandler(
     if (!valid) {
       throw new AppError('验证码错误或已过期', ErrorCode.CODE_EXPIRED, HttpStatus.BAD_REQUEST)
     }
-    deleteSmsCode(phone)
 
     let user: any = null
     let isNewUser = false
@@ -321,7 +320,6 @@ export const setUserPassword = asyncHandler(
     if (!valid) {
       throw new AppError('验证码错误或已过期', ErrorCode.CODE_EXPIRED, HttpStatus.BAD_REQUEST)
     }
-    deleteSmsCode(phone)
 
     let users = await readUsers()
     const index = users.findIndex((u: any) => u.phone === phone)

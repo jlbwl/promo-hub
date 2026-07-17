@@ -20,11 +20,11 @@ router.post('/auth/refresh', async (req, res) => {
   }
 })
 
-router.post('/auth/logout', (req, res) => {
+router.post('/auth/logout', async (req, res) => {
   const { refreshToken } = req.body
   
   if (refreshToken) {
-    revokeRefreshToken(refreshToken)
+    await revokeRefreshToken(refreshToken)
   }
   
   if (req.session) {
