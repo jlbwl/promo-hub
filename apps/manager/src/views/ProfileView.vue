@@ -36,11 +36,6 @@
               <el-descriptions-item label="手机号">
                 {{ managerInfo.phone }}
               </el-descriptions-item>
-              <el-descriptions-item label="累计佣金">
-                <span style="color: #f56c6c; font-weight: 600; font-size: 16px;">
-                  {{ managerInfo.totalCommission.toFixed(2) }}
-                </span>
-              </el-descriptions-item>
               <el-descriptions-item label="注册时间">
                 {{ managerInfo.createdAt }}
               </el-descriptions-item>
@@ -147,7 +142,6 @@ const managerInfo = reactive({
   name: '',
   teamName: '',
   phone: '',
-  totalCommission: 0,
   createdAt: ''
 })
 
@@ -209,15 +203,7 @@ const fetchManagerInfo = async () => {
         managerInfo.createdAt = res.data.createdAt ? formatTime(res.data.createdAt) : '2025-06-15 10:00:00'
       }
 
-      // 获取审核通过的订单金额总和
-      const orderRes = await get<any>('/orders', {
-        managerId,
-        status: 'approved',
-        pageSize: 9999
-      })
-      const orders = orderRes.data?.list || []
-      // 累计佣金 = 审核通过的订单金额总和
-      managerInfo.totalCommission = orders.reduce((sum: number, o: any) => sum + (Number(o.productPrice) || 0), 0)
+      
     }
 
     if (!managerInfo.createdAt) {
