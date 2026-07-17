@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction, RequestHandler } from 'express'
 import session, { Session } from 'express-session'
 import jwt from 'jsonwebtoken'
+import { getCacheService } from '../services/cache/index.js'
 
 // 安全验证：确保必需的密钥环境变量已设置
 if (!process.env.JWT_SECRET || !process.env.SESSION_SECRET) {
@@ -9,6 +10,11 @@ if (!process.env.JWT_SECRET || !process.env.SESSION_SECRET) {
 
 const SESSION_SECRET = process.env.SESSION_SECRET
 const JWT_SECRET = process.env.JWT_SECRET
+
+// 验证 SESSION_SECRET 强度
+if (SESSION_SECRET.length < 32) {
+  console.warn('[Security] SESSION_SECRET 长度不足（建议至少32字符），当前长度:', SESSION_SECRET.length)
+}
 
 export interface AuthUser {
   id: string
@@ -27,11 +33,19 @@ declare module 'express-session' {
   }
 }
 
-// Token 存储（临时方案，生产环境应使用 Redis）
-const tokenStore = new Map<string, AuthUser>()
+// Refresh Token 存储键前缀
+const REFRESH_TOKEN_PREFIX = 'refresh_token:'
+const ACCESS_TOKEN_PREFIX = 'access_token:'
 
-// Refresh Token 存储（用于刷新 Token）
-const refreshTokenStore = new Map<string, AuthUser>()
+// 获取缓存服务（使用 Redis）
+function getTokenStore() {
+  try {
+    return getCacheService()
+  } catch {
+    console.warn('[Auth] CacheService 未初始化，降级到内存存储')
+    return null
+  }
+}
 
 // 创建 session 中间件（支持 MongoDB 降级到内存存储）
 export const sessionMiddleware: RequestHandler = (() => {
@@ -81,11 +95,13 @@ export function generateRefreshToken(user: AuthUser): string {
   const refreshToken = jwt.sign(
     { id: user.id, phone: user.phone, role: user.role, type: 'refresh' },
     JWT_SECRET,
-    { expiresIn: '7d' } // Refresh Token 有效期 7 天
+    { expiresIn: '7d' }
   )
   
-  // 存储 Refresh Token
-  refreshTokenStore.set(refreshToken, user)
+  const cacheService = getTokenStore()
+  if (cacheService) {
+    cacheService.set(REFRESH_TOKEN_PREFIX + refreshToken, JSON.stringify(user), 7 * 24 * 60 * 60)
+  }
   
   return refreshToken
 }
@@ -241,42 +257,51 @@ export const logout = (req: Request) => {
 // 刷新 Token
 export function refreshAuthToken(refreshToken: string): { token: string; refreshToken: string } | null {
   try {
-    // 验证 Refresh Token
     const decoded = jwt.verify(refreshToken, JWT_SECRET) as any
     
     if (decoded.type !== 'refresh') {
-      console.warn('[Auth] 无效的 Refresh Token 类型')
       return null
     }
     
-    // 检查 Refresh Token 是否在存储中
-    const user = refreshTokenStore.get(refreshToken)
+    const cacheService = getTokenStore()
+    let user: AuthUser | null = null
+    
+    if (cacheService) {
+      const storedUser = cacheService.get(REFRESH_TOKEN_PREFIX + refreshToken)
+      if (storedUser) {
+        try {
+          user = JSON.parse(storedUser)
+        } catch {
+          return null
+        }
+      }
+      cacheService.delete(REFRESH_TOKEN_PREFIX + refreshToken)
+    }
+    
     if (!user) {
-      console.warn('[Auth] Refresh Token 不存在或已失效')
       return null
     }
     
-    // 生成新的 Access Token 和 Refresh Token
     const authUser: AuthUser = {
       id: decoded.id,
       phone: decoded.phone,
       role: decoded.role
     }
     
-    // 删除旧的 Refresh Token
-    refreshTokenStore.delete(refreshToken)
-    
-    // 生成新的 Token 对
     return generateTokens(authUser)
-  } catch (error) {
-    console.error('[Auth] 刷新 Token 失败:', error)
+  } catch {
     return null
   }
 }
 
 // 使 Refresh Token 失效（用于登出）
 export function revokeRefreshToken(refreshToken: string): boolean {
-  return refreshTokenStore.delete(refreshToken)
+  const cacheService = getTokenStore()
+  if (cacheService) {
+    cacheService.delete(REFRESH_TOKEN_PREFIX + refreshToken)
+    return true
+  }
+  return false
 }
 
 export const requireAuth = authMiddleware()

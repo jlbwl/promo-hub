@@ -17,7 +17,6 @@ import { logRequest } from './utils/logger.js'
 import { initializeCache, closeCache, getCacheService } from './services/index.js'
 import { resolve } from './container.js'
 import type { ConfigService } from './services/ConfigService.js'
-import bcrypt from 'bcryptjs'
 import {
   processCoverImage,
   validateImageFile,
@@ -29,22 +28,9 @@ import {
 // ✅ 启动时检查必要环境变量 - 放宽要求，允许服务启动但输出警告
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const DATA_DIR = process.env.DATA_DIR || join(__dirname, '..', 'data')
-const SALT_ROUNDS = 12
 
 if (!existsSync(DATA_DIR)) {
   mkdirSync(DATA_DIR, { recursive: true })
-}
-
-const hashPassword = async (password: string): Promise<string> => {
-  return await bcrypt.hash(password, SALT_ROUNDS)
-}
-
-const verifyPassword = async (password: string, hash: string): Promise<boolean> => {
-  try {
-    return await bcrypt.compare(password, hash)
-  } catch {
-    return false
-  }
 }
 
 const app = express()
@@ -183,62 +169,7 @@ app.post('/api/cache/clear', requireAdmin, async (_req, res) => {
   }
 })
 
-// 调试信息 - 输出已注册的路由
-console.log('[API] 路由已注册完成')
-
-// 临时调试路由 - 直接测试 PUT/DELETE 分类功能
-app.get('/api/debug-routes', (_req, res) => {
-  res.json({
-    message: 'Debug routes',
-    available: [
-      'GET /api/categories',
-      'POST /api/categories', 
-      'PUT /api/categories/:id',
-      'DELETE /api/categories/:id'
-    ]
-  })
-})
-
-// 临时路由 - 绕过任何问题，直接处理 category 相关请求
-import * as dataMemory from './data-memory.js'
-app.get('/api/categories', async (req, res) => {
-  try {
-    const includeArchived = req.query.includeArchived === 'true'
-    const categories = await dataMemory.readCategories(includeArchived)
-    res.json({ code: 0, message: '获取成功', data: { list: categories } })
-  } catch (err) {
-    res.status(500).json({ code: 500, message: '获取失败', data: null })
-  }
-})
-
-app.put('/api/categories/:id', async (req, res) => {
-  try {
-    const { name, sort, status } = req.body
-    const id = req.params.id
-    const updated = await dataMemory.updateCategory(id, { name, sort, status })
-    if (!updated) {
-      return res.status(404).json({ code: 404, message: '分类不存在', data: null })
-    }
-    res.json({ code: 0, message: '更新成功', data: updated })
-  } catch (err) {
-    res.status(500).json({ code: 500, message: '更新失败', data: null })
-  }
-})
-
-app.delete('/api/categories/:id', async (req, res) => {
-  try {
-    const id = req.params.id
-    const success = await dataMemory.archiveCategory(id)
-    if (!success) {
-      return res.status(404).json({ code: 404, message: '分类不存在', data: null })
-    }
-    res.json({ code: 0, message: '归档成功', data: null })
-  } catch (err) {
-    res.status(500).json({ code: 500, message: '归档失败', data: null })
-  }
-})
-
-// 主路由（不添加 /api 前缀，已由 Nginx 代理处理） - 先注册所有路由，不应用 CSRF 验证
+// 主路由（不添加 /api 前缀，已由 Nginx 代理处理）
 app.use('/', routes)
 
 // 全局错误处理 - 必须在路由之后注册
@@ -292,5 +223,3 @@ start().catch(err => {
   console.error('Failed to start server:', err)
   process.exit(1)
 })
-
-export { hashPassword, verifyPassword }

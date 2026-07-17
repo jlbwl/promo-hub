@@ -50,33 +50,6 @@ import { ManagerServiceImpl } from './services/ManagerService.js'
 container.registerSingleton('ManagerService', ManagerServiceImpl)
 
 // ============================================
-// DDD 仓储层 (Repository Layer)
-// ============================================
-
-// 用户仓储接口与实现
-import { IUserRepository } from './migration/domain/user/repositories/UserRepository.js'
-import { UserRepositoryImpl } from './migration/infrastructure/persistence/repositories/UserRepositoryImpl.js'
-
-// 注册仓储实现（同时注册接口和实现，便于类型注入）
-container.registerSingleton<IUserRepository>('IUserRepository', UserRepositoryImpl)
-
-// ============================================
-// DDD 应用层处理器 (Application Layer Handlers)
-// ============================================
-
-// 命令处理器 (CQRS - Commands)
-import { CreateUserCommandHandler } from './migration/application/command-handlers/CreateUserCommandHandler.js'
-container.registerSingleton('CreateUserCommandHandler', CreateUserCommandHandler)
-
-// 查询处理器 (CQRS - Queries)
-import { UserQueryHandler } from './migration/application/query-handlers/UserQueryHandler.js'
-container.registerSingleton('UserQueryHandler', UserQueryHandler)
-
-// 应用服务
-import { UserApplicationService } from './migration/application/services/UserApplicationService.js'
-container.registerSingleton('UserApplicationService', UserApplicationService)
-
-// ============================================
 // 导出容器访问方法
 // ============================================
 

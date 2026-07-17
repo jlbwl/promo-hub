@@ -54,9 +54,6 @@ export class CacheService {
     }
   }
 
-  /**
-   * 初始化Redis连接
-   */
   async connect(): Promise<void> {
     try {
       this.client = createClient({
@@ -65,7 +62,6 @@ export class CacheService {
           port: this.config.port,
           reconnectStrategy: (retries) => {
             if (retries > this.maxReconnectAttempts) {
-              console.warn('[Cache] Redis连接失败，切换到内存缓存模式')
               return false
             }
             return Math.min(retries * 100, 3000)
@@ -75,26 +71,22 @@ export class CacheService {
         database: this.config.db
       })
 
-      this.client.on('error', (err) => {
-        console.error('[Cache] Redis错误:', err.message)
+      this.client.on('error', () => {
         this.isRedisConnected = false
       })
 
       this.client.on('connect', () => {
-        console.log('[Cache] Redis连接成功')
         this.isRedisConnected = true
         this.reconnectAttempts = 0
       })
 
       this.client.on('reconnecting', () => {
         this.reconnectAttempts++
-        console.log(`[Cache] Redis重连中... (${this.reconnectAttempts}/${this.maxReconnectAttempts})`)
       })
 
       await this.client.connect()
       this.isRedisConnected = true
-    } catch (error: any) {
-      console.warn('[Cache] Redis初始化失败，将使用内存缓存:', error.message)
+    } catch {
       this.isRedisConnected = false
     }
   }
@@ -117,121 +109,84 @@ export class CacheService {
     return `${this.cacheConfig.prefix}${key}`
   }
 
-  /**
-   * 获取缓存值
-   */
   async get<T>(key: string): Promise<T | null> {
     const fullKey = this.buildKey(key)
 
-    // 优先使用Redis
     if (this.isRedisConnected && this.client) {
       try {
         const value = await this.client.get(fullKey)
         if (value) {
-          console.log(`[Cache] Redis命中: ${key}`)
           return JSON.parse(value) as T
         }
-      } catch (error: any) {
-        console.error(`[Cache] Redis GET错误: ${error.message}`)
+      } catch {
       }
     }
 
-    // 降级到内存缓存
     const memValue = this.memoryCache.get(fullKey)
     if (memValue) {
       if (memValue.expiry > Date.now()) {
-        console.log(`[Cache] Memory命中: ${key}`)
         return memValue.value as T
       }
       this.memoryCache.delete(fullKey)
     }
 
-    console.log(`[Cache] 未命中: ${key}`)
     return null
   }
 
-  /**
-   * 设置缓存值
-   */
   async set<T>(key: string, value: T, ttl?: number): Promise<void> {
     const fullKey = this.buildKey(key)
     const expiryTime = ttl || this.cacheConfig.ttl
     const serialized = JSON.stringify(value)
 
-    // 优先使用Redis
     if (this.isRedisConnected && this.client) {
       try {
         await this.client.setEx(fullKey, expiryTime, serialized)
-        console.log(`[Cache] Redis设置成功: ${key} (TTL: ${expiryTime}s)`)
-      } catch (error: any) {
-        console.error(`[Cache] Redis SET错误: ${error.message}`)
+      } catch {
       }
     }
 
-    // 同时设置内存缓存作为备份
     this.memoryCache.set(fullKey, {
       value,
       expiry: Date.now() + expiryTime * 1000
     })
   }
 
-  /**
-   * 删除缓存
-   */
   async delete(key: string): Promise<void> {
     const fullKey = this.buildKey(key)
 
-    // 优先删除Redis缓存
     if (this.isRedisConnected && this.client) {
       try {
         await this.client.del(fullKey)
-        console.log(`[Cache] Redis删除: ${key}`)
-      } catch (error: any) {
-        console.error(`[Cache] Redis DEL错误: ${error.message}`)
+      } catch {
       }
     }
 
-    // 同时删除内存缓存
     this.memoryCache.delete(fullKey)
   }
 
-  /**
-   * 删除匹配的缓存（支持通配符）
-   */
   async deletePattern(pattern: string): Promise<void> {
-    console.log(`[Cache] 开始清除缓存，模式: ${pattern}`)
     const fullPattern = this.buildKey(pattern)
     
-    // 简化匹配逻辑：支持前缀匹配（*在末尾）和包含匹配
     const matchesPattern = (key: string): boolean => {
-      // 模式格式为 "xxx*" 的前缀匹配
       if (pattern.endsWith('*')) {
         const prefixPattern = pattern.slice(0, -1)
         const fullPrefix = this.buildKey(prefixPattern)
         return key.startsWith(fullPrefix)
       }
-      // 简单的精确匹配或包含匹配
       return key.includes(fullPattern.replace(/\*/g, ''))
     }
 
-    // 删除Redis缓存
     if (this.isRedisConnected && this.client) {
       try {
         const keys = await this.client.keys(fullPattern)
         if (keys.length > 0) {
           await this.client.del(keys)
-          console.log(`[Cache] Redis批量删除: ${keys.length}个键，模式: ${fullPattern}`)
         }
-      } catch (error: any) {
-        console.error(`[Cache] Redis DEL模式错误: ${error.message}`)
+      } catch {
       }
     }
 
-    // 删除内存缓存 - 打印当前键以便调试
-    console.log(`[Cache] 内存缓存当前键数: ${this.memoryCache.size}`)
     const allMemoryKeys = Array.from(this.memoryCache.keys())
-    console.log(`[Cache] 内存缓存所有键:`, allMemoryKeys)
-    
     const keysToDelete: string[] = []
     for (const key of allMemoryKeys) {
       if (matchesPattern(key)) {
@@ -240,29 +195,17 @@ export class CacheService {
     }
     
     keysToDelete.forEach(key => this.memoryCache.delete(key))
-    if (keysToDelete.length > 0) {
-      console.log(`[Cache] Memory批量删除: ${keysToDelete.length}个键`)
-      console.log(`[Cache] 删除的键:`, keysToDelete)
-    } else {
-      console.log(`[Cache] Memory没有匹配到任何键，模式: ${pattern}`)
-    }
   }
 
-  /**
-   * 清空所有缓存
-   */
   async flush(): Promise<void> {
     if (this.isRedisConnected && this.client) {
       try {
         await this.client.flushDb()
-        console.log('[Cache] Redis清空成功')
-      } catch (error: any) {
-        console.error(`[Cache] Redis FLUSH错误: ${error.message}`)
+      } catch {
       }
     }
 
     this.memoryCache.clear()
-    console.log('[Cache] 内存缓存已清空')
   }
 
   /**
