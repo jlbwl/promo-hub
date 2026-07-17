@@ -267,7 +267,7 @@ export function refreshAuthToken(refreshToken: string): { token: string; refresh
     let user: AuthUser | null = null
     
     if (cacheService) {
-      const storedUser = cacheService.get(REFRESH_TOKEN_PREFIX + refreshToken)
+      const storedUser = await cacheService.get(REFRESH_TOKEN_PREFIX + refreshToken)
       if (storedUser) {
         try {
           user = JSON.parse(storedUser)
@@ -275,7 +275,7 @@ export function refreshAuthToken(refreshToken: string): { token: string; refresh
           return null
         }
       }
-      cacheService.delete(REFRESH_TOKEN_PREFIX + refreshToken)
+      await cacheService.delete(REFRESH_TOKEN_PREFIX + refreshToken)
     }
     
     if (!user) {

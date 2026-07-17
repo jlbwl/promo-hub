@@ -11,7 +11,7 @@ import {
 } from '../data/index.js'
 import { login as sessionLogin, generateTokens } from '../middleware/auth.js'
 import { generateSmsCode, saveSmsCode, verifySmsCode, deleteSmsCode } from '../utils/sms.js'
-import { sendSmsCode } from '../sms.js'
+import { sendSmsCode } from '../utils/sms.js'
 
 const SALT_ROUNDS = 12
 

@@ -272,7 +272,6 @@ export class OrderServiceImpl implements OrderService {
 
 const db = {
   readProducts,
-  readOrders,
   readUsers: async () => [],
   writeUsers: async () => {},
   writeProducts: async () => {},
