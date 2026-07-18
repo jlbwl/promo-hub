@@ -64,7 +64,7 @@
           prop="createdAt"
           label="操作时间"
           width="180"
-          formatter="formatTime"
+          :formatter="formatTime"
         />
         <el-table-column
           prop="adminName"
