@@ -7,22 +7,52 @@ import { insertOperationLog } from '../data/index.js'
  * 做单（创建订单）
  * 验证产品存在性和状态，检查库存，扣减库存，创建订单记录
  * 支持用户做单和员工代做单两种模式
- * @param req - HTTP请求对象，包含产品ID、用户ID、员工ID、产品选项等信息
+ * 
+ * 安全设计：
+ * - userId 不从客户端 body 取，强制使用 req.user.id（已认证用户）
+ * - employeeId 仅当登录身份为 employee 时使用，其他角色传入将被忽略
+ * - 防止用户伪造 userId 偷取他人业绩
+ * 
+ * @param req - HTTP请求对象，包含产品ID、产品选项等信息
  * @param res - HTTP响应对象
  * @returns 订单信息及剩余库存
  */
 export const createOrder = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { productId, userId, employeeId, optionLabel, redirectUrl, userName, userPhone, sharerId } = req.body
+    const { productId, optionLabel, redirectUrl, userName, userPhone, sharerId } = req.body
 
     if (!productId) {
       return sendError(res, '缺少产品ID', 400)
     }
 
+    // P0-2: 强制使用 req.user.id 作为用户身份，忽略客户端传入的 userId/employeeId
+    const currentUser = (req as any).user
+    if (!currentUser || !currentUser.id) {
+      return sendError(res, '未登录', 401)
+    }
+
+    // 根据登录角色确定 userId 和 employeeId
+    let realUserId: string | undefined
+    let realEmployeeId: string | undefined
+
+    if (currentUser.role === 'employee') {
+      // 员工代做单：使用员工关联的 userId
+      realEmployeeId = currentUser.id
+      realUserId = currentUser.userId  // 员工关联的真实用户ID
+      if (!realUserId) {
+        return sendError(res, '员工账户未关联用户，无法做单', 403)
+      }
+    } else if (currentUser.role === 'user' || currentUser.role === 'manager' || currentUser.role === 'admin') {
+      // 普通用户/经理/管理员做单
+      realUserId = currentUser.id
+    } else {
+      return sendError(res, '不支持的用户角色', 403)
+    }
+
     const { order, remainingStock } = await orderService.createOrder({
       productId,
-      userId,
-      employeeId,
+      userId: realUserId,
+      employeeId: realEmployeeId,
       optionLabel,
       redirectUrl,
       userName,
@@ -40,13 +70,20 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
  * 获取订单列表
  * 支持分页、用户筛选、经理筛选、员工筛选、状态筛选和管理类型筛选
  * 使用数据库级别的分页和筛选优化性能
- * @param req - HTTP请求对象，包含查询参数（page, pageSize, userId, managerId, employeeId, status, keyword, managedBy）
+ * 
+ * 安全设计（P1-7）：
+ * - user 角色：强制 userId = req.user.id，只能查自己的订单
+ * - employee 角色：强制 userId = req.user.userId，只能查所属用户的订单
+ * - manager 角色：强制 managerId = req.user.id，只能查自己团队的订单
+ * - admin 角色：无限制，可查询所有订单
+ * 
+ * @param req - HTTP请求对象，包含查询参数（page, pageSize, status, keyword）
  * @param res - HTTP响应对象
  * @returns 分页的订单列表和总数
  */
 export const getOrders = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { userId, managerId, employeeId, status, page = '1', pageSize = '20', keyword, managedBy } = req.query
+    const { status, page = '1', pageSize = '20', keyword, managedBy } = req.query
 
     const pageNum = parseInt(page as string, 10)
     const pageSizeNum = parseInt(pageSize as string, 10)
@@ -58,12 +95,44 @@ export const getOrders = async (req: Request, res: Response): Promise<void> => {
       return sendError(res, 'pageSize参数无效', 400)
     }
 
+    // P1-7: 根据登录角色强制覆盖查询参数，防止越权访问他人订单
+    const currentUser = (req as any).user
+    if (!currentUser || !currentUser.id) {
+      return sendError(res, '未登录', 401)
+    }
+
+    let queryUserId: string | undefined
+    let queryManagerId: string | undefined
+    let queryEmployeeId: string | undefined
+
+    if (currentUser.role === 'admin') {
+      // 管理员：可查询所有订单，支持手动筛选
+      queryUserId = req.query.userId as string | undefined
+      queryManagerId = req.query.managerId as string | undefined
+      queryEmployeeId = req.query.employeeId as string | undefined
+    } else if (currentUser.role === 'manager') {
+      // 经理：强制只查自己团队的订单，忽略客户端传入的 userId/managerId
+      queryManagerId = currentUser.id
+    } else if (currentUser.role === 'employee') {
+      // 员工：强制只查所属用户的订单
+      if (!currentUser.userId) {
+        return sendError(res, '员工账户未关联用户', 403)
+      }
+      queryUserId = currentUser.userId
+      queryEmployeeId = currentUser.id
+    } else if (currentUser.role === 'user') {
+      // 普通用户：强制只查自己的订单
+      queryUserId = currentUser.id
+    } else {
+      return sendError(res, '不支持的用户角色', 403)
+    }
+
     let result: { list: any[]; total: number }
     try {
       result = await orderService.getOrders({
-        userId: userId as string,
-        managerId: managerId as string,
-        employeeId: employeeId as string,
+        userId: queryUserId,
+        managerId: queryManagerId,
+        employeeId: queryEmployeeId,
         status: status as string,
         managedBy: managedBy as string,
         keyword: keyword as string,
@@ -74,9 +143,9 @@ export const getOrders = async (req: Request, res: Response): Promise<void> => {
       console.warn('[获取订单] 数据库查询失败，尝试降级到内存:', dbError)
       const { getOrdersPaginated } = await import('../data-memory.js')
       result = await getOrdersPaginated({
-        userId: userId as string,
-        managerId: managerId as string,
-        employeeId: employeeId as string,
+        userId: queryUserId,
+        managerId: queryManagerId,
+        employeeId: queryEmployeeId,
         status: status as string,
         managedBy: managedBy as string,
         keyword: keyword as string,

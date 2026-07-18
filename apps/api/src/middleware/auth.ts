@@ -36,6 +36,9 @@ declare module 'express-session' {
 // Refresh Token 存储键前缀
 const REFRESH_TOKEN_PREFIX = 'refresh_token:'
 const ACCESS_TOKEN_PREFIX = 'access_token:'
+// P0-7: 宽限期键前缀，旧 token 删除后 60 秒内仍可用
+const REFRESH_TOKEN_GRACE_PREFIX = 'refresh_token_grace:'
+const REFRESH_TOKEN_GRACE_TTL = 60  // 60秒宽限期
 
 // 获取缓存服务（使用 Redis）
 function getTokenStore() {
@@ -260,6 +263,12 @@ export const logout = (req: Request) => {
 }
 
 // 刷新 Token
+// P0-7: 实现宽限期机制，防止并发请求 token 刷新失败
+// 流程：
+//   1. 先从主存储读取 user，若不存在则从宽限期读取
+//   2. 生成新 token 后，将旧 token 放入宽限期（60秒）
+//   3. 删除主存储中的旧 token
+//   4. 并发请求中的后续请求可从宽限期读取，使用相同的新 token
 export async function refreshAuthToken(refreshToken: string): Promise<{ token: string; refreshToken: string } | null> {
   try {
     const decoded = jwt.verify(refreshToken, JWT_SECRET) as any
@@ -270,9 +279,26 @@ export async function refreshAuthToken(refreshToken: string): Promise<{ token: s
     
     const cacheService = getTokenStore()
     let cachedUser: AuthUser | null = null
+    let fromGrace = false
     
     if (cacheService) {
+      // 1. 先从主存储读取
       cachedUser = await cacheService.get<AuthUser>(REFRESH_TOKEN_PREFIX + refreshToken)
+      
+      // 2. 若主存储不存在，从宽限期读取（并发场景：已被其他请求刷新过）
+      if (!cachedUser) {
+        cachedUser = await cacheService.get<AuthUser>(REFRESH_TOKEN_GRACE_PREFIX + refreshToken)
+        if (cachedUser) {
+          fromGrace = true
+          // 宽限期中存储的是已经刷新后的新 token 对
+          const newTokens = await cacheService.get<{ token: string; refreshToken: string }>(
+            REFRESH_TOKEN_GRACE_PREFIX + refreshToken + ':tokens'
+          )
+          if (newTokens) {
+            return newTokens
+          }
+        }
+      }
     }
     
     if (!cachedUser) {
@@ -292,7 +318,19 @@ export async function refreshAuthToken(refreshToken: string): Promise<{ token: s
     
     const newTokens = await generateTokens(authUser)
     
-    if (cacheService) {
+    // P0-7: 先将旧 token 放入宽限期（带新 token 信息），再删除旧 token
+    // 这样并发请求中的后续请求可以从宽限期获取相同的新 token
+    if (cacheService && !fromGrace) {
+      await cacheService.set(
+        REFRESH_TOKEN_GRACE_PREFIX + refreshToken,
+        JSON.stringify(authUser),
+        REFRESH_TOKEN_GRACE_TTL
+      )
+      await cacheService.set(
+        REFRESH_TOKEN_GRACE_PREFIX + refreshToken + ':tokens',
+        JSON.stringify(newTokens),
+        REFRESH_TOKEN_GRACE_TTL
+      )
       await cacheService.delete(REFRESH_TOKEN_PREFIX + refreshToken)
     }
     
@@ -303,10 +341,13 @@ export async function refreshAuthToken(refreshToken: string): Promise<{ token: s
 }
 
 // 使 Refresh Token 失效（用于登出）
+// P0-7: 同时清理主存储和宽限期，防止登出后仍可通过宽限期刷新
 export async function revokeRefreshToken(refreshToken: string): Promise<boolean> {
   const cacheService = getTokenStore()
   if (cacheService) {
     await cacheService.delete(REFRESH_TOKEN_PREFIX + refreshToken)
+    await cacheService.delete(REFRESH_TOKEN_GRACE_PREFIX + refreshToken)
+    await cacheService.delete(REFRESH_TOKEN_GRACE_PREFIX + refreshToken + ':tokens')
     return true
   }
   return false

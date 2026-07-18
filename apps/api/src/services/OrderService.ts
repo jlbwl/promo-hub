@@ -15,7 +15,7 @@ import {
   deleteOrder,
   getOrdersPaginated,
 } from '../data/index.js'
-import { updateProduct } from '../data/product.js'
+import { query } from '../db.js'
 import { DatabaseService } from './DatabaseService.js'
 import { ErrorCode, throwNotFound, throwBadRequest, throwForbidden } from '@promo/shared'
 
@@ -95,13 +95,26 @@ export class OrderServiceImpl implements OrderService {
       throwBadRequest('该产品已下架')
     }
 
+    // P1-1: 使用乐观锁扣减库存，防止并发超卖
+    // SQL 条件: WHERE stock > 0，确保不会扣成负数
+    let remainingStock: number
     if (product.stock && product.stock > 0) {
-      if (product.stock < 1) {
-        throwBadRequest('库存不足', ErrorCode.INSUFFICIENT_STOCK)
+      const [updateResult] = await query(
+        'UPDATE products SET stock = stock - 1, updatedAt = NOW() WHERE id = ? AND stock > 0',
+        [product.id]
+      )
+      if (!updateResult || updateResult.affectedRows === 0) {
+        // 库存已被其他请求抢光
+        throwBadRequest('库存不足，商品已被抢光', ErrorCode.INSUFFICIENT_STOCK)
       }
-      await updateProduct(product.id, { stock: product.stock - 1, updatedAt: new Date().toISOString() })
+      remainingStock = (product.stock || 0) - 1
+    } else {
+      // 无库存限制或无限库存
+      remainingStock = product.stock ?? -1
     }
 
+    // P0-2: 强制使用服务端传入的 userId（来自 req.user.id）
+    // 忽略客户端传入的 userId，防止业绩污染
     let finalUserId = userId || 'guest'
     if (employeeId) {
       const employee = await readEmployeeById(employeeId)
@@ -143,7 +156,6 @@ export class OrderServiceImpl implements OrderService {
     }
     await insertOrder(order)
 
-    const remainingStock = product.stock && product.stock > 0 ? product.stock - 1 : (product.stock || -1)
     return { order, remainingStock }
   }
 

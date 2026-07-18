@@ -54,14 +54,22 @@ export function csrfVerify(req: Request, res: Response, next: NextFunction) {
   }
 
   // 允许绕过 CSRF 的关键接口（仅精确匹配）
+  // 仅包含：未登录态可访问的接口 + token 刷新/登出接口（登录态可能已过期）
   const bypassPaths = [
-    // 登录和认证相关
+    // 管理员登录和短信验证码
     '/api/admin/login',
     '/api/admin/sms/send',
     '/api/admin/sms/login',
+
+    // 经理登录和短信验证码
     '/api/manager/login',
     '/api/manager/sms/send',
     '/api/manager/sms/login',
+    '/api/managers/login',
+    '/api/managers/sms/send',
+    '/api/managers/sms/login',
+
+    // 用户注册、登录和短信验证码
     '/api/user/login',
     '/api/user/sms/send',
     '/api/user/sms/login',
@@ -70,8 +78,19 @@ export function csrfVerify(req: Request, res: Response, next: NextFunction) {
     '/api/users/sms/send',
     '/api/users/sms/login',
     '/api/users/register',
+
+    // 员工登录
+    '/api/employees/login',
+
+    // Token 刷新和登出（登录态可能已过期，无法通过 CSRF 验证）
     '/api/auth/refresh',
     '/api/auth/logout',
+    '/api/users/refresh',
+    '/api/users/logout',
+
+    // 密码重置（通过短信验证码，无需登录态）
+    '/api/managers/password/set',
+    '/api/users/password/set',
 
     // CSRF token 接口本身
     '/api/csrf-token'
