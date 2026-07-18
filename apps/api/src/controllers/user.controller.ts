@@ -148,7 +148,7 @@ export const userLogin = asyncHandler(
 
     const authUser = { id: user.id, phone: user.phone, role: 'user' as const, nickname: user.nickname, teamName: user.teamName }
     const tokens = await generateTokens(authUser)
-    sessionLogin(req, { ...authUser, token: tokens.token })
+    await sessionLogin(req, { ...authUser, token: tokens.token })
 
     logger.info('User logged in', { userId: user.id, method: 'password' })
     const { password: _, ...safeUser } = user

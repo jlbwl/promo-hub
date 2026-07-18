@@ -211,7 +211,7 @@ export const employeeLogin = async (req: Request, res: Response): Promise<void> 
       userId: employee.userId
     }
     const tokens = await generateTokens(authUser)
-    sessionLogin(req, { ...authUser, token: tokens.token })
+    await sessionLogin(req, { ...authUser, token: tokens.token })
     
     sendSuccess(res, {
       token: tokens.token,

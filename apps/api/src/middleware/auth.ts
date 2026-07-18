@@ -269,20 +269,25 @@ export async function refreshAuthToken(refreshToken: string): Promise<{ token: s
     }
     
     const cacheService = getTokenStore()
-    let user: AuthUser | null = null
+    let cachedUser: AuthUser | null = null
     
     if (cacheService) {
-      user = await cacheService.get<AuthUser>(REFRESH_TOKEN_PREFIX + refreshToken)
+      cachedUser = await cacheService.get<AuthUser>(REFRESH_TOKEN_PREFIX + refreshToken)
     }
     
-    if (!user) {
+    if (!cachedUser) {
       return null
     }
     
+    // 使用缓存的完整 user 对象，保留 userId/nickname/teamName 等字段
+    // 修复：之前只使用 decoded 中的 id/phone/role，丢失了员工账户的 userId
     const authUser: AuthUser = {
-      id: decoded.id,
-      phone: decoded.phone,
-      role: decoded.role
+      id: cachedUser.id,
+      phone: cachedUser.phone,
+      role: cachedUser.role,
+      nickname: cachedUser.nickname,
+      teamName: cachedUser.teamName,
+      userId: cachedUser.userId  // 保留员工账户的关联用户ID
     }
     
     const newTokens = await generateTokens(authUser)

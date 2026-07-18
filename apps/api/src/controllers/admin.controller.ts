@@ -54,7 +54,7 @@ export const adminLogin = async (req: Request, res: Response): Promise<void> => 
 
   const user = { id: admin.id, phone: admin.phone, role: 'admin' as const, nickname: admin.name }
   const tokens = await generateTokens(user)
-  sessionLogin(req, { ...user, token: tokens.token })
+  await sessionLogin(req, { ...user, token: tokens.token })
 
   sendSuccess(res, {
     token: tokens.token,
@@ -84,7 +84,7 @@ export const adminSmsLogin = async (req: Request, res: Response): Promise<void> 
 
   const user = { id: admin.id, phone: admin.phone, role: 'admin' as const, nickname: admin.name }
   const tokens = await generateTokens(user)
-  sessionLogin(req, { ...user, token: tokens.token })
+  await sessionLogin(req, { ...user, token: tokens.token })
 
   sendSuccess(res, {
     token: tokens.token,

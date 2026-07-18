@@ -308,7 +308,7 @@ export const managerLogin = async (req: Request, res: Response): Promise<void> =
   
   const user = { id: manager.id, phone: manager.phone, role: 'manager' as const, nickname: manager.name, teamName: manager.teamName }
   const tokens = await generateTokens(user)
-  sessionLogin(req, { ...user, token: tokens.token })
+  await sessionLogin(req, { ...user, token: tokens.token })
   
   const { password: _, ...safeManager } = manager
   sendSuccess(res, { token: tokens.token, refreshToken: tokens.refreshToken, manager: safeManager }, '登录成功')
@@ -352,7 +352,7 @@ export const managerSmsLogin = async (req: Request, res: Response): Promise<void
   
   const user = { id: manager.id, phone: manager.phone, role: 'manager' as const, nickname: manager.name, teamName: manager.teamName }
   const tokens = await generateTokens(user)
-  sessionLogin(req, { ...user, token: tokens.token })
+  await sessionLogin(req, { ...user, token: tokens.token })
   
   const { password: _, ...safeManager } = manager
   sendSuccess(res, { token: tokens.token, refreshToken: tokens.refreshToken, manager: safeManager }, '登录成功')
