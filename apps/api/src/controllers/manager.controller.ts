@@ -1,5 +1,4 @@
 import { Request, Response } from 'express'
-import bcrypt from 'bcryptjs'
 import { sendSuccess, sendError } from '../utils/response.js'
 import { withTransaction } from '../db.js'
 import {
@@ -20,24 +19,7 @@ import { login as sessionLogin, generateTokens } from '../middleware/auth.js'
 import { sendSmsCode } from '../utils/sms.js'
 import { generateSmsCode, saveSmsCode, verifySmsCode, deleteSmsCode } from '../utils/sms.js'
 import logger from '../utils/logger.js'
-
-const SALT_ROUNDS = 12
-
-// ============================================
-// 辅助函数
-// ============================================
-
-async function hashPassword(password: string): Promise<string> {
-  return await bcrypt.hash(password, SALT_ROUNDS)
-}
-
-async function verifyPassword(password: string, hash: string): Promise<boolean> {
-  try {
-    return await bcrypt.compare(password, hash)
-  } catch {
-    return false
-  }
-}
+import { hashPassword, verifyPassword } from '../utils/password.js'
 
 // ============================================
 // 经理信息操作

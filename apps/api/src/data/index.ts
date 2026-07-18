@@ -1,5 +1,5 @@
 
-export { query, queryOne } from '../db.js'
+export { query, queryOne, withTransaction } from '../db.js'
 
 export * from './utils.js'
 export * from './admin.js'

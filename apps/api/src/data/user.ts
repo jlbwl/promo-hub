@@ -10,6 +10,61 @@ export async function readUsers(): Promise<any[]> {
   }))
 }
 
+export async function readUsersPaged(params?: {
+  role?: string
+  status?: number
+  keyword?: string
+  teamName?: string
+  page?: number
+  pageSize?: number
+}): Promise<{ list: any[]; total: number }> {
+  let queryStr = 'SELECT * FROM users'
+  const values: any[] = []
+  const conditions: string[] = []
+
+  if (params?.role) {
+    conditions.push('role = ?')
+    values.push(params.role)
+  }
+  if (params?.status !== undefined) {
+    conditions.push('status = ?')
+    values.push(params.status === 1 ? 'active' : 'disabled')
+  }
+  if (params?.keyword) {
+    conditions.push('(nickname LIKE ? OR phone LIKE ? OR teamName LIKE ?)')
+    const kw = `%${params.keyword}%`
+    values.push(kw, kw, kw)
+  }
+  if (params?.teamName) {
+    conditions.push('teamName LIKE ?')
+    values.push(`%${params.teamName}%`)
+  }
+
+  if (conditions.length > 0) {
+    queryStr += ' WHERE ' + conditions.join(' AND ')
+  }
+
+  queryStr += ' ORDER BY createdAt DESC'
+
+  const countQuery = 'SELECT COUNT(1) as count FROM users' + (conditions.length > 0 ? ' WHERE ' + conditions.join(' AND ') : '')
+  const totalResult = await queryOne(countQuery, [...values])
+  const totalCount = totalResult?.count || 0
+
+  const pageNum = parseInt(String(params?.page || 1), 10)
+  const pageSizeNum = parseInt(String(params?.pageSize || 10), 10)
+  const offset = (pageNum - 1) * pageSizeNum
+
+  const rows = await query(queryStr + ' LIMIT ? OFFSET ?', [...values, pageSizeNum, offset])
+
+  return {
+    list: (rows as any[]).map(row => ({
+      ...row,
+      loginMethods: deserialize(row.loginMethods) || ['sms'],
+    })),
+    total: totalCount,
+  }
+}
+
 export async function readUser(id: string): Promise<any> {
   const row = await queryOne('SELECT * FROM users WHERE id = ?', [id])
   if (!row) return null

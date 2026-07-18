@@ -1,5 +1,4 @@
 import { Request, Response } from 'express'
-import bcrypt from 'bcryptjs'
 import { sendSuccess, sendError } from '../utils/response.js'
 import {
   readEmployeeByPhone,
@@ -11,24 +10,7 @@ import {
   readUser,
 } from '../data/index.js'
 import { login as sessionLogin, generateTokens } from '../middleware/auth.js'
-
-const SALT_ROUNDS = 12
-
-// ============================================
-// 辅助函数
-// ============================================
-
-async function hashPassword(password: string): Promise<string> {
-  return await bcrypt.hash(password, SALT_ROUNDS)
-}
-
-async function validateEmployeePassword(password: string, hash: string): Promise<boolean> {
-  try {
-    return await bcrypt.compare(password, hash)
-  } catch {
-    return false
-  }
-}
+import { hashPassword, verifyPassword } from '../utils/password.js'
 
 // ============================================
 // 员工子账户管理
@@ -191,7 +173,7 @@ export const employeeLogin = async (req: Request, res: Response): Promise<void> 
       return sendError(res, '手机号、密码错误或账户已过期', 1)
     }
     
-    const passwordValid = await validateEmployeePassword(password, employee.password)
+    const passwordValid = await verifyPassword(password, employee.password)
     if (!passwordValid) {
       return sendError(res, '手机号、密码错误或账户已过期', 1)
     }

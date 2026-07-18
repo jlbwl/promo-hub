@@ -2,6 +2,7 @@ import { Request, Response, NextFunction, RequestHandler } from 'express'
 import session, { Session } from 'express-session'
 import jwt from 'jsonwebtoken'
 import { getCacheService } from '../services/cache/index.js'
+import { readEmployeeById } from '../data/index.js'
 
 // 安全验证：确保必需的密钥环境变量已设置
 if (!process.env.JWT_SECRET || !process.env.SESSION_SECRET) {
@@ -314,6 +315,30 @@ export async function refreshAuthToken(refreshToken: string): Promise<{ token: s
       nickname: cachedUser.nickname,
       teamName: cachedUser.teamName,
       userId: cachedUser.userId  // 保留员工账户的关联用户ID
+    }
+    
+    // P1-5: 员工账户状态校验
+    // 检查员工账户是否过期、被禁用或不存在
+    if (authUser.role === 'employee') {
+      const employee = await readEmployeeById(authUser.id)
+      if (!employee || employee.status !== 'active') {
+        // 员工账户不存在或已禁用，清理 token
+        if (cacheService) {
+          await cacheService.delete(REFRESH_TOKEN_PREFIX + refreshToken)
+          await cacheService.delete(REFRESH_TOKEN_GRACE_PREFIX + refreshToken)
+          await cacheService.delete(REFRESH_TOKEN_GRACE_PREFIX + refreshToken + ':tokens')
+        }
+        return null
+      }
+      // 检查员工账户是否过期
+      if (employee.expiresAt && new Date(employee.expiresAt) < new Date()) {
+        if (cacheService) {
+          await cacheService.delete(REFRESH_TOKEN_PREFIX + refreshToken)
+          await cacheService.delete(REFRESH_TOKEN_GRACE_PREFIX + refreshToken)
+          await cacheService.delete(REFRESH_TOKEN_GRACE_PREFIX + refreshToken + ':tokens')
+        }
+        return null
+      }
     }
     
     const newTokens = await generateTokens(authUser)

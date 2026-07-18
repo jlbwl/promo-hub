@@ -2,7 +2,6 @@
  * ManagerService - 经理业务逻辑层
  * 负责处理渠道经理相关的所有业务逻辑，包括注册、登录、产品管理、订单审核等
  */
-import bcrypt from 'bcryptjs'
 import { injectable, inject } from 'tsyringe'
 import {
   readManagers,
@@ -16,8 +15,7 @@ import {
 } from '../data/index.js'
 import { DatabaseService } from './DatabaseService.js'
 import { ErrorCode, throwNotFound, throwBadRequest, throwForbidden, throwConflict, throwUnauthorized } from '@promo/shared'
-
-const SALT_ROUNDS = 12
+import { hashPassword, verifyPassword } from '../utils/password.js'
 
 /**
  * 经理服务接口
@@ -130,7 +128,7 @@ export class ManagerServiceImpl implements ManagerService {
     }
 
     const now = new Date().toISOString()
-    const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS)
+    const hashedPassword = await hashPassword(password)
     const manager = {
       id: `m_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
       username: teamName,
@@ -161,7 +159,7 @@ export class ManagerServiceImpl implements ManagerService {
       throwUnauthorized('渠道名称或密码错误')
     }
 
-    const passwordValid = await bcrypt.compare(password, manager.password)
+    const passwordValid = await verifyPassword(password, manager.password)
     if (!passwordValid) {
       throwUnauthorized('渠道名称或密码错误')
     }
@@ -189,7 +187,7 @@ export class ManagerServiceImpl implements ManagerService {
     }
 
     if (updateData.password) {
-      updateData.password = await bcrypt.hash(updateData.password, SALT_ROUNDS)
+      updateData.password = await hashPassword(updateData.password)
     }
 
     await updateManager(managerId, updateData)
@@ -308,7 +306,7 @@ export const managerService: ManagerService = {
 
     // 创建经理
     const now = new Date().toISOString()
-    const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS)
+    const hashedPassword = await hashPassword(password)
     const manager = {
       id: `m_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
       username: teamName,
@@ -345,7 +343,7 @@ export const managerService: ManagerService = {
     }
 
     // 验证密码
-    const passwordValid = await bcrypt.compare(password, manager.password)
+    const passwordValid = await verifyPassword(password, manager.password)
     if (!passwordValid) {
       throwUnauthorized('渠道名称或密码错误')
     }
@@ -379,7 +377,7 @@ export const managerService: ManagerService = {
 
     // 如果更新了密码，进行加密
     if (updateData.password) {
-      updateData.password = await bcrypt.hash(updateData.password, SALT_ROUNDS)
+      updateData.password = await hashPassword(updateData.password)
     }
 
     // 更新经理

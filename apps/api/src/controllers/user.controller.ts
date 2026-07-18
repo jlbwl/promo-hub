@@ -1,5 +1,4 @@
 import { Request, Response, NextFunction } from 'express'
-import bcrypt from 'bcryptjs'
 import {
   sendSuccess,
   sendError,
@@ -11,6 +10,7 @@ import {
 import logger from '../utils/logger.js'
 import {
   readUsers,
+  readUsersPaged,
   writeUsers,
   readManagers,
   writeManagers,
@@ -21,29 +21,12 @@ import {
   deserialize,
   insertUser,
   updateUser,
+  withTransaction,
 } from '../data/index.js'
 import { login as sessionLogin, loginSync as sessionLoginSync, generateAuthToken, logout as sessionLogout, generateTokens, refreshAuthToken } from '../middleware/auth.js'
 import { sendSmsCode } from '../utils/sms.js'
 import { generateSmsCode, saveSmsCode, verifySmsCode, deleteSmsCode } from '../utils/sms.js'
-
-const SALT_ROUNDS = 12
-
-// ============================================
-// 辅助函数
-// ============================================
-
-async function hashPassword(password: string): Promise<string> {
-  return await bcrypt.hash(password, SALT_ROUNDS)
-}
-
-async function verifyPassword(password: string, hash: string): Promise<boolean> {
-  try {
-    return await bcrypt.compare(password, hash)
-  } catch (err) {
-    logger.error('Password verification failed', { error: err })
-    return false
-  }
-}
+import { hashPassword, verifyPassword } from '../utils/password.js'
 
 // ============================================
 // 用户注册和登录
@@ -367,9 +350,19 @@ export const userLogout = asyncHandler(
 export const getUsers = asyncHandler(
   async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
     const { page = '1', pageSize = '10', role, status, keyword, teamName } = req.query
-    const users = await readUsers()
+    const pageNum = parseInt(page as string, 10)
+    const pageSizeNum = parseInt(pageSize as string, 10)
 
-    const allUsers = users.map((u: any) => ({
+    const result = await readUsersPaged({
+      role: role as string,
+      status: status !== undefined && status !== '' ? Number(status) : undefined,
+      keyword: keyword as string,
+      teamName: teamName as string,
+      page: pageNum,
+      pageSize: pageSizeNum,
+    })
+
+    const list = result.list.map((u: any) => ({
       id: u.id,
       name: u.nickname,
       phone: u.phone,
@@ -379,39 +372,7 @@ export const getUsers = asyncHandler(
       createdAt: u.createdAt,
     }))
 
-    let filtered = allUsers
-    if (role) {
-      filtered = filtered.filter((u: any) => u.role === role)
-    }
-    if (status !== undefined && status !== '') {
-      const s = Number(status)
-      filtered = filtered.filter((u: any) => u.status === s)
-    }
-    if (keyword) {
-      const kw = String(keyword).toLowerCase()
-      filtered = filtered.filter(
-        (u: any) => 
-          (u.name || '').toLowerCase().includes(kw) || 
-          (u.phone || '').includes(kw) ||
-          (u.teamName || '').toLowerCase().includes(kw)
-      )
-    }
-    if (teamName) {
-      const tn = String(teamName).toLowerCase()
-      filtered = filtered.filter(
-        (u: any) => (u.teamName || '').toLowerCase().includes(tn)
-      )
-    }
-
-    filtered.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-
-    const total = filtered.length
-    const pageNum = parseInt(page as string, 10)
-    const pageSizeNum = parseInt(pageSize as string, 10)
-    const start = (pageNum - 1) * pageSizeNum
-    const list = filtered.slice(start, start + pageSizeNum)
-
-    sendSuccess(res, { list, total, page: pageNum, pageSize: pageSizeNum }, 'success')
+    sendSuccess(res, { list, total: result.total, page: pageNum, pageSize: pageSizeNum }, 'success')
   }
 )
 
@@ -512,16 +473,21 @@ export const updateUserStatus = asyncHandler(
     if (mgrIdx !== -1) {
       managers[mgrIdx].status = status ? 'active' : 'disabled'
       managers[mgrIdx].updatedAt = new Date().toISOString()
-      await writeManagers(managers)
       
       if (!status) {
-        let products = await readProducts()
-        products = products.map((p: any) =>
-          p.managerId === userId && p.status === 'published'
-            ? { ...p, status: 'offline', updatedAt: new Date().toISOString() }
-            : p
-        )
-        await writeProducts(products)
+        // P1-4: 禁用经理时需要同时下架其产品，使用事务保证一致性
+        await withTransaction(async (conn) => {
+          await conn.execute(
+            'UPDATE managers SET status = ?, updatedAt = ? WHERE id = ?',
+            ['disabled', managers[mgrIdx].updatedAt, userId]
+          )
+          await conn.execute(
+            'UPDATE products SET status = ?, updatedAt = ? WHERE managerId = ? AND status = ?',
+            ['offline', managers[mgrIdx].updatedAt, userId, 'published']
+          )
+        })
+      } else {
+        await writeManagers(managers)
       }
       logger.info('Manager status updated', { managerId: userId, status })
       return sendSuccess(res, null, '更新成功')
@@ -604,15 +570,27 @@ export const updateUserTeamName = asyncHandler(
       throw new AppError('该团队名称已存在', ErrorCode.BAD_REQUEST, HttpStatus.CONFLICT)
     }
 
-    if (usrIdx !== -1) {
-      users[usrIdx].teamName = teamName
-      users[usrIdx].updatedAt = new Date().toISOString()
-      await writeUsers(users)
-    } else {
-      managers[mgrIdx].teamName = teamName
-      managers[mgrIdx].updatedAt = new Date().toISOString()
-      await writeManagers(managers)
-    }
+    const now = new Date().toISOString()
+
+    // P1-4: 更新团队名称时需要同时更新历史订单的 teamName，使用事务保证一致性
+    await withTransaction(async (conn) => {
+      if (usrIdx !== -1) {
+        await conn.execute(
+          'UPDATE users SET teamName = ?, updatedAt = ? WHERE id = ?',
+          [teamName, now, userId]
+        )
+      } else {
+        await conn.execute(
+          'UPDATE managers SET teamName = ?, updatedAt = ? WHERE id = ?',
+          [teamName, now, userId]
+        )
+      }
+      // 更新该用户的所有历史订单的团队名称
+      await conn.execute(
+        'UPDATE orders SET teamName = ?, updatedAt = ? WHERE userId = ?',
+        [teamName, now, userId]
+      )
+    })
 
     logger.info('User team name updated', { userId, teamName })
     sendSuccess(res, null, '更新成功')

@@ -2,12 +2,10 @@
  * UserService - 用户业务逻辑层
  * 负责处理用户相关的所有业务逻辑，包括注册、登录、密码管理等
  */
-import bcrypt from 'bcryptjs'
 import { injectable, inject } from 'tsyringe'
 import { ErrorCode, throwBadRequest, throwNotFound, throwConflict, throwUnauthorized } from '@promo/shared'
 import { DatabaseService } from './DatabaseService.js'
-
-const SALT_ROUNDS = 12
+import { hashPassword, verifyPassword } from '../utils/password.js'
 
 /**
  * 用户服务接口
@@ -90,7 +88,7 @@ export class UserServiceImpl implements UserService {
 
     // 创建用户
     const now = new Date().toISOString()
-    const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS)
+    const hashedPassword = await hashPassword(password)
     const user = {
       id: `u_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
       phone,
@@ -233,7 +231,7 @@ export const userService: UserService = {
     }
 
     const now = new Date().toISOString()
-    const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS)
+    const hashedPassword = await hashPassword(password)
     const user = {
       id: `u_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
       phone,
@@ -316,16 +314,4 @@ export const userService: UserService = {
   },
 }
 
-/**
- * 验证密码
- * @param password - 明文密码
- * @param hash - 加密密码
- * @returns 是否匹配
- */
-async function verifyPassword(password: string, hash: string): Promise<boolean> {
-  try {
-    return await bcrypt.compare(password, hash)
-  } catch {
-    return false
-  }
-}
+

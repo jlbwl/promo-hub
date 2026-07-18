@@ -1,16 +1,15 @@
 import { Request, Response } from 'express'
-import bcrypt from 'bcryptjs'
 import { sendSuccess, sendError } from '../utils/response.js'
 import {
   readAdminByPhone,
   updateAdmin,
+  readOperationLogs,
 } from '../data/index.js'
 import { queryOne } from '../db.js'
 import { login as sessionLogin, generateTokens } from '../middleware/auth.js'
 import { generateSmsCode, saveSmsCode, verifySmsCode, deleteSmsCode } from '../utils/sms.js'
 import { sendSmsCode } from '../utils/sms.js'
-
-const SALT_ROUNDS = 12
+import { hashPassword, verifyPassword } from '../utils/password.js'
 
 /**
  * 管理员短信验证码发送
@@ -123,7 +122,7 @@ export const adminChangePassword = async (req: Request, res: Response): Promise<
     return sendError(res, '旧密码错误', 400)
   }
 
-  const hashedPassword = await bcrypt.hash(newPassword, SALT_ROUNDS)
+  const hashedPassword = await hashPassword(newPassword)
   await updateAdmin(admin.id, { password: hashedPassword })
 
   sendSuccess(res, null, '密码修改成功')
@@ -179,7 +178,7 @@ export const adminPasswordUpdate = async (req: Request, res: Response): Promise<
   }
 
   // 更新密码
-  const hashedPassword = await bcrypt.hash(newPassword, SALT_ROUNDS)
+  const hashedPassword = await hashPassword(newPassword)
   await updateAdmin(admin.id, { password: hashedPassword })
 
   sendSuccess(res, null, '密码修改成功，请重新登录')
@@ -227,39 +226,17 @@ export const getOperationLogs = async (req: Request, res: Response): Promise<voi
     const targetType = req.query.targetType as string
     const adminId = req.query.adminId as string
 
-    // 模拟操作日志数据（实际项目中应从数据库读取）
-    const allLogs: any[] = []
+    const result = await readOperationLogs({
+      adminId,
+      operationType,
+      targetType,
+      page,
+      pageSize,
+    })
 
-    // 过滤日志
-    let filteredLogs = allLogs
-    if (operationType) {
-      filteredLogs = filteredLogs.filter(log => log.operationType === operationType)
-    }
-    if (targetType) {
-      filteredLogs = filteredLogs.filter(log => log.targetType === targetType)
-    }
-    if (adminId) {
-      filteredLogs = filteredLogs.filter(log => log.adminId === adminId)
-    }
-
-    // 分页
-    const total = filteredLogs.length
-    const start = (page - 1) * pageSize
-    const end = start + pageSize
-    const list = filteredLogs.slice(start, end)
-
-    sendSuccess(res, { list, total })
+    sendSuccess(res, result)
   } catch (error: any) {
     console.error('[获取操作日志] 错误:', error)
     sendError(res, error.message || '获取失败', 500)
-  }
-}
-
-// 密码验证辅助函数
-async function verifyPassword(password: string, hash: string): Promise<boolean> {
-  try {
-    return await bcrypt.compare(password, hash)
-  } catch {
-    return false
   }
 }
