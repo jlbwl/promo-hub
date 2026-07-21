@@ -15,8 +15,8 @@ import {
 
 const router: Router = Router()
 
-// 订单创建 - 所有已登录用户均可
-router.post('/orders', requireAuth, createOrder)
+// 订单创建 - 支持登录用户和访客模式
+router.post('/orders', createOrder)
 // 订单列表 - 所有已登录用户均可（controller 层根据 role 强制过滤）
 router.get('/orders', requireAuth, getOrders)
 // 管理员删除订单

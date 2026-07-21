@@ -6,12 +6,12 @@ import { insertOperationLog } from '../data/index.js'
 /**
  * 做单（创建订单）
  * 验证产品存在性和状态，检查库存，扣减库存，创建订单记录
- * 支持用户做单和员工代做单两种模式
+ * 支持用户做单、员工代做单和访客模式
  * 
  * 安全设计：
- * - userId 不从客户端 body 取，强制使用 req.user.id（已认证用户）
- * - employeeId 仅当登录身份为 employee 时使用，其他角色传入将被忽略
- * - 防止用户伪造 userId 偷取他人业绩
+ * - 登录用户：userId 从 req.user.id 获取，防止伪造
+ * - 员工代做单：使用员工关联的 userId
+ * - 访客模式：使用 sharerId（如果有）或标记为 guest
  * 
  * @param req - HTTP请求对象，包含产品ID、产品选项等信息
  * @param res - HTTP响应对象
@@ -25,28 +25,29 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
       return sendError(res, '缺少产品ID', 400)
     }
 
-    // P0-2: 强制使用 req.user.id 作为用户身份，忽略客户端传入的 userId/employeeId
+    // 获取当前登录用户（支持登录用户和访客模式）
     const currentUser = (req as any).user
-    if (!currentUser || !currentUser.id) {
-      return sendError(res, '未登录', 401)
-    }
-
-    // 根据登录角色确定 userId 和 employeeId
     let realUserId: string | undefined
     let realEmployeeId: string | undefined
 
-    if (currentUser.role === 'employee') {
-      // 员工代做单：使用员工关联的 userId
-      realEmployeeId = currentUser.id
-      realUserId = currentUser.userId  // 员工关联的真实用户ID
-      if (!realUserId) {
-        return sendError(res, '员工账户未关联用户，无法做单', 403)
+    if (currentUser && currentUser.id) {
+      // 已登录用户
+      if (currentUser.role === 'employee') {
+        // 员工代做单：使用员工关联的 userId
+        realEmployeeId = currentUser.id
+        realUserId = currentUser.userId  // 员工关联的真实用户ID
+        if (!realUserId) {
+          return sendError(res, '员工账户未关联用户，无法做单', 403)
+        }
+      } else if (currentUser.role === 'user' || currentUser.role === 'manager' || currentUser.role === 'admin') {
+        // 普通用户/经理/管理员做单
+        realUserId = currentUser.id
+      } else {
+        return sendError(res, '不支持的用户角色', 403)
       }
-    } else if (currentUser.role === 'user' || currentUser.role === 'manager' || currentUser.role === 'admin') {
-      // 普通用户/经理/管理员做单
-      realUserId = currentUser.id
     } else {
-      return sendError(res, '不支持的用户角色', 403)
+      // 访客模式：使用 sharerId（如果有）或标记为 guest
+      realUserId = sharerId || 'guest'
     }
 
     const { order, remainingStock } = await orderService.createOrder({
