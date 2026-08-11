@@ -36,10 +36,7 @@
       </h3>
       <div class="product-bottom">
         <span class="product-price">¥{{ product.price }}</span>
-        <span
-          v-if="product.sales !== undefined"
-          class="product-sales"
-        >已售 {{ product.sales }}</span>
+
       </div>
       <!-- 产品操作按钮 -->
       <div

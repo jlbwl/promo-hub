@@ -35,7 +35,6 @@
         {{ product.title }}
       </h2>
       <div class="meta-row">
-        <span class="sales">已售 {{ product.sales || 0 }} 件</span>
         <span class="rate">好评率 {{ product.rate || '100%' }}</span>
       </div>
     </div>
