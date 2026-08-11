@@ -27,7 +27,7 @@ jobs:
       should-deploy: ${{ steps.check.outputs.should-deploy }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: 检查是否有环境配置文件
         id: check
@@ -45,7 +45,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v5
@@ -73,7 +73,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v5
@@ -139,7 +139,7 @@ jobs:
           mv package.json.original package.json
 
       - name: Upload Shared artifacts
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: shared-dist
           path: |
@@ -148,21 +148,21 @@ jobs:
           retention-days: 1
 
       - name: Upload Admin artifacts
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: admin-dist
           path: apps/admin/dist
           retention-days: 1
 
       - name: Upload Manager artifacts
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: manager-dist
           path: apps/manager/dist
           retention-days: 1
 
       - name: Upload User artifacts
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: user-dist
           path: apps/user/dist
@@ -236,14 +236,14 @@ jobs:
           ls -la dist/
 
       - name: Upload API artifacts
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: api-dist
           path: apps/api/dist
           retention-days: 1
 
       - name: Upload Nginx config template
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: nginx-config-template
           path: config/nginx.conf.template
@@ -256,31 +256,31 @@ jobs:
     environment: production
     steps:
       - name: Download Admin artifacts
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v6
         with:
           name: admin-dist
           path: admin-dist
 
       - name: Download Manager artifacts
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v6
         with:
           name: manager-dist
           path: manager-dist
 
       - name: Download User artifacts
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v6
         with:
           name: user-dist
           path: user-dist
 
       - name: Download API artifacts
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v6
         with:
           name: api-dist
           path: api-dist
 
       - name: Download Shared artifacts
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v6
         with:
           name: shared-dist
           path: shared-dist
