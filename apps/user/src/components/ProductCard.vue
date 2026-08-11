@@ -36,7 +36,6 @@
       </h3>
       <div class="product-bottom">
         <span class="product-price">¥{{ product.price }}</span>
-
       </div>
       <!-- 产品操作按钮 -->
       <div
