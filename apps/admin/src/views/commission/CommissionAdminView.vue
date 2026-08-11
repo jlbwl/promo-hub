@@ -339,7 +339,10 @@
         show-overflow-tooltip
       >
         <template #default="{ row }">
-          <div class="editable-cell" v-if="row.teamName">
+          <div
+            v-if="row.teamName"
+            class="editable-cell"
+          >
             {{ row.teamName }}
             <el-icon
               class="edit-icon"
@@ -348,7 +351,11 @@
               <Edit />
             </el-icon>
           </div>
-          <div v-else class="editable-cell empty" @click="editTeamName(row)">
+          <div
+            v-else
+            class="editable-cell empty"
+            @click="editTeamName(row)"
+          >
             <span class="empty-text">点击编辑</span>
             <el-icon class="edit-icon">
               <Edit />
@@ -508,14 +515,28 @@
       :close-on-click-modal="false"
     >
       <div class="edit-team-name-content">
-        <el-form :model="editTeamNameForm" :rules="editTeamNameRules" ref="editTeamNameFormRef" label-width="80px">
+        <el-form
+          ref="editTeamNameFormRef"
+          :model="editTeamNameForm"
+          :rules="editTeamNameRules"
+          label-width="80px"
+        >
           <el-form-item label="产品名称">
-            <el-input :value="editTeamNameRow?.productName" disabled />
+            <el-input
+              :value="editTeamNameRow?.productName"
+              disabled
+            />
           </el-form-item>
           <el-form-item label="用户姓名">
-            <el-input :value="maskName(editTeamNameRow?.userName)" disabled />
+            <el-input
+              :value="maskName(editTeamNameRow?.userName)"
+              disabled
+            />
           </el-form-item>
-          <el-form-item label="团队名称" prop="teamName">
+          <el-form-item
+            label="团队名称"
+            prop="teamName"
+          >
             <el-input
               v-model="editTeamNameForm.teamName"
               placeholder="请输入团队名称"
