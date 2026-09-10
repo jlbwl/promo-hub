@@ -95,7 +95,7 @@ export async function processCoverImage(
     return {
       path: outputPath,
       filename: outputFilename,
-      url: `/api/uploads/covers/${outputFilename}`,
+      url: `/uploads/covers/${outputFilename}`,
       size: stats?.size || 0,
       width: processedMetadata.width || COVER_IMAGE_CONFIG.targetWidth,
       height: processedMetadata.height || COVER_IMAGE_CONFIG.targetHeight,

@@ -14,6 +14,7 @@
       route
       fixed
       placeholder
+      :before-change="onBeforeTabChange"
     >
       <van-tabbar-item
         to="/home"
@@ -53,11 +54,12 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
+import { showConfirmDialog } from 'vant'
 import { get } from '@promo/shared/utils/request'
 import IcpFooter from '../components/IcpFooter.vue'
 
-// 从环境变量读取 ICP 备案号
-const icpNumber = import.meta.env.VITE_ICP_NUMBER || ''
+// 从环境变量读取 ICP 备案号（未配置时使用默认备案号）
+const icpNumber = import.meta.env.VITE_ICP_NUMBER || '豫ICP备2026039429号'
 
 // 当前激活的 Tab
 const activeTab = ref('home')
@@ -106,6 +108,23 @@ const isProductDetail = computed(() => route.path.startsWith('/product'))
 const isEmployee = computed(() => {
   return localStorage.getItem('login_type') === 'employee'
 })
+
+// Tab 切换前拦截：访客不允许进入收藏/佣金页
+const onBeforeTabChange = (name: string | number) => {
+  const isGuest = !localStorage.getItem('user_token') && !localStorage.getItem('employee_token')
+  if (isGuest && (name === 'cart' || name === 'commissions')) {
+    const guestDialogOptions = {
+      title: '提示',
+      message: '访客模式不支持此功能，请登录后使用',
+      confirmButtonText: '我知道了',
+      teleport: 'body',
+      safeAreaInsetBottom: true,
+    }
+    showConfirmDialog(guestDialogOptions)
+    return false
+  }
+  return true
+}
 
 // 监听路由变化，同步更新 Tab 激活状态
 watch(

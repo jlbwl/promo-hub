@@ -101,6 +101,14 @@ router.beforeEach((to, _from, next) => {
   if (to.meta.requiresAuth === true) {
     const token = localStorage.getItem('user_token') || localStorage.getItem('employee_token')
     if (!token) {
+      // 访客访问收藏/佣金页：提示并留在当前页，不跳转登录页
+      if (to.path === '/cart' || to.path === '/commissions') {
+        setTimeout(() => {
+          showToast('访客模式不支持该功能')
+        }, 50)
+        next(false)
+        return
+      }
       next({ name: 'Login', query: { redirect: to.fullPath } })
       return
     }

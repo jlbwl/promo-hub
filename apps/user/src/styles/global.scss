@@ -107,3 +107,9 @@ img {
     }
   }
 }
+
+// 弹窗遮罩层底部安全区域适配
+.van-overlay {
+  padding-bottom: env(safe-area-inset-bottom, 0px) !important;
+  padding-bottom: constant(safe-area-inset-bottom, 0px) !important;
+}

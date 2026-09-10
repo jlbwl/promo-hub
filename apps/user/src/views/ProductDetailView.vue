@@ -634,7 +634,7 @@ const submitGoOrder = (userInfo: any) => {
   }
 
   .info-form-footer {
-    padding: 16px 20px 0;
+    padding: 16px 20px 24px;
   }
 }
 

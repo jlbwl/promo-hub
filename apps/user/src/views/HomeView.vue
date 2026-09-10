@@ -44,7 +44,7 @@
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { get, post } from '@promo/shared/utils/request'
-import { showToast } from 'vant'
+import { showToast, showConfirmDialog } from 'vant'
 import ProductCard from '../components/ProductCard.vue'
 import CategoryList from '../components/CategoryList.vue'
 import { useUser } from '../composables/useLocalStorage'
@@ -192,7 +192,14 @@ const goToDetail = (product: any) => {
 const addToCart = async (product: any) => {
   const userId = getUserId()
   if (!userId) {
-    showToast('请先登录')
+    const guestDialogOptions = {
+      title: '提示',
+      message: '访客模式不支持此功能，请登录后使用',
+      confirmButtonText: '我知道了',
+      teleport: 'body',
+      safeAreaInsetBottom: true,
+    }
+    showConfirmDialog(guestDialogOptions)
     return
   }
   try {

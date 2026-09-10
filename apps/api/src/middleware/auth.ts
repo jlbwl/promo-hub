@@ -40,6 +40,10 @@ const ACCESS_TOKEN_PREFIX = 'access_token:'
 // P0-7: 宽限期键前缀，旧 token 删除后 60 秒内仍可用
 const REFRESH_TOKEN_GRACE_PREFIX = 'refresh_token_grace:'
 const REFRESH_TOKEN_GRACE_TTL = 60  // 60秒宽限期
+// Admin 单设备登录：存储当前活跃的 refresh token
+const ADMIN_ACTIVE_TOKEN_PREFIX = 'admin_active_token:'
+// Admin refresh token 滑动过期时间（365天，每次刷新自动续期）
+const ADMIN_REFRESH_TOKEN_TTL = 365 * 24 * 60 * 60
 
 // 获取缓存服务（使用 Redis）
 function getTokenStore() {
@@ -95,18 +99,26 @@ export function generateAuthToken(user: AuthUser): string {
 }
 
 // 生成 Refresh Token（长期有效）
+// Admin 角色：不设置 JWT 过期时间 + 单设备登录（新登录顶掉旧设备）+ 滑动过期365天
+// 其他角色：保持原有7天有效期
 export async function generateRefreshToken(user: AuthUser): Promise<string> {
+  const isAdmin = user.role === 'admin'
   const refreshToken = jwt.sign(
     { id: user.id, phone: user.phone, role: user.role, type: 'refresh' },
     JWT_SECRET,
-    { expiresIn: '7d' }
+    isAdmin ? {} : { expiresIn: '7d' }
   )
-  
+
   const cacheService = getTokenStore()
   if (cacheService) {
-    await cacheService.set(REFRESH_TOKEN_PREFIX + refreshToken, JSON.stringify(user), 7 * 24 * 60 * 60)
+    const ttl = isAdmin ? ADMIN_REFRESH_TOKEN_TTL : 7 * 24 * 60 * 60
+    await cacheService.set(REFRESH_TOKEN_PREFIX + refreshToken, JSON.stringify(user), ttl)
+    // Admin 单设备登录：记录当前活跃 token，新登录自动覆盖旧 token（顶号）
+    if (isAdmin) {
+      await cacheService.set(ADMIN_ACTIVE_TOKEN_PREFIX + user.id, refreshToken, ttl)
+    }
   }
-  
+
   return refreshToken
 }
 
@@ -340,7 +352,17 @@ export async function refreshAuthToken(refreshToken: string): Promise<{ token: s
         return null
       }
     }
-    
+
+    // Admin 单设备登录校验：检查该 token 是否为当前活跃 token
+    if (authUser.role === 'admin' && cacheService) {
+      const activeToken = await cacheService.get(ADMIN_ACTIVE_TOKEN_PREFIX + authUser.id)
+      if (activeToken !== refreshToken) {
+        // 已被新设备顶号，拒绝刷新
+        console.log(`[Auth] Admin ${authUser.id} token 已被顶号，拒绝刷新`)
+        return null
+      }
+    }
+
     const newTokens = await generateTokens(authUser)
     
     // P0-7: 先将旧 token 放入宽限期（带新 token 信息），再删除旧 token
