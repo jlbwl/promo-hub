@@ -1,6 +1,6 @@
 import 'reflect-metadata'
 import 'dotenv/config'
-import express from 'express'
+import express, { type Request, type Response } from 'express'
 import cors from 'cors'
 import helmet from 'helmet'
 import { existsSync, mkdirSync } from 'fs'
@@ -204,7 +204,8 @@ app.post(
 app.use('/uploads', express.static(UPLOAD_DIR))
 app.use('/uploads/covers', express.static(COVER_DIR))
 
-app.get('/api/health', (_req, res) => {
+// 健康检查：生产 Nginx 的 /api/ 代理会剥离前缀（/api/health -> /health），因此两个路径都要注册
+function healthCheckHandler(_req: Request, res: Response) {
   const cacheService = getCacheService()
   const stats = cacheService.getStats()
   res.json({
@@ -215,7 +216,10 @@ app.get('/api/health', (_req, res) => {
       cache: stats
     }
   })
-})
+}
+
+app.get('/api/health', healthCheckHandler)
+app.get('/health', healthCheckHandler)
 
 // 缓存清理接口（仅管理员）
 app.post('/api/cache/clear', requireAdmin, async (_req, res) => {
