@@ -3,6 +3,7 @@ import { requireAdmin, requireAuth, requireManager } from '../middleware/auth.js
 import {
   createOrder,
   getOrders,
+  getOrderUserOptions,
   adminDeleteOrder,
   deleteUserOrder,
   getDeletedOrders,
@@ -19,6 +20,8 @@ const router: Router = Router()
 router.post('/orders', createOrder)
 // 订单列表 - 所有已登录用户均可（controller 层根据 role 强制过滤）
 router.get('/orders', requireAuth, getOrders)
+// 订单中"用户+团队名称"去重组合（管理员筛选用户下拉选项）
+router.get('/orders/user-options', requireAdmin, getOrderUserOptions)
 // 管理员删除订单
 router.delete('/orders/:id', requireAdmin, adminDeleteOrder)
 // 用户删除自己的订单（软删除）

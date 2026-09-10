@@ -105,12 +105,16 @@ export const getOrders = async (req: Request, res: Response): Promise<void> => {
     let queryUserId: string | undefined
     let queryManagerId: string | undefined
     let queryEmployeeId: string | undefined
+    let queryUserPhone: string | undefined
+    let queryTeamName: string | undefined
 
     if (currentUser.role === 'admin') {
       // 管理员：可查询所有订单，支持手动筛选
       queryUserId = req.query.userId as string | undefined
       queryManagerId = req.query.managerId as string | undefined
       queryEmployeeId = req.query.employeeId as string | undefined
+      queryUserPhone = req.query.userPhone as string | undefined
+      queryTeamName = req.query.teamName as string | undefined
     } else if (currentUser.role === 'manager') {
       // 经理：强制只查自己团队的订单，忽略客户端传入的 userId/managerId
       queryManagerId = currentUser.id
@@ -135,8 +139,10 @@ export const getOrders = async (req: Request, res: Response): Promise<void> => {
         managerId: queryManagerId,
         employeeId: queryEmployeeId,
         status: status as string,
-        managedBy: managedBy as string,
+        userPhone: queryUserPhone,
+        teamName: queryTeamName,
         keyword: keyword as string,
+        managedBy: managedBy as string,
         page: pageNum,
         pageSize: pageSizeNum,
       })
@@ -148,8 +154,10 @@ export const getOrders = async (req: Request, res: Response): Promise<void> => {
         managerId: queryManagerId,
         employeeId: queryEmployeeId,
         status: status as string,
-        managedBy: managedBy as string,
+        userPhone: queryUserPhone,
+        teamName: queryTeamName,
         keyword: keyword as string,
+        managedBy: managedBy as string,
         page: pageNum,
         pageSize: pageSizeNum,
       })
@@ -158,6 +166,19 @@ export const getOrders = async (req: Request, res: Response): Promise<void> => {
     sendPagination(res, result.list, result.total, pageNum, pageSizeNum)
   } catch (error: any) {
     console.error('[获取订单] 错误:', error)
+    sendError(res, error.message || '获取失败', 500)
+  }
+}
+
+/**
+ * 获取订单中"用户+团队名称"去重组合（管理员筛选用户下拉选项）
+ */
+export const getOrderUserOptions = async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const list = await orderService.getOrderUserOptions()
+    sendSuccess(res, list, 'success')
+  } catch (error: any) {
+    console.error('[获取用户选项] 错误:', error)
     sendError(res, error.message || '获取失败', 500)
   }
 }

@@ -5,6 +5,16 @@ export async function readOrders(): Promise<any[]> {
   return await query('SELECT * FROM orders WHERE deleted = 0 ORDER BY createdAt DESC')
 }
 
+// 订单中"用户+团队名称"去重组合（用于后台筛选用户下拉选项）
+export async function readOrderUserOptions(): Promise<any[]> {
+  return await query(
+    `SELECT userId, userName, userPhone, teamName, COUNT(*) as orderCount
+     FROM orders WHERE deleted = 0
+     GROUP BY userId, userName, userPhone, teamName
+     ORDER BY MAX(createdAt) DESC`
+  )
+}
+
 export async function readOrder(id: string): Promise<any> {
   return await queryOne('SELECT * FROM orders WHERE id = ? AND deleted = 0', [id])
 }
@@ -99,6 +109,8 @@ export async function getOrdersPaginated(params: {
   employeeId?: string
   status?: string
   managedBy?: string
+  userPhone?: string
+  teamName?: string
   keyword?: string
   page?: number
   pageSize?: number
@@ -109,6 +121,14 @@ export async function getOrdersPaginated(params: {
   if (params.userId) {
     whereConditions.push('userId = ?')
     values.push(params.userId)
+  }
+  if (params.userPhone) {
+    whereConditions.push('userPhone = ?')
+    values.push(params.userPhone)
+  }
+  if (params.teamName) {
+    whereConditions.push('teamName = ?')
+    values.push(params.teamName)
   }
   if (params.managerId) {
     whereConditions.push('managerId = ?')

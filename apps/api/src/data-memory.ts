@@ -174,6 +174,8 @@ export async function getOrdersPaginated(params: {
   employeeId?: string
   status?: string
   managedBy?: string
+  userPhone?: string
+  teamName?: string
   keyword?: string
   page?: number
   pageSize?: number
@@ -182,6 +184,12 @@ export async function getOrdersPaginated(params: {
 
   if (params.userId) {
     orders = orders.filter((o: any) => o.userId === params.userId)
+  }
+  if (params.userPhone) {
+    orders = orders.filter((o: any) => o.userPhone === params.userPhone)
+  }
+  if (params.teamName) {
+    orders = orders.filter((o: any) => o.teamName === params.teamName)
   }
   if (params.managerId) {
     orders = orders.filter((o: any) => o.managerId === params.managerId)

@@ -256,7 +256,8 @@
         v-model="filterUser"
         placeholder="筛选用户"
         clearable
-        style="width: 160px; margin-left: 12px;"
+        filterable
+        style="width: 260px; margin-left: 12px;"
         @change="fetchData"
       >
         <el-option
@@ -264,10 +265,10 @@
           value=""
         />
         <el-option
-          v-for="u in users"
-          :key="u.id"
-          :label="u.phone"
-          :value="u.id"
+          v-for="o in userOptions"
+          :key="o.key"
+          :label="o.label"
+          :value="o.key"
         />
       </el-select>
       <el-button
@@ -693,9 +694,9 @@ const filterKeyword = ref('')
 const pagination = reactive({ page: 1, pageSize: 10, total: 0 })
 const tableData = ref<any[]>([])
 
-// 经理列表和用户列表
+// 经理列表和用户筛选选项（来自订单中"用户+团队名称"去重组合）
 const managers = ref<any[]>([])
-const users = ref<any[]>([])
+const userOptions = ref<{ key: string; label: string }[]>([])
 
 const stats = reactive({ total: 0, pending: 0, approved: 0, pendingPayment: 0, settled: 0, rejected: 0 })
 
@@ -762,11 +763,23 @@ const fetchManagers = async () => {
   } catch (e) { console.error(e) }
 }
 
-// 获取用户列表（主账号用户，不包含员工子账号）
-const fetchUsers = async () => {
+// 获取用户筛选选项：订单中"用户+团队名称"去重组合（订单冗余了用户信息，users 表不含访客单）
+const fetchUserOptions = async () => {
   try {
-    const res = await get<any>('/users', { role: 'user' })
-    if (res.data) users.value = res.data.list || []
+    const res = await get<any>('/orders/user-options')
+    const list: any[] = res.data || []
+    const seen = new Set<string>()
+    const options: { key: string; label: string }[] = []
+    for (const o of list) {
+      const key = `${o.userPhone || ''}||${o.teamName || ''}`
+      if (seen.has(key)) continue
+      seen.add(key)
+      const name = o.userName ? maskName(o.userName) : '--'
+      const phone = o.userPhone ? maskPhone(o.userPhone) : '--'
+      const who = `${name} ${phone}`
+      options.push({ key, label: o.teamName ? `${o.teamName}（${who}）` : who })
+    }
+    userOptions.value = options
   } catch (e) { console.error(e) }
 }
 
@@ -776,7 +789,12 @@ const fetchData = async () => {
     const params: any = { page: pagination.page, pageSize: pagination.pageSize }
     if (filterStatus.value) params.status = filterStatus.value
     if (filterManager.value) params.managerId = filterManager.value
-    if (filterUser.value) params.userId = filterUser.value
+    if (filterUser.value) {
+      // 选项值格式: userPhone||teamName，按用户手机号+团队名称精确筛选
+      const [phone, team] = filterUser.value.split('||')
+      if (phone) params.userPhone = phone
+      if (team) params.teamName = team
+    }
     if (filterKeyword.value) params.keyword = filterKeyword.value
     const res = await get<any>('/orders', params)
     if (res.data) { tableData.value = res.data.list || []; pagination.total = res.data.total || 0 }
@@ -831,6 +849,7 @@ const confirmDelete = async () => {
       deleteReason.value = ''
       fetchData()
       fetchStats()
+      fetchUserOptions()
     } else {
       ElMessage.error(res.message || '删除失败')
     }
@@ -885,6 +904,7 @@ const confirmEditTeamName = async () => {
       editTeamNameForm.teamName = ''
       fetchData()
       fetchStats()
+      fetchUserOptions()
     } else {
       ElMessage.error(res.message || '更新失败')
     }
@@ -895,7 +915,7 @@ const confirmEditTeamName = async () => {
   }
 }
 
-onMounted(() => { fetchStats(); fetchData(); fetchManagers(); fetchUsers() })
+onMounted(() => { fetchStats(); fetchData(); fetchManagers(); fetchUserOptions() })
 </script>
 
 <style lang="scss" scoped>

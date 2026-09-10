@@ -14,6 +14,7 @@ import {
   insertOrder,
   deleteOrder,
   getOrdersPaginated,
+  readOrderUserOptions,
 } from '../data/index.js'
 import { query } from '../db.js'
 import { DatabaseService } from './DatabaseService.js'
@@ -27,9 +28,13 @@ export interface OrderService {
     managerId?: string
     employeeId?: string
     status?: string
+    userPhone?: string
+    teamName?: string
     keyword?: string
     managedBy?: string
   }): Promise<{ list: any[]; total: number }>
+
+  getOrderUserOptions(): Promise<any[]>
 
   createOrder(orderData: {
     productId: string
@@ -76,8 +81,12 @@ export class OrderServiceImpl implements OrderService {
   ) {}
 
   async getOrders(params) {
-    const { page = 1, pageSize = 20, userId, managerId, employeeId, status, keyword, managedBy } = params
-    return await getOrdersPaginated({ page, pageSize, userId, managerId, employeeId, status, keyword, managedBy })
+    const { page = 1, pageSize = 20, userId, managerId, employeeId, status, userPhone, teamName, keyword, managedBy } = params
+    return await getOrdersPaginated({ page, pageSize, userId, managerId, employeeId, status, userPhone, teamName, keyword, managedBy })
+  }
+
+  async getOrderUserOptions() {
+    return await readOrderUserOptions()
   }
 
   async createOrder(orderData) {

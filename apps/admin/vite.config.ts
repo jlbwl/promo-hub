@@ -17,6 +17,8 @@ export default defineConfig({
       '/api': {
         target: 'http://localhost:3000',
         changeOrigin: true,
+        // 与生产 Nginx 行为对齐：转发时剥离 /api 前缀（API 业务路由无 /api 前缀）
+        rewrite: (path) => path.replace(/^\/api/, ''),
       },
       '/uploads': {
         target: 'http://localhost:3000',
