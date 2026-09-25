@@ -1,5 +1,5 @@
 import { ref } from 'vue'
-import { get, post } from '@promo/shared/utils/request'
+import { get, refreshTokens } from '@promo/shared/utils/request'
 
 /**
  * 认证状态管理
@@ -74,31 +74,12 @@ export function useAuth() {
   }
 
   /**
-   * 刷新 Access Token
+   * 刷新 Access Token（复用 shared 统一实现：读取各角色 refresh token 调用 /auth/refresh）
    */
   const refreshToken = async (): Promise<boolean> => {
     try {
-      const refreshToken = localStorage.getItem('refresh_token')
-      if (!refreshToken) {
-        return false
-      }
-
-      // 调用刷新 Token 接口
-      const res: any = await post('/users/refresh', { refreshToken })
-
-      if (res.code === 0 && res.data?.token) {
-        // 保存新的 Token
-        localStorage.setItem('user_token', res.data.token)
-        
-        // 如果返回了新的 Refresh Token，也保存
-        if (res.data.refreshToken) {
-          localStorage.setItem('refresh_token', res.data.refreshToken)
-        }
-        
-        return true
-      }
-      
-      return false
+      await refreshTokens()
+      return true
     } catch (error) {
       console.error('刷新 Token 失败:', error)
       return false
@@ -112,6 +93,7 @@ export function useAuth() {
     localStorage.removeItem('user_token')
     localStorage.removeItem('user_info')
     localStorage.removeItem('refresh_token')
+    localStorage.removeItem('user_refresh_token')
     isAuthenticated.value = false
   }
 

@@ -6,6 +6,55 @@ import type { ApiResponse, RefreshTokenResult } from '../types/index.js'
 
 const BASE_URL = import.meta.env?.VITE_API_BASE_URL || '/api'
 
+// 按角色优先级读取 refresh token（与登录时各端存储的 key 对应）
+function readRefreshToken(): string | null {
+  return (
+    localStorage.getItem('admin_refresh_token') ||
+    localStorage.getItem('manager_refresh_token') ||
+    localStorage.getItem('user_refresh_token') ||
+    localStorage.getItem('employee_refresh_token') ||
+    localStorage.getItem('refresh_token')
+  )
+}
+
+// 按角色优先级确定 token 存储 key
+function readTokenKey(): string {
+  return (
+    localStorage.getItem('admin_token') ? 'admin_token' :
+    localStorage.getItem('manager_token') ? 'manager_token' :
+    localStorage.getItem('user_token') ? 'user_token' :
+    localStorage.getItem('employee_token') ? 'employee_token' : 'token'
+  )
+}
+
+/**
+ * 刷新 token（公共实现，供拦截器与各应用 useAuth 复用）
+ * @returns 新的 access token
+ */
+export async function refreshTokens(): Promise<string> {
+  const refreshToken = readRefreshToken()
+  if (!refreshToken) {
+    throw new Error('没有可用的刷新令牌')
+  }
+
+  const res = await axios.post<ApiResponse<RefreshTokenResult>>(`${BASE_URL}/auth/refresh`, { refreshToken }, { withCredentials: true })
+  if (res.data.code === 0 && res.data.data) {
+    const data = res.data.data as RefreshTokenResult
+    const newToken = data.token
+    const newRefreshToken = data.refreshToken
+
+    const tokenKey = readTokenKey()
+    const refreshTokenKey = tokenKey.replace('_token', '_refresh_token')
+
+    localStorage.setItem(tokenKey, newToken)
+    localStorage.setItem(refreshTokenKey, newRefreshToken)
+
+    return newToken
+  } else {
+    throw new Error('刷新令牌失败')
+  }
+}
+
 function createRequest(): AxiosInstance {
   const instance = axios.create({
     baseURL: BASE_URL,
@@ -30,67 +79,22 @@ function createRequest(): AxiosInstance {
     failedQueue = []
   }
 
-  const refreshToken = async (): Promise<string> => {
-    const refreshToken = 
-      localStorage.getItem('admin_refresh_token') ||
-      localStorage.getItem('manager_refresh_token') ||
-      localStorage.getItem('user_refresh_token') ||
-      localStorage.getItem('employee_refresh_token') ||
-      localStorage.getItem('refresh_token')
-    
-    if (!refreshToken) {
-      throw new Error('没有可用的刷新令牌')
-    }
-
-    const res = await axios.post<ApiResponse<RefreshTokenResult>>(`${BASE_URL}/auth/refresh`, { refreshToken }, { withCredentials: true })
-    if (res.data.code === 0 && res.data.data) {
-      const data = res.data.data as RefreshTokenResult
-      const newToken = data.token
-      const newRefreshToken = data.refreshToken
-      
-      const tokenKey = 
-        localStorage.getItem('admin_token') ? 'admin_token' :
-        localStorage.getItem('manager_token') ? 'manager_token' :
-        localStorage.getItem('user_token') ? 'user_token' :
-        localStorage.getItem('employee_token') ? 'employee_token' : 'token'
-      
-      const refreshTokenKey = tokenKey.replace('_token', '_refresh_token')
-      
-      localStorage.setItem(tokenKey, newToken)
-      localStorage.setItem(refreshTokenKey, newRefreshToken)
-      
-      return newToken
-    } else {
-      throw new Error('刷新令牌失败')
-    }
-  }
-
   // 请求拦截器 — 自动携带 token（跳过登录相关接口）
   instance.interceptors.request.use(
     (config) => {
-      const isLoginOrRegister = 
-        config.url?.includes('/login') || 
+      const isLoginOrRegister =
+        config.url?.includes('/login') ||
         config.url?.includes('/register') ||
         config.url?.includes('/sms/send') ||
         config.url?.includes('/auth/refresh')
-      
+
       if (!isLoginOrRegister) {
-        const token = 
-          localStorage.getItem('admin_token') || 
-          localStorage.getItem('manager_token') || 
-          localStorage.getItem('user_token') || 
-          localStorage.getItem('employee_token') ||
-          localStorage.getItem('token')
+        const token = localStorage.getItem(readTokenKey())
         if (token) {
           config.headers.Authorization = `Bearer ${token}`
         }
-        
-        const refreshToken = 
-          localStorage.getItem('admin_refresh_token') ||
-          localStorage.getItem('manager_refresh_token') ||
-          localStorage.getItem('user_refresh_token') ||
-          localStorage.getItem('employee_refresh_token') ||
-          localStorage.getItem('refresh_token')
+
+        const refreshToken = readRefreshToken()
         if (refreshToken) {
           config.headers['X-Refresh-Token'] = refreshToken
         }
@@ -120,14 +124,9 @@ function createRequest(): AxiosInstance {
       const newRefreshToken = headers['x-new-refresh-token'] as string
       
       if (newToken) {
-        const tokenKey = 
-          localStorage.getItem('admin_token') ? 'admin_token' :
-          localStorage.getItem('manager_token') ? 'manager_token' :
-          localStorage.getItem('user_token') ? 'user_token' :
-          localStorage.getItem('employee_token') ? 'employee_token' : 'token'
-        
+        const tokenKey = readTokenKey()
         const refreshTokenKey = tokenKey.replace('_token', '_refresh_token')
-        
+
         localStorage.setItem(tokenKey, newToken)
         if (newRefreshToken) {
           localStorage.setItem(refreshTokenKey, newRefreshToken)
@@ -139,12 +138,7 @@ function createRequest(): AxiosInstance {
         return response
       }
       if (code === 401 && !window.location.pathname.includes('/login')) {
-        const hasRefreshToken = 
-          localStorage.getItem('admin_refresh_token') ||
-          localStorage.getItem('manager_refresh_token') ||
-          localStorage.getItem('user_refresh_token') ||
-          localStorage.getItem('employee_refresh_token') ||
-          localStorage.getItem('refresh_token')
+        const hasRefreshToken = readRefreshToken()
 
         if (!hasRefreshToken) {
           localStorage.removeItem('token')
@@ -184,7 +178,7 @@ function createRequest(): AxiosInstance {
         }
 
         isRefreshing = true
-        return refreshToken().then((token) => {
+        return refreshTokens().then((token) => {
           processQueue(token)
           response.config.headers.Authorization = `Bearer ${token}`
           return instance(response.config)

@@ -67,6 +67,9 @@ jobs:
       - name: Run ESLint
         run: pnpm lint
 
+      - name: Run Tests
+        run: pnpm test
+
   build:
     name: 构建应用
     needs: quality
