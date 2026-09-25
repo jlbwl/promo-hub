@@ -305,6 +305,7 @@
 </template>
 
 <script setup lang="ts">
+import { logger } from '@promo/shared/utils/logger'
 import { reactive, ref, onMounted } from 'vue'
 import { User, UserFilled, Goods, Money } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -386,7 +387,7 @@ const fetchStats = async () => {
       stats.totalCommission = res.data.totalCommission || 0
     }
   } catch (error) {
-    console.error('获取统计数据失败:', error)
+    logger.error('获取统计数据失败:', error)
   }
 }
 

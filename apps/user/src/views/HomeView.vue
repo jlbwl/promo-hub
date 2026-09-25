@@ -41,6 +41,7 @@
 </template>
 
 <script setup lang="ts">
+import { logger } from '@promo/shared/utils/logger'
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { get, post } from '@promo/shared/utils/request'
@@ -131,7 +132,7 @@ const loadProducts = async () => {
       }
     }
   } catch (error) {
-    console.error('[HomeView] 加载产品失败:', error)
+    logger.error('[HomeView] 加载产品失败:', error)
     finished.value = true
   } finally {
     loading.value = false
@@ -156,7 +157,7 @@ const checkCartStatus = async () => {
       })
     }
   } catch (error) {
-    console.error('[HomeView] 检查购物车状态失败:', error)
+    logger.error('[HomeView] 检查购物车状态失败:', error)
   }
 }
 
@@ -220,7 +221,7 @@ const addToCart = async (product: any) => {
       showToast(res.message || '加入失败')
     }
   } catch (error: any) {
-    console.error('[HomeView] 加入购物车失败:', error)
+    logger.error('[HomeView] 加入购物车失败:', error)
     showToast(error.message || '加入失败')
   }
 }

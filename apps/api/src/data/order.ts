@@ -1,4 +1,5 @@
 
+import logger from '../utils/logger.js'
 import { query, queryOne } from '../db.js'
 
 export async function readOrders(): Promise<any[]> {
@@ -184,7 +185,7 @@ export async function getOrdersPaginated(params: {
           usersMap.set(user.id, user.teamName)
         })
       } catch (e) {
-        console.warn('[订单查询] 获取用户信息失败:', e)
+        logger.warn('[订单查询] 获取用户信息失败:', e)
       }
     }
 
@@ -197,7 +198,7 @@ export async function getOrdersPaginated(params: {
       total,
     }
   } catch (error: any) {
-    console.error('[订单查询] 数据库错误:', error)
+    logger.error('[订单查询] 数据库错误:', error)
     const err = new Error('获取订单列表失败')
     ;(err as any).code = 500
     throw err

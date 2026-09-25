@@ -123,6 +123,7 @@
 </template>
 
 <script setup lang="ts">
+import { logger } from '@promo/shared/utils/logger'
 import { ref, reactive, onMounted, onUnmounted } from 'vue'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import { get, post } from '@promo/shared/utils/request'
@@ -210,7 +211,7 @@ const fetchManagerInfo = async () => {
       managerInfo.createdAt = '2025-06-15 10:00:00'
     }
   } catch (error) {
-    console.error('获取经理信息失败:', error)
+    logger.error('获取经理信息失败:', error)
     ElMessage.error('获取经理信息失败')
   }
 }

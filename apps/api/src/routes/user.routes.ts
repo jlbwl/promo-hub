@@ -1,3 +1,4 @@
+import logger from '../utils/logger.js'
 import { Router } from 'express'
 import { smsLimiter, loginLimiter } from '../middleware/rateLimit.js'
 import { requireAdmin, requireAuth, refreshAuthToken } from '../middleware/auth.js'
@@ -47,7 +48,7 @@ router.post('/users/refresh', async (req, res) => {
     
     sendSuccess(res, tokens, 'Token 刷新成功')
   } catch (error: any) {
-    console.error('Token 刷新失败:', error)
+    logger.error('Token 刷新失败:', error)
     sendError(res, 'Token 刷新失败', 500)
   }
 })

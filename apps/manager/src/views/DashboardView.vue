@@ -139,6 +139,7 @@
 </template>
 
 <script setup lang="ts">
+import { logger } from '@promo/shared/utils/logger'
 import { reactive, onMounted } from 'vue'
 import { Goods, CircleCheck, Clock, Money, Plus } from '@element-plus/icons-vue'
 import { get } from '@promo/shared/utils/request'
@@ -172,7 +173,7 @@ const fetchStats = async () => {
       stats.totalCommissions = res.data.totalCommissions || 0
     }
   } catch (error) {
-    console.error('获取统计数据失败:', error)
+    logger.error('获取统计数据失败:', error)
   }
 }
 

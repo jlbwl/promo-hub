@@ -1,4 +1,5 @@
 
+import logger from '../utils/logger.js'
 import { query, queryOne } from '../db.js'
 import { deserialize, serialize, formatDateTime, columnExists } from './utils.js'
 
@@ -270,7 +271,7 @@ export async function getProductsPaginated(params: {
       total,
     }
   } catch (error: any) {
-    console.error('[产品查询] 数据库错误:', error.message)
+    logger.error('[产品查询] 数据库错误:', error.message)
     
     try {
       const { readProducts, readOrders } = await import('../data-memory.js')
@@ -320,7 +321,7 @@ export async function getProductsPaginated(params: {
         total,
       }
     } catch (fallbackError: any) {
-      console.error('[产品查询] 文件存储也失败:', fallbackError.message)
+      logger.error('[产品查询] 文件存储也失败:', fallbackError.message)
       throw new Error('获取产品列表失败')
     }
   }

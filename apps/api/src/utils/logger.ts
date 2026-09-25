@@ -1,6 +1,7 @@
 /**
  * 日志工具 - 统一的日志记录
  */
+/* eslint-disable no-console -- 本文件是 console 的统一封装出口 */
 
 // 日志级别
 export enum LogLevel {

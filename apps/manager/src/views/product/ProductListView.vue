@@ -209,6 +209,7 @@
 </template>
 
 <script setup lang="ts">
+import { logger } from '@promo/shared/utils/logger'
 import { ref, reactive, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -302,18 +303,18 @@ const getManagerId = () => {
   try {
     const infoStr = localStorage.getItem('manager_info')
     if (!infoStr) {
-      console.error('[getManagerId] 未找到 manager_info，请重新登录')
+      logger.error('[getManagerId] 未找到 manager_info，请重新登录')
       return ''
     }
     const info = JSON.parse(infoStr)
     if (!info.id) {
-      console.error('[getManagerId] manager_info 中缺少 id 字段:', info)
+      logger.error('[getManagerId] manager_info 中缺少 id 字段:', info)
       return ''
     }
-    console.log('[getManagerId] 获取到经理 ID:', info.id)
+    logger.debug('[getManagerId] 获取到经理 ID:', info.id)
     return info.id
   } catch (e) {
-    console.error('[getManagerId] 获取经理 ID 失败:', e)
+    logger.error('[getManagerId] 获取经理 ID 失败:', e)
     return ''
   }
 }
@@ -327,7 +328,7 @@ const fetchCategories = async () => {
       categories.value = res.data.list
     }
   } catch (error) {
-    console.error('获取分类失败:', error)
+    logger.error('获取分类失败:', error)
   } finally {
     categoriesLoading.value = false
   }
@@ -338,7 +339,7 @@ const fetchData = async () => {
   loading.value = true
   try {
     const currentManagerId = getManagerId()
-    console.log('[fetchData] 正在获取产品列表，managerId:', currentManagerId)
+    logger.debug('[fetchData] 正在获取产品列表，managerId:', currentManagerId)
     
     const res = await get<any>('/products', {
       page: pagination.page,
@@ -349,7 +350,7 @@ const fetchData = async () => {
     })
     
     const { list, total } = res.data
-    console.log('[fetchData] 获取到产品列表:', { listCount: list.length, total })
+    logger.debug('[fetchData] 获取到产品列表:', { listCount: list.length, total })
     
     // 映射字段：coverImage -> cover
     tableData.value = list.map((p: any) => ({
@@ -359,7 +360,7 @@ const fetchData = async () => {
     }))
     pagination.total = total
   } catch (error: any) {
-    console.error('获取产品列表失败:', error)
+    logger.error('获取产品列表失败:', error)
     ElMessage.error(error.message || '获取产品列表失败')
   } finally {
     loading.value = false
@@ -429,13 +430,13 @@ const handleDelete = async (row: Product) => {
       }
     )
     const url = `/products/${row.id}?managerId=${getManagerId()}`
-    console.log('[删除产品] 发送请求:', url)
+    logger.debug('[删除产品] 发送请求:', url)
     const res = await del<any>(url)
-    console.log('[删除产品] 响应:', res)
+    logger.debug('[删除产品] 响应:', res)
     ElMessage.success('删除成功')
     fetchData()
   } catch (error: any) {
-    console.error('[删除产品] 失败:', error)
+    logger.error('[删除产品] 失败:', error)
     if (error !== 'cancel') {
       ElMessage.error(error.message || '删除失败')
     }
@@ -443,7 +444,7 @@ const handleDelete = async (row: Product) => {
 }
 
 onMounted(() => {
-  console.log('[ProductListView] onMounted 触发')
+  logger.debug('[ProductListView] onMounted 触发')
   fetchCategories()
   fetchData()
 })
@@ -452,9 +453,9 @@ onMounted(() => {
 watch(
   () => route.fullPath,
   (newPath) => {
-    console.log('[ProductListView] 路由变化:', newPath)
+    logger.debug('[ProductListView] 路由变化:', newPath)
     if (route.path === '/products') {
-      console.log('[ProductListView] 触发数据重新获取')
+      logger.debug('[ProductListView] 触发数据重新获取')
       // 确保每次都刷新数据
       fetchData()
     }

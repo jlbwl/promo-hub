@@ -1,3 +1,4 @@
+import logger from '../utils/logger.js'
 import { Request, Response } from 'express'
 import { sendSuccess, sendError } from '../utils/response.js'
 import {
@@ -205,7 +206,7 @@ export const getAdminStats = async (req: Request, res: Response): Promise<void> 
       totalCommission: Math.round((Number(result?.totalCommission) || 0) * 100) / 100,
     })
   } catch (error: any) {
-    console.error('[管理员统计] 错误:', error)
+    logger.error('[管理员统计] 错误:', error)
     sendSuccess(res, {
       managerCount: 0,
       userCount: 0,
@@ -236,7 +237,7 @@ export const getOperationLogs = async (req: Request, res: Response): Promise<voi
 
     sendSuccess(res, result)
   } catch (error: any) {
-    console.error('[获取操作日志] 错误:', error)
+    logger.error('[获取操作日志] 错误:', error)
     sendError(res, error.message || '获取失败', 500)
   }
 }

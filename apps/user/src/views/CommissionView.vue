@@ -282,6 +282,7 @@
 </template>
 
 <script setup lang="ts">
+import { logger } from '@promo/shared/utils/logger'
 import { ref, reactive, onMounted, onActivated } from 'vue'
 import { get, del, post } from '@promo/shared/utils/request'
 import { showToast } from 'vant'
@@ -417,7 +418,7 @@ const loadStats = async () => {
       overview.rejected = res.data.rejected || 0
     }
   } catch (error) {
-    console.error('获取统计失败:', error)
+    logger.error('获取统计失败:', error)
   }
 }
 
@@ -458,7 +459,7 @@ const loadRecords = async () => {
       page.value++
     }
   } catch (error) {
-    console.error('获取订单失败:', error)
+    logger.error('获取订单失败:', error)
     finished.value = true
   } finally {
     loading.value = false
@@ -553,7 +554,7 @@ const submitFundAccount = async (record: any) => {
       showToast(res.message || '提交失败')
     }
   } catch (error: any) {
-    console.error('提交资金号失败:', error)
+    logger.error('提交资金号失败:', error)
     showToast(error.message || '提交失败')
   }
 }
@@ -584,7 +585,7 @@ const handleDelete = async (record: any) => {
         showToast(res.message || '删除失败')
       }
     } catch (error: any) {
-      console.error('删除订单失败:', error)
+      logger.error('删除订单失败:', error)
       showToast(error.message || '删除失败')
     } finally {
       // 移除确认状态
@@ -632,7 +633,7 @@ const loadDeletedOrders = async () => {
       deletedOrders.value = res.data || []
     }
   } catch (error) {
-    console.error('获取已删除订单失败:', error)
+    logger.error('获取已删除订单失败:', error)
   }
 }
 
@@ -658,7 +659,7 @@ const handleRestore = async (order: any) => {
       showToast(res.message || '恢复失败')
     }
   } catch (error: any) {
-    console.error('恢复订单失败:', error)
+    logger.error('恢复订单失败:', error)
     showToast(error.message || '恢复失败')
   }
 }

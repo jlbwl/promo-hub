@@ -1,3 +1,4 @@
+import { logger } from '@promo/shared/utils/logger'
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { get } from '@promo/shared/utils/request'
@@ -25,7 +26,7 @@ export function useCommissionAdmin() {
     try {
       const res = await get<any>('/orders/stats')
       if (res.data) Object.assign(stats, { total: res.data.total || 0, pending: res.data.pending || 0, approved: res.data.approved || 0, pendingPayment: res.data.pendingPayment || 0, settled: res.data.settled || 0, rejected: res.data.rejected || 0 })
-    } catch (e) { console.error(e) }
+    } catch (e) { logger.error(e) }
   }
 
   // 获取经理列表
@@ -33,7 +34,7 @@ export function useCommissionAdmin() {
     try {
       const res = await get<any>('/managers')
       if (res.data) managers.value = res.data || []
-    } catch (e) { console.error(e) }
+    } catch (e) { logger.error(e) }
   }
 
   // 获取用户筛选选项：订单中"用户+团队名称"去重组合（订单冗余了用户信息，users 表不含访客单）
@@ -53,7 +54,7 @@ export function useCommissionAdmin() {
         options.push({ key, label: o.teamName ? `${o.teamName}（${who}）` : who })
       }
       userOptions.value = options
-    } catch (e) { console.error(e) }
+    } catch (e) { logger.error(e) }
   }
 
   const fetchData = async () => {

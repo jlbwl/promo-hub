@@ -1,3 +1,4 @@
+import logger from '../utils/logger.js'
 import { Request, Response } from 'express'
 import { sendSuccess, sendError } from '../utils/response.js'
 import {
@@ -26,13 +27,13 @@ export const getCartItems = async (req: Request, res: Response): Promise<void> =
     try {
       items = await readCartItems(userId as string)
     } catch (dbError: any) {
-      console.warn('[获取购物车] 数据库查询失败，尝试降级到内存存储:', dbError)
+      logger.warn('[获取购物车] 数据库查询失败，尝试降级到内存存储:', dbError)
       const { readCartItems: memReadCart } = await import('../data-memory.js')
       items = await memReadCart(userId as string)
     }
     sendSuccess(res, items)
   } catch (error: any) {
-    console.error('[获取购物车] 最终错误:', error)
+    logger.error('[获取购物车] 最终错误:', error)
     sendSuccess(res, [])
   }
 }
@@ -55,13 +56,13 @@ export const getManagerCart = async (req: Request, res: Response): Promise<void>
     try {
       items = await readCartByManagerId(managerId as string)
     } catch (dbError: any) {
-      console.warn('[获取经理购物车] 数据库查询失败，尝试降级到内存存储:', dbError)
+      logger.warn('[获取经理购物车] 数据库查询失败，尝试降级到内存存储:', dbError)
       const { readCartByManagerId: memReadCart } = await import('../data-memory.js')
       items = await memReadCart(managerId as string)
     }
     sendSuccess(res, items)
   } catch (error: any) {
-    console.error('[获取经理购物车] 最终错误:', error)
+    logger.error('[获取经理购物车] 最终错误:', error)
     sendSuccess(res, [])
   }
 }
@@ -87,7 +88,7 @@ export const addItemToCart = async (req: Request, res: Response): Promise<void> 
       }
       await addToCart({ userId, managerId, productId, productName, productPrice, coverImage, optionLabel, redirectUrl })
     } catch (dbError: any) {
-      console.warn('[添加购物车] 数据库失败，尝试降级到内存:', dbError)
+      logger.warn('[添加购物车] 数据库失败，尝试降级到内存:', dbError)
       const { isInCart: memIsInCart, addToCart: memAddToCart } = await import('../data-memory.js')
       const exists = await memIsInCart(userId, productId)
       if (exists) {
@@ -97,7 +98,7 @@ export const addItemToCart = async (req: Request, res: Response): Promise<void> 
     }
     sendSuccess(res, null, '添加成功')
   } catch (error: any) {
-    console.error('[添加购物车] 最终错误:', error)
+    logger.error('[添加购物车] 最终错误:', error)
     sendError(res, error.message || '添加失败', 500)
   }
 }
@@ -112,13 +113,13 @@ export const removeItemFromCart = async (req: Request, res: Response): Promise<v
     try {
       await removeFromCart(id)
     } catch (dbError: any) {
-      console.warn('[移除购物车] 数据库失败，尝试降级到内存:', dbError)
+      logger.warn('[移除购物车] 数据库失败，尝试降级到内存:', dbError)
       const { removeFromCart: memRemoveFromCart } = await import('../data-memory.js')
       await memRemoveFromCart(id)
     }
     sendSuccess(res, null, '移除成功')
   } catch (error: any) {
-    console.error('[移除购物车] 最终错误:', error)
+    logger.error('[移除购物车] 最终错误:', error)
     sendError(res, error.message || '移除失败', 500)
   }
 }
@@ -137,13 +138,13 @@ export const checkProductInCart = async (req: Request, res: Response): Promise<v
     try {
       exists = await isInCart(userId as string, productId as string)
     } catch (dbError: any) {
-      console.warn('[检查购物车] 数据库失败，尝试降级到内存:', dbError)
+      logger.warn('[检查购物车] 数据库失败，尝试降级到内存:', dbError)
       const { isInCart: memIsInCart } = await import('../data-memory.js')
       exists = await memIsInCart(userId as string, productId as string)
     }
     sendSuccess(res, { inCart: exists })
   } catch (error: any) {
-    console.error('[检查购物车] 最终错误:', error)
+    logger.error('[检查购物车] 最终错误:', error)
     sendSuccess(res, { inCart: false })
   }
 }

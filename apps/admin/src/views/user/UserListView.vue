@@ -258,6 +258,7 @@
 </template>
 
 <script setup lang="ts">
+import { logger } from '@promo/shared/utils/logger'
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { get, put, del, post } from '@promo/shared/utils/request'
@@ -398,7 +399,7 @@ const handleSaveTeamName = async () => {
   }
   if (!editRow.value) return
 
-  console.log('[调试] 开始保存团队名称:', {
+  logger.debug('[调试] 开始保存团队名称:', {
     id: editRow.value.id,
     newTeamName: teamNameForm.teamName.trim()
   })
@@ -406,12 +407,12 @@ const handleSaveTeamName = async () => {
   teamNameLoading.value = true
   try {
     await put(`/users/${editRow.value.id}/team-name`, { teamName: teamNameForm.teamName.trim() })
-    console.log('[调试] 保存成功')
+    logger.debug('[调试] 保存成功')
     ElMessage.success('修改成功')
     teamNameDialogVisible.value = false
     loadData()
   } catch (error: any) {
-    console.error('[调试] 保存失败:', error)
+    logger.error('[调试] 保存失败:', error)
     ElMessage.error(error.message || '修改失败')
   } finally {
     teamNameLoading.value = false
@@ -456,7 +457,7 @@ const sendSmsCode = async () => {
   // 从 localStorage 获取管理员信息
   const adminInfo = JSON.parse(localStorage.getItem('admin_info') || '{}')
   const token = localStorage.getItem('token')
-  console.log('[调试] 准备发送短信验证码:', {
+  logger.debug('[调试] 准备发送短信验证码:', {
     adminInfo,
     token: token ? '已获取' : '未获取',
     phone: adminInfo.phone
@@ -469,9 +470,9 @@ const sendSmsCode = async () => {
   
   smsLoading.value = true
   try {
-    console.log('[调试] 开始调用短信接口:', '/admin/sms/send')
+    logger.debug('[调试] 开始调用短信接口:', '/admin/sms/send')
     const res = await post('/admin/sms/send', { phone: adminInfo.phone })
-    console.log('[调试] 短信接口响应:', res)
+    logger.debug('[调试] 短信接口响应:', res)
     if (res.code === 0) {
       ElMessage.success('验证码已发送')
       smsCooldown.value = 60
@@ -482,11 +483,11 @@ const sendSmsCode = async () => {
         }
       }, 1000)
     } else {
-      console.error('[调试] 短信接口返回错误:', res.message)
+      logger.error('[调试] 短信接口返回错误:', res.message)
       ElMessage.error(res.message || '发送失败')
     }
   } catch (error: any) {
-    console.error('[调试] 短信接口调用异常:', error)
+    logger.error('[调试] 短信接口调用异常:', error)
     ElMessage.error(error.message || '发送失败')
   } finally {
     smsLoading.value = false

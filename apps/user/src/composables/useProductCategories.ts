@@ -1,6 +1,7 @@
 /**
  * 产品分类管理
  */
+import { logger } from '@promo/shared/utils/logger'
 import { ref, onMounted } from 'vue'
 import { get } from '@promo/shared/utils/request'
 import type { ProductCategory } from '@promo/shared/types'
@@ -35,7 +36,7 @@ async function fetchCategories() {
       categories.value = res.data.list
     }
   } catch (error) {
-    console.error('获取分类失败:', error)
+    logger.error('获取分类失败:', error)
     // 使用默认分类
   } finally {
     loading.value = false

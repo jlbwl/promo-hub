@@ -3,6 +3,7 @@
 </template>
 
 <script setup lang="ts">
+import { logger } from '@promo/shared/utils/logger'
 import { onMounted } from 'vue'
 import { useAuth } from './composables/useAuth'
 
@@ -11,9 +12,9 @@ const { checkAuth } = useAuth()
 
 // 页面加载时检查认证状态
 onMounted(async () => {
-  console.log('[App] 初始化，检查认证状态...')
+  logger.debug('[App] 初始化，检查认证状态...')
   await checkAuth()
-  console.log('[App] 认证状态检查完成')
+  logger.debug('[App] 认证状态检查完成')
 })
 </script>
 

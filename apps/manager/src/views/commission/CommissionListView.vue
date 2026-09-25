@@ -751,6 +751,7 @@
 </template>
 
 <script setup lang="ts">
+import { logger } from '@promo/shared/utils/logger'
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Document, Clock, CircleCheck, CircleClose, Wallet, SuccessFilled } from '@element-plus/icons-vue'
@@ -908,7 +909,7 @@ const fetchStats = async () => {
       stats.rejected = res.data.rejected || 0
     }
   } catch (error) {
-    console.error('获取统计数据失败:', error)
+    logger.error('获取统计数据失败:', error)
   }
 }
 
@@ -1055,7 +1056,7 @@ const handleBatchSettle = async () => {
         await put(`/orders/${order.id}/settle`, { action: 'paid' })
         successCount++
       } catch (e) {
-        console.error(`结算订单 ${order.id} 失败:`, e)
+        logger.error(`结算订单 ${order.id} 失败:`, e)
       }
     }
 

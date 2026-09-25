@@ -1,3 +1,4 @@
+import logger from '../utils/logger.js'
 import { Request, Response, NextFunction, RequestHandler } from 'express'
 import session, { Session } from 'express-session'
 import jwt from 'jsonwebtoken'
@@ -14,7 +15,7 @@ const JWT_SECRET = process.env.JWT_SECRET
 
 // 验证 SESSION_SECRET 强度
 if (SESSION_SECRET.length < 32) {
-  console.warn('[Security] SESSION_SECRET 长度不足（建议至少32字符），当前长度:', SESSION_SECRET.length)
+  logger.warn('[Security] SESSION_SECRET 长度不足（建议至少32字符），当前长度:', SESSION_SECRET.length)
 }
 
 export interface AuthUser {
@@ -50,7 +51,7 @@ function getTokenStore() {
   try {
     return getCacheService()
   } catch {
-    console.warn('[Auth] CacheService 未初始化，降级到内存存储')
+    logger.warn('[Auth] CacheService 未初始化，降级到内存存储')
     return null
   }
 }
@@ -67,12 +68,12 @@ export const sessionMiddleware: RequestHandler = (() => {
         ttl: 90 * 24 * 60 * 60,
         touchAfter: 24 * 60 * 60,
       })
-      console.log('[Session] 使用 MongoDB 存储，有效期90天')
+      logger.debug('[Session] 使用 MongoDB 存储，有效期90天')
     } catch (err) {
-      console.warn('[Session] MongoDB 连接失败，降级到内存存储:', err)
+      logger.warn('[Session] MongoDB 连接失败，降级到内存存储:', err)
     }
   } else {
-    console.log('[Session] 未配置 MongoDB，使用内存存储')
+    logger.debug('[Session] 未配置 MongoDB，使用内存存储')
   }
   
   return session({
@@ -219,7 +220,7 @@ export const authMiddleware = (allowedRoles?: Array<'admin' | 'manager' | 'user'
             next()
             return
           } catch {
-            console.warn('[Auth] 刷新后的 Token 验证失败')
+            logger.warn('[Auth] 刷新后的 Token 验证失败')
           }
         }
       }
@@ -230,7 +231,7 @@ export const authMiddleware = (allowedRoles?: Array<'admin' | 'manager' | 'user'
         data: null
       })
     } catch (error: any) {
-      console.error('[Auth] Middleware error:', error)
+      logger.error('[Auth] Middleware error:', error)
       res.status(500).json({ code: 500, message: '认证服务异常', data: null })
     }
   }
@@ -243,15 +244,15 @@ export const login = (req: Request, user: AuthUser): Promise<void> => {
       req.session.isAuthenticated = true
       req.session.save((err) => {
         if (err) {
-          console.error('[Session] 保存会话失败:', err)
+          logger.error('[Session] 保存会话失败:', err)
           reject(err)
         } else {
-          console.log(`[Session] 用户 ${user.id} (${user.role}) 登录成功`)
+          logger.debug(`[Session] 用户 ${user.id} (${user.role}) 登录成功`)
           resolve()
         }
       })
     } catch (error) {
-      console.error('[Session] 设置会话失败:', error)
+      logger.error('[Session] 设置会话失败:', error)
       reject(error)
     }
   })
@@ -260,7 +261,7 @@ export const login = (req: Request, user: AuthUser): Promise<void> => {
 // 兼容旧的调用方式（不等待的版本）
 export const loginSync = (req: Request, user: AuthUser) => {
   login(req, user).catch(err => {
-    console.error('[Session] 会话保存出错（但不影响请求）:', err)
+    logger.error('[Session] 会话保存出错（但不影响请求）:', err)
   })
 }
 
@@ -268,9 +269,9 @@ export const logout = (req: Request) => {
   const userId = req.session?.user?.id
   req.session.destroy((err) => {
     if (err) {
-      console.error('[Session] 销毁会话失败:', err)
+      logger.error('[Session] 销毁会话失败:', err)
     } else {
-      console.log(`[Session] 用户 ${userId} 已登出`)
+      logger.debug(`[Session] 用户 ${userId} 已登出`)
     }
   })
 }
@@ -358,7 +359,7 @@ export async function refreshAuthToken(refreshToken: string): Promise<{ token: s
       const activeToken = await cacheService.get(ADMIN_ACTIVE_TOKEN_PREFIX + authUser.id)
       if (activeToken !== refreshToken) {
         // 已被新设备顶号，拒绝刷新
-        console.log(`[Auth] Admin ${authUser.id} token 已被顶号，拒绝刷新`)
+        logger.debug(`[Auth] Admin ${authUser.id} token 已被顶号，拒绝刷新`)
         return null
       }
     }

@@ -1,3 +1,5 @@
+import { logger } from '@promo/shared/utils/logger'
+
 /**
  * 本地存储操作的通用 composable
  * 提供类型安全的 localStorage 操作方法
@@ -21,7 +23,7 @@ export function useLocalStorage<T>(key: string, defaultValue: T) {
     try {
       localStorage.setItem(key, JSON.stringify(value))
     } catch (error) {
-      console.error(`[useLocalStorage] 设置失败:`, error)
+      logger.error(`[useLocalStorage] 设置失败:`, error)
     }
   }
 

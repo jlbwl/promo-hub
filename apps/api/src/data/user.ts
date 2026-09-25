@@ -1,4 +1,5 @@
 
+import logger from '../utils/logger.js'
 import { query, queryOne } from '../db.js'
 import { serialize, deserialize, columnExists } from './utils.js'
 
@@ -88,13 +89,13 @@ export async function writeUsers(users: any[]): Promise<void> {
       try {
         await query(`UPDATE users SET ${updateColumns.join(', ')} WHERE id=?`, updateValues)
       } catch (e) {
-        console.error('[writeUsers] 更新用户失败', { userId: u.id, error: e })
+        logger.error('[writeUsers] 更新用户失败', { userId: u.id, error: e })
         try {
           const safeUpdateColumns = updateColumns.filter(c => c !== 'loginMethods=?')
           const safeUpdateValues = updateValues.filter((_, i) => updateColumns[i] !== 'loginMethods=?')
           await query(`UPDATE users SET ${safeUpdateColumns.join(', ')} WHERE id=?`, safeUpdateValues)
         } catch (e2) {
-          console.error('[writeUsers] 安全更新也失败了', { userId: u.id, error: e2 })
+          logger.error('[writeUsers] 安全更新也失败了', { userId: u.id, error: e2 })
           throw e2
         }
       }
@@ -113,7 +114,7 @@ export async function writeUsers(users: any[]): Promise<void> {
       try {
         await query(`INSERT INTO users (${insertColumns.join(', ')}) VALUES (${placeholders.join(', ')})`, insertValues)
       } catch (e) {
-        console.error('[writeUsers] 插入用户失败', { userId: u.id, error: e })
+        logger.error('[writeUsers] 插入用户失败', { userId: u.id, error: e })
         try {
           const safeInsertColumns = insertColumns.filter(c => c !== 'loginMethods')
           const safeInsertValues = insertValues.filter((_, i) => insertColumns[i] !== 'loginMethods')
@@ -124,7 +125,7 @@ export async function writeUsers(users: any[]): Promise<void> {
           
           await query(`INSERT INTO users (${safeInsertColumns.join(', ')}) VALUES (${safePlaceholders.join(', ')})`, safeInsertValues)
         } catch (e2) {
-          console.error('[writeUsers] 安全插入也失败了', { userId: u.id, error: e2 })
+          logger.error('[writeUsers] 安全插入也失败了', { userId: u.id, error: e2 })
           throw e2
         }
       }

@@ -1,3 +1,4 @@
+import { logger } from '@promo/shared/utils/logger'
 import { ref } from 'vue'
 import { get, refreshTokens } from '@promo/shared/utils/request'
 
@@ -54,7 +55,7 @@ export function useAuth() {
         return false
       }
     } catch (error: any) {
-      console.error('自动登录验证失败:', error)
+      logger.error('自动登录验证失败:', error)
       
       // 如果是 401 错误，说明 Token 已过期
       if (error.status === 401 || error.statusCode === 401) {
@@ -81,7 +82,7 @@ export function useAuth() {
       await refreshTokens()
       return true
     } catch (error) {
-      console.error('刷新 Token 失败:', error)
+      logger.error('刷新 Token 失败:', error)
       return false
     }
   }

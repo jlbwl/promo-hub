@@ -2,6 +2,7 @@ import mysql from 'mysql2/promise'
 import dotenv from 'dotenv'
 import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
+import logger from './utils/logger.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 dotenv.config({ path: join(__dirname, '..', '.env') })
@@ -9,12 +10,13 @@ dotenv.config({ path: join(__dirname, '..', '.env') })
 const SLOW_QUERY_THRESHOLD = 1000
 const isDev = process.env.NODE_ENV !== 'production'
 
-const logger = {
-  info: (msg: string, meta?: any) => {
-    if (isDev) console.log(`[DB] ${msg}`, meta || '')
+// DB 模块日志：常规查询日志仅开发环境输出（生产避免 SQL 日志刷盘），慢查询/错误始终输出
+const dbLogger = {
+  info: (msg: string, meta?: Record<string, unknown>) => {
+    if (isDev) logger.debug(`[DB] ${msg}`, meta)
   },
-  error: (msg: string, meta?: any) => console.error(`[DB ERROR] ${msg}`, meta || ''),
-  warn: (msg: string, meta?: any) => console.warn(`[DB WARN] ${msg}`, meta || ''),
+  error: (msg: string, meta?: Record<string, unknown>) => logger.error(`[DB ERROR] ${msg}`, meta),
+  warn: (msg: string, meta?: Record<string, unknown>) => logger.warn(`[DB WARN] ${msg}`, meta),
 }
 
 const pool = mysql.createPool({
@@ -41,15 +43,15 @@ export async function query(sql: string, params?: any[]): Promise<any> {
     const [rows] = await Promise.race([queryPromise, timeoutPromise]) as any
     const duration = Date.now() - startTime
     clearTimeout(timeoutId!)
-    logger.info(`Query completed in ${duration}ms`, { sql: sql.substring(0, 100) })
+    dbLogger.info(`Query completed in ${duration}ms`, { sql: sql.substring(0, 100) })
     if (!isDev && duration >= SLOW_QUERY_THRESHOLD) {
-      logger.warn(`Slow query: ${duration}ms`, { sql: sql.substring(0, 200) })
+      dbLogger.warn(`Slow query: ${duration}ms`, { sql: sql.substring(0, 200) })
     }
     return rows
   } catch (error: any) {
     const duration = Date.now() - startTime
     clearTimeout(timeoutId!)
-    logger.error(`Query failed after ${duration}ms`, { 
+    dbLogger.error(`Query failed after ${duration}ms`, { 
       sql: sql.substring(0, 100), 
       error: error.message,
       params 
@@ -69,15 +71,15 @@ export async function queryOne(sql: string, params?: any[]): Promise<any> {
     const [rows] = await Promise.race([queryPromise, timeoutPromise]) as any
     const duration = Date.now() - startTime
     clearTimeout(timeoutId!)
-    logger.info(`QueryOne completed in ${duration}ms`, { sql: sql.substring(0, 100) })
+    dbLogger.info(`QueryOne completed in ${duration}ms`, { sql: sql.substring(0, 100) })
     if (!isDev && duration >= SLOW_QUERY_THRESHOLD) {
-      logger.warn(`Slow query (queryOne): ${duration}ms`, { sql: sql.substring(0, 200) })
+      dbLogger.warn(`Slow query (queryOne): ${duration}ms`, { sql: sql.substring(0, 200) })
     }
     return (rows as any[])[0] || null
   } catch (error: any) {
     const duration = Date.now() - startTime
     clearTimeout(timeoutId!)
-    logger.error(`QueryOne failed after ${duration}ms`, { 
+    dbLogger.error(`QueryOne failed after ${duration}ms`, { 
       sql: sql.substring(0, 100), 
       error: error.message,
       params 

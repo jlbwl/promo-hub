@@ -1,3 +1,4 @@
+import logger from '../utils/logger.js'
 import { Request, Response } from 'express'
 import { sendSuccess, sendError } from '../utils/response.js'
 import {
@@ -25,7 +26,7 @@ export const getStats = async (req: Request, res: Response): Promise<void> => {
     try {
       stats = await getOrderStats(managerId as string)
     } catch (dbError: any) {
-      console.warn('[订单统计] 数据库查询失败，尝试降级到内存:', dbError)
+      logger.warn('[订单统计] 数据库查询失败，尝试降级到内存:', dbError)
       const { getOrderStats: memGetOrderStats } = await import('../data-memory.js')
       stats = await memGetOrderStats(managerId as string)
     }
@@ -35,7 +36,7 @@ export const getStats = async (req: Request, res: Response): Promise<void> => {
       try {
         orders = await readOrders()
       } catch (dbError2: any) {
-        console.warn('[订单统计] readOrders 失败，尝试降级:', dbError2)
+        logger.warn('[订单统计] readOrders 失败，尝试降级:', dbError2)
         const { readOrders: memReadOrders } = await import('../data-memory.js')
         orders = await memReadOrders()
       }
@@ -57,7 +58,7 @@ export const getStats = async (req: Request, res: Response): Promise<void> => {
       sendSuccess(res, stats)
     }
   } catch (error: any) {
-    console.error('[订单统计] 最终错误:', error)
+    logger.error('[订单统计] 最终错误:', error)
     sendSuccess(res, { total: 0, pending: 0, approved: 0, pendingPayment: 0, settled: 0, rejected: 0 })
   }
 }
@@ -133,7 +134,7 @@ export const reviewOrder = async (req: Request, res: Response): Promise<void> =>
 
     sendSuccess(res, order, action === 'approve' ? '审核通过' : '已驳回')
   } catch (error: any) {
-    console.error('[审核订单] 错误:', error)
+    logger.error('[审核订单] 错误:', error)
     sendError(res, error.message || '操作失败', 500)
   }
 }
@@ -200,7 +201,7 @@ export const settleOrder = async (req: Request, res: Response): Promise<void> =>
     const msg = action === 'pending_payment' ? '已添加到待付款' : '已确认结算'
     sendSuccess(res, order, msg)
   } catch (error: any) {
-    console.error('[结算订单] 错误:', error)
+    logger.error('[结算订单] 错误:', error)
     sendError(res, error.message || '操作失败', 500)
   }
 }
@@ -241,7 +242,7 @@ export const getDashboardStats = async (req: Request, res: Response): Promise<vo
       totalCommissions: Math.round(totalCommissions * 100) / 100,
     })
   } catch (error: any) {
-    console.error('[仪表盘统计] 错误:', error)
+    logger.error('[仪表盘统计] 错误:', error)
     sendError(res, error.message || '获取失败', 500)
   }
 }

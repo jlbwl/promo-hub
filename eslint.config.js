@@ -27,7 +27,8 @@ module.exports = [
     },
     rules: {
       // 通用规则 - 宽松一些，避免过多检查
-      'no-console': 'off',
+      // 渐进治理：禁止新增 console 调用，统一使用 @promo/shared/utils/logger（logger.ts 内部已豁免）
+      'no-console': 'warn',
       'no-debugger': process.env.NODE_ENV === 'production' ? 'warn' : 'off',
       'no-unused-vars': 'off',
       'no-empty': 'off',
@@ -35,10 +36,11 @@ module.exports = [
       'no-useless-escape': 'off',
       'no-control-regex': 'off',
       'no-setter-return': 'off',
-      
+
       // TypeScript规则
       '@typescript-eslint/no-unused-vars': 'off',
-      '@typescript-eslint/no-explicit-any': 'off',
+      // 渐进类型治理：新代码禁 any（warning 提示存量逐步收敛，不阻塞 CI）
+      '@typescript-eslint/no-explicit-any': 'warn',
     },
   },
   {
@@ -61,7 +63,8 @@ module.exports = [
     },
     rules: {
       // 通用规则 - 宽松一些，避免过多检查
-      'no-console': 'off',
+      // 渐进治理：禁止新增 console 调用，统一使用 @promo/shared/utils/logger
+      'no-console': 'warn',
       'no-debugger': process.env.NODE_ENV === 'production' ? 'warn' : 'off',
       'no-unused-vars': 'off',
       'no-empty': 'off',
@@ -69,10 +72,11 @@ module.exports = [
       'no-useless-escape': 'off',
       'no-control-regex': 'off',
       'no-setter-return': 'off',
-      
+
       // TypeScript规则
       '@typescript-eslint/no-unused-vars': 'off',
-      '@typescript-eslint/no-explicit-any': 'off',
+      // 渐进类型治理：新代码禁 any（warning 提示存量逐步收敛，不阻塞 CI）
+      '@typescript-eslint/no-explicit-any': 'warn',
       
       // Vue规则
       'vue/multi-word-component-names': 'off',

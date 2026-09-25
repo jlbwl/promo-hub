@@ -220,6 +220,7 @@ jobs:
                 exports: {
                   '.': './index.js',
                   './utils/request': './utils/request.js',
+                  './utils/logger': './utils/logger.js',
                   './utils/helpers': './utils/helpers.js',
                   './utils/constants': './utils/constants.js',
                   './utils/errors': './utils/errors.js',

@@ -1,3 +1,4 @@
+/* eslint-disable no-console -- 测试需要 mock 与断言真实 console */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import logger, {
   debug,

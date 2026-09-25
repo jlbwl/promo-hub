@@ -1,3 +1,4 @@
+import logger from '../utils/logger.js'
 import { Request, Response } from 'express'
 import { sendSuccess, sendError, sendPagination } from '../utils/response.js'
 import { orderService } from '../services/index.js'
@@ -147,7 +148,7 @@ export const getOrders = async (req: Request, res: Response): Promise<void> => {
         pageSize: pageSizeNum,
       })
     } catch (dbError: any) {
-      console.warn('[获取订单] 数据库查询失败，尝试降级到内存:', dbError)
+      logger.warn('[获取订单] 数据库查询失败，尝试降级到内存:', dbError)
       const { getOrdersPaginated } = await import('../data-memory.js')
       result = await getOrdersPaginated({
         userId: queryUserId,
@@ -165,7 +166,7 @@ export const getOrders = async (req: Request, res: Response): Promise<void> => {
 
     sendPagination(res, result.list, result.total, pageNum, pageSizeNum)
   } catch (error: any) {
-    console.error('[获取订单] 错误:', error)
+    logger.error('[获取订单] 错误:', error)
     sendError(res, error.message || '获取失败', 500)
   }
 }
@@ -178,7 +179,7 @@ export const getOrderUserOptions = async (_req: Request, res: Response): Promise
     const list = await orderService.getOrderUserOptions()
     sendSuccess(res, list, 'success')
   } catch (error: any) {
-    console.error('[获取用户选项] 错误:', error)
+    logger.error('[获取用户选项] 错误:', error)
     sendError(res, error.message || '获取失败', 500)
   }
 }

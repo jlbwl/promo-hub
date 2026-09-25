@@ -55,6 +55,7 @@
 </template>
 
 <script setup lang="ts">
+import { logger } from '@promo/shared/utils/logger'
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { get, del } from '@promo/shared/utils/request'
@@ -106,7 +107,7 @@ const loadCart = async () => {
     }
     cartItems.value = items
   } catch (error) {
-    console.error('[CartView] 获取购物车失败:', error)
+    logger.error('[CartView] 获取购物车失败:', error)
   }
 }
 
@@ -134,7 +135,7 @@ const handleRemove = async (item: any) => {
       showToast(res.message || '移除失败')
     }
   } catch (error: any) {
-    console.error('[CartView] 移除失败:', error)
+    logger.error('[CartView] 移除失败:', error)
     showToast(error.message || '移除失败')
   }
 }

@@ -343,6 +343,7 @@
 </template>
 
 <script setup lang="ts">
+import { logger } from '@promo/shared/utils/logger'
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules, type UploadProps } from 'element-plus'
@@ -474,7 +475,7 @@ const handleQrUpload = async (uploadFile: any, idx: number) => {
       ElMessage.error('未识别到二维码，请确认图片中包含有效的二维码')
     }
   } catch (error: any) {
-    console.error('二维码识别失败:', error)
+    logger.error('二维码识别失败:', error)
     ElMessage.error('识别失败：' + (error.message || '请重试'))
   } finally {
     form.options[idx]._qrLoading = false
@@ -600,7 +601,7 @@ const uploadCoverImage = async (file: File) => {
       throw new Error(result.message || '上传失败')
     }
   } catch (error: any) {
-    console.error('封面图片上传失败:', error)
+    logger.error('封面图片上传失败:', error)
     ElMessage.error(error.message || '上传失败，请重试')
     uploading.value = false
     uploadProgress.value = 0
@@ -630,7 +631,7 @@ const optimizeRichText = (html: string): string => {
   const base64ImgRegex = /<img[^>]+src=["']data:image[^>]+>/gi
   const base64Imgs = html.match(base64ImgRegex)
   if (base64Imgs && base64Imgs.length > 0) {
-    console.warn(`[富文本] 检测到 ${base64Imgs.length} 张 base64 图片，请使用编辑器上传功能`)
+    logger.warn(`[富文本] 检测到 ${base64Imgs.length} 张 base64 图片，请使用编辑器上传功能`)
     // 可以在这里添加自动上传逻辑，但暂时只是警告
   }
   
@@ -667,7 +668,7 @@ const handleSave = async () => {
         }
         return info
       } catch (e) {
-        console.error('获取经理信息失败:', e)
+        logger.error('获取经理信息失败:', e)
         throw new Error('登录信息已过期，请重新登录')
       }
     })()
@@ -702,7 +703,7 @@ const handleSave = async () => {
       ElMessage.success('产品创建成功')
     }
     
-    console.log('[ProductEditView] 保存成功，准备跳转')
+    logger.debug('[ProductEditView] 保存成功，准备跳转')
     
     // 路由跳转 - 使用 replace 而不是 push，确保正确刷新
     await router.replace({
@@ -710,9 +711,9 @@ const handleSave = async () => {
       query: { refresh: Date.now().toString() } // 添加唯一查询参数
     })
     
-    console.log('[ProductEditView] 路由跳转完成')
+    logger.debug('[ProductEditView] 路由跳转完成')
   } catch (error: any) {
-    console.error('保存失败:', error)
+    logger.error('保存失败:', error)
     // 如果是登录信息问题，跳转到登录页
     if (error.message?.includes('登录信息已过期') || error.message?.includes('未找到经理登录信息')) {
       localStorage.removeItem('manager_token')
@@ -736,7 +737,7 @@ const fetchCategories = async () => {
       categories.value = res.data.list
     }
   } catch (error) {
-    console.error('获取分类失败:', error)
+    logger.error('获取分类失败:', error)
   } finally {
     categoriesLoading.value = false
   }
@@ -771,7 +772,7 @@ const fetchProductDetail = async () => {
       }
     }
   } catch (error: any) {
-    console.error('获取产品详情失败:', error)
+    logger.error('获取产品详情失败:', error)
     ElMessage.error(error.message || '获取产品详情失败')
   }
 }

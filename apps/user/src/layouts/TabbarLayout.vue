@@ -52,6 +52,7 @@
 </template>
 
 <script setup lang="ts">
+import { logger } from '@promo/shared/utils/logger'
 import { ref, computed, watch, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { showConfirmDialog } from 'vant'
@@ -90,7 +91,7 @@ const fetchCartCount = async () => {
       cartCount.value = res.data?.length || 0
     }
   } catch (error) {
-    console.error('获取购物车数量失败:', error)
+    logger.error('获取购物车数量失败:', error)
   }
 }
 

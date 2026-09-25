@@ -64,6 +64,7 @@
 </template>
 
 <script setup lang="ts">
+import { logger } from '@promo/shared/utils/logger'
 import { ref, onMounted, watch, nextTick, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import { PictureFilled, InfoFilled, Loading } from '@element-plus/icons-vue'
@@ -314,14 +315,14 @@ const processImage = async (file: File) => {
     }
     
     // 压缩图片
-    console.log(`[图片处理] 原大小: ${(file.size / 1024).toFixed(1)}KB, 设备: ${isMobile ? '手机' : '电脑'}`)
+    logger.debug(`[图片处理] 原大小: ${(file.size / 1024).toFixed(1)}KB, 设备: ${isMobile ? '手机' : '电脑'}`)
     const compressedBlob = await compressImage(file)
     const compressedFile = new File(
       [compressedBlob], 
       file.name.replace(/\.[^.]+$/, `.${config.mimeType.split('/')[1]}`), 
       { type: config.mimeType }
     )
-    console.log(`[图片压缩] 压缩后: ${(compressedFile.size / 1024).toFixed(1)}KB, 压缩比: ${((1 - compressedFile.size / file.size) * 100).toFixed(1)}%`)
+    logger.debug(`[图片压缩] 压缩后: ${(compressedFile.size / 1024).toFixed(1)}KB, 压缩比: ${((1 - compressedFile.size / file.size) * 100).toFixed(1)}%`)
     
     // 上传到服务器
     const imageUrl = await uploadToServer(compressedFile)
@@ -332,7 +333,7 @@ const processImage = async (file: File) => {
     ElMessage.success('图片插入成功')
     
   } catch (error: any) {
-    console.error('图片处理失败:', error)
+    logger.error('图片处理失败:', error)
     ElMessage.error('图片处理失败：' + (error.message || '请重试'))
   } finally {
     uploading.value = false

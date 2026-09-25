@@ -368,6 +368,7 @@
 </template>
 
 <script setup lang="ts">
+import { logger } from '@promo/shared/utils/logger'
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
 import { get, post, put, del } from '@promo/shared/utils/request'
@@ -461,7 +462,7 @@ const loadQrCodeList = async () => {
     const res = await get<QrCodeItem[]>('/admin/qrcodes')
     qrCodeList.value = res.data || []
   } catch (error) {
-    console.error('加载二维码列表失败:', error)
+    logger.error('加载二维码列表失败:', error)
     qrCodeList.value = []
   }
 }
@@ -892,7 +893,7 @@ const handleExportProducts = async () => {
         currentQrCodeDataUrl = res.data.dataUrl
       }
     } catch (error) {
-      console.error('获取默认二维码失败:', error)
+      logger.error('获取默认二维码失败:', error)
     }
 
     if (currentQrCodeDataUrl) {
@@ -923,7 +924,7 @@ const handleExportProducts = async () => {
           editAs: 'oneCell' as any
         })
       } catch (error) {
-        console.error('Failed to add QR code to Excel:', error)
+        logger.error('Failed to add QR code to Excel:', error)
         ElMessage.warning('二维码插入失败')
       }
     }

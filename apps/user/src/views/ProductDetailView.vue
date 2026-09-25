@@ -201,6 +201,7 @@
 </template>
 
 <script setup lang="ts">
+import { logger } from '@promo/shared/utils/logger'
 import { reactive, ref, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { showToast, showDialog } from 'vant'
@@ -262,7 +263,7 @@ const fetchProductDetail = async () => {
       product.options = p.options || []
       product.requireName = p.requireName || false
       product.requirePhone = p.requirePhone || false
-      console.log('[产品详情] options:', JSON.stringify(product.options))
+      logger.debug('[产品详情] options:', JSON.stringify(product.options))
       if (product.options.length > 0) {
         selectedOption.value = 0
       } else {
@@ -270,7 +271,7 @@ const fetchProductDetail = async () => {
       }
     }
   } catch (error) {
-    console.error('获取产品详情失败:', error)
+    logger.error('获取产品详情失败:', error)
     showToast('获取产品详情失败')
   }
 }
@@ -326,7 +327,7 @@ const handleShare = async () => {
       margin: 2
     })
   } catch (error) {
-    console.error('生成分享二维码失败:', error)
+    logger.error('生成分享二维码失败:', error)
     showToast('生成分享二维码失败')
   }
 }
@@ -372,7 +373,7 @@ const submitGoOrder = (userInfo: any) => {
   // 获取选中的选项
   const chosenOption = product.options.length > 0 ? product.options[selectedOption.value] : null
 
-  console.log('[做单] 选中的选项:', JSON.stringify(chosenOption))
+  logger.debug('[做单] 选中的选项:', JSON.stringify(chosenOption))
 
   // 调用做单接口
   const userId = (() => {
@@ -401,11 +402,11 @@ const submitGoOrder = (userInfo: any) => {
     // 清理 redirectUrl 中的反引号和首尾空格/换行
     payload.redirectUrl = (chosenOption.redirectUrl || '').replace(/`/g, '').trim()
     cleanUrlForJump = payload.redirectUrl
-    console.log('[做单] 原始redirectUrl:', chosenOption.redirectUrl)
-    console.log('[做单] 清理后redirectUrl:', payload.redirectUrl)
+    logger.debug('[做单] 原始redirectUrl:', chosenOption.redirectUrl)
+    logger.debug('[做单] 清理后redirectUrl:', payload.redirectUrl)
   }
 
-  console.log('[做单] 开始提交, payload:', JSON.stringify(payload))
+  logger.debug('[做单] 开始提交, payload:', JSON.stringify(payload))
   
   // 获取跳转链接
   let jumpUrl = ''
@@ -414,19 +415,19 @@ const submitGoOrder = (userInfo: any) => {
     if (jumpUrl && !jumpUrl.startsWith('http://') && !jumpUrl.startsWith('https://')) {
       jumpUrl = 'https://' + jumpUrl
     }
-    console.log('[做单] 跳转链接:', jumpUrl)
+    logger.debug('[做单] 跳转链接:', jumpUrl)
   }
   
   // 先提交订单，成功后再跳转
   post('/orders', payload).then((res: any) => {
-    console.log('[做单] 成功, 响应:', JSON.stringify(res))
+    logger.debug('[做单] 成功, 响应:', JSON.stringify(res))
     
     // 订单提交成功后执行跳转
     if (jumpUrl) {
-      console.log('[做单] 订单提交成功，准备跳转:', jumpUrl)
+      logger.debug('[做单] 订单提交成功，准备跳转:', jumpUrl)
       try {
         if (navigator.userAgent.includes('MicroMessenger')) {
-          console.log('[做单] 微信环境检测')
+          logger.debug('[做单] 微信环境检测')
           window.location.href = jumpUrl
         } else {
           try {
@@ -435,12 +436,12 @@ const submitGoOrder = (userInfo: any) => {
               throw new Error('window.open 可能被拦截')
             }
           } catch (err) {
-            console.log('[做单] window.open 失败，使用 location.href', err)
+            logger.debug('[做单] window.open 失败，使用 location.href', err)
             window.location.href = jumpUrl
           }
         }
       } catch (err) {
-        console.error('[做单] 跳转失败:', err)
+        logger.error('[做单] 跳转失败:', err)
         window.location.href = jumpUrl
       }
     } else {
@@ -449,7 +450,7 @@ const submitGoOrder = (userInfo: any) => {
       showToast('做单成功')
     }
   }).catch((error: any) => {
-    console.error('[做单] 失败:', error)
+    logger.error('[做单] 失败:', error)
     showToast(error.message || '做单失败')
   })
 }
