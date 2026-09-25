@@ -25,7 +25,6 @@ import {
   insertUser,
   updateUser,
   withTransaction,
-  assignGuestOrders,
 } from '../data/index.js'
 import { login as sessionLogin, loginSync as sessionLoginSync, generateAuthToken, logout as sessionLogout, generateTokens, refreshAuthToken, type AuthUser } from '../middleware/auth.js'
 import { sendSmsCode } from '../utils/sms.js'
@@ -274,16 +273,6 @@ export const userSmsLogin = asyncHandler(
       }
 
       logger.info('User logged in successfully', { userId: user.id, method: 'sms', isNewUser })
-
-      // 将访客期以本人手机号做的订单（归属 guest）迁移到该用户名下，佣金归属同步修正
-      try {
-        const assignedCount = await assignGuestOrders(user.phone, user.id)
-        if (assignedCount > 0) {
-          logger.info('Guest orders assigned to user', { userId: user.id, count: assignedCount })
-        }
-      } catch (assignError) {
-        logger.warn('Guest order assignment failed', { error: getErrorMessage(assignError) })
-      }
 
       // 生成 Token
       const authUser = { id: user.id, phone: user.phone, role: user.role || 'user' as const, nickname: user.nickname, teamName: user.teamName }

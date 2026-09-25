@@ -109,7 +109,6 @@ export const getOrders = async (req: Request, res: Response): Promise<void> => {
     let queryManagerId: string | undefined
     let queryEmployeeId: string | undefined
     let queryUserPhone: string | undefined
-    let queryMatchUserPhone: string | undefined
     let queryTeamName: string | undefined
 
     if (currentUser.role === 'admin') {
@@ -130,9 +129,8 @@ export const getOrders = async (req: Request, res: Response): Promise<void> => {
       queryUserId = currentUser.userId
       queryEmployeeId = currentUser.id
     } else if (currentUser.role === 'user') {
-      // 普通用户：强制只查自己的订单（含注册前以本人手机号做的访客单）
+      // 普通用户：强制只查自己的订单
       queryUserId = currentUser.id
-      queryMatchUserPhone = currentUser.phone
     } else {
       return sendError(res, '不支持的用户角色', 403)
     }
@@ -141,7 +139,6 @@ export const getOrders = async (req: Request, res: Response): Promise<void> => {
     try {
       result = await orderService.getOrders({
         userId: queryUserId,
-        matchUserPhone: queryMatchUserPhone,
         managerId: queryManagerId,
         employeeId: queryEmployeeId,
         status: status as string,
@@ -157,7 +154,6 @@ export const getOrders = async (req: Request, res: Response): Promise<void> => {
       const { getOrdersPaginated } = await import('../data-memory.js')
       result = await getOrdersPaginated({
         userId: queryUserId,
-        matchUserPhone: queryMatchUserPhone,
         managerId: queryManagerId,
         employeeId: queryEmployeeId,
         status: status as string,

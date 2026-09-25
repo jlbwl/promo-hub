@@ -122,28 +122,6 @@ export async function restoreOrder(id: string): Promise<void> {
   await query('UPDATE orders SET deleted = 0, deletedAt = NULL WHERE id = ?', [id])
 }
 
-/**
- * 将访客期（userId='guest'）以本人手机号做的订单归属到登录用户名下，
- * 并同步修正由此类订单产生的佣金记录归属。返回迁移的订单数。
- */
-export async function assignGuestOrders(phone: string, userId: string): Promise<number> {
-  const rows = (await query(
-    "SELECT id FROM orders WHERE userId = 'guest' AND userPhone = ? AND deleted = 0",
-    [phone]
-  )) as Array<{ id: string }>
-  if (!Array.isArray(rows) || rows.length === 0) return 0
-
-  await query(
-    "UPDATE orders SET userId = ? WHERE userId = 'guest' AND userPhone = ? AND deleted = 0",
-    [userId, phone]
-  )
-  await query(
-    `UPDATE commissions SET userId = ? WHERE userId = 'guest' AND orderId IN (${rows.map(() => '?').join(',')})`,
-    [userId, ...rows.map((r) => r.id)]
-  )
-  return rows.length
-}
-
 export async function getOrdersPaginated(params: {
   userId?: string
   managerId?: string

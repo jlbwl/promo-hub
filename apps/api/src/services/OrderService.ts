@@ -27,8 +27,6 @@ export interface OrderListParams {
   page?: number
   pageSize?: number
   userId?: string
-  /** 与 userId 之间为 OR 关系：用户端按本人手机号关联注册前的访客做单 */
-  matchUserPhone?: string
   managerId?: string
   employeeId?: string
   status?: string
@@ -96,8 +94,8 @@ export class OrderServiceImpl implements OrderService {
   ) {}
 
   async getOrders(params: OrderListParams) {
-    const { page = 1, pageSize = 20, userId, matchUserPhone, managerId, employeeId, status, userPhone, teamName, keyword, managedBy } = params
-    return await getOrdersPaginated({ page, pageSize, userId, matchUserPhone, managerId, employeeId, status, userPhone, teamName, keyword, managedBy })
+    const { page = 1, pageSize = 20, userId, managerId, employeeId, status, userPhone, teamName, keyword, managedBy } = params
+    return await getOrdersPaginated({ page, pageSize, userId, managerId, employeeId, status, userPhone, teamName, keyword, managedBy })
   }
 
   async getOrderUserOptions() {
