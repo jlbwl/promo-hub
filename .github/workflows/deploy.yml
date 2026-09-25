@@ -322,6 +322,21 @@ jobs:
           target: "${{ env.DEPLOY_DIR }}/user/"
           rm: true
 
+      - name: 备份 API 数据（.env 与上传文件）
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          port: ${{ secrets.SERVER_PORT || 22 }}
+          script: |
+            set -e
+            DEPLOY_DIR="${{ env.DEPLOY_DIR }}"
+            # Upload API step 的 scp rm:true 会清空 api/ 目录，必须先备份数据
+            tar czf /tmp/promo-env-backup.tgz -C "$DEPLOY_DIR/api" .env 2>/dev/null || echo "ℹ️ .env 不存在（首次部署）"
+            tar czf /tmp/promo-uploads-backup.tgz -C "$DEPLOY_DIR/api/data" uploads 2>/dev/null || echo "ℹ️ uploads 不存在（首次部署）"
+            ls -la /tmp/promo-*backup.tgz 2>/dev/null || true
+
       - name: Upload API files to server
         uses: appleboy/scp-action@v0.1.7
         with:
@@ -423,6 +438,22 @@ jobs:
               echo "✅ api-dist 内容已展开到当前目录"
               echo "📁 展开后的 API 目录内容:"
               ls -la
+            fi
+
+            # =======================
+            # 2.8 恢复 .env 与上传文件（scp rm:true 清空了 api 目录）
+            # =======================
+            echo "🔄 恢复 .env 与上传文件..."
+            if [ -f /tmp/promo-env-backup.tgz ]; then
+              tar xzf /tmp/promo-env-backup.tgz -C "$DEPLOY_DIR/api"
+              rm -f /tmp/promo-env-backup.tgz
+              echo "✅ .env 已恢复"
+            fi
+            if [ -f /tmp/promo-uploads-backup.tgz ]; then
+              mkdir -p "$DEPLOY_DIR/api/data"
+              tar xzf /tmp/promo-uploads-backup.tgz -C "$DEPLOY_DIR/api/data"
+              rm -f /tmp/promo-uploads-backup.tgz
+              echo "✅ 上传文件已恢复（$(find "$DEPLOY_DIR/api/data/uploads" -type f 2>/dev/null | wc -l) 个文件）"
             fi
 
             # =======================
