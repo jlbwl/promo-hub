@@ -39,8 +39,8 @@ module.exports = [
 
       // TypeScript规则
       '@typescript-eslint/no-unused-vars': 'off',
-      // 渐进类型治理：新代码禁 any（warning 提示存量逐步收敛，不阻塞 CI）
-      '@typescript-eslint/no-explicit-any': 'warn',
+      // 类型治理：存量 any 已清零（批次5），显式 any 直接报错阻断 CI，防止回流
+      '@typescript-eslint/no-explicit-any': 'error',
     },
   },
   {
@@ -75,8 +75,8 @@ module.exports = [
 
       // TypeScript规则
       '@typescript-eslint/no-unused-vars': 'off',
-      // 渐进类型治理：新代码禁 any（warning 提示存量逐步收敛，不阻塞 CI）
-      '@typescript-eslint/no-explicit-any': 'warn',
+      // 类型治理：存量 any 已清零（批次5），显式 any 直接报错阻断 CI，防止回流
+      '@typescript-eslint/no-explicit-any': 'error',
       
       // Vue规则
       'vue/multi-word-component-names': 'off',
