@@ -216,10 +216,18 @@ export class CacheService {
     memoryCacheSize: number
     memoryCacheKeys: string[]
   } {
+    // 安全：getStats 用于 /api/health 公开端点，只返回去重后的键类型前缀，
+    // 避免泄漏 refresh_token 等敏感键名（完整键名含 JWT，可被用于刷新令牌劫持账号）
     return {
       redisConnected: this.isRedisConnected,
       memoryCacheSize: this.memoryCache.size,
-      memoryCacheKeys: Array.from(this.memoryCache.keys()).map(k => k.replace(this.cacheConfig.prefix, ''))
+      memoryCacheKeys: Array.from(
+        new Set(
+          Array.from(this.memoryCache.keys()).map(k =>
+            k.replace(this.cacheConfig.prefix, '').split(':')[0]
+          )
+        )
+      )
     }
   }
 
