@@ -101,8 +101,13 @@ const loadCart = async () => {
         }
       }
     } else {
-      // 主账户：获取自己的购物车
-      const res = await get<CartItemEntity[]>('/cart', { userId: getUserId() })
+      // 主账户：获取自己的购物车（未登录时 userId 为空，不发请求，直接显示空状态）
+      const userId = getUserId()
+      if (!userId) {
+        cartItems.value = []
+        return
+      }
+      const res = await get<CartItemEntity[]>('/cart', { userId })
       if (res.code === 0) {
         items = res.data || []
       }
