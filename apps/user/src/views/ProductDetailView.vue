@@ -422,7 +422,15 @@ const submitGoOrder = (userInfo: OrderUserInfo) => {
     payload.employeeId = employeeId
   }
 
-  const sharerId = route.query.sharerId as string
+  const sharerId = (() => {
+    // 优先取当前 URL 参数；站内跳转会丢失 query，用 sessionStorage 记住最近一次分享来源
+    const fromQuery = route.query.sharerId as string
+    if (fromQuery) {
+      sessionStorage.setItem('sharer_id', fromQuery)
+      return fromQuery
+    }
+    return sessionStorage.getItem('sharer_id') || ''
+  })()
   if (sharerId) {
     payload.sharerId = sharerId
   }
