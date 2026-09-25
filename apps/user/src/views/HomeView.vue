@@ -192,9 +192,24 @@ const handleSearch = () => {
 
 /**
  * 跳转产品详情
+ * 访客模式：不进入详情页，弹窗引导登录（做单业绩归属登录者）
  */
 const goToDetail = (product: HomeProduct) => {
-  router.push(`/product/${product.id}`)
+  const loggedIn = !!localStorage.getItem('user_token') || !!localStorage.getItem('employee_token')
+  if (loggedIn) {
+    router.push(`/product/${product.id}`)
+    return
+  }
+  showConfirmDialog({
+    title: '访客模式',
+    message: '登录后做单或分享给兼职做单，业绩归属您',
+    confirmButtonText: '去登录',
+    cancelButtonText: '随便逛逛'
+  })
+    .then(() => {
+      router.push('/login')
+    })
+    .catch(() => {})
 }
 
 /**
