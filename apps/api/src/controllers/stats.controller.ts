@@ -6,10 +6,14 @@ import type { OrderRow } from '../data-memory.js'
 import {
   getOrderStats,
   readOrders,
-  readCommissions,
+  readOrder,
   readProducts,
-  writeCommissions,
-  writeProducts,
+  readCommissions,
+  readProduct,
+  readCommissionByOrderId,
+  updateCommission,
+  applyOrderReview,
+  updateOrderIfStatus,
 } from '../data/index.js'
 
 /**
@@ -92,13 +96,10 @@ export const reviewOrder = async (req: Request, res: Response): Promise<void> =>
       return sendError(res, '无效的审核操作', 400)
     }
 
-    let orders = await readOrders()
-    const index = orders.findIndex((o: OrderRow) => o.id === orderId)
-    if (index === -1) {
+    const order = await readOrder(orderId)
+    if (!order) {
       return sendError(res, '订单不存在', 404)
     }
-
-    const order = orders[index]
     if (order.status !== 'pending') {
       return sendError(res, '该订单已审核', 400)
     }
@@ -111,13 +112,11 @@ export const reviewOrder = async (req: Request, res: Response): Promise<void> =>
       String(now.getHours()).padStart(2, '0') + ':' +
       String(now.getMinutes()).padStart(2, '0') + ':' +
       String(now.getSeconds()).padStart(2, '0')
-    const nowISO = now.toISOString()
-    
+
+    let updated = false
     if (action === 'approve') {
-      order.status = 'approved'
-      order.reviewedAt = nowMySQL
-      const commissions = await readCommissions()
-      commissions.push({
+      // 事务：更新订单 + 创建待发放佣金记录，原子提交
+      updated = await applyOrderReview(orderId, { reviewedAt: nowMySQL }, 'pending', 'approved', {
         id: `c_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
         orderId: order.id,
         userId: order.userId,
@@ -125,26 +124,37 @@ export const reviewOrder = async (req: Request, res: Response): Promise<void> =>
         productName: order.productName,
         amount: order.productPrice,
         status: CommissionStatus.PENDING,
-        createdAt: nowISO,
       })
-      await writeCommissions(commissions)
     } else {
-      order.status = 'rejected'
-      order.rejectReason = reason || '推广无效'
-      order.reviewedAt = nowMySQL
-      let products = await readProducts()
-      const pIdx = products.findIndex((p: Product) => p.id === order.productId)
-      if (pIdx !== -1 && products[pIdx].stock !== undefined && products[pIdx].stock >= 0) {
-        products[pIdx].stock = (products[pIdx].stock || 0) + 1
-        await writeProducts(products)
-      }
+      // 不限库存（stock 未设置或 -1）的产品驳回时不回补
+      const product = order.productId ? await readProduct(order.productId) : null
+      const shouldRestoreStock = !!product && product.stock !== undefined && product.stock >= 0
+      // 事务：更新订单 + 库存回补，原子提交
+      updated = await applyOrderReview(
+        orderId,
+        { reviewedAt: nowMySQL, rejectReason: reason || '推广无效' },
+        'pending',
+        'rejected',
+        undefined,
+        shouldRestoreStock ? product!.id : undefined
+      )
     }
 
-    orders[index] = order
-    const { writeOrders } = await import('../data/index.js')
-    await writeOrders(orders)
+    if (!updated) {
+      // 并发下订单已被审核
+      return sendError(res, '该订单已审核', 400)
+    }
 
-    sendSuccess(res, order, action === 'approve' ? '审核通过' : '已驳回')
+    sendSuccess(
+      res,
+      {
+        ...order,
+        status: action === 'approve' ? 'approved' : 'rejected',
+        reviewedAt: nowMySQL,
+        ...(action === 'reject' ? { rejectReason: reason || '推广无效' } : {}),
+      },
+      action === 'approve' ? '审核通过' : '已驳回'
+    )
   } catch (error) {
     logger.error('[审核订单] 错误:', { error: getErrorMessage(error) })
     sendError(res, getErrorMessage(error, '操作失败'), 500)
@@ -163,55 +173,50 @@ export const settleOrder = async (req: Request, res: Response): Promise<void> =>
       return sendError(res, '无效的结算操作', 400)
     }
 
-    let orders = await readOrders()
-    const index = orders.findIndex((o: OrderRow) => o.id === orderId)
-    if (index === -1) {
+    const order = await readOrder(orderId)
+    if (!order) {
       return sendError(res, '订单不存在', 404)
     }
-
-    const order = orders[index]
 
     if (action === 'pending_payment') {
       if (order.status !== 'approved') {
         return sendError(res, '仅已通过的订单可添加到待付款', 400)
       }
-      order.status = 'pending_payment'
       // 转换为 MySQL DATETIME 格式
       const now = new Date()
-      order.addedToPaymentAt = now.getFullYear() + '-' +
+      const addedToPaymentAt = now.getFullYear() + '-' +
         String(now.getMonth() + 1).padStart(2, '0') + '-' +
         String(now.getDate()).padStart(2, '0') + ' ' +
         String(now.getHours()).padStart(2, '0') + ':' +
         String(now.getMinutes()).padStart(2, '0') + ':' +
         String(now.getSeconds()).padStart(2, '0')
+      const updated = await updateOrderIfStatus(orderId, { status: 'pending_payment', addedToPaymentAt }, 'approved')
+      if (!updated) {
+        return sendError(res, '订单状态已变化，请刷新后重试', 400)
+      }
+      sendSuccess(res, { ...order, status: 'pending_payment', addedToPaymentAt }, '已添加到待付款')
     } else {
       if (order.status !== 'pending_payment') {
         return sendError(res, '仅待付款的订单可确认结算', 400)
       }
-      order.status = 'settled'
       // 转换为 MySQL DATETIME 格式
       const now = new Date()
-      order.settledAt = now.getFullYear() + '-' +
+      const settledAt = now.getFullYear() + '-' +
         String(now.getMonth() + 1).padStart(2, '0') + '-' +
         String(now.getDate()).padStart(2, '0') + ' ' +
         String(now.getHours()).padStart(2, '0') + ':' +
         String(now.getMinutes()).padStart(2, '0') + ':' +
         String(now.getSeconds()).padStart(2, '0')
-      let commissions = await readCommissions()
-      const cIdx = commissions.findIndex((c: Commission) => c.orderId === order.id)
-      if (cIdx !== -1) {
-        commissions[cIdx].status = CommissionStatus.PAID
-        commissions[cIdx].paidAt = order.settledAt
-        await writeCommissions(commissions)
+      const updated = await updateOrderIfStatus(orderId, { status: 'settled', settledAt }, 'pending_payment')
+      if (!updated) {
+        return sendError(res, '订单状态已变化，请刷新后重试', 400)
       }
+      const commission = await readCommissionByOrderId(orderId)
+      if (commission) {
+        await updateCommission(commission.id, { status: CommissionStatus.PAID, paidAt: settledAt })
+      }
+      sendSuccess(res, { ...order, status: 'settled', settledAt }, '已确认结算')
     }
-
-    orders[index] = order
-    const { writeOrders } = await import('../data/index.js')
-    await writeOrders(orders)
-
-    const msg = action === 'pending_payment' ? '已添加到待付款' : '已确认结算'
-    sendSuccess(res, order, msg)
   } catch (error) {
     logger.error('[结算订单] 错误:', { error: getErrorMessage(error) })
     sendError(res, getErrorMessage(error, '操作失败'), 500)

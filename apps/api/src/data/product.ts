@@ -198,6 +198,13 @@ export async function deleteProduct(id: string): Promise<void> {
   await query('DELETE FROM products WHERE id = ?', [id])
 }
 
+/**
+ * 库存增减（SQL 表达式原子自增，避免读-改-写竞态）
+ */
+export async function incrementProductStock(id: string, delta: number): Promise<void> {
+  await query('UPDATE products SET stock = COALESCE(stock, 0) + ?, updatedAt = NOW() WHERE id = ?', [delta, id])
+}
+
 export async function getProductsPaginated(params: {
   managerId?: string
   category?: string

@@ -1,6 +1,10 @@
 
-import { query } from '../db.js'
+import { query, queryOne } from '../db.js'
 import type { CartItem } from '@promo/shared'
+
+export async function readCartItem(id: string): Promise<CartItem | null> {
+  return (await queryOne('SELECT * FROM cart WHERE id = ?', [id])) as CartItem | null
+}
 
 export async function readCartItems(userId: string): Promise<CartItem[]> {
   return (await query(

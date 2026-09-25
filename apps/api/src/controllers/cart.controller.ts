@@ -4,11 +4,21 @@ import { getErrorMessage, type CartItem } from '@promo/shared'
 import { sendSuccess, sendError } from '../utils/response.js'
 import {
   readCartItems,
+  readCartItem,
   readCartByManagerId,
   addToCart,
   removeFromCart,
   isInCart,
 } from '../data/index.js'
+
+/**
+ * 购物车身份解析：user 角色强制使用会话身份（防传他人 userId 越权读写他人购物车），
+ * employee 保持传入 userId（员工代主账户操作）
+ */
+function resolveCartUserId(req: Request, requested: unknown): string {
+  if (req.user?.role === 'user') return req.user.id
+  return requested as string
+}
 
 /**
  * 获取购物车列表
@@ -19,7 +29,7 @@ import {
  */
 export const getCartItems = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { userId } = req.query
+    const userId = resolveCartUserId(req, req.query.userId)
     if (!userId) {
       return sendError(res, '缺少用户ID', 400)
     }
@@ -77,7 +87,8 @@ export const getManagerCart = async (req: Request, res: Response): Promise<void>
  */
 export const addItemToCart = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { userId, managerId, productId, productName, productPrice, coverImage, optionLabel, redirectUrl } = req.body
+    const { managerId, productId, productName, productPrice, coverImage, optionLabel, redirectUrl } = req.body
+    const userId = resolveCartUserId(req, req.body.userId)
     if (!userId || !productId) {
       return sendError(res, '缺少必要参数', 400)
     }
@@ -111,6 +122,14 @@ export const removeItemFromCart = async (req: Request, res: Response): Promise<v
   try {
     const id = req.params.id as string
 
+    // user 角色仅可移除自己名下的收藏条目
+    if (req.user?.role === 'user') {
+      const item = await readCartItem(id)
+      if (!item || item.userId !== req.user.id) {
+        return sendError(res, '条目不存在', 404)
+      }
+    }
+
     try {
       await removeFromCart(id)
     } catch (dbError) {
@@ -130,7 +149,8 @@ export const removeItemFromCart = async (req: Request, res: Response): Promise<v
  */
 export const checkProductInCart = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { userId, productId } = req.query
+    const { productId } = req.query
+    const userId = resolveCartUserId(req, req.query.userId)
     if (!userId || !productId) {
       return sendError(res, '缺少必要参数', 400)
     }

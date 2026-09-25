@@ -2,7 +2,7 @@
 import logger from '../utils/logger.js'
 import { getErrorMessage } from '@promo/shared'
 import type { OrderStats } from '@promo/shared'
-import { query, queryOne } from '../db.js'
+import { query, queryOne, withTransaction } from '../db.js'
 import type { OrderRow } from '../data-memory.js'
 
 export async function readOrders(): Promise<OrderRow[]> {
@@ -112,6 +112,93 @@ export async function updateOrder(id: string, fields: Record<string, unknown>): 
   if (sets.length === 0) return
   values.push(id)
   await query(`UPDATE orders SET ${sets.join(', ')} WHERE id = ?`, values)
+}
+
+/**
+ * 条件更新：仅当订单当前状态为 expectedStatus 时生效（防并发重复审核/结算）
+ * @returns 是否命中更新
+ */
+export async function updateOrderIfStatus(
+  id: string,
+  fields: Record<string, unknown>,
+  expectedStatus: string
+): Promise<boolean> {
+  const sets: string[] = []
+  const values: unknown[] = []
+  for (const [key, val] of Object.entries(fields)) {
+    if (key === 'id' || key === 'status') continue
+    sets.push(`${key} = ?`)
+    values.push(val ?? null)
+  }
+  if (sets.length === 0) return false
+  sets.push('status = ?')
+  values.push(fields.status)
+  values.push(id, expectedStatus)
+  const result = (await query(
+    `UPDATE orders SET ${sets.join(', ')} WHERE id = ? AND status = ?`,
+    values
+  )) as { affectedRows?: number }
+  return (result?.affectedRows ?? 0) > 0
+}
+
+/**
+ * 订单审核（事务）：条件更新订单状态 + 可选创建佣金记录 + 可选库存回补，原子提交
+ * 订单状态条件更新未命中（并发下已被审核）时回滚并返回 false
+ */
+export async function applyOrderReview(
+  orderId: string,
+  fields: Record<string, unknown>,
+  expectedStatus: string,
+  nextStatus: string,
+  commissionInsert?: {
+    id: string
+    orderId: string
+    userId?: string
+    managerId?: string
+    productName?: string
+    amount?: number
+    status?: string
+  },
+  stockRestoreProductId?: string
+): Promise<boolean> {
+  return withTransaction(async (conn) => {
+    const sets: string[] = ['status = ?']
+    const values: unknown[] = [nextStatus]
+    for (const [key, val] of Object.entries(fields)) {
+      if (key === 'id' || key === 'status') continue
+      sets.push(`${key} = ?`)
+      values.push(val ?? null)
+    }
+    values.push(orderId, expectedStatus)
+    const [result] = await conn.query(
+      `UPDATE orders SET ${sets.join(', ')} WHERE id = ? AND status = ?`,
+      values
+    )
+    if ((result as { affectedRows?: number }).affectedRows === 0) return false
+
+    if (commissionInsert) {
+      await conn.query(
+        `INSERT INTO commissions (id, orderId, userId, managerId, productName, amount, status, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, NOW())`,
+        [
+          commissionInsert.id,
+          commissionInsert.orderId || '',
+          commissionInsert.userId || '',
+          commissionInsert.managerId || '',
+          commissionInsert.productName || '',
+          commissionInsert.amount || 0,
+          commissionInsert.status || 'pending',
+        ]
+      )
+    }
+
+    if (stockRestoreProductId) {
+      await conn.query(
+        'UPDATE products SET stock = COALESCE(stock, 0) + 1, updatedAt = NOW() WHERE id = ?',
+        [stockRestoreProductId]
+      )
+    }
+    return true
+  })
 }
 
 export async function deleteOrder(id: string): Promise<void> {

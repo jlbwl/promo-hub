@@ -1,16 +1,13 @@
 import { Router } from 'express'
 import {
   getStats,
-  reviewOrder,
-  settleOrder,
   getDashboardStats,
 } from '../controllers/stats.controller.js'
 
 const router: Router = Router()
 
+// 审核与结算路由由 order.routes.ts 注册（此处原为被遮蔽的死路由，已移除）
 router.get('/orders/stats', getStats)
 router.get('/stats/dashboard', getDashboardStats)
-router.put('/orders/:id/review', reviewOrder)
-router.put('/orders/:id/settle', settleOrder)
 
 export default router

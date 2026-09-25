@@ -13,6 +13,13 @@ export async function readCommission(id: string): Promise<Commission | null> {
   return (await queryOne('SELECT * FROM commissions WHERE id = ?', [id])) as Commission | null
 }
 
+export async function readCommissionByOrderId(orderId: string): Promise<Commission | null> {
+  return (await queryOne(
+    'SELECT * FROM commissions WHERE orderId = ? ORDER BY createdAt DESC LIMIT 1',
+    [orderId]
+  )) as Commission | null
+}
+
 export async function writeCommissions(commissions: CommissionInput[]): Promise<void> {
   for (const c of commissions) {
     const existing = await queryOne('SELECT id FROM commissions WHERE id = ?', [c.id])
