@@ -206,6 +206,8 @@ export async function updateOrder(id: string, fields: Record<string, unknown>): 
 
 export async function getOrdersPaginated(params: {
   userId?: string
+  /** 与 userId 之间为 OR 关系：用户端按本人手机号关联注册前的访客做单 */
+  matchUserPhone?: string
   managerId?: string
   employeeId?: string
   status?: string
@@ -218,7 +220,9 @@ export async function getOrdersPaginated(params: {
 }): Promise<{ list: OrderRow[]; total: number }> {
   let orders = await readOrders()
 
-  if (params.userId) {
+  if (params.userId && params.matchUserPhone) {
+    orders = orders.filter((o) => o.userId === params.userId || o.userPhone === params.matchUserPhone)
+  } else if (params.userId) {
     orders = orders.filter((o) => o.userId === params.userId)
   }
   if (params.userPhone) {

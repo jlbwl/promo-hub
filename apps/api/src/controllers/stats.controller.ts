@@ -22,15 +22,28 @@ import {
  */
 export const getStats = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { userId, managerId, employeeId } = req.query
+    let { userId, managerId, employeeId } = req.query as Record<string, string | undefined>
+    const currentUser = req.user
+
+    // P1-7: 按登录角色强制覆盖查询身份，防止越权查看他人统计
+    let matchUserPhone: string | undefined
+    if (currentUser?.role === 'user') {
+      userId = currentUser.id
+      // 用户端统计包含注册前以本人手机号做的访客单
+      matchUserPhone = currentUser.phone
+    } else if (currentUser?.role === 'manager') {
+      managerId = currentUser.id
+    } else if (currentUser?.role === 'employee') {
+      employeeId = currentUser.id
+    }
 
     let stats: OrderStats | null = null
     try {
-      stats = await getOrderStats(managerId as string)
+      stats = await getOrderStats(managerId)
     } catch (dbError) {
       logger.warn('[订单统计] 数据库查询失败，尝试降级到内存:', { error: getErrorMessage(dbError) })
       const { getOrderStats: memGetOrderStats } = await import('../data-memory.js')
-      stats = await memGetOrderStats(managerId as string)
+      stats = await memGetOrderStats(managerId)
     }
 
     if (userId || employeeId) {
@@ -42,10 +55,13 @@ export const getStats = async (req: Request, res: Response): Promise<void> => {
         const { readOrders: memReadOrders } = await import('../data-memory.js')
         orders = await memReadOrders()
       }
-      
+
       const filteredOrders = orders.filter((o: OrderRow) => {
         if (employeeId) {
           return o.employeeId === employeeId
+        }
+        if (matchUserPhone) {
+          return o.userId === userId || o.userPhone === matchUserPhone
         }
         return o.userId === userId
       })

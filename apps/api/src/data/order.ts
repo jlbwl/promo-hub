@@ -124,6 +124,8 @@ export async function restoreOrder(id: string): Promise<void> {
 
 export async function getOrdersPaginated(params: {
   userId?: string
+  /** 与 userId 之间为 OR 关系：用户端按本人手机号关联注册前的访客做单 */
+  matchUserPhone?: string
   managerId?: string
   employeeId?: string
   status?: string
@@ -137,7 +139,10 @@ export async function getOrdersPaginated(params: {
   const whereConditions: string[] = ['deleted = 0']
   const values: unknown[] = []
 
-  if (params.userId) {
+  if (params.userId && params.matchUserPhone) {
+    whereConditions.push('(userId = ? OR userPhone = ?)')
+    values.push(params.userId, params.matchUserPhone)
+  } else if (params.userId) {
     whereConditions.push('userId = ?')
     values.push(params.userId)
   }
