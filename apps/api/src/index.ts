@@ -10,7 +10,7 @@ import multer from 'multer'
 import { getErrorMessage } from '@promo/shared'
 import logger from './utils/logger.js'
 import cookieParser from 'cookie-parser'
-import { sessionMiddleware, requireManager, requireAdmin } from './middleware/auth.js'
+import { sessionMiddleware, attachUser, requireManager, requireAdmin } from './middleware/auth.js'
 import { csrfGenerate, csrfVerify, getCsrfToken } from './middleware/csrf-v2.js'
 import routes from './routes/index.js'
 import { errorHandler } from './utils/response.js'
@@ -47,7 +47,7 @@ const corsOptions: cors.CorsOptions = {
   origin: process.env.CORS_ORIGIN?.split(',').map(o => o.trim()) || ['http://localhost:5173', 'http://localhost:5174'],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token', 'X-Refresh-Token'],
 }
 app.use(cors(corsOptions))
 app.use(express.json())
@@ -62,6 +62,10 @@ app.get('/api/csrf-token', getCsrfToken)
 
 // CSRF 验证中间件（验证非 GET 请求的 CSRF token）
 app.use(csrfVerify)
+
+// 可选鉴权：全局解析请求身份（Session/Bearer/Refresh），失败不阻断
+// 公开路由（如 POST /orders）借此识别已登录用户，避免订单误归因为访客
+app.use(attachUser)
 
 // 请求日志中间件
 app.use((req, _res, next) => {

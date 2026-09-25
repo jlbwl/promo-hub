@@ -418,6 +418,65 @@ export async function revokeRefreshToken(refreshToken: string): Promise<boolean>
   return false
 }
 
+/**
+ * 可选鉴权：尽力解析请求身份，解析失败不阻断请求（不返回 401）
+ * 解析顺序与 authMiddleware 一致：Session → Bearer JWT → X-Refresh-Token 兜底刷新
+ *
+ * 用于公开路由（如 POST /orders 允许访客下单）：
+ * 前端已登录用户的身份主要携带在 Bearer Token 中，而 session 因服务重启（内存存储）
+ * 等原因可能丢失；若公开路由不解析 Bearer，请求会被误判为访客，
+ * 导致订单归属错误（userId = sharerId/guest），用户端"我的订单"看不到自己的订单。
+ */
+export const attachUser: RequestHandler = async (req, res, next) => {
+  try {
+    // 1. Session
+    if (req.session?.isAuthenticated && req.session.user) {
+      req.user = req.session.user
+      next()
+      return
+    }
+
+    // 2. Bearer Token（JWT）
+    const authHeader = req.headers.authorization
+    const bearerToken = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null
+    if (bearerToken) {
+      const user = verifyAuthToken(bearerToken)
+      if (user) {
+        req.user = user
+        next()
+        return
+      }
+    }
+
+    // 3. X-Refresh-Token 兜底刷新（Access Token 过期且 Session 失效时）
+    // 依赖 refreshAuthToken 的 60 秒宽限期机制保证并发请求安全
+    const refreshToken = req.headers['x-refresh-token'] as string | undefined
+    if (refreshToken) {
+      const newTokens = await refreshAuthToken(refreshToken)
+      if (newTokens) {
+        try {
+          const decoded = jwt.verify(newTokens.token, JWT_SECRET) as JwtPayload
+          req.user = {
+            id: decoded.id,
+            phone: decoded.phone,
+            role: decoded.role,
+            token: newTokens.token,
+          }
+          res.setHeader('X-New-Token', newTokens.token)
+          res.setHeader('X-New-Refresh-Token', newTokens.refreshToken)
+        } catch {
+          logger.warn('[Auth] attachUser 刷新后的 Token 验证失败')
+        }
+      }
+    }
+
+    next()
+  } catch (error) {
+    logger.error('[Auth] attachUser error:', { error: getErrorMessage(error) })
+    next()
+  }
+}
+
 export const requireAuth = authMiddleware()
 
 export const requireAdmin = authMiddleware(['admin'])
