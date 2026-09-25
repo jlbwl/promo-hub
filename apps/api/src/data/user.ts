@@ -180,6 +180,8 @@ export async function updateUser(id: string, fields: Record<string, unknown>): P
   for (const [key, val] of Object.entries(fields)) {
     if (key === 'id') continue
     if (key === 'role' && !hasRole) continue
+    // updatedAt 由下方 NOW() 统一管理，忽略调用方传入（防止 ISO 字符串写入 DATETIME 列报错）
+    if (key === 'updatedAt') continue
     sets.push(`${key} = ?`)
     if (key === 'loginMethods') {
       values.push(serialize(val))

@@ -245,9 +245,9 @@ export const userSmsLogin = asyncHandler(
           newLoginMethods.push('sms')
         }
         // 只更新必要字段
+        // updatedAt 由 updateUser 内部的 NOW() 统一管理，不可传 ISO 字符串（MySQL DATETIME 不接受 Z 后缀）
         await updateUser(user.id, {
           loginMethods: newLoginMethods,
-          updatedAt: new Date().toISOString(),
         })
         // 重新获取最新的用户数据
         user = await queryOne('SELECT * FROM users WHERE id = ?', [user.id]) as SmsLoginUser
