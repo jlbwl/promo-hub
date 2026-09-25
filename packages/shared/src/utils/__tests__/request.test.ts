@@ -5,7 +5,10 @@ vi.mock('axios')
 
 describe('request module', () => {
   const mockAxios = vi.mocked(axios, true)
-  const mockAxiosInstance = {
+  const axiosPostMock = mockAxios.post as unknown as Mock
+  // instance 需可被当函数调用（401 续期后重放 instance(config)），因此基于 vi.fn() 组合
+  const mockAxiosInstanceFn = vi.fn()
+  const mockAxiosInstance = Object.assign(mockAxiosInstanceFn, {
     get: vi.fn(),
     post: vi.fn(),
     put: vi.fn(),
@@ -18,7 +21,7 @@ describe('request module', () => {
         use: vi.fn(),
       },
     },
-  }
+  })
 
   let get: Mock
   let post: Mock
@@ -216,6 +219,83 @@ describe('request module', () => {
 
       await expect(responseSuccessInterceptor(mockResponse)).rejects.toThrow('Unauthorized')
       expect(window.location.reload).not.toHaveBeenCalled()
+    })
+
+    it('should refresh token and replay request when refresh token exists on 401', async () => {
+      vi.mocked(localStorage.getItem).mockImplementation((key: string) =>
+        key === 'refresh_token' ? 'valid-refresh' : key === 'token' ? 'old-token' : null
+      )
+      // refreshTokens 内部使用裸 axios.post 调用刷新端点
+      axiosPostMock.mockResolvedValue({
+        data: { code: 0, data: { token: 'new-token', refreshToken: 'new-refresh' } },
+      })
+      // 重放请求成功
+      mockAxiosInstanceFn.mockResolvedValue({
+        data: { code: 0, message: 'ok', data: {} },
+        config: {},
+        headers: {},
+        status: 200,
+      })
+
+      const mockResponse = {
+        data: { code: 401, message: 'Unauthorized' },
+        config: { headers: {}, url: '/orders' },
+      }
+      const result = await responseSuccessInterceptor(mockResponse)
+
+      expect(mockAxios.post).toHaveBeenCalledWith(
+        expect.stringContaining('/auth/refresh'),
+        expect.objectContaining({ refreshToken: 'valid-refresh' }),
+        expect.anything()
+      )
+      const replayConfig = mockAxiosInstanceFn.mock.calls[0][0]
+      expect(replayConfig.headers.Authorization).toBe('Bearer new-token')
+      expect((result as { data: { code: number } }).data.code).toBe(0)
+      expect(window.location.reload).not.toHaveBeenCalled()
+    })
+
+    it('should refresh and replay when HTTP 401 with refresh token', async () => {
+      vi.mocked(localStorage.getItem).mockImplementation((key: string) =>
+        key === 'refresh_token' ? 'valid-refresh' : 'old-token'
+      )
+      axiosPostMock.mockResolvedValue({
+        data: { code: 0, data: { token: 'new-token', refreshToken: 'new-refresh' } },
+      })
+      mockAxiosInstanceFn.mockResolvedValue({
+        data: { code: 0, message: 'ok', data: {} },
+        config: {},
+        headers: {},
+        status: 200,
+      })
+
+      const mockError = {
+        response: { status: 401, data: { message: 'token expired' } },
+        config: { headers: {}, url: '/orders' },
+      }
+      const result = await responseErrorInterceptor(mockError)
+
+      expect(axiosPostMock).toHaveBeenCalled()
+      const replayConfig = mockAxiosInstanceFn.mock.calls[0][0]
+      expect(replayConfig.headers.Authorization).toBe('Bearer new-token')
+      expect((result as { data: { code: number } }).data.code).toBe(0)
+    })
+
+    it('should clear tokens when replayed request fails after refresh', async () => {
+      vi.mocked(localStorage.getItem).mockImplementation((key: string) =>
+        key === 'refresh_token' ? 'valid-refresh' : 'old-token'
+      )
+      axiosPostMock.mockResolvedValue({
+        data: { code: 0, data: { token: 'new-token' } },
+      })
+      // 重放请求失败
+      mockAxiosInstanceFn.mockRejectedValue(new Error('replay failed'))
+
+      const mockResponse = {
+        data: { code: 401, message: 'Unauthorized' },
+        config: { headers: {}, url: '/orders' },
+      }
+      await expect(responseSuccessInterceptor(mockResponse)).rejects.toThrow('replay failed')
+      expect(window.location.reload).toHaveBeenCalled()
     })
   })
 

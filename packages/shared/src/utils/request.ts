@@ -120,6 +120,8 @@ function createRequest(): AxiosInstance {
         failedQueue.push({ resolve, reject })
       }).then((token) => {
         headers.Authorization = `Bearer ${token}`
+        // 重放前标记，防止重放结果再次 401 时无限续期循环
+        ;(config as AxiosRequestConfig & { _retryAuth?: boolean })._retryAuth = true
         return instance(config)
       }).catch((error: Error) => {
         clearAllTokens()
@@ -132,6 +134,8 @@ function createRequest(): AxiosInstance {
     return refreshTokens().then((token) => {
       processQueue(token)
       headers.Authorization = `Bearer ${token}`
+      // 重放前标记，防止重放结果再次 401 时无限续期循环
+      ;(config as AxiosRequestConfig & { _retryAuth?: boolean })._retryAuth = true
       return instance(config)
     }).catch((error: Error) => {
       processQueue('', error)
@@ -202,7 +206,6 @@ function createRequest(): AxiosInstance {
         return response
       }
       if (code === 401 && !window.location.pathname.includes('/login')) {
-        ;(response.config as AxiosRequestConfig & { _retryAuth?: boolean })._retryAuth = true
         return handleUnauthorized(response.config)
       }
       return Promise.reject(new Error(message || '请求失败'))
@@ -212,7 +215,6 @@ function createRequest(): AxiosInstance {
       if (error.response?.status === 401 && !window.location.pathname.includes('/login')) {
         const config = error.config as (AxiosRequestConfig & { _retryAuth?: boolean }) | undefined
         if (config) {
-          config._retryAuth = true
           return handleUnauthorized(config)
         }
       }

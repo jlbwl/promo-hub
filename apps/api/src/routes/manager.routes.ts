@@ -19,11 +19,11 @@ import {
 const router: Router = Router()
 
 // 经理信息管理
-router.get('/managers', getManagers)
+router.get('/managers', requireAdmin, getManagers)
 router.get('/managers/:id', getManagerById)
 router.post('/managers', requireAdmin, createManager)
 router.delete('/managers/:id', requireAdmin, deleteManagerWithCascade)
-router.put('/managers/:id', updateManagerById)
+router.put('/managers/:id', requireAdmin, updateManagerById)
 
 // 更新经理团队名称
 router.put(

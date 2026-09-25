@@ -36,7 +36,9 @@ import { hashPassword, verifyPassword } from '../utils/password.js'
  */
 export const getManagers = async (_req: Request, res: Response): Promise<void> => {
   const managers = await readManagers()
-  sendSuccess(res, managers, 'success')
+  // 剔除密码哈希后再返回
+  const safeManagers = managers.map(({ password: _pw, ...m }: Manager) => m)
+  sendSuccess(res, safeManagers, 'success')
 }
 
 /**
@@ -179,17 +181,23 @@ export const updateManagerById = async (req: Request, res: Response): Promise<vo
   }
 
   const now = new Date().toISOString()
-  const newStatus = req.body.status
-  const updatedManager = { 
-    ...managers[index], 
-    ...req.body, 
-    id: managers[index].id, 
-    updatedAt: now 
+  // 白名单更新：仅允许修改状态，防止 mass assignment 覆盖密码等凭证字段
+  const newStatus = req.body?.status
+  if (newStatus !== 'active' && newStatus !== 'inactive') {
+    return sendError(res, '无效的状态值', 400)
   }
-  
+  const updatedManager = {
+    ...managers[index],
+    status: newStatus,
+    id: managers[index].id,
+    updatedAt: now,
+  }
+
   await updateManager(req.params.id as string, updatedManager)
 
-  if (newStatus === 'disabled') {
+  if (newStatus === 'inactive') {
+    // 禁用经理时联动下架其上架产品
+    // （原判断为 'disabled' 与前端传值 'inactive' 不一致，联动从未生效，此处修正）
     let products = await readProducts()
     let offlineCount = 0
     const updatedProducts = products.map((p: Product) => {
