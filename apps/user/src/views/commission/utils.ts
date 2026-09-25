@@ -47,21 +47,5 @@ export const statusLabel = (status: string) => {
   return map[status] || status
 }
 
-// 格式化时间
-export const formatTime = (iso?: string) => {
-  if (!iso) return ''
-  const d = new Date(iso)
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
-}
-
-export const maskPhone = (phone: string) => {
-  if (!phone || phone.length < 7) return phone || '--'
-  return phone.slice(0, 3) + '****' + phone.slice(-4)
-}
-
-export const maskName = (name: string) => {
-  if (!name || name.length < 2) return name || '--'
-  if (name.length === 2) return name[0] + '*'
-  return name[0] + '*' + name.slice(-1)
-}
+// 脱敏与时间格式化统一使用 shared 实现（北京时区，分钟级）
+export { formatTime, maskPhone, maskName } from '@promo/shared/utils/helpers'

@@ -55,9 +55,23 @@ export function formatDate(date: string | Date, format = 'YYYY-MM-DD HH:mm:ss'):
   return result
 }
 
-/** 手机号脱敏 */
-export function maskPhone(phone: string): string {
-  return phone.replace(/(\d{3})\d{4}(\d{4})/, '$1****$2')
+/** 格式化时间（北京时区 UTC+8，分钟级 YYYY-MM-DD HH:mm；空值返回占位文本） */
+export function formatTime(iso?: string, emptyText = ''): string {
+  if (!iso) return emptyText
+  return formatDate(iso, 'YYYY-MM-DD HH:mm')
+}
+
+/** 手机号脱敏（空值返回占位符，不足 7 位原样返回） */
+export function maskPhone(phone: string | undefined): string {
+  if (!phone || phone.length < 7) return phone || '--'
+  return phone.slice(0, 3) + '****' + phone.slice(-4)
+}
+
+/** 姓名脱敏：保留首尾字符，中间以 * 代替（单字符原样，空值返回占位符） */
+export function maskName(name: string | undefined): string {
+  if (!name || name.length < 2) return name || '--'
+  if (name.length === 2) return name[0] + '*'
+  return name[0] + '*' + name.slice(-1)
 }
 
 /** 复制到剪贴板 */

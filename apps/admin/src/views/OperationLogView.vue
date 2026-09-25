@@ -193,6 +193,7 @@
 import { ref, reactive } from 'vue'
 import { ElMessage } from 'element-plus'
 import { get } from '@promo/shared/utils/request'
+import { formatDate } from '@promo/shared/utils/helpers'
 import { getErrorMessage } from '@promo/shared/utils/errors'
 
 const loading = ref(false)
@@ -258,17 +259,8 @@ const showDetail = (row: OperationLogRow) => {
   detailVisible.value = true
 }
 
-const formatTime = (time?: string) => {
-  if (!time) return '-'
-  return new Date(time).toLocaleString('zh-CN', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-  })
-}
+// 格式化时间（shared 统一北京时区实现，秒级）
+const formatTime = (time?: string) => (time ? formatDate(time) : '-')
 
 const formatDetail = (detail?: string) => {
   if (!detail) return '-'

@@ -1,9 +1,6 @@
 /**
- * 个人中心页共享纯函数：手机号脱敏
+ * 个人中心页共享纯函数：手机号脱敏统一使用 shared 实现
  */
 
 // 手机号脱敏
-export const maskPhone = (phone: string) => {
-  if (!phone) return '--'
-  return phone.replace(/(\d{3})\d{4}(\d{4})/, '$1****$2')
-}
+export { maskPhone } from '@promo/shared/utils/helpers'

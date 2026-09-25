@@ -1,6 +1,7 @@
 import { Request, Response } from 'express'
 import { getErrorMessage } from '@promo/shared'
 import { sendSuccess, sendError, sendPagination } from '../utils/response.js'
+import { sanitizeRichText } from '../utils/sanitize.js'
 import { productService } from '../services/index.js'
 import logger from '../utils/logger.js'
 import { ResourcePermissionChecker } from '../middleware/resourcePermission.js'
@@ -100,6 +101,10 @@ export const getProductById = async (req: Request, res: Response): Promise<void>
 export const createProduct = async (req: Request, res: Response): Promise<void> => {
   try {
     const user = req.user
+    // 富文本描述入库前净化，防存储型 XSS（用户端 v-html 渲染）
+    if (typeof req.body.description === 'string') {
+      req.body.description = sanitizeRichText(req.body.description)
+    }
     const productData = {
       ...req.body,
       // 确保managerId是当前用户的ID（经理自己创建自己的产品）
@@ -137,6 +142,11 @@ export const updateProductById = async (req: Request, res: Response): Promise<vo
     
     // 从用户信息中获取managerId（中间件已经验证了权限）
     const managerId = user?.role === 'manager' ? user.id : (req.body.managerId || '')
+
+    // 富文本描述入库前净化，防存储型 XSS（用户端 v-html 渲染）
+    if (typeof req.body.description === 'string') {
+      req.body.description = sanitizeRichText(req.body.description)
+    }
 
     logger.info('[ProductController] 更新产品', {
       productId: id,

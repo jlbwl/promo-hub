@@ -2,7 +2,9 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import {
   formatMoney,
   formatDate,
+  formatTime,
   maskPhone,
+  maskName,
   copyToClipboard,
   commissionStatusMap,
   userStatusMap,
@@ -111,6 +113,24 @@ describe('helpers', () => {
     })
   })
 
+  describe('formatTime', () => {
+    it('should format to Beijing time (UTC+8) minute-level', () => {
+      expect(formatTime('2024-06-15T04:30:00.000Z')).toBe('2024-06-15 12:30')
+    })
+
+    it('should handle day boundary crossing', () => {
+      // UTC 16:30 + 8h = 次日 00:30
+      expect(formatTime('2024-06-15T16:30:00.000Z')).toBe('2024-06-16 00:30')
+    })
+
+    it('should return empty text placeholder for falsy input', () => {
+      expect(formatTime(undefined)).toBe('')
+      expect(formatTime('')).toBe('')
+      expect(formatTime(undefined, '--')).toBe('--')
+      expect(formatTime('', '暂无')).toBe('暂无')
+    })
+  })
+
   describe('maskPhone', () => {
     it('should mask middle 4 digits of phone number', () => {
       expect(maskPhone('13800138000')).toBe('138****8000')
@@ -118,9 +138,11 @@ describe('helpers', () => {
       expect(maskPhone('13912345678')).toBe('139****5678')
     })
 
-    it('should return original if format does not match', () => {
+    it('should keep short digits as-is and use placeholder for empty', () => {
       expect(maskPhone('123')).toBe('123')
-      expect(maskPhone('')).toBe('')
+      expect(maskPhone('123456')).toBe('123456')
+      expect(maskPhone('')).toBe('--')
+      expect(maskPhone(undefined)).toBe('--')
     })
 
     it('should handle various phone number formats', () => {
@@ -132,9 +154,25 @@ describe('helpers', () => {
       expect(maskPhone('18812345678')).toMatch(/^\d{3}\*{4}\d{4}$/)
     })
 
-    it('should handle 11-digit phone numbers with additional digits', () => {
-      // 函数只替换匹配的前11位中的中间4位
-      expect(maskPhone('13800138000123')).toMatch(/^\d{3}\*{4}\d{4}\d{3}$/)
+    it('should mask long digit strings by head/tail slicing', () => {
+      expect(maskPhone('13800138000123')).toBe('138****0123')
+    })
+  })
+
+  describe('maskName', () => {
+    it('should keep first and last characters with single asterisk', () => {
+      expect(maskName('张三')).toBe('张*')
+      expect(maskName('张三丰')).toBe('张*丰')
+      expect(maskName('欧阳清风')).toBe('欧*风')
+    })
+
+    it('should keep single-character names as-is', () => {
+      expect(maskName('张')).toBe('张')
+    })
+
+    it('should use placeholder for empty names', () => {
+      expect(maskName('')).toBe('--')
+      expect(maskName(undefined)).toBe('--')
     })
   })
 

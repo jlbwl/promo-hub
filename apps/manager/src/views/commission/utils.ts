@@ -26,36 +26,8 @@ export const statusText = (status: string) => {
   return map[status] || status
 }
 
-// 格式化时间（北京时区 UTC+8）
-export const formatTime = (iso: string) => {
-  if (!iso) return ''
-  const d = new Date(iso)
-  const pad = (n: number) => String(n).padStart(2, '0')
-  // 获取北京时区时间（UTC+8）
-  const year = d.getUTCFullYear()
-  const month = d.getUTCMonth() + 1
-  let day = d.getUTCDate()
-  let hours = d.getUTCHours() + 8
-  // 处理跨天情况
-  if (hours >= 24) {
-    hours -= 24
-    day += 1
-  }
-  return `${year}-${pad(month)}-${pad(day)} ${pad(hours)}:${pad(d.getUTCMinutes())}`
-}
-
-// 手机号脱敏（接口冗余字段可能缺省）
-export const maskPhone = (phone: string) => {
-  if (!phone || phone.length < 7) return phone || '--'
-  return phone.slice(0, 3) + '****' + phone.slice(-4)
-}
-
-// 姓名脱敏（接口冗余字段可能缺省）
-export const maskName = (name: string) => {
-  if (!name || name.length < 2) return name || '--'
-  if (name.length === 2) return name[0] + '*'
-  return name[0] + '*' + name.slice(-1)
-}
+// 脱敏与时间格式化统一使用 shared 实现（北京时区，分钟级）
+export { formatTime, maskPhone, maskName } from '@promo/shared/utils/helpers'
 
 // 获取当前经理 ID
 export const getManagerId = () => {

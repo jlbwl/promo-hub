@@ -306,6 +306,7 @@
 
 <script setup lang="ts">
 import { logger } from '@promo/shared/utils/logger'
+import { formatTime as formatTimeBase } from '@promo/shared/utils/helpers'
 import { reactive, ref, onMounted } from 'vue'
 import { User, UserFilled, Goods, Money } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -368,23 +369,8 @@ const getManagerName = (managerId?: string) => {
   return managerId.slice(0, 8)
 }
 
-// 格式化时间（北京时区 UTC+8）
-const formatTime = (iso: string) => {
-  if (!iso) return '--'
-  const d = new Date(iso)
-  const p = (n: number) => String(n).padStart(2, '0')
-  // 获取北京时区时间（UTC+8）
-  const year = d.getUTCFullYear()
-  const month = d.getUTCMonth() + 1
-  let day = d.getUTCDate()
-  let hours = d.getUTCHours() + 8
-  // 处理跨天情况
-  if (hours >= 24) {
-    hours -= 24
-    day += 1
-  }
-  return `${year}-${p(month)}-${p(day)} ${p(hours)}:${p(d.getUTCMinutes())}`
-}
+// 格式化时间（shared 统一北京时区实现）
+const formatTime = (iso: string) => formatTimeBase(iso, '--')
 
 // 获取全局统计数据
 const fetchStats = async () => {

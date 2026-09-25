@@ -3,6 +3,7 @@
  */
 import ExcelJS from 'exceljs'
 import { logger } from '@promo/shared/utils/logger'
+import { formatDate } from '@promo/shared/utils/helpers'
 import { ElMessage } from 'element-plus'
 import type { Product, ProductCategory } from '@promo/shared/types'
 
@@ -17,21 +18,8 @@ export interface QrCodeItem {
   topText?: string
 }
 
-// 格式化时间（北京时区 UTC+8）
-export const formatTime = (iso: string) => {
-  if (!iso) return '--'
-  const d = new Date(iso)
-  const p = (n: number) => String(n).padStart(2, '0')
-  const year = d.getUTCFullYear()
-  const month = d.getUTCMonth() + 1
-  let day = d.getUTCDate()
-  let hours = d.getUTCHours() + 8
-  if (hours >= 24) {
-    hours -= 24
-    day += 1
-  }
-  return `${year}-${p(month)}-${p(day)} ${p(hours)}:${p(d.getUTCMinutes())}:${p(d.getUTCSeconds())}`
-}
+// 格式化时间（shared 统一北京时区实现，秒级）
+export const formatTime = (iso: string) => (iso ? formatDate(iso) : '--')
 
 // 在二维码图片上方/中心拼接文字后返回新的 dataUrl（无文字时原样返回）
 export const addTextToQrCode = async (qrCodeDataUrl: string, topText: string, centerText: string): Promise<string> => {

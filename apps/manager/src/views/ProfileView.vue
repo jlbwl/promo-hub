@@ -128,6 +128,7 @@ import { getErrorMessage } from '@promo/shared/utils/errors'
 import { ref, reactive, onMounted, onUnmounted } from 'vue'
 import { ElMessage, type FormInstance, type FormItemRule, type FormRules } from 'element-plus'
 import { get, post } from '@promo/shared/utils/request'
+import { formatDate } from '@promo/shared/utils/helpers'
 import type { Manager } from '@promo/shared/types'
 
 // 密码表单引用
@@ -218,19 +219,8 @@ const fetchManagerInfo = async () => {
   }
 }
 
-// 格式化时间
-const formatTime = (iso: string) => {
-  if (!iso) return '--'
-  const d = new Date(iso)
-  const p = (n: number) => String(n).padStart(2, '0')
-  const year = d.getFullYear()
-  const month = d.getMonth() + 1
-  const day = d.getDate()
-  const hours = d.getHours()
-  const minutes = d.getMinutes()
-  const seconds = d.getSeconds()
-  return `${year}-${p(month)}-${p(day)} ${p(hours)}:${p(minutes)}:${p(seconds)}`
-}
+// 格式化时间（shared 统一北京时区实现，秒级）
+const formatTime = (iso: string) => (iso ? formatDate(iso) : '--')
 
 // 获取当前经理 ID
 const getManagerId = () => {

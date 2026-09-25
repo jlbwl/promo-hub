@@ -83,6 +83,7 @@
 import { reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { showToast } from 'vant'
+import { formatTime, maskPhone } from '@promo/shared/utils/helpers'
 
 const router = useRouter()
 
@@ -111,18 +112,8 @@ const isExpired = computed(() => {
   return expiresAt < now
 })
 
-// 格式化过期时间
-const formatExpireTime = computed(() => {
-  if (!employeeInfo.expiresAt) return '--'
-  const date = new Date(employeeInfo.expiresAt)
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
-})
-
-// 手机号脱敏
-const maskPhone = (phone: string) => {
-  if (!phone) return '--'
-  return phone.replace(/(\d{3})\d{4}(\d{4})/, '$1****$2')
-}
+// 格式化过期时间（shared 统一北京时区实现）
+const formatExpireTime = computed(() => formatTime(employeeInfo.expiresAt, '--'))
 
 // 加载员工信息
 onMounted(() => {
