@@ -57,7 +57,7 @@
           </div>
           <div class="option-content">
             <div class="option-title">
-              访客登录
+              访客模式
             </div>
             <div class="option-desc">
               无需注册，快速浏览产品
@@ -362,7 +362,7 @@ const handleSmsLogin = async () => {
   }
 }
 
-// 访客登录
+// 访客模式
 const handleGuestLogin = () => {
   showToast('已进入访客模式')
   router.replace('/home')
