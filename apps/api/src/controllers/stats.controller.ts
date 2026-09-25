@@ -1,6 +1,6 @@
 import logger from '../utils/logger.js'
 import { Request, Response } from 'express'
-import { getErrorMessage } from '@promo/shared'
+import { CommissionStatus, getErrorMessage } from '@promo/shared'
 import { sendSuccess, sendError } from '../utils/response.js'
 import {
   getOrderStats,
@@ -113,7 +113,7 @@ export const reviewOrder = async (req: Request, res: Response): Promise<void> =>
         managerId: order.managerId,
         productName: order.productName,
         amount: order.productPrice,
-        status: 'pending',
+        status: CommissionStatus.PENDING,
         createdAt: nowISO,
       })
       await writeCommissions(commissions)
@@ -123,7 +123,7 @@ export const reviewOrder = async (req: Request, res: Response): Promise<void> =>
       order.reviewedAt = nowMySQL
       let products = await readProducts()
       const pIdx = products.findIndex((p: any) => p.id === order.productId)
-      if (pIdx !== -1 && products[pIdx].stock >= 0) {
+      if (pIdx !== -1 && products[pIdx].stock !== undefined && products[pIdx].stock >= 0) {
         products[pIdx].stock = (products[pIdx].stock || 0) + 1
         await writeProducts(products)
       }
@@ -189,7 +189,7 @@ export const settleOrder = async (req: Request, res: Response): Promise<void> =>
       let commissions = await readCommissions()
       const cIdx = commissions.findIndex((c: any) => c.orderId === order.id)
       if (cIdx !== -1) {
-        commissions[cIdx].status = 'paid'
+        commissions[cIdx].status = CommissionStatus.PAID
         commissions[cIdx].paidAt = order.settledAt
         await writeCommissions(commissions)
       }

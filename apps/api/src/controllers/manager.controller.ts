@@ -164,7 +164,7 @@ export const deleteManagerWithCascade = async (req: Request, res: Response): Pro
     return { offlineCount, transferredOrders }
   })
   
-  sendSuccess(res, null, `删除成功，已下架 ${manager.productCount || 0} 个产品，转移订单至管理后台`)
+  sendSuccess(res, null, `删除成功，已下架 ${(manager as { productCount?: number }).productCount || 0} 个产品，转移订单至管理后台`)
 }
 
 /**
@@ -284,7 +284,7 @@ export const managerLogin = async (req: Request, res: Response): Promise<void> =
     return sendError(res, '手机号或密码错误，或账号已被禁用', 401)
   }
 
-  const passwordValid = await verifyPassword(password, manager.password)
+  const passwordValid = await verifyPassword(password, manager.password as string)
   if (!passwordValid) {
     return sendError(res, '手机号或密码错误，或账号已被禁用', 401)
   }

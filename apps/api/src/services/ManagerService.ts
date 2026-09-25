@@ -343,7 +343,7 @@ export const managerService: ManagerService = {
     }
 
     // 验证密码
-    const passwordValid = await verifyPassword(password, manager.password)
+    const passwordValid = await verifyPassword(password, manager.password as string)
     if (!passwordValid) {
       throwUnauthorized('渠道名称或密码错误')
     }

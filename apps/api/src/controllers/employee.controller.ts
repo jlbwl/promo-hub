@@ -9,6 +9,7 @@ import {
   deleteEmployee,
   updateEmployee,
   readUser,
+  type EmployeeInput,
 } from '../data/index.js'
 import { login as sessionLogin, generateTokens } from '../middleware/auth.js'
 import { hashPassword, verifyPassword } from '../utils/password.js'
@@ -46,7 +47,7 @@ export const createEmployee = async (req: Request, res: Response): Promise<void>
     expiresAt.setHours(expiresAt.getHours() + expiresHours)
     
     const hashedPassword = await hashPassword(password)
-    const employee = {
+    const employee: EmployeeInput = {
       id: `emp_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
       userId,
       phone,
@@ -180,7 +181,7 @@ export const employeeLogin = async (req: Request, res: Response): Promise<void> 
     }
     
     const now = new Date()
-    const expiresAt = new Date(employee.expiresAt)
+    const expiresAt = new Date(employee.expiresAt as string)
     if (expiresAt < now || employee.status !== 'active') {
       return sendError(res, '手机号、密码错误或账户已过期', 1)
     }
@@ -224,7 +225,7 @@ export const validateEmployee = async (req: Request, res: Response): Promise<voi
     }
     
     const now = new Date()
-    const expiresAt = new Date(employee.expiresAt)
+    const expiresAt = new Date(employee.expiresAt as string)
     
     if (expiresAt < now) {
       return sendError(res, '账户已过期', 1)

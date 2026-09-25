@@ -1,5 +1,11 @@
 
 import { query, queryOne } from '../db.js'
+import type { OperationLogRow } from '../data-memory.js'
+
+// 读取后的日志记录：createdAt 统一转为 ISO 字符串（可能为 null）
+type OperationLogRecord = Omit<OperationLogRow, 'createdAt'> & {
+  createdAt: string | null
+}
 
 export async function insertOperationLog(log: {
   adminId: string
@@ -25,9 +31,9 @@ export async function readOperationLogs(params?: {
   targetType?: string
   page?: number
   pageSize?: number
-}): Promise<{ list: any[]; total: number }> {
+}): Promise<{ list: OperationLogRecord[]; total: number }> {
   let queryStr = 'SELECT * FROM operation_logs'
-  const values: any[] = []
+  const values: unknown[] = []
   const conditions: string[] = []
 
   if (params?.adminId) {
@@ -49,17 +55,17 @@ export async function readOperationLogs(params?: {
 
   queryStr += ' ORDER BY createdAt DESC'
 
-  const total = await queryOne('SELECT COUNT(1) as count FROM operation_logs' + (conditions.length > 0 ? ' WHERE ' + conditions.join(' AND ') : ''), values)
+  const total = (await queryOne('SELECT COUNT(1) as count FROM operation_logs' + (conditions.length > 0 ? ' WHERE ' + conditions.join(' AND ') : ''), values)) as { count: number } | null
   const totalCount = total?.count || 0
 
   const pageNum = parseInt(String(params?.page || 1), 10)
   const pageSizeNum = parseInt(String(params?.pageSize || 20), 10)
   const offset = (pageNum - 1) * pageSizeNum
   
-  const rows = await query(queryStr + ' LIMIT ? OFFSET ?', [...values, pageSizeNum, offset])
+  const rows = (await query(queryStr + ' LIMIT ? OFFSET ?', [...values, pageSizeNum, offset])) as OperationLogRow[]
   
   return {
-    list: (rows as any[]).map(row => ({
+    list: rows.map(row => ({
       ...row,
       createdAt: row.createdAt ? new Date(row.createdAt).toISOString() : null,
     })),

@@ -1,17 +1,18 @@
 
 import { query, queryOne } from '../db.js'
+import type { AdminRow } from '../data-memory.js'
 
-export async function readAdminByPhone(phone: string): Promise<any> {
-  return await queryOne('SELECT * FROM admins WHERE phone = ? AND status = ?', [phone, 'active'])
+export async function readAdminByPhone(phone: string): Promise<AdminRow | null> {
+  return (await queryOne('SELECT * FROM admins WHERE phone = ? AND status = ?', [phone, 'active'])) as AdminRow | null
 }
 
-export async function readAdminById(id: string): Promise<any> {
-  return await queryOne('SELECT * FROM admins WHERE id = ?', [id])
+export async function readAdminById(id: string): Promise<AdminRow | null> {
+  return (await queryOne('SELECT * FROM admins WHERE id = ?', [id])) as AdminRow | null
 }
 
-export async function updateAdmin(id: string, fields: Record<string, any>): Promise<void> {
+export async function updateAdmin(id: string, fields: Record<string, unknown>): Promise<void> {
   const sets: string[] = []
-  const values: any[] = []
+  const values: unknown[] = []
   for (const [key, val] of Object.entries(fields)) {
     if (key === 'id') continue
     sets.push(`${key} = ?`)

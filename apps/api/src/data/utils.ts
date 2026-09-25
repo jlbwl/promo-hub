@@ -10,7 +10,7 @@ async function verifyPassword(password: string, hash: string): Promise<boolean> 
   }
 }
 
-function serialize(val: any): string {
+function serialize(val: unknown): string {
   try {
     if (val === null || val === undefined) {
       return JSON.stringify([])
@@ -20,7 +20,7 @@ function serialize(val: any): string {
     }
     if (typeof val === 'string') {
       try {
-        const parsed = JSON.parse(val)
+        const parsed: unknown = JSON.parse(val)
         if (Array.isArray(parsed)) {
           return JSON.stringify(parsed)
         }
@@ -39,16 +39,16 @@ function formatDateTime(dateStr: string | undefined | null): string | null {
   return date.toISOString().replace('T', ' ').substring(0, 19)
 }
 
-export function deserialize(val: any): any {
+export function deserialize<T = unknown>(val: unknown): T[] {
   if (val === null || val === undefined) return []
   if (typeof val === 'string') {
-    try { 
-      const parsed = JSON.parse(val)
+    try {
+      const parsed: unknown = JSON.parse(val)
       if (!Array.isArray(parsed)) {
         return []
       }
       return parsed
-    } catch { 
+    } catch {
       return []
     }
   }

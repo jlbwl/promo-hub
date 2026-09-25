@@ -11,6 +11,7 @@ import {
 import logger from '../utils/logger.js'
 import {
   readUsers,
+  type UserRow,
   readUsersPaged,
   writeUsers,
   readManagers,
@@ -58,7 +59,7 @@ export const registerUser = asyncHandler(
     }
 
     // 检查重复注册
-    const users = await readUsers()
+    const users: UserRow[] = await readUsers()
     const existingPhone = users.find((u: any) => u.phone === phone)
     if (existingPhone) {
       throw new AppError('该手机号已注册', ErrorCode.USER_ALREADY_EXISTS, HttpStatus.CONFLICT)
@@ -130,7 +131,7 @@ export const userLogin = asyncHandler(
       )
     }
 
-    const authUser = { id: user.id, phone: user.phone, role: 'user' as const, nickname: user.nickname, teamName: user.teamName }
+    const authUser = { id: user.id, phone: user.phone as string, role: 'user' as const, nickname: user.nickname, teamName: user.teamName }
     const tokens = await generateTokens(authUser)
     await sessionLogin(req, { ...authUser, token: tokens.token })
 
@@ -472,7 +473,7 @@ export const updateUserStatus = asyncHandler(
     let managers = await readManagers()
     const mgrIdx = managers.findIndex((m: any) => m.id === userId)
     if (mgrIdx !== -1) {
-      managers[mgrIdx].status = status ? 'active' : 'disabled'
+      managers[mgrIdx].status = (status ? 'active' : 'disabled') as 'active' | 'inactive' | 'banned'
       managers[mgrIdx].updatedAt = new Date().toISOString()
       
       if (!status) {
@@ -480,11 +481,11 @@ export const updateUserStatus = asyncHandler(
         await withTransaction(async (conn) => {
           await conn.execute(
             'UPDATE managers SET status = ?, updatedAt = ? WHERE id = ?',
-            ['disabled', managers[mgrIdx].updatedAt, userId]
+            ['disabled', managers[mgrIdx].updatedAt as string, userId]
           )
           await conn.execute(
             'UPDATE products SET status = ?, updatedAt = ? WHERE managerId = ? AND status = ?',
-            ['offline', managers[mgrIdx].updatedAt, userId, 'published']
+            ['offline', managers[mgrIdx].updatedAt as string, userId, 'published']
           )
         })
       } else {

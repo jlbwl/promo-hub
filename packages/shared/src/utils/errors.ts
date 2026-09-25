@@ -69,27 +69,30 @@ export class AppError extends Error {
 /**
  * 错误抛出辅助函数
  */
-export const throwBadRequest = (message: string, code: number = ErrorCode.BAD_REQUEST): never => {
+// 注意：这里使用 function 声明而非 const 箭头函数。
+// TypeScript 的控制流分析只在「具名函数声明 + 显式 never 返回类型」时，
+// 才能把调用后的变量收窄为非空（const 箭头函数跨模块引用不会触发收窄）。
+export function throwBadRequest(message: string, code: number = ErrorCode.BAD_REQUEST): never {
   throw new AppError(message, code, HttpStatus.BAD_REQUEST)
 }
 
-export const throwUnauthorized = (message: string = '未登录或会话已过期', code: number = ErrorCode.UNAUTHORIZED): never => {
+export function throwUnauthorized(message: string = '未登录或会话已过期', code: number = ErrorCode.UNAUTHORIZED): never {
   throw new AppError(message, code, HttpStatus.UNAUTHORIZED)
 }
 
-export const throwForbidden = (message: string = '您没有权限执行此操作', code: number = ErrorCode.FORBIDDEN): never => {
+export function throwForbidden(message: string = '您没有权限执行此操作', code: number = ErrorCode.FORBIDDEN): never {
   throw new AppError(message, code, HttpStatus.FORBIDDEN)
 }
 
-export const throwNotFound = (message: string, code: number = ErrorCode.NOT_FOUND): never => {
+export function throwNotFound(message: string, code: number = ErrorCode.NOT_FOUND): never {
   throw new AppError(message, code, HttpStatus.NOT_FOUND)
 }
 
-export const throwConflict = (message: string, code: number = ErrorCode.CONFLICT): never => {
+export function throwConflict(message: string, code: number = ErrorCode.CONFLICT): never {
   throw new AppError(message, code, HttpStatus.CONFLICT)
 }
 
-export const throwServerError = (message: string = '服务器内部错误', code: number = ErrorCode.INTERNAL_SERVER_ERROR): never => {
+export function throwServerError(message: string = '服务器内部错误', code: number = ErrorCode.INTERNAL_SERVER_ERROR): never {
   throw new AppError(message, code, HttpStatus.INTERNAL_SERVER_ERROR)
 }
 

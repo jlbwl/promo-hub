@@ -16,6 +16,7 @@ import {
   getOrdersPaginated,
   readOrderUserOptions,
 } from '../data/index.js'
+import type { OrderRow } from '../data-memory.js'
 import { query } from '../db.js'
 import { DatabaseService } from './DatabaseService.js'
 import { ErrorCode, throwNotFound, throwBadRequest, throwForbidden } from '@promo/shared'
@@ -146,7 +147,7 @@ export class OrderServiceImpl implements OrderService {
 
     const cleanRedirectUrl = (redirectUrl || '').replace(/`/g, '')
 
-    const order = {
+    const order: OrderRow = {
       id: `o_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
       productId,
       userId: finalUserId,

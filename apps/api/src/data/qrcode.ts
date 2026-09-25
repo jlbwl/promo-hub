@@ -1,6 +1,43 @@
 
 import { query, queryOne } from '../db.js'
 
+// qr_codes 表原始行结构：列为 snake_case，is_default 以 0/1 存储，时间列可能返回 Date
+interface QrCodeRow {
+  id: string
+  url: string
+  data_url: string
+  center_text?: string | null
+  top_text?: string | null
+  is_default?: number | boolean | null
+  created_at?: string | Date | null
+  updated_at?: string | Date | null
+}
+
+// 读取后的二维码记录：snake_case 列已映射为 camelCase
+export interface QrCodeRecord {
+  id: string
+  url: string
+  dataUrl: string
+  centerText: string
+  topText: string
+  isDefault: boolean
+  createdAt?: string | Date | null
+  updatedAt?: string | Date | null
+}
+
+function toQrCodeRecord(row: QrCodeRow, isDefault?: boolean): QrCodeRecord {
+  return {
+    id: row.id,
+    url: row.url,
+    dataUrl: row.data_url,
+    centerText: row.center_text || '',
+    topText: row.top_text || '',
+    isDefault: isDefault ?? Boolean(row.is_default),
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  }
+}
+
 export async function ensureQrCodesTable(): Promise<void> {
   try {
     await query(`
@@ -20,35 +57,17 @@ export async function ensureQrCodesTable(): Promise<void> {
   }
 }
 
-export async function readQrCodes(): Promise<any[]> {
+export async function readQrCodes(): Promise<QrCodeRecord[]> {
   await ensureQrCodesTable()
-  const rows = await query('SELECT * FROM qr_codes ORDER BY created_at DESC')
-  return (rows as any[]).map(row => ({
-    id: row.id,
-    url: row.url,
-    dataUrl: row.data_url,
-    centerText: row.center_text || '',
-    topText: row.top_text || '',
-    isDefault: Boolean(row.is_default),
-    createdAt: row.created_at,
-    updatedAt: row.updated_at
-  }))
+  const rows = (await query('SELECT * FROM qr_codes ORDER BY created_at DESC')) as QrCodeRow[]
+  return rows.map(row => toQrCodeRecord(row))
 }
 
-export async function readQrCodeById(id: string): Promise<any> {
+export async function readQrCodeById(id: string): Promise<QrCodeRecord | null> {
   await ensureQrCodesTable()
-  const row = await queryOne('SELECT * FROM qr_codes WHERE id = ?', [id])
+  const row = (await queryOne('SELECT * FROM qr_codes WHERE id = ?', [id])) as QrCodeRow | null
   if (!row) return null
-  return {
-    id: row.id,
-    url: row.url,
-    dataUrl: row.data_url,
-    centerText: row.center_text || '',
-    topText: row.top_text || '',
-    isDefault: Boolean(row.is_default),
-    createdAt: row.created_at,
-    updatedAt: row.updated_at
-  }
+  return toQrCodeRecord(row)
 }
 
 export async function insertQrCode(qrCode: {
@@ -66,10 +85,10 @@ export async function insertQrCode(qrCode: {
   )
 }
 
-export async function updateQrCode(id: string, fields: Record<string, any>): Promise<void> {
+export async function updateQrCode(id: string, fields: Record<string, unknown>): Promise<void> {
   await ensureQrCodesTable()
   const sets: string[] = []
-  const values: any[] = []
+  const values: unknown[] = []
   for (const [key, val] of Object.entries(fields)) {
     if (key === 'id') continue
     if (key === 'dataUrl') {
@@ -104,18 +123,9 @@ export async function setDefaultQrCode(id: string): Promise<void> {
   await query('UPDATE qr_codes SET is_default = 1 WHERE id = ?', [id])
 }
 
-export async function readDefaultQrCode(): Promise<any> {
+export async function readDefaultQrCode(): Promise<QrCodeRecord | null> {
   await ensureQrCodesTable()
-  const row = await queryOne('SELECT * FROM qr_codes WHERE is_default = 1 LIMIT 1')
+  const row = (await queryOne('SELECT * FROM qr_codes WHERE is_default = 1 LIMIT 1')) as QrCodeRow | null
   if (!row) return null
-  return {
-    id: row.id,
-    url: row.url,
-    dataUrl: row.data_url,
-    centerText: row.center_text || '',
-    topText: row.top_text || '',
-    isDefault: true,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at
-  }
+  return toQrCodeRecord(row, true)
 }

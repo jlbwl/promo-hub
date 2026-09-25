@@ -1,21 +1,22 @@
 
 import { query } from '../db.js'
+import type { CartItem } from '@promo/shared'
 
-export async function readCartItems(userId: string): Promise<any[]> {
-  return await query(
+export async function readCartItems(userId: string): Promise<CartItem[]> {
+  return (await query(
     'SELECT * FROM cart WHERE userId = ? ORDER BY addedAt DESC',
     [userId]
-  )
+  )) as CartItem[]
 }
 
-export async function readCartByManagerId(managerId: string): Promise<any[]> {
-  return await query(
+export async function readCartByManagerId(managerId: string): Promise<CartItem[]> {
+  return (await query(
     'SELECT * FROM cart WHERE managerId = ? ORDER BY addedAt DESC',
     [managerId]
-  )
+  )) as CartItem[]
 }
 
-export async function addToCart(item: any): Promise<void> {
+export async function addToCart(item: Omit<CartItem, 'id' | 'addedAt'>): Promise<void> {
   const id = `cart_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
   await query(
     `INSERT INTO cart (id, userId, managerId, productId, productName, productPrice, coverImage, optionLabel, redirectUrl, addedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
@@ -32,9 +33,9 @@ export async function removeFromCartByProductId(userId: string, productId: strin
 }
 
 export async function isInCart(userId: string, productId: string): Promise<boolean> {
-  const rows = await query(
+  const rows = (await query(
     'SELECT id FROM cart WHERE userId = ? AND productId = ?',
     [userId, productId]
-  )
-  return (rows as any[]).length > 0
+  )) as { id: string }[]
+  return rows.length > 0
 }

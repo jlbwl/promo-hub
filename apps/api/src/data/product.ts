@@ -1,25 +1,38 @@
 
 import logger from '../utils/logger.js'
 import { getErrorMessage } from '@promo/shared'
+import type { Product } from '@promo/shared'
 import { query, queryOne } from '../db.js'
 import { deserialize, serialize, formatDateTime, columnExists } from './utils.js'
 
-export async function readProducts(): Promise<any[]> {
-  const rows = await query('SELECT * FROM products ORDER BY createdAt DESC')
-  return (rows as any[]).map(row => ({
+// products 表原始行结构：价格/库存列可能返回字符串，requireName/requirePhone 以 0/1 存储，
+// images/options 为 JSON 序列化字符串（读取后经 deserialize 还原）
+type ProductRow = Omit<Product, 'price' | 'originalPrice' | 'stock' | 'images' | 'options' | 'requireName' | 'requirePhone'> & {
+  price?: number | string | null
+  originalPrice?: number | string | null
+  stock?: number | string | null
+  images?: string | null
+  options?: string | null
+  requireName?: number | boolean | null
+  requirePhone?: number | boolean | null
+}
+
+export async function readProducts(): Promise<Product[]> {
+  const rows = (await query('SELECT * FROM products ORDER BY createdAt DESC')) as ProductRow[]
+  return rows.map(row => ({
     ...row,
     price: Number(row.price) || 0,
     originalPrice: Number(row.originalPrice) || 0,
     stock: Number(row.stock) || 0,
     requireName: Boolean(Number(row.requireName)),
     requirePhone: Boolean(Number(row.requirePhone)),
-    images: deserialize(row.images),
-    options: deserialize(row.options),
+    images: deserialize<string>(row.images),
+    options: deserialize<unknown>(row.options),
   }))
 }
 
-export async function readProduct(id: string): Promise<any> {
-  const row = await queryOne('SELECT * FROM products WHERE id = ?', [id])
+export async function readProduct(id: string): Promise<Product | null> {
+  const row = (await queryOne('SELECT * FROM products WHERE id = ?', [id])) as ProductRow | null
   if (!row) return null
   return {
     ...row,
@@ -28,12 +41,12 @@ export async function readProduct(id: string): Promise<any> {
     stock: Number(row.stock) || 0,
     requireName: Boolean(Number(row.requireName)),
     requirePhone: Boolean(Number(row.requirePhone)),
-    images: deserialize(row.images),
-    options: deserialize(row.options),
+    images: deserialize<string>(row.images),
+    options: deserialize<unknown>(row.options),
   }
 }
 
-export async function writeProducts(products: any[]): Promise<void> {
+export async function writeProducts(products: Product[]): Promise<void> {
   const hasCategoryId = await columnExists('products', 'categoryId')
   const hasCategoryNameSnapshot = await columnExists('products', 'categoryNameSnapshot')
 
@@ -46,7 +59,7 @@ export async function writeProducts(products: any[]): Promise<void> {
         'options=?', 'publishedBy=?', 'publishedAt=?', 'offlineReason=?',
         'offlineAt=?', 'requireName=?', 'requirePhone=?', 'updatedAt=NOW()'
       ]
-      let updateValues = [
+      let updateValues: (string | number | null)[] = [
         p.title || '', p.description || '', p.coverImage || '', serialize(p.images),
         p.price || 0, p.originalPrice || 0, p.category || '', p.status || 'draft',
         p.managerId || '', p.stock || 0, serialize(p.options), p.publishedBy || '',
@@ -73,14 +86,14 @@ export async function writeProducts(products: any[]): Promise<void> {
         'category', 'status', 'managerId', 'stock', 'options', 'publishedBy',
         'publishedAt', 'offlineReason', 'offlineAt', 'requireName', 'requirePhone', 'createdAt'
       ]
-      let insertValues = [
+      let insertValues: (string | number | null)[] = [
         p.id, p.title || '', p.description || '', p.coverImage || '', serialize(p.images),
         p.price || 0, p.originalPrice || 0, p.category || '', p.status || 'draft',
         p.managerId || '', p.stock || 0, serialize(p.options), p.publishedBy || '',
         formatDateTime(p.publishedAt), p.offlineReason || '', formatDateTime(p.offlineAt),
         p.requireName ? 1 : 0, p.requirePhone ? 1 : 0
       ]
-      let placeholders = Array(insertValues.length).fill('?')
+      let placeholders = Array<string>(insertValues.length).fill('?')
       placeholders.push('NOW()')
 
       if (hasCategoryId) {
@@ -102,12 +115,12 @@ export async function writeProducts(products: any[]): Promise<void> {
   }
 }
 
-export async function insertProduct(p: any): Promise<void> {
+export async function insertProduct(p: Product): Promise<void> {
   const hasCategoryId = await columnExists('products', 'categoryId')
   const hasCategoryNameSnapshot = await columnExists('products', 'categoryNameSnapshot')
 
   const columns: string[] = ['id', 'title', 'description', 'coverImage', 'images', 'price', 'originalPrice', 'category']
-  const values: any[] = [
+  const values: (string | number | null)[] = [
     p.id,
     p.title || '',
     p.description || '',
@@ -153,22 +166,22 @@ export async function insertProduct(p: any): Promise<void> {
   await query(sqlQuery, values)
 }
 
-export async function updateProduct(id: string, fields: Record<string, any>): Promise<void> {
+export async function updateProduct(id: string, fields: Record<string, unknown>): Promise<void> {
   const hasCategoryId = await columnExists('products', 'categoryId')
   const hasCategoryNameSnapshot = await columnExists('products', 'categoryNameSnapshot')
 
   const sets: string[] = []
-  const values: any[] = []
+  const values: unknown[] = []
   for (const [key, val] of Object.entries(fields)) {
     if (key === 'id' || key === 'updatedAt') continue
     if (key === 'categoryId' && !hasCategoryId) continue
     if (key === 'categoryNameSnapshot' && !hasCategoryNameSnapshot) continue
-    
+
     sets.push(`${key} = ?`)
     if (key === 'images' || key === 'options') {
       values.push(serialize(val))
     } else if (key === 'publishedAt' || key === 'offlineAt') {
-      values.push(formatDateTime(val))
+      values.push(formatDateTime(val as string | null | undefined))
     } else if (typeof val === 'boolean' || key === 'requireName' || key === 'requirePhone') {
       values.push(val ? 1 : 0)
     } else {
@@ -193,10 +206,10 @@ export async function getProductsPaginated(params: {
   pageSize?: number
   keyword?: string
   adminMode?: boolean
-}): Promise<{ list: any[]; total: number }> {
+}): Promise<{ list: (Product & { sales: number })[]; total: number }> {
   try {
     const whereConditions: string[] = []
-    const values: any[] = []
+    const values: unknown[] = []
 
     const hasManagerId = params.managerId !== undefined && params.managerId !== null && params.managerId !== ''
     const isAdminMode = params.adminMode === true
@@ -232,7 +245,7 @@ export async function getProductsPaginated(params: {
 
     const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : ''
 
-    const countResult = await queryOne(`SELECT COUNT(1) as total FROM products ${whereClause}`, values)
+    const countResult = (await queryOne(`SELECT COUNT(1) as total FROM products ${whereClause}`, values)) as { total?: number | string } | null
     const total = Number(countResult?.total) || 0
 
     const page = parseInt(String(params.page || 1), 10)
@@ -241,32 +254,32 @@ export async function getProductsPaginated(params: {
 
     const sql = `SELECT * FROM products ${whereClause} ORDER BY COALESCE(publishedAt, createdAt) DESC LIMIT ? OFFSET ?`
     const allValues = [...values, pageSize, offset]
-    
-    let products = await query(sql, allValues)
 
-    const productIds = (products as any[]).map(p => p.id)
+    const products = (await query(sql, allValues)) as ProductRow[]
+
+    const productIds = products.map(p => p.id)
     let salesMap = new Map<string, number>()
     if (productIds.length > 0) {
       const placeholders = productIds.map(() => '?').join(',')
-      const salesResult = await query(
+      const salesResult = (await query(
         `SELECT productId, COUNT(1) as salesCount FROM orders WHERE deleted = 0 AND productId IN (${placeholders}) GROUP BY productId`,
         productIds
-      )
-      ;(salesResult as any[]).forEach(item => {
+      )) as { productId: string; salesCount?: number | string }[]
+      salesResult.forEach(item => {
         salesMap.set(item.productId, Number(item.salesCount) || 0)
       })
     }
 
     return {
-      list: (products as any[]).map(product => ({
+      list: products.map(product => ({
         ...product,
         price: Number(product.price) || 0,
         originalPrice: Number(product.originalPrice) || 0,
         stock: Number(product.stock) || 0,
         requireName: Boolean(Number(product.requireName)),
         requirePhone: Boolean(Number(product.requirePhone)),
-        images: deserialize(product.images),
-        options: deserialize(product.options),
+        images: deserialize<string>(product.images),
+        options: deserialize<unknown>(product.options),
         sales: salesMap.get(product.id) || 0,
       })),
       total,
@@ -279,36 +292,36 @@ export async function getProductsPaginated(params: {
       let products = await readProducts()
       
       if (params.category && params.category !== '0') {
-        products = products.filter((p: any) => p.category === params.category)
+        products = products.filter(p => p.category === params.category)
       }
       if (params.status) {
-        products = products.filter((p: any) => p.status === params.status)
+        products = products.filter(p => p.status === params.status)
       } else if (!params.managerId) {
-        products = products.filter((p: any) => p.status === 'published')
+        products = products.filter(p => p.status === 'published')
       }
       if (params.keyword) {
         const keyword = params.keyword.toLowerCase()
-        products = products.filter((p: any) => 
-          p.title?.toLowerCase().includes(keyword) || 
+        products = products.filter(p =>
+          p.title?.toLowerCase().includes(keyword) ||
           p.description?.toLowerCase().includes(keyword)
         )
       }
-      
+
       const orders = await readOrders()
-      const salesMap = new Map()
-      orders.forEach((o: any) => {
+      const salesMap = new Map<string, number>()
+      orders.forEach(o => {
         const count = salesMap.get(o.productId) || 0
         salesMap.set(o.productId, count + 1)
       })
-      
+
       const total = products.length
       const page = params.page || 1
       const pageSize = parseInt(String(params.pageSize || 10), 10)
       const offset = (page - 1) * pageSize
       products = products.slice(offset, offset + pageSize)
-      
+
       return {
-        list: products.map((product: any) => ({
+        list: products.map(product => ({
           ...product,
           price: Number(product.price) || 0,
           originalPrice: Number(product.originalPrice) || 0,

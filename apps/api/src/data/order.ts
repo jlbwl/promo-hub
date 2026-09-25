@@ -1,29 +1,39 @@
 
 import logger from '../utils/logger.js'
 import { getErrorMessage } from '@promo/shared'
+import type { OrderStats } from '@promo/shared'
 import { query, queryOne } from '../db.js'
+import type { OrderRow } from '../data-memory.js'
 
-export async function readOrders(): Promise<any[]> {
-  return await query('SELECT * FROM orders WHERE deleted = 0 ORDER BY createdAt DESC')
+export async function readOrders(): Promise<OrderRow[]> {
+  return (await query('SELECT * FROM orders WHERE deleted = 0 ORDER BY createdAt DESC')) as OrderRow[]
 }
 
 // 订单中"用户+团队名称"去重组合（用于后台筛选用户下拉选项）
-export async function readOrderUserOptions(): Promise<any[]> {
-  return await query(
+export interface OrderUserOption {
+  userId: string
+  userName?: string | null
+  userPhone?: string | null
+  teamName?: string | null
+  orderCount: number
+}
+
+export async function readOrderUserOptions(): Promise<OrderUserOption[]> {
+  return (await query(
     `SELECT userId, userName, userPhone, teamName, COUNT(*) as orderCount
      FROM orders WHERE deleted = 0
      GROUP BY userId, userName, userPhone, teamName
      ORDER BY MAX(createdAt) DESC`
-  )
+  )) as OrderUserOption[]
 }
 
-export async function readOrder(id: string): Promise<any> {
-  return await queryOne('SELECT * FROM orders WHERE id = ? AND deleted = 0', [id])
+export async function readOrder(id: string): Promise<OrderRow | null> {
+  return (await queryOne('SELECT * FROM orders WHERE id = ? AND deleted = 0', [id])) as OrderRow | null
 }
 
-export async function getOrderStats(managerId?: string): Promise<any> {
+export async function getOrderStats(managerId?: string): Promise<OrderStats> {
   let whereClause = 'deleted = 0'
-  const params: any[] = []
+  const params: string[] = []
   if (managerId) {
     whereClause += ' AND managerId = ?'
     params.push(managerId)
@@ -38,7 +48,14 @@ export async function getOrderStats(managerId?: string): Promise<any> {
     SUM(CASE WHEN status = 'rejected' THEN 1 ELSE 0 END) as rejected
   FROM orders WHERE ${whereClause}`
 
-  const result = await queryOne(sql, params)
+  const result = (await queryOne(sql, params)) as {
+    total?: number | string
+    pending?: number | string
+    approved?: number | string
+    pendingPayment?: number | string
+    settled?: number | string
+    rejected?: number | string
+  } | null
 
   return {
     total: Number(result?.total) || 0,
@@ -50,17 +67,17 @@ export async function getOrderStats(managerId?: string): Promise<any> {
   }
 }
 
-export async function readDeletedOrders(userId?: string): Promise<any[]> {
-  const params: any[] = []
+export async function readDeletedOrders(userId?: string): Promise<OrderRow[]> {
+  const params: string[] = []
   let sql = 'SELECT * FROM orders WHERE deleted = 1 ORDER BY deletedAt DESC'
   if (userId) {
     sql = 'SELECT * FROM orders WHERE deleted = 1 AND userId = ? ORDER BY deletedAt DESC'
     params.push(userId)
   }
-  return await query(sql, params)
+  return (await query(sql, params)) as OrderRow[]
 }
 
-export async function writeOrders(orders: any[]): Promise<void> {
+export async function writeOrders(orders: OrderRow[]): Promise<void> {
   for (const o of orders) {
     const existing = await queryOne('SELECT id FROM orders WHERE id = ?', [o.id])
     if (existing) {
@@ -77,16 +94,16 @@ export async function writeOrders(orders: any[]): Promise<void> {
   }
 }
 
-export async function insertOrder(o: any): Promise<void> {
+export async function insertOrder(o: OrderRow): Promise<void> {
   await query(
     `INSERT INTO orders (id, productId, userId, managerId, employeeId, productName, productPrice, optionLabel, redirectUrl, userName, userPhone, teamName, status, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
     [o.id, o.productId || '', o.userId || '', o.managerId || '', o.employeeId || '', o.productName || '', o.productPrice || 0, o.optionLabel || '', o.redirectUrl || '', o.userName || '', o.userPhone || '', o.teamName || '', o.status || 'pending']
   )
 }
 
-export async function updateOrder(id: string, fields: Record<string, any>): Promise<void> {
+export async function updateOrder(id: string, fields: Record<string, unknown>): Promise<void> {
   const sets: string[] = []
-  const values: any[] = []
+  const values: unknown[] = []
   for (const [key, val] of Object.entries(fields)) {
     if (key === 'id') continue
     sets.push(`${key} = ?`)
@@ -116,9 +133,9 @@ export async function getOrdersPaginated(params: {
   keyword?: string
   page?: number
   pageSize?: number
-}): Promise<{ list: any[]; total: number }> {
+}): Promise<{ list: OrderRow[]; total: number }> {
   const whereConditions: string[] = ['deleted = 0']
-  const values: any[] = []
+  const values: unknown[] = []
 
   if (params.userId) {
     whereConditions.push('userId = ?')
@@ -160,29 +177,29 @@ export async function getOrdersPaginated(params: {
   const offset = (page - 1) * pageSize
 
   try {
-    const countResult = await queryOne(
+    const countResult = (await queryOne(
       `SELECT COUNT(1) as total FROM orders WHERE ${whereClause}`,
       values
-    )
+    )) as { total?: number | string } | null
     const total = Number(countResult?.total) || 0
 
-    let orders: any[] = []
+    let orders: OrderRow[] = []
     if (total > 0) {
-      orders = await query(
+      orders = (await query(
         `SELECT * FROM orders WHERE ${whereClause} ORDER BY createdAt DESC LIMIT ? OFFSET ?`,
         [...values, pageSize, offset]
-      )
+      )) as OrderRow[]
     }
 
-    const userIds = Array.from(new Set((orders as any[]).map(o => o.userId).filter(Boolean)))
-    const usersMap = new Map()
+    const userIds = Array.from(new Set(orders.map(o => o.userId).filter(Boolean)))
+    const usersMap = new Map<string, string | null | undefined>()
     if (userIds.length > 0) {
       try {
-        const users = await query(
+        const users = (await query(
           `SELECT id, teamName FROM users WHERE id IN (${userIds.map(() => '?').join(',')})`,
           userIds
-        )
-        ;(users as any[]).forEach(user => {
+        )) as { id: string; teamName?: string | null }[]
+        users.forEach(user => {
           usersMap.set(user.id, user.teamName)
         })
       } catch (e) {
@@ -191,7 +208,7 @@ export async function getOrdersPaginated(params: {
     }
 
     return {
-      list: (orders as any[]).map(order => ({
+      list: orders.map(order => ({
         ...order,
         productPrice: Number(order.productPrice) || 0,
         teamName: order.teamName || usersMap.get(order.userId) || '',
@@ -200,8 +217,8 @@ export async function getOrdersPaginated(params: {
     }
   } catch (error) {
     logger.error('[订单查询] 数据库错误:', { error: getErrorMessage(error) })
-    const err = new Error('获取订单列表失败')
-    ;(err as any).code = 500
+    const err = new Error('获取订单列表失败') as Error & { code?: number }
+    err.code = 500
     throw err
   }
 }
