@@ -224,6 +224,7 @@ import { reactive, ref, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { showToast } from 'vant'
 import { post } from '@promo/shared/utils/request'
+import { getErrorMessage } from '@promo/shared/utils/errors'
 
 const router = useRouter()
 const route = useRoute()
@@ -279,7 +280,7 @@ const handlePasswordLogin = async () => {
   try {
     const res = await post<any>('/users/login', { phone: pwdForm.phone, password: pwdForm.password })
     onLoginSuccess(res.data)
-  } catch (e: any) {
+  } catch (e) {
     // 普通登录失败，尝试员工登录
     try {
       const employeeRes = await post<any>('/employees/login', { phone: pwdForm.phone, password: pwdForm.password })
@@ -294,8 +295,8 @@ const handlePasswordLogin = async () => {
       setTimeout(() => {
         router.replace('/home')
       }, 1000)
-    } catch (ee: any) {
-      showToast(e.message || '登录失败，请确认登录方式')
+    } catch (ee) {
+      showToast(getErrorMessage(e, '登录失败，请确认登录方式'))
     }
   } finally {
     loading.value = false
@@ -320,8 +321,8 @@ const handleSendSms = async () => {
       smsCooldown.value--
       if (smsCooldown.value <= 0 && smsTimer) { clearInterval(smsTimer); smsTimer = null }
     }, 1000)
-  } catch (e: any) {
-    showToast(e.message || '发送失败')
+  } catch (e) {
+    showToast(getErrorMessage(e, '发送失败'))
   }
 }
 
@@ -334,8 +335,8 @@ const handleSmsLogin = async () => {
   try {
     const res = await post<any>('/users/sms/login', { phone: smsForm.phone, code: smsForm.code, teamName: smsForm.teamName })
     onLoginSuccess(res.data)
-  } catch (e: any) {
-    showToast(e.message || '登录失败')
+  } catch (e) {
+    showToast(getErrorMessage(e, '登录失败'))
   } finally {
     loading.value = false
   }

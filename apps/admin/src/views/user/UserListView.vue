@@ -262,6 +262,7 @@ import { logger } from '@promo/shared/utils/logger'
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { get, put, del, post } from '@promo/shared/utils/request'
+import { getErrorMessage } from '@promo/shared/utils/errors'
 
 // 格式化时间（北京时区 UTC+8）
 const formatTime = (iso: string) => {
@@ -329,8 +330,8 @@ const loadData = async () => {
     const { list, total } = res.data
     tableData.value = list || []
     pagination.total = total || 0
-  } catch (error: any) {
-    ElMessage.error(error.message || '获取数据失败')
+  } catch (error) {
+    ElMessage.error(getErrorMessage(error, '获取数据失败'))
   } finally {
     loading.value = false
   }
@@ -356,9 +357,9 @@ const handleToggleUserRole = async (row: UserItem, newRole: string) => {
     await put(`/users/${row.id}/role`, { role: newRole })
     ElMessage.success(`角色设置成功`)
     loadData()
-  } catch (error: any) {
+  } catch (error) {
     if (error !== 'cancel') {
-      ElMessage.error(error.message || '操作失败')
+      ElMessage.error(getErrorMessage(error, '操作失败'))
     }
   }
 }
@@ -377,9 +378,9 @@ const handleToggleUserStatus = async (row: UserItem, newStatus: number) => {
     await put(`/users/${row.id}/status`, { status: newStatus })
     ElMessage.success(`${action}成功`)
     loadData()
-  } catch (error: any) {
+  } catch (error) {
     if (error !== 'cancel') {
-      ElMessage.error(error.message || '操作失败')
+      ElMessage.error(getErrorMessage(error, '操作失败'))
     }
   }
 }
@@ -411,9 +412,9 @@ const handleSaveTeamName = async () => {
     ElMessage.success('修改成功')
     teamNameDialogVisible.value = false
     loadData()
-  } catch (error: any) {
+  } catch (error) {
     logger.error('[调试] 保存失败:', error)
-    ElMessage.error(error.message || '修改失败')
+    ElMessage.error(getErrorMessage(error, '修改失败'))
   } finally {
     teamNameLoading.value = false
   }
@@ -436,9 +437,9 @@ const handleDelete = async (row: UserItem) => {
     // 显示短信验证弹窗
     deleteRow.value = row
     deleteSmsDialogVisible.value = true
-  } catch (error: any) {
+  } catch (error) {
     if (error !== 'cancel') {
-      ElMessage.error(error.message || '操作失败')
+      ElMessage.error(getErrorMessage(error, '操作失败'))
     }
   }
 }
@@ -486,9 +487,9 @@ const sendSmsCode = async () => {
       logger.error('[调试] 短信接口返回错误:', res.message)
       ElMessage.error(res.message || '发送失败')
     }
-  } catch (error: any) {
+  } catch (error) {
     logger.error('[调试] 短信接口调用异常:', error)
-    ElMessage.error(error.message || '发送失败')
+    ElMessage.error(getErrorMessage(error, '发送失败'))
   } finally {
     smsLoading.value = false
   }
@@ -513,8 +514,8 @@ const confirmDelete = async () => {
     } else {
       ElMessage.error(res.message || '删除失败')
     }
-  } catch (error: any) {
-    ElMessage.error(error.message || '删除失败')
+  } catch (error) {
+    ElMessage.error(getErrorMessage(error, '删除失败'))
   } finally {
     smsLoading.value = false
   }

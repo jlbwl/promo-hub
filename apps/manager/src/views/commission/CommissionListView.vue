@@ -752,6 +752,7 @@
 
 <script setup lang="ts">
 import { logger } from '@promo/shared/utils/logger'
+import { getErrorMessage } from '@promo/shared/utils/errors'
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Document, Clock, CircleCheck, CircleClose, Wallet, SuccessFilled } from '@element-plus/icons-vue'
@@ -929,8 +930,8 @@ const fetchData = async () => {
       tableData.value = list || []
       pagination.total = total || 0
     }
-  } catch (error: any) {
-    ElMessage.error(error.message || '获取订单列表失败')
+  } catch (error) {
+    ElMessage.error(getErrorMessage(error, '获取订单列表失败'))
   } finally {
     loading.value = false
   }
@@ -956,9 +957,12 @@ const handleApprove = async (row: any) => {
     ElMessage.success('已确认记录有效，记录待发放')
     fetchStats()
     fetchData()
-  } catch (error: any) {
-    if (error !== 'cancel' && error?.message) {
-      ElMessage.error(error.message || '操作失败')
+  } catch (error) {
+    if (error !== 'cancel') {
+      const message = getErrorMessage(error, '')
+      if (message) {
+        ElMessage.error(message)
+      }
     }
   }
 }
@@ -984,9 +988,12 @@ const handleReject = async (row: any) => {
     ElMessage.success('已驳回，库存已退回')
     fetchStats()
     fetchData()
-  } catch (error: any) {
-    if (error !== 'cancel' && error?.message) {
-      ElMessage.error(error.message || '操作失败')
+  } catch (error) {
+    if (error !== 'cancel') {
+      const message = getErrorMessage(error, '')
+      if (message) {
+        ElMessage.error(message)
+      }
     }
   }
 }
@@ -1003,9 +1010,12 @@ const handleAddToPayment = async (row: any) => {
     ElMessage.success('已添加到待发放')
     fetchStats()
     fetchData()
-  } catch (error: any) {
-    if (error !== 'cancel' && error?.message) {
-      ElMessage.error(error.message || '操作失败')
+  } catch (error) {
+    if (error !== 'cancel') {
+      const message = getErrorMessage(error, '')
+      if (message) {
+        ElMessage.error(message)
+      }
     }
   }
 }
@@ -1069,9 +1079,12 @@ const handleBatchSettle = async () => {
 
     fetchStats()
     fetchData()
-  } catch (error: any) {
-    if (error !== 'cancel' && error?.message) {
-      ElMessage.error(error.message || '结算失败')
+  } catch (error) {
+    if (error !== 'cancel') {
+      const message = getErrorMessage(error, '')
+      if (message) {
+        ElMessage.error(message)
+      }
     }
   } finally {
     settleLoading.value = false

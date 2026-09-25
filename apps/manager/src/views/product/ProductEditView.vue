@@ -344,6 +344,7 @@
 
 <script setup lang="ts">
 import { logger } from '@promo/shared/utils/logger'
+import { getErrorMessage } from '@promo/shared/utils/errors'
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules, type UploadProps } from 'element-plus'
@@ -474,9 +475,9 @@ const handleQrUpload = async (uploadFile: any, idx: number) => {
     } else {
       ElMessage.error('未识别到二维码，请确认图片中包含有效的二维码')
     }
-  } catch (error: any) {
+  } catch (error) {
     logger.error('二维码识别失败:', error)
-    ElMessage.error('识别失败：' + (error.message || '请重试'))
+    ElMessage.error('识别失败：' + getErrorMessage(error, '请重试'))
   } finally {
     form.options[idx]._qrLoading = false
   }
@@ -600,9 +601,9 @@ const uploadCoverImage = async (file: File) => {
     } else {
       throw new Error(result.message || '上传失败')
     }
-  } catch (error: any) {
+  } catch (error) {
     logger.error('封面图片上传失败:', error)
-    ElMessage.error(error.message || '上传失败，请重试')
+    ElMessage.error(getErrorMessage(error, '上传失败，请重试'))
     uploading.value = false
     uploadProgress.value = 0
   }
@@ -712,16 +713,17 @@ const handleSave = async () => {
     })
     
     logger.debug('[ProductEditView] 路由跳转完成')
-  } catch (error: any) {
+  } catch (error) {
     logger.error('保存失败:', error)
     // 如果是登录信息问题，跳转到登录页
-    if (error.message?.includes('登录信息已过期') || error.message?.includes('未找到经理登录信息')) {
+    const errorMessage = getErrorMessage(error, '保存失败')
+    if (errorMessage.includes('登录信息已过期') || errorMessage.includes('未找到经理登录信息')) {
       localStorage.removeItem('manager_token')
       localStorage.removeItem('manager_info')
-      ElMessage.warning(error.message || '请重新登录')
+      ElMessage.warning(errorMessage || '请重新登录')
       await router.push('/login')
     } else {
-      ElMessage.error(error.message || '保存失败')
+      ElMessage.error(errorMessage)
     }
   } finally {
     saving.value = false
@@ -771,9 +773,9 @@ const fetchProductDetail = async () => {
         }
       }
     }
-  } catch (error: any) {
+  } catch (error) {
     logger.error('获取产品详情失败:', error)
-    ElMessage.error(error.message || '获取产品详情失败')
+    ElMessage.error(getErrorMessage(error, '获取产品详情失败'))
   }
 }
 

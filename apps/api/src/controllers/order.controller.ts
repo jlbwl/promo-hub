@@ -1,5 +1,6 @@
 import logger from '../utils/logger.js'
 import { Request, Response } from 'express'
+import { getErrorMessage } from '@promo/shared'
 import { sendSuccess, sendError, sendPagination } from '../utils/response.js'
 import { orderService } from '../services/index.js'
 import { insertOperationLog } from '../data/index.js'
@@ -63,8 +64,8 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
     })
 
     sendSuccess(res, { order, remainingStock }, '做单成功')
-  } catch (error: any) {
-    sendError(res, error.message || '做单失败', error.code || 500)
+  } catch (error) {
+    sendError(res, getErrorMessage(error, '做单失败'), (error as { code?: number }).code || 500)
   }
 }
 
@@ -147,8 +148,8 @@ export const getOrders = async (req: Request, res: Response): Promise<void> => {
         page: pageNum,
         pageSize: pageSizeNum,
       })
-    } catch (dbError: any) {
-      logger.warn('[获取订单] 数据库查询失败，尝试降级到内存:', dbError)
+    } catch (dbError) {
+      logger.warn('[获取订单] 数据库查询失败，尝试降级到内存:', { error: getErrorMessage(dbError) })
       const { getOrdersPaginated } = await import('../data-memory.js')
       result = await getOrdersPaginated({
         userId: queryUserId,
@@ -165,9 +166,9 @@ export const getOrders = async (req: Request, res: Response): Promise<void> => {
     }
 
     sendPagination(res, result.list, result.total, pageNum, pageSizeNum)
-  } catch (error: any) {
-    logger.error('[获取订单] 错误:', error)
-    sendError(res, error.message || '获取失败', 500)
+  } catch (error) {
+    logger.error('[获取订单] 错误:', { error: getErrorMessage(error) })
+    sendError(res, getErrorMessage(error, '获取失败'), 500)
   }
 }
 
@@ -178,9 +179,9 @@ export const getOrderUserOptions = async (_req: Request, res: Response): Promise
   try {
     const list = await orderService.getOrderUserOptions()
     sendSuccess(res, list, 'success')
-  } catch (error: any) {
-    logger.error('[获取用户选项] 错误:', error)
-    sendError(res, error.message || '获取失败', 500)
+  } catch (error) {
+    logger.error('[获取用户选项] 错误:', { error: getErrorMessage(error) })
+    sendError(res, getErrorMessage(error, '获取失败'), 500)
   }
 }
 
@@ -212,8 +213,8 @@ export const adminDeleteOrder = async (req: Request, res: Response): Promise<voi
     })
 
     sendSuccess(res, null, '删除成功')
-  } catch (error: any) {
-    sendError(res, error.message || '删除失败', error.code || 500)
+  } catch (error) {
+    sendError(res, getErrorMessage(error, '删除失败'), (error as { code?: number }).code || 500)
   }
 }
 
@@ -232,8 +233,8 @@ export const deleteUserOrder = async (req: Request, res: Response): Promise<void
     await orderService.deleteUserOrder(id, userId)
 
     sendSuccess(res, null, '已移至回收站')
-  } catch (error: any) {
-    sendError(res, error.message || '删除失败', error.code || 500)
+  } catch (error) {
+    sendError(res, getErrorMessage(error, '删除失败'), (error as { code?: number }).code || 500)
   }
 }
 
@@ -249,8 +250,8 @@ export const getDeletedOrders = async (req: Request, res: Response): Promise<voi
     const { userId } = req.query
     const orders = await orderService.getDeletedOrders(userId as string)
     sendSuccess(res, orders)
-  } catch (error: any) {
-    sendError(res, error.message || '获取失败', error.code || 500)
+  } catch (error) {
+    sendError(res, getErrorMessage(error, '获取失败'), (error as { code?: number }).code || 500)
   }
 }
 
@@ -269,8 +270,8 @@ export const restoreUserOrder = async (req: Request, res: Response): Promise<voi
     await orderService.restoreOrder(id, userId)
 
     sendSuccess(res, null, '恢复成功')
-  } catch (error: any) {
-    sendError(res, error.message || '恢复失败', error.code || 500)
+  } catch (error) {
+    sendError(res, getErrorMessage(error, '恢复失败'), (error as { code?: number }).code || 500)
   }
 }
 
@@ -292,8 +293,8 @@ export const submitFundAccount = async (req: Request, res: Response): Promise<vo
     await orderService.submitFundAccount(orderId, userId, fundAccount)
 
     sendSuccess(res, null, '提交成功')
-  } catch (error: any) {
-    sendError(res, error.message || '提交失败', error.code || 500)
+  } catch (error) {
+    sendError(res, getErrorMessage(error, '提交失败'), (error as { code?: number }).code || 500)
   }
 }
 
@@ -317,8 +318,8 @@ export const reviewOrder = async (req: Request, res: Response): Promise<void> =>
 
     const message = action === 'approve' ? '审核通过' : '已驳回'
     sendSuccess(res, null, message)
-  } catch (error: any) {
-    sendError(res, error.message || '审核失败', error.code || 500)
+  } catch (error) {
+    sendError(res, getErrorMessage(error, '审核失败'), (error as { code?: number }).code || 500)
   }
 }
 
@@ -342,8 +343,8 @@ export const settleOrder = async (req: Request, res: Response): Promise<void> =>
 
     const message = action === 'pending_payment' ? '已添加到待发放' : '已结算'
     sendSuccess(res, null, message)
-  } catch (error: any) {
-    sendError(res, error.message || '结算失败', error.code || 500)
+  } catch (error) {
+    sendError(res, getErrorMessage(error, '结算失败'), (error as { code?: number }).code || 500)
   }
 }
 
@@ -362,7 +363,7 @@ export const updateOrderTeamName = async (req: Request, res: Response): Promise<
     await orderService.updateOrderTeamName(orderId, teamName)
 
     sendSuccess(res, null, '团队名称更新成功')
-  } catch (error: any) {
-    sendError(res, error.message || '更新失败', error.code || 500)
+  } catch (error) {
+    sendError(res, getErrorMessage(error, '更新失败'), (error as { code?: number }).code || 500)
   }
 }

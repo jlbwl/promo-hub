@@ -1,5 +1,6 @@
 import mysql from 'mysql2/promise'
 import dotenv from 'dotenv'
+import { getErrorMessage } from '@promo/shared'
 import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
 import logger from './utils/logger.js'
@@ -48,12 +49,12 @@ export async function query(sql: string, params?: any[]): Promise<any> {
       dbLogger.warn(`Slow query: ${duration}ms`, { sql: sql.substring(0, 200) })
     }
     return rows
-  } catch (error: any) {
+  } catch (error) {
     const duration = Date.now() - startTime
     clearTimeout(timeoutId!)
     dbLogger.error(`Query failed after ${duration}ms`, { 
       sql: sql.substring(0, 100), 
-      error: error.message,
+      error: getErrorMessage(error),
       params 
     })
     throw error
@@ -76,12 +77,12 @@ export async function queryOne(sql: string, params?: any[]): Promise<any> {
       dbLogger.warn(`Slow query (queryOne): ${duration}ms`, { sql: sql.substring(0, 200) })
     }
     return (rows as any[])[0] || null
-  } catch (error: any) {
+  } catch (error) {
     const duration = Date.now() - startTime
     clearTimeout(timeoutId!)
     dbLogger.error(`QueryOne failed after ${duration}ms`, { 
       sql: sql.substring(0, 100), 
-      error: error.message,
+      error: getErrorMessage(error),
       params 
     })
     throw error

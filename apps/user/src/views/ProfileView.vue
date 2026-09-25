@@ -468,6 +468,7 @@ import { reactive, ref, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { showDialog, showToast } from 'vant'
 import { get, post, put, del } from '@promo/shared/utils/request'
+import { getErrorMessage } from '@promo/shared/utils/errors'
 
 // 路由实例
 const router = useRouter()
@@ -610,8 +611,8 @@ const handleSendPasswordSms = async () => {
       smsCooldown.value--
       if (smsCooldown.value <= 0 && smsTimer) { clearInterval(smsTimer); smsTimer = null }
     }, 1000)
-  } catch (e: any) {
-    showToast(e.message || '发送失败')
+  } catch (e) {
+    showToast(getErrorMessage(e, '发送失败'))
   }
 }
 
@@ -630,8 +631,8 @@ const handleSetPassword = async () => {
     })
     showToast('密码设置成功')
     passwordDialogVisible.value = false
-  } catch (e: any) {
-    showToast(e.message || '设置失败')
+  } catch (e) {
+    showToast(getErrorMessage(e, '设置失败'))
   }
 }
 
@@ -658,7 +659,7 @@ const doLogout = async () => {
   try {
     // 调用后端登出接口
     await post('/users/logout')
-  } catch (e: any) {
+  } catch (e) {
     // 即使后端调用失败，也继续清除本地数据
     logger.warn('后端登出失败:', e)
   } finally {
@@ -732,8 +733,8 @@ const handleCreateEmployee = async () => {
     } else {
       showToast(res.message || (editingEmployee.value ? '更新失败' : '创建失败'))
     }
-  } catch (e: any) {
-    showToast(e.message || (editingEmployee.value ? '更新失败' : '创建失败'))
+  } catch (e) {
+    showToast(getErrorMessage(e, editingEmployee.value ? '更新失败' : '创建失败'))
   }
 }
 
@@ -764,9 +765,9 @@ const handleDeleteEmployee = async (emp: any) => {
     } else {
       showToast(res.message || '删除失败')
     }
-  } catch (e: any) {
-    if (e.message !== 'cancel') {
-      showToast(e.message || '删除失败')
+  } catch (e) {
+    if ((e as { message?: unknown })?.message !== 'cancel') {
+      showToast(getErrorMessage(e, '删除失败'))
     }
   }
 }
@@ -823,9 +824,9 @@ const loadEmployees = async () => {
       employees.value = []
       employeeCount.value = 0
     }
-  } catch (e: any) {
+  } catch (e) {
     logger.error('[员工列表] 加载失败:', e)
-    showToast(e.message || '获取员工列表失败')
+    showToast(getErrorMessage(e, '获取员工列表失败'))
     employees.value = []
     employeeCount.value = 0
   } finally {

@@ -1,4 +1,5 @@
 import { Request, Response } from 'express'
+import { getErrorMessage } from '@promo/shared'
 import { readQrCodes, insertQrCode, updateQrCode, deleteQrCode, setDefaultQrCode, readDefaultQrCode } from '../data/index.js'
 import { sendSuccess, sendError } from '../utils/response.js'
 
@@ -6,8 +7,8 @@ export const getQrCodes = async (req: Request, res: Response): Promise<void> => 
   try {
     const qrCodes = await readQrCodes()
     sendSuccess(res, qrCodes, '获取成功')
-  } catch (error: any) {
-    sendError(res, error.message || '获取失败', 500)
+  } catch (error) {
+    sendError(res, getErrorMessage(error, '获取失败'), 500)
   }
 }
 
@@ -15,8 +16,8 @@ export const getDefaultQrCode = async (req: Request, res: Response): Promise<voi
   try {
     const qrCode = await readDefaultQrCode()
     sendSuccess(res, qrCode || {}, '获取成功')
-  } catch (error: any) {
-    sendError(res, error.message || '获取失败', 500)
+  } catch (error) {
+    sendError(res, getErrorMessage(error, '获取失败'), 500)
   }
 }
 
@@ -44,11 +45,11 @@ export const createQrCode = async (req: Request, res: Response): Promise<void> =
     })
 
     sendSuccess(res, { id }, '创建成功')
-  } catch (error: any) {
-    if (error.code === 'ER_DUP_ENTRY') {
+  } catch (error) {
+    if ((error as { code?: string }).code === 'ER_DUP_ENTRY') {
       sendError(res, '该网址的二维码已存在', 409)
     } else {
-      sendError(res, error.message || '创建失败', 500)
+      sendError(res, getErrorMessage(error, '创建失败'), 500)
     }
   }
 }
@@ -71,8 +72,8 @@ export const updateQrCodeById = async (req: Request, res: Response): Promise<voi
     })
 
     sendSuccess(res, null, '更新成功')
-  } catch (error: any) {
-    sendError(res, error.message || '更新失败', 500)
+  } catch (error) {
+    sendError(res, getErrorMessage(error, '更新失败'), 500)
   }
 }
 
@@ -83,8 +84,8 @@ export const deleteQrCodeById = async (req: Request, res: Response): Promise<voi
     await deleteQrCode(id)
 
     sendSuccess(res, null, '删除成功')
-  } catch (error: any) {
-    sendError(res, error.message || '删除失败', 500)
+  } catch (error) {
+    sendError(res, getErrorMessage(error, '删除失败'), 500)
   }
 }
 
@@ -95,7 +96,7 @@ export const applyQrCode = async (req: Request, res: Response): Promise<void> =>
     await setDefaultQrCode(id)
 
     sendSuccess(res, null, '应用成功')
-  } catch (error: any) {
-    sendError(res, error.message || '应用失败', 500)
+  } catch (error) {
+    sendError(res, getErrorMessage(error, '应用失败'), 500)
   }
 }

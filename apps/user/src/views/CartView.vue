@@ -59,6 +59,7 @@ import { logger } from '@promo/shared/utils/logger'
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { get, del } from '@promo/shared/utils/request'
+import { getErrorMessage } from '@promo/shared/utils/errors'
 import { showToast } from 'vant'
 import CartItem from '../components/CartItem.vue'
 import { useUser } from '../composables/useLocalStorage'
@@ -134,9 +135,9 @@ const handleRemove = async (item: any) => {
     } else {
       showToast(res.message || '移除失败')
     }
-  } catch (error: any) {
+  } catch (error) {
     logger.error('[CartView] 移除失败:', error)
-    showToast(error.message || '移除失败')
+    showToast(getErrorMessage(error, '移除失败'))
   }
 }
 

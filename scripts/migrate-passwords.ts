@@ -102,8 +102,8 @@ async function checkPlaintextPasswords(): Promise<{
       result.total += plaintextCount
       log(`${table} 表检测到 ${plaintextCount} 个明文密码`, plaintextCount > 0 ? 'warn' : 'info')
       
-    } catch (error: any) {
-      log(`检测 ${table} 表时出错: ${error.message}`, 'error')
+    } catch (error) {
+      log(`检测 ${table} 表时出错: ${error instanceof Error ? error.message : String(error)}`, 'error')
     }
   }
   
@@ -145,14 +145,14 @@ async function migratePasswords(): Promise<{
           result.migrated++
           log(`已迁移 ${table}.${row.id} (${row.phone}) - 请通过短信重置密码`, 'success')
           
-        } catch (error: any) {
+        } catch (error) {
           result.failed++
-          log(`迁移 ${table}.${row.id} 失败: ${error.message}`, 'error')
+          log(`迁移 ${table}.${row.id} 失败: ${error instanceof Error ? error.message : String(error)}`, 'error')
         }
       }
       
-    } catch (error: any) {
-      log(`处理 ${table} 表时出错: ${error.message}`, 'error')
+    } catch (error) {
+      log(`处理 ${table} 表时出错: ${error instanceof Error ? error.message : String(error)}`, 'error')
     }
   }
   
@@ -187,14 +187,14 @@ async function forceResetAllPasswords(): Promise<{
           result.reset++
           log(`已重置 ${table}.${row.id} (${row.phone})`, 'success')
           
-        } catch (error: any) {
+        } catch (error) {
           result.failed++
-          log(`重置 ${table}.${row.id} 失败: ${error.message}`, 'error')
+          log(`重置 ${table}.${row.id} 失败: ${error instanceof Error ? error.message : String(error)}`, 'error')
         }
       }
       
-    } catch (error: any) {
-      log(`处理 ${table} 表时出错: ${error.message}`, 'error')
+    } catch (error) {
+      log(`处理 ${table} 表时出错: ${error instanceof Error ? error.message : String(error)}`, 'error')
     }
   }
   

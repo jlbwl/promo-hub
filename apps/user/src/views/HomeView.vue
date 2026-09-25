@@ -45,6 +45,7 @@ import { logger } from '@promo/shared/utils/logger'
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { get, post } from '@promo/shared/utils/request'
+import { getErrorMessage } from '@promo/shared/utils/errors'
 import { showToast, showConfirmDialog } from 'vant'
 import ProductCard from '../components/ProductCard.vue'
 import CategoryList from '../components/CategoryList.vue'
@@ -220,9 +221,9 @@ const addToCart = async (product: any) => {
     } else {
       showToast(res.message || '加入失败')
     }
-  } catch (error: any) {
+  } catch (error) {
     logger.error('[HomeView] 加入购物车失败:', error)
-    showToast(error.message || '加入失败')
+    showToast(getErrorMessage(error, '加入失败'))
   }
 }
 

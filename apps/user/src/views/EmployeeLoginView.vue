@@ -69,6 +69,7 @@ import { reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { showToast } from 'vant'
 import { post } from '@promo/shared/utils/request'
+import { getErrorMessage } from '@promo/shared/utils/errors'
 
 const router = useRouter()
 
@@ -105,8 +106,8 @@ const handleSubmit = async () => {
     } else {
       showToast(res.message || '登录失败')
     }
-  } catch (err: any) {
-    showToast(err.message || '登录失败')
+  } catch (err) {
+    showToast(getErrorMessage(err, '登录失败'))
   } finally {
     loading.value = false
   }

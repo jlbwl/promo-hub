@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express'
+import { getErrorMessage } from '@promo/shared'
 import { queryOne } from '../data/index.js'
 import logger from '../utils/logger.js'
 
@@ -103,10 +104,10 @@ export const resourcePermission = (config: ResourcePermissionConfig) => {
           data: null
         })
       }
-    } catch (error: any) {
+    } catch (error) {
       logger.error('[ResourcePermission] 权限检查出错', {
-        error: error.message,
-        stack: error.stack
+        error: getErrorMessage(error),
+        stack: error instanceof Error ? error.stack : undefined
       })
       res.status(500).json({
         code: 500,

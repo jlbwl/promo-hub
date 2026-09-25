@@ -117,6 +117,7 @@ import { ref, reactive } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import { post } from '@promo/shared/utils/request'
+import { getErrorMessage } from '@promo/shared/utils/errors'
 
 const router = useRouter()
 const route = useRoute()
@@ -187,8 +188,8 @@ const handlePasswordLogin = async () => {
       const redirect = (route.query.redirect as string) || '/dashboard'
       router.push(redirect)
     }
-  } catch (error: any) {
-    ElMessage.error(error.message || '登录失败，请检查手机号和密码')
+  } catch (error) {
+    ElMessage.error(getErrorMessage(error, '登录失败，请检查手机号和密码'))
   } finally {
     loading.value = false
   }
@@ -209,8 +210,8 @@ const handleSendSms = async () => {
         smsTimer = null
       }
     }, 1000)
-  } catch (e: any) {
-    ElMessage.error(e.message || '发送失败')
+  } catch (e) {
+    ElMessage.error(getErrorMessage(e, '发送失败'))
   }
 }
 
@@ -242,8 +243,8 @@ const handleSmsLogin = async () => {
       const redirect = (route.query.redirect as string) || '/dashboard'
       router.push(redirect)
     }
-  } catch (error: any) {
-    ElMessage.error(error.message || '登录失败')
+  } catch (error) {
+    ElMessage.error(getErrorMessage(error, '登录失败'))
   } finally {
     loading.value = false
   }

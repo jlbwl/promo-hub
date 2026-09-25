@@ -210,6 +210,7 @@
 
 <script setup lang="ts">
 import { logger } from '@promo/shared/utils/logger'
+import { getErrorMessage } from '@promo/shared/utils/errors'
 import { ref, reactive, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -359,9 +360,9 @@ const fetchData = async () => {
       commission: p.commission || 0,
     }))
     pagination.total = total
-  } catch (error: any) {
+  } catch (error) {
     logger.error('获取产品列表失败:', error)
-    ElMessage.error(error.message || '获取产品列表失败')
+    ElMessage.error(getErrorMessage(error, '获取产品列表失败'))
   } finally {
     loading.value = false
   }
@@ -402,9 +403,9 @@ const handleToggleStatus = async (row: Product, newStatus: ProductStatus) => {
     await put(`/products/${row.id}`, { status: newStatus, managerId: getManagerId() })
     ElMessage.success(`${statusLabel}成功`)
     fetchData()
-  } catch (error: any) {
+  } catch (error) {
     if (error !== 'cancel') {
-      ElMessage.error(error.message || '操作失败')
+      ElMessage.error(getErrorMessage(error, '操作失败'))
     }
   }
 }
@@ -435,10 +436,10 @@ const handleDelete = async (row: Product) => {
     logger.debug('[删除产品] 响应:', res)
     ElMessage.success('删除成功')
     fetchData()
-  } catch (error: any) {
+  } catch (error) {
     logger.error('[删除产品] 失败:', error)
     if (error !== 'cancel') {
-      ElMessage.error(error.message || '删除失败')
+      ElMessage.error(getErrorMessage(error, '删除失败'))
     }
   }
 }

@@ -2,6 +2,7 @@ import { logger } from '@promo/shared/utils/logger'
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { get } from '@promo/shared/utils/request'
+import { getErrorMessage } from '@promo/shared/utils/errors'
 import { maskName, maskPhone } from '../utils'
 
 /**
@@ -72,7 +73,7 @@ export function useCommissionAdmin() {
       if (filterKeyword.value) params.keyword = filterKeyword.value
       const res = await get<any>('/orders', params)
       if (res.data) { tableData.value = res.data.list || []; pagination.total = res.data.total || 0 }
-    } catch (e: any) { ElMessage.error(e.message || '获取失败') }
+    } catch (e) { ElMessage.error(getErrorMessage(e, '获取失败')) }
     finally { loading.value = false }
   }
 

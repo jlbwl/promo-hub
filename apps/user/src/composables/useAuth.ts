@@ -54,11 +54,11 @@ export function useAuth() {
         isAuthenticated.value = false
         return false
       }
-    } catch (error: any) {
+    } catch (error) {
       logger.error('自动登录验证失败:', error)
-      
+
       // 如果是 401 错误，说明 Token 已过期
-      if (error.status === 401 || error.statusCode === 401) {
+      if ((error as { status?: number })?.status === 401 || (error as { statusCode?: number })?.statusCode === 401) {
         // 尝试使用 Refresh Token 刷新
         const refreshed = await refreshToken()
         if (refreshed) {

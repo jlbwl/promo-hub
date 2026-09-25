@@ -16,8 +16,8 @@ export async function getCategories(req: Request, res: Response) {
     const categories = await categoryService.getAllCategories(includeArchived)
     sendSuccess(res, { list: categories })
     return
-  } catch (dbError: any) {
-    logger.logError(dbError, 'GET', '/api/categories', req.ip, '')
+  } catch (dbError) {
+    logger.logError(dbError as Error, 'GET', '/api/categories', req.ip, '')
   }
 
   // 降级到文件存储
@@ -47,8 +47,8 @@ export async function createCategory(req: Request, res: Response) {
     const category = await categoryService.createCategory(name, value, sort)
     sendSuccess(res, category, '创建成功')
     return
-  } catch (dbError: any) {
-    logger.logError(dbError, 'POST', '/api/categories', req.ip, '')
+  } catch (dbError) {
+    logger.logError(dbError as Error, 'POST', '/api/categories', req.ip, '')
   }
 
   // 降级到文件存储
@@ -72,8 +72,8 @@ export async function updateCategory(req: Request, res: Response) {
   
   try {
     category = await categoryService.updateCategory(id, { name, sort, status })
-  } catch (dbError: any) {
-    logger.logError(dbError, 'PUT', `/api/categories/${id}`, req.ip, '')
+  } catch (dbError) {
+    logger.logError(dbError as Error, 'PUT', `/api/categories/${id}`, req.ip, '')
   }
 
   if (!category) {
@@ -100,8 +100,8 @@ export async function archiveCategory(req: Request, res: Response) {
 
   try {
     successResult = await categoryService.archiveCategory(id)
-  } catch (dbError: any) {
-    logger.logError(dbError, 'DELETE', `/api/categories/${id}`, req.ip, '')
+  } catch (dbError) {
+    logger.logError(dbError as Error, 'DELETE', `/api/categories/${id}`, req.ip, '')
   }
 
   if (!successResult) {

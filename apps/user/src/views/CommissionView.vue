@@ -285,6 +285,7 @@
 import { logger } from '@promo/shared/utils/logger'
 import { ref, reactive, onMounted, onActivated } from 'vue'
 import { get, del, post } from '@promo/shared/utils/request'
+import { getErrorMessage } from '@promo/shared/utils/errors'
 import { showToast } from 'vant'
 
 // 当前激活的 Tab
@@ -553,9 +554,9 @@ const submitFundAccount = async (record: any) => {
     } else {
       showToast(res.message || '提交失败')
     }
-  } catch (error: any) {
+  } catch (error) {
     logger.error('提交资金号失败:', error)
-    showToast(error.message || '提交失败')
+    showToast(getErrorMessage(error, '提交失败'))
   }
 }
 
@@ -584,9 +585,9 @@ const handleDelete = async (record: any) => {
       } else {
         showToast(res.message || '删除失败')
       }
-    } catch (error: any) {
+    } catch (error) {
       logger.error('删除订单失败:', error)
-      showToast(error.message || '删除失败')
+      showToast(getErrorMessage(error, '删除失败'))
     } finally {
       // 移除确认状态
       const idx = confirmingIds.value.indexOf(record.id)
@@ -658,9 +659,9 @@ const handleRestore = async (order: any) => {
     } else {
       showToast(res.message || '恢复失败')
     }
-  } catch (error: any) {
+  } catch (error) {
     logger.error('恢复订单失败:', error)
-    showToast(error.message || '恢复失败')
+    showToast(getErrorMessage(error, '恢复失败'))
   }
 }
 

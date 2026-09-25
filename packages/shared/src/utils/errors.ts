@@ -92,3 +92,19 @@ export const throwConflict = (message: string, code: number = ErrorCode.CONFLICT
 export const throwServerError = (message: string = '服务器内部错误', code: number = ErrorCode.INTERNAL_SERVER_ERROR): never => {
   throw new AppError(message, code, HttpStatus.INTERNAL_SERVER_ERROR)
 }
+
+/**
+ * 从未知类型的错误对象中安全提取可读的错误信息
+ * 用于 catch (error) 块中替代 error.message（error 为 unknown 时无法直接访问属性）
+ * @param error - 未知类型的错误对象（throw 抛出的任意值）
+ * @param fallback - 提取不到有效信息时的兜底文案
+ */
+export const getErrorMessage = (error: unknown, fallback: string = '操作失败，请稍后重试'): string => {
+  if (error instanceof Error && error.message) return error.message
+  if (typeof error === 'string' && error) return error
+  if (typeof error === 'object' && error !== null && 'message' in error) {
+    const message = (error as { message?: unknown }).message
+    if (typeof message === 'string' && message) return message
+  }
+  return fallback
+}

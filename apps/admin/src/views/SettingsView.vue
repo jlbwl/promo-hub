@@ -89,6 +89,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import { post } from '@promo/shared/utils/request'
+import { getErrorMessage } from '@promo/shared/utils/errors'
 
 const securityFormRef = ref<FormInstance>()
 const securitySaving = ref(false)
@@ -149,8 +150,8 @@ const handleSendPhoneCode = async () => {
         phoneTimer = null
       }
     }, 1000)
-  } catch (e: any) {
-    ElMessage.error(e.message || '发送失败')
+  } catch (e) {
+    ElMessage.error(getErrorMessage(e, '发送失败'))
   }
 }
 
@@ -175,8 +176,8 @@ const handleSecuritySave = async () => {
         localStorage.removeItem('admin_info')
         window.location.href = '/login'
       }, 1500)
-    } catch (error: any) {
-      ElMessage.error(error.message || '修改失败')
+    } catch (error) {
+      ElMessage.error(getErrorMessage(error, '修改失败'))
     } finally {
       securitySaving.value = false
     }

@@ -1,6 +1,8 @@
 /**
  * 短信验证码存储（内存版）- 安全增强版
  */
+import { getErrorMessage } from '@promo/shared'
+
 interface SmsCodeRecord {
   code: string
   expiresAt: number
@@ -162,7 +164,7 @@ export async function sendSmsCode(phone: string, code: string): Promise<{ succes
     } else {
       return { success: false, message: result.Message || '发送失败' }
     }
-  } catch (error: any) {
-    return { success: false, message: error.message || '发送异常' }
+  } catch (error) {
+    return { success: false, message: getErrorMessage(error, '发送异常') }
   }
 }

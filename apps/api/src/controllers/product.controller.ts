@@ -1,4 +1,5 @@
 import { Request, Response } from 'express'
+import { getErrorMessage } from '@promo/shared'
 import { sendSuccess, sendError, sendPagination } from '../utils/response.js'
 import { productService } from '../services/index.js'
 import logger from '../utils/logger.js'
@@ -42,12 +43,12 @@ export const getProducts = async (req: Request, res: Response): Promise<void> =>
     })
 
     sendPagination(res, list, total, parseInt(page as string, 10), parseInt(pageSize as string, 10))
-  } catch (error: any) {
+  } catch (error) {
     logger.error('[ProductController] 获取产品列表失败', {
-      error: error.message,
-      stack: error.stack
+      error: getErrorMessage(error),
+      stack: error instanceof Error ? error.stack : undefined
     })
-    sendError(res, error.message || '获取失败', error.code || 500)
+    sendError(res, getErrorMessage(error, '获取失败'), (error as { code?: number }).code || 500)
   }
 }
 
@@ -80,12 +81,12 @@ export const getProductById = async (req: Request, res: Response): Promise<void>
     const { product, sales } = await productService.getProductById(id)
     product.sales = sales
     sendSuccess(res, product)
-  } catch (error: any) {
+  } catch (error) {
     logger.error('[ProductController] 获取产品详情失败', {
       productId: id,
-      error: error.message
+      error: getErrorMessage(error)
     })
-    sendError(res, error.message || '获取失败', error.code || 500)
+    sendError(res, getErrorMessage(error, '获取失败'), (error as { code?: number }).code || 500)
   }
 }
 
@@ -114,11 +115,11 @@ export const createProduct = async (req: Request, res: Response): Promise<void> 
     const savedProduct = await productService.createProduct(productData)
     logger.info('[ProductController] 产品创建成功', { productId: savedProduct.id })
     sendSuccess(res, savedProduct, '创建成功')
-  } catch (error: any) {
+  } catch (error) {
     logger.error('[ProductController] 创建产品失败', {
-      error: error.message
+      error: getErrorMessage(error)
     })
-    sendError(res, error.message || '创建失败', error.code || 500)
+    sendError(res, getErrorMessage(error, '创建失败'), (error as { code?: number }).code || 500)
   }
 }
 
@@ -146,12 +147,12 @@ export const updateProductById = async (req: Request, res: Response): Promise<vo
     const updated = await productService.updateProduct(id, managerId, req.body)
     logger.info('[ProductController] 产品更新成功', { productId: id })
     sendSuccess(res, updated, '更新成功')
-  } catch (error: any) {
+  } catch (error) {
     logger.error('[ProductController] 更新产品失败', {
       productId: id,
-      error: error.message
+      error: getErrorMessage(error)
     })
-    sendError(res, error.message || '更新失败', error.code || 500)
+    sendError(res, getErrorMessage(error, '更新失败'), (error as { code?: number }).code || 500)
   }
 }
 
@@ -180,12 +181,12 @@ export const deleteProductById = async (req: Request, res: Response): Promise<vo
     await productService.deleteProduct(id, managerId)
     logger.info('[ProductController] 产品删除成功', { productId: id })
     sendSuccess(res, null, '删除成功')
-  } catch (error: any) {
+  } catch (error) {
     logger.error('[ProductController] 删除产品失败', {
       productId: id,
-      error: error.message
+      error: getErrorMessage(error)
     })
-    sendError(res, error.message || '删除失败', error.code || 500)
+    sendError(res, getErrorMessage(error, '删除失败'), (error as { code?: number }).code || 500)
   }
 }
 

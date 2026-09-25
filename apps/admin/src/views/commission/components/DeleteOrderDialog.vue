@@ -56,6 +56,7 @@ import { ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Warning } from '@element-plus/icons-vue'
 import { del } from '@promo/shared/utils/request'
+import { getErrorMessage } from '@promo/shared/utils/errors'
 
 const emit = defineEmits<{
   success: []
@@ -96,8 +97,8 @@ const confirmDelete = async () => {
     } else {
       ElMessage.error(res.message || '删除失败')
     }
-  } catch (error: any) {
-    ElMessage.error(error.message || '删除失败')
+  } catch (error) {
+    ElMessage.error(getErrorMessage(error, '删除失败'))
   }
 }
 

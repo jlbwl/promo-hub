@@ -1,4 +1,5 @@
 import logger from '../utils/logger.js'
+import { getErrorMessage } from '@promo/shared'
 import { Request, Response, NextFunction, RequestHandler } from 'express'
 import session, { Session } from 'express-session'
 import jwt from 'jsonwebtoken'
@@ -230,8 +231,8 @@ export const authMiddleware = (allowedRoles?: Array<'admin' | 'manager' | 'user'
         message: '未登录或会话已过期，请重新登录',
         data: null
       })
-    } catch (error: any) {
-      logger.error('[Auth] Middleware error:', error)
+    } catch (error) {
+      logger.error('[Auth] Middleware error:', { error: getErrorMessage(error) })
       res.status(500).json({ code: 500, message: '认证服务异常', data: null })
     }
   }

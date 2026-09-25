@@ -1,5 +1,6 @@
 import logger from '../utils/logger.js'
 import { Request, Response } from 'express'
+import { getErrorMessage } from '@promo/shared'
 import { sendSuccess, sendError } from '../utils/response.js'
 import {
   readAdminByPhone,
@@ -205,8 +206,8 @@ export const getAdminStats = async (req: Request, res: Response): Promise<void> 
       publishedProductCount: Number(result?.publishedProductCount) || 0,
       totalCommission: Math.round((Number(result?.totalCommission) || 0) * 100) / 100,
     })
-  } catch (error: any) {
-    logger.error('[管理员统计] 错误:', error)
+  } catch (error) {
+    logger.error('[管理员统计] 错误:', { error: getErrorMessage(error) })
     sendSuccess(res, {
       managerCount: 0,
       userCount: 0,
@@ -236,8 +237,8 @@ export const getOperationLogs = async (req: Request, res: Response): Promise<voi
     })
 
     sendSuccess(res, result)
-  } catch (error: any) {
-    logger.error('[获取操作日志] 错误:', error)
-    sendError(res, error.message || '获取失败', 500)
+  } catch (error) {
+    logger.error('[获取操作日志] 错误:', { error: getErrorMessage(error) })
+    sendError(res, getErrorMessage(error, '获取失败'), 500)
   }
 }

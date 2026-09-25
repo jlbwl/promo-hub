@@ -58,6 +58,7 @@ import { ref, reactive } from 'vue'
 import { ElMessage } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
 import { put } from '@promo/shared/utils/request'
+import { getErrorMessage } from '@promo/shared/utils/errors'
 import { maskName } from '../utils'
 
 const emit = defineEmits<{
@@ -100,8 +101,8 @@ const confirm = async () => {
     } else {
       ElMessage.error(res.message || '更新失败')
     }
-  } catch (error: any) {
-    ElMessage.error(error.message || '更新失败')
+  } catch (error) {
+    ElMessage.error(getErrorMessage(error, '更新失败'))
   } finally {
     loading.value = false
   }

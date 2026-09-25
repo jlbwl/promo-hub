@@ -124,6 +124,7 @@
 
 <script setup lang="ts">
 import { logger } from '@promo/shared/utils/logger'
+import { getErrorMessage } from '@promo/shared/utils/errors'
 import { ref, reactive, onMounted, onUnmounted } from 'vue'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import { get, post } from '@promo/shared/utils/request'
@@ -251,8 +252,8 @@ const handleSendSms = async () => {
       smsCooldown.value--
       if (smsCooldown.value <= 0 && smsTimer) { clearInterval(smsTimer); smsTimer = null }
     }, 1000)
-  } catch (e: any) {
-    ElMessage.error(e.message || '发送失败')
+  } catch (e) {
+    ElMessage.error(getErrorMessage(e, '发送失败'))
   }
 }
 
@@ -279,8 +280,8 @@ const handleChangePassword = async () => {
     setTimeout(() => {
       window.location.href = '/login'
     }, 1500)
-  } catch (error: any) {
-    ElMessage.error(error.message || '密码修改失败')
+  } catch (error) {
+    ElMessage.error(getErrorMessage(error, '密码修改失败'))
   } finally {
     passwordSaving.value = false
   }

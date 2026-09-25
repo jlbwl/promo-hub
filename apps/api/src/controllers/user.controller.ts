@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express'
+import { getErrorMessage } from '@promo/shared'
 import {
   sendSuccess,
   sendError,
@@ -252,9 +253,9 @@ export const userSmsLogin = asyncHandler(
           nickname: user.nickname, 
           teamName: user.teamName 
         })
-      } catch (sessionError: any) {
-        logger.warn('Session save failed, continuing anyway', { 
-          error: sessionError.message 
+      } catch (sessionError) {
+        logger.warn('Session save failed, continuing anyway', {
+          error: getErrorMessage(sessionError)
         })
         // 即使 session 保存失败，我们仍然可以返回成功，因为用户信息已经在响应中
       }
@@ -267,19 +268,19 @@ export const userSmsLogin = asyncHandler(
       
       const { password: _, ...safeUser } = user
       sendSuccess(res, { token: tokens.token, refreshToken: tokens.refreshToken, user: safeUser }, '登录成功')
-    } catch (error: any) {
-      logger.error('SMS login failed', { 
-        phone, 
-        error: error.message, 
-        stack: error.stack 
+    } catch (error) {
+      logger.error('SMS login failed', {
+        phone,
+        error: getErrorMessage(error),
+        stack: error instanceof Error ? error.stack : undefined
       })
       // 如果是 AppError，重新抛出，否则包装成通用错误
       if (error instanceof AppError) {
         throw error
       }
       throw new AppError(
-        `登录失败: ${error.message}`, 
-        ErrorCode.INTERNAL_SERVER_ERROR, 
+        `登录失败: ${getErrorMessage(error)}`,
+        ErrorCode.INTERNAL_SERVER_ERROR,
         HttpStatus.INTERNAL_SERVER_ERROR
       )
     }

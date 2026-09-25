@@ -1,5 +1,6 @@
 
 import logger from '../utils/logger.js'
+import { getErrorMessage } from '@promo/shared'
 import { query, queryOne } from '../db.js'
 
 export async function readOrders(): Promise<any[]> {
@@ -197,8 +198,8 @@ export async function getOrdersPaginated(params: {
       })),
       total,
     }
-  } catch (error: any) {
-    logger.error('[订单查询] 数据库错误:', error)
+  } catch (error) {
+    logger.error('[订单查询] 数据库错误:', { error: getErrorMessage(error) })
     const err = new Error('获取订单列表失败')
     ;(err as any).code = 500
     throw err

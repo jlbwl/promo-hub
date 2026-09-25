@@ -372,6 +372,7 @@ import { logger } from '@promo/shared/utils/logger'
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
 import { get, post, put, del } from '@promo/shared/utils/request'
+import { getErrorMessage } from '@promo/shared/utils/errors'
 import type { ProductCategory, Product } from '@promo/shared/types'
 import ExcelJS from 'exceljs'
 import QRCode from 'qrcode'
@@ -490,8 +491,8 @@ const generateQrCode = async () => {
     })
     qrCodeDataUrl.value = await addTextToQrCode(baseQrCode, qrCodeForm.topText, qrCodeForm.centerText)
     ElMessage.success('二维码生成成功')
-  } catch (error: any) {
-    ElMessage.error(error.message || '二维码生成失败')
+  } catch (error) {
+    ElMessage.error(getErrorMessage(error, '二维码生成失败'))
   } finally {
     qrCodeLoading.value = false
   }
@@ -580,11 +581,11 @@ const saveQrCode = async () => {
       qrCodeDataUrl.value = defaultQrCode.dataUrl
     }
     ElMessage.success('二维码保存成功')
-  } catch (error: any) {
-    if (error.response?.status === 409) {
+  } catch (error) {
+    if ((error as { response?: { status?: number } })?.response?.status === 409) {
       ElMessage.warning('该网址的二维码已存在')
     } else {
-      ElMessage.error(error.message || '保存失败')
+      ElMessage.error(getErrorMessage(error, '保存失败'))
     }
   }
 }
@@ -595,8 +596,8 @@ const applyQrCode = async (item: QrCodeItem) => {
     await loadQrCodeList()
     qrCodeDataUrl.value = item.dataUrl
     ElMessage.success('二维码已应用，一键派单将使用该二维码')
-  } catch (error: any) {
-    ElMessage.error(error.message || '应用失败')
+  } catch (error) {
+    ElMessage.error(getErrorMessage(error, '应用失败'))
   }
 }
 
@@ -641,8 +642,8 @@ const loadData = async () => {
   try {
     const res = await get<{ list: ProductCategory[] }>('/categories', { includeArchived: 'true' })
     tableData.value = res.data?.list || []
-  } catch (error: any) {
-    ElMessage.error(error.message || '获取数据失败')
+  } catch (error) {
+    ElMessage.error(getErrorMessage(error, '获取数据失败'))
   } finally {
     loading.value = false
   }
@@ -700,8 +701,8 @@ const handleSave = async () => {
     }
     dialogVisible.value = false
     loadData()
-  } catch (error: any) {
-    ElMessage.error(error.message || '保存失败')
+  } catch (error) {
+    ElMessage.error(getErrorMessage(error, '保存失败'))
   } finally {
     saveLoading.value = false
   }
@@ -724,9 +725,9 @@ const handleToggleStatus = async (row: ProductCategory) => {
     }
     ElMessage.success(`${action}成功`)
     loadData()
-  } catch (error: any) {
+  } catch (error) {
     if (error !== 'cancel') {
-      ElMessage.error(error.message || '操作失败')
+      ElMessage.error(getErrorMessage(error, '操作失败'))
     }
   }
 }
@@ -945,8 +946,8 @@ const handleExportProducts = async () => {
     URL.revokeObjectURL(url)
 
     ElMessage.success('派单表导出成功')
-  } catch (error: any) {
-    ElMessage.error(error.message || '导出失败')
+  } catch (error) {
+    ElMessage.error(getErrorMessage(error, '导出失败'))
   }
 }
 

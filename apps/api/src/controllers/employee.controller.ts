@@ -1,4 +1,5 @@
 import { Request, Response } from 'express'
+import { getErrorMessage } from '@promo/shared'
 import { sendSuccess, sendError } from '../utils/response.js'
 import {
   readEmployeeByPhone,
@@ -58,8 +59,8 @@ export const createEmployee = async (req: Request, res: Response): Promise<void>
     await insertEmployee(employee)
     
     sendSuccess(res, { ...employee, password: '******' }, '创建成功')
-  } catch (err: any) {
-    sendError(res, err.message || '创建失败', 1)
+  } catch (err) {
+    sendError(res, getErrorMessage(err, '创建失败'), 1)
   }
 }
 
@@ -76,8 +77,8 @@ export const getEmployees = async (req: Request, res: Response): Promise<void> =
     
     const employees = await readEmployeesByUserId(userId as string)
     sendSuccess(res, employees, 'success')
-  } catch (err: any) {
-    sendError(res, err.message || '获取失败', 1)
+  } catch (err) {
+    sendError(res, getErrorMessage(err, '获取失败'), 1)
   }
 }
 
@@ -92,8 +93,8 @@ export const getEmployeeById = async (req: Request, res: Response): Promise<void
       return sendError(res, '员工不存在', 1)
     }
     sendSuccess(res, employee, 'success')
-  } catch (err: any) {
-    sendError(res, err.message || '获取失败', 1)
+  } catch (err) {
+    sendError(res, getErrorMessage(err, '获取失败'), 1)
   }
 }
 
@@ -105,8 +106,8 @@ export const deleteEmployeeById = async (req: Request, res: Response): Promise<v
     const id = req.params.id as string
     await deleteEmployee(id)
     sendSuccess(res, null, '删除成功')
-  } catch (err: any) {
-    sendError(res, err.message || '删除失败', 1)
+  } catch (err) {
+    sendError(res, getErrorMessage(err, '删除失败'), 1)
   }
 }
 
@@ -147,8 +148,8 @@ export const updateEmployeeById = async (req: Request, res: Response): Promise<v
     
     const updated = await readEmployeeById(id)
     sendSuccess(res, { ...updated, password: '******' }, '更新成功')
-  } catch (err: any) {
-    sendError(res, err.message || '更新失败', 1)
+  } catch (err) {
+    sendError(res, getErrorMessage(err, '更新失败'), 1)
   }
 }
 
@@ -201,8 +202,8 @@ export const employeeLogin = async (req: Request, res: Response): Promise<void> 
       employee: { ...employee, password: '******' },
       user: user ? { id: user.id, phone: user.phone, nickname: user.nickname } : null
     }, '登录成功')
-  } catch (err: any) {
-    sendError(res, err.message || '登录失败', 1)
+  } catch (err) {
+    sendError(res, getErrorMessage(err, '登录失败'), 1)
   }
 }
 
@@ -230,7 +231,7 @@ export const validateEmployee = async (req: Request, res: Response): Promise<voi
     }
     
     sendSuccess(res, { expiresAt: employee.expiresAt }, '账户有效')
-  } catch (err: any) {
-    sendError(res, err.message || '验证失败', 1)
+  } catch (err) {
+    sendError(res, getErrorMessage(err, '验证失败'), 1)
   }
 }

@@ -310,6 +310,7 @@ import { reactive, ref, onMounted } from 'vue'
 import { User, UserFilled, Goods, Money } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { get, put } from '@promo/shared/utils/request'
+import { getErrorMessage } from '@promo/shared/utils/errors'
 
 // 统计数据
 const stats = reactive({
@@ -441,8 +442,9 @@ const handleOffline = async (row: any) => {
     // 显示整改建议
     offlineProduct.value = { ...row, offlineReason: reason }
     offlineResultVisible.value = true
-  } catch (e: any) {
-    if (e !== 'cancel' && e?.message) ElMessage.error(e.message)
+  } catch (e) {
+    const msg = getErrorMessage(e, '')
+    if (e !== 'cancel' && msg) ElMessage.error(msg)
   }
 }
 

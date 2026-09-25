@@ -1,4 +1,5 @@
 import { Request, Response } from 'express'
+import { getErrorMessage } from '@promo/shared'
 import { sendSuccess, sendError } from '../utils/response.js'
 import { withTransaction } from '../db.js'
 import {
@@ -115,9 +116,9 @@ export const createManager = async (req: Request, res: Response): Promise<void> 
 
     const { password: _, ...safeManager } = manager
     sendSuccess(res, safeManager, '添加成功')
-  } catch (error: any) {
-    logger.error('[createManager] Failed to create manager', { error: error.message, stack: error.stack })
-    sendError(res, '添加渠道失败: ' + error.message, 500)
+  } catch (error) {
+    logger.error('[createManager] Failed to create manager', { error: getErrorMessage(error), stack: error instanceof Error ? error.stack : undefined })
+    sendError(res, '添加渠道失败: ' + getErrorMessage(error), 500)
   }
 }
 
@@ -256,9 +257,9 @@ export const updateManagerTeamName = async (req: Request, res: Response): Promis
     const { password: _, ...safeManager } = managers[managerIndex]
     logger.info('[updateManagerTeamName] Update successful', { managerId, finalTeamName, updatedUsers: usersToUpdate.length })
     sendSuccess(res, safeManager, '更新成功')
-  } catch (error: any) {
-    logger.error('[updateManagerTeamName] Failed to update team name', { error: error.message })
-    sendError(res, '更新失败: ' + error.message, 500)
+  } catch (error) {
+    logger.error('[updateManagerTeamName] Failed to update team name', { error: getErrorMessage(error) })
+    sendError(res, '更新失败: ' + getErrorMessage(error), 500)
   }
 }
 

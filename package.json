@@ -19,7 +19,7 @@
     "build": "pnpm build:shared && pnpm build:admin && pnpm build:manager && pnpm build:user && pnpm build:api",
     "lint": "eslint . --ext .vue,.js,.ts,.tsx",
     "lint:fix": "eslint . --ext .vue,.js,.ts,.tsx --fix",
-    "type-check": "pnpm --filter @promo/admin exec vue-tsc --noEmit && pnpm --filter @promo/manager exec vue-tsc --noEmit && pnpm --filter @promo/user exec vue-tsc --noEmit && pnpm --filter @promo/shared exec tsc --noEmit",
+    "type-check": "pnpm --filter @promo/admin exec vue-tsc --noEmit && pnpm --filter @promo/manager exec vue-tsc --noEmit && pnpm --filter @promo/user exec vue-tsc --noEmit && pnpm --filter @promo/shared exec tsc --noEmit && pnpm --filter @promo/api exec tsc --noEmit",
     "test": "pnpm build:shared && vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",

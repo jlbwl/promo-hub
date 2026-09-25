@@ -193,6 +193,7 @@
 import { ref, reactive } from 'vue'
 import { ElMessage } from 'element-plus'
 import { get } from '@promo/shared/utils/request'
+import { getErrorMessage } from '@promo/shared/utils/errors'
 
 const loading = ref(false)
 const tableData = ref<any[]>([])
@@ -217,8 +218,8 @@ const fetchLogs = async () => {
       tableData.value = res.data?.list || []
       pagination.total = res.data?.total || 0
     }
-  } catch (error: any) {
-    ElMessage.error(error.message || '获取日志失败')
+  } catch (error) {
+    ElMessage.error(getErrorMessage(error, '获取日志失败'))
   } finally {
     loading.value = false
   }

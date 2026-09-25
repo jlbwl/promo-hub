@@ -7,6 +7,7 @@ import { existsSync, mkdirSync } from 'fs'
 import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
 import multer from 'multer'
+import { getErrorMessage } from '@promo/shared'
 import logger from './utils/logger.js'
 import cookieParser from 'cookie-parser'
 import { sessionMiddleware, requireManager, requireAdmin } from './middleware/auth.js'
@@ -134,9 +135,9 @@ app.post(
           size: result.size,
         },
       })
-    } catch (error: any) {
-      logger.error('[API] 封面图片上传失败', { error: error.message })
-      res.json({ code: 500, message: error.message || '上传失败', data: null })
+    } catch (error) {
+      logger.error('[API] 封面图片上传失败', { error: getErrorMessage(error) })
+      res.json({ code: 500, message: getErrorMessage(error, '上传失败'), data: null })
     }
   }
 )
@@ -193,9 +194,9 @@ app.post(
           size: result.size,
         },
       })
-    } catch (error: any) {
-      logger.error('[API] 通用图片上传失败', { error: error.message })
-      res.json({ code: 500, message: error.message || '上传失败', data: null })
+    } catch (error) {
+      logger.error('[API] 通用图片上传失败', { error: getErrorMessage(error) })
+      res.json({ code: 500, message: getErrorMessage(error, '上传失败'), data: null })
     }
   }
 )
@@ -227,8 +228,8 @@ app.post('/api/cache/clear', requireAdmin, async (_req, res) => {
     const cacheService = getCacheService()
     await cacheService.flush()
     res.json({ code: 0, message: '缓存已清空', data: null })
-  } catch (error: any) {
-    res.json({ code: 500, message: '清空缓存失败: ' + error.message, data: null })
+  } catch (error) {
+    res.json({ code: 500, message: '清空缓存失败: ' + getErrorMessage(error), data: null })
   }
 })
 

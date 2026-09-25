@@ -65,6 +65,7 @@
 
 <script setup lang="ts">
 import { logger } from '@promo/shared/utils/logger'
+import { getErrorMessage } from '@promo/shared/utils/errors'
 import { ref, onMounted, watch, nextTick, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import { PictureFilled, InfoFilled, Loading } from '@element-plus/icons-vue'
@@ -332,9 +333,9 @@ const processImage = async (file: File) => {
     
     ElMessage.success('图片插入成功')
     
-  } catch (error: any) {
+  } catch (error) {
     logger.error('图片处理失败:', error)
-    ElMessage.error('图片处理失败：' + (error.message || '请重试'))
+    ElMessage.error('图片处理失败：' + getErrorMessage(error, '请重试'))
   } finally {
     uploading.value = false
   }
