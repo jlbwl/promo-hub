@@ -50,13 +50,13 @@ export enum ErrorCode {
 export class AppError extends Error {
   public readonly code: number
   public readonly statusCode: number
-  public readonly details?: Record<string, any>
+  public readonly details?: Record<string, unknown>
 
   constructor(
     message: string,
     code: number = ErrorCode.BAD_REQUEST,
     statusCode: number = HttpStatus.BAD_REQUEST,
-    details?: Record<string, any>
+    details?: Record<string, unknown>
   ) {
     super(message)
     this.name = 'AppError'

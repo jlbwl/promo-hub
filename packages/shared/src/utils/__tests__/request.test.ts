@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import axios from 'axios'
+import { describe, it, expect, vi, beforeEach, afterEach, type Mock } from 'vitest'
+import axios, { type AxiosInstance } from 'axios'
 
 vi.mock('axios')
 
@@ -20,21 +20,21 @@ describe('request module', () => {
     },
   }
 
-  let get: any
-  let post: any
-  let put: any
-  let del: any
-  let requestInterceptor: any
-  let requestErrorInterceptor: any
-  let responseSuccessInterceptor: any
-  let responseErrorInterceptor: any
+  let get: Mock
+  let post: Mock
+  let put: Mock
+  let del: Mock
+  let requestInterceptor: Mock
+  let requestErrorInterceptor: Mock
+  let responseSuccessInterceptor: Mock
+  let responseErrorInterceptor: Mock
 
   beforeEach(async () => {
     vi.clearAllMocks()
     vi.resetModules()
 
     // Setup mocks before importing the module
-    mockAxios.create.mockReturnValue(mockAxiosInstance as any)
+    mockAxios.create.mockReturnValue(mockAxiosInstance as unknown as AxiosInstance)
     mockAxiosInstance.interceptors.request.use.mockImplementation((success, error) => {
       requestInterceptor = success
       requestErrorInterceptor = error
@@ -43,15 +43,15 @@ describe('request module', () => {
     mockAxiosInstance.interceptors.response.use.mockImplementation((success, error) => {
       responseSuccessInterceptor = success
       responseErrorInterceptor = error
-      return [success, error] as any
+      return [success, error] as unknown as number
     })
 
     // Dynamically import the module after mocks are set up
     const module = await import('../request')
-    get = module.get
-    post = module.post
-    put = module.put
-    del = module.del
+    get = module.get as unknown as Mock
+    post = module.post as unknown as Mock
+    put = module.put as unknown as Mock
+    del = module.del as unknown as Mock
   })
 
   afterEach(() => {
@@ -105,7 +105,7 @@ describe('request module', () => {
     it('should add Authorization header when token exists', async () => {
       const mockConfig = { headers: {} }
 
-      ;(localStorage.getItem as any).mockReturnValue('test-token')
+      vi.mocked(localStorage.getItem).mockReturnValue('test-token')
       const result = await requestInterceptor(mockConfig)
 
       expect(result.headers.Authorization).toBe('Bearer test-token')
@@ -114,7 +114,7 @@ describe('request module', () => {
     it('should not add Authorization header when token does not exist', async () => {
       const mockConfig = { headers: {} }
 
-      ;(localStorage.getItem as any).mockReturnValue(null)
+      vi.mocked(localStorage.getItem).mockReturnValue(null)
       const result = await requestInterceptor(mockConfig)
 
       expect(result.headers.Authorization).toBeUndefined()
@@ -123,7 +123,7 @@ describe('request module', () => {
     it('should preserve existing config', async () => {
       const mockConfig = { headers: { 'X-Custom': 'value' } }
 
-      ;(localStorage.getItem as any).mockReturnValue(null)
+      vi.mocked(localStorage.getItem).mockReturnValue(null)
       const result = await requestInterceptor(mockConfig)
 
       expect(result.headers['X-Custom']).toBe('value')

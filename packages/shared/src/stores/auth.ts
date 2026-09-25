@@ -44,6 +44,15 @@ const ROLE_CONFIG: Record<RoleType, {
   },
 }
 
+// 各角色登录接口返回的用户信息字段名不同（admin/manager/user/employee）
+interface LoginSuccessPayload {
+  token?: string
+  admin?: User | null
+  manager?: User | null
+  user?: User | null
+  employee?: User | null
+}
+
 export const useAuthStore = defineStore('auth', () => {
   // 当前角色 - 默认 user
   const currentRole = ref<RoleType>('user')
@@ -76,7 +85,7 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   // 通用登录成功处理
-  const handleLoginSuccess = (data: any) => {
+  const handleLoginSuccess = (data: LoginSuccessPayload) => {
     token.value = data.token || ''
     // 根据不同角色获取用户信息
     user.value = data.admin || data.manager || data.user || data.employee || null

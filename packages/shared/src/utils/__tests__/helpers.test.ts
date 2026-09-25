@@ -148,27 +148,27 @@ describe('helpers', () => {
     })
 
     it('should return true when copy succeeds', async () => {
-      ;(navigator.clipboard.writeText as any).mockResolvedValue(undefined)
+      vi.mocked(navigator.clipboard.writeText).mockResolvedValue(undefined)
       const result = await copyToClipboard('test text')
       expect(result).toBe(true)
       expect(navigator.clipboard.writeText).toHaveBeenCalledWith('test text')
     })
 
     it('should return false when copy fails', async () => {
-      ;(navigator.clipboard.writeText as any).mockRejectedValue(new Error('Failed'))
+      vi.mocked(navigator.clipboard.writeText).mockRejectedValue(new Error('Failed'))
       const result = await copyToClipboard('test text')
       expect(result).toBe(false)
     })
 
     it('should handle empty string', async () => {
-      ;(navigator.clipboard.writeText as any).mockResolvedValue(undefined)
+      vi.mocked(navigator.clipboard.writeText).mockResolvedValue(undefined)
       const result = await copyToClipboard('')
       expect(result).toBe(true)
       expect(navigator.clipboard.writeText).toHaveBeenCalledWith('')
     })
 
     it('should handle long text', async () => {
-      ;(navigator.clipboard.writeText as any).mockResolvedValue(undefined)
+      vi.mocked(navigator.clipboard.writeText).mockResolvedValue(undefined)
       const longText = 'a'.repeat(10000)
       const result = await copyToClipboard(longText)
       expect(result).toBe(true)
@@ -176,7 +176,7 @@ describe('helpers', () => {
     })
 
     it('should handle special characters', async () => {
-      ;(navigator.clipboard.writeText as any).mockResolvedValue(undefined)
+      vi.mocked(navigator.clipboard.writeText).mockResolvedValue(undefined)
       const specialChars = '!@#$%^&*()_+-=[]{}|;:,.<>?/`~'
       const result = await copyToClipboard(specialChars)
       expect(result).toBe(true)
@@ -184,7 +184,7 @@ describe('helpers', () => {
     })
 
     it('should handle unicode characters', async () => {
-      ;(navigator.clipboard.writeText as any).mockResolvedValue(undefined)
+      vi.mocked(navigator.clipboard.writeText).mockResolvedValue(undefined)
       const unicode = '你好世界！🎉'
       const result = await copyToClipboard(unicode)
       expect(result).toBe(true)
@@ -192,7 +192,7 @@ describe('helpers', () => {
     })
 
     it('should catch different types of errors', async () => {
-      ;(navigator.clipboard.writeText as any).mockRejectedValue(
+      vi.mocked(navigator.clipboard.writeText).mockRejectedValue(
         new DOMException('Clipboard access denied', 'NotAllowedError')
       )
       const result = await copyToClipboard('test')
