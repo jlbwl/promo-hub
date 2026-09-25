@@ -37,9 +37,9 @@
       <div class="product-bottom">
         <span class="product-price">¥{{ product.price }}</span>
       </div>
-      <!-- 产品操作按钮 -->
+      <!-- 产品操作按钮（访客隐藏收藏按钮） -->
       <div
-        v-if="showActions"
+        v-if="showAddButton"
         class="product-actions"
       >
         <van-button
@@ -59,6 +59,8 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
+import { useRoute } from 'vue-router'
 import type { Product } from '@promo/shared/types'
 
 /**
@@ -84,24 +86,35 @@ interface Emits {
   (e: 'add-to-cart', product: ProductCardProps['product']): void
 }
 
-const { product, categoryName, showActions } = withDefaults(defineProps<ProductCardProps>(), {
+const props = withDefaults(defineProps<ProductCardProps>(), {
   showActions: true
 })
 
 const emit = defineEmits<Emits>()
 
+const route = useRoute()
+
+/**
+ * 收藏按钮是否可见：访客隐藏，登录用户（主账户/员工账户）可见
+ * 依赖 route.path：localStorage 非响应式，登录跳转回首页后随路由重新求值
+ */
+const showAddButton = computed(() => {
+  void route.path
+  return props.showActions && (!!localStorage.getItem('user_token') || !!localStorage.getItem('employee_token'))
+})
+
 /**
  * 点击产品卡片
  */
 const handleCardClick = () => {
-  emit('click', product)
+  emit('click', props.product)
 }
 
 /**
  * 添加到购物车
  */
 const handleAddToCart = () => {
-  emit('add-to-cart', product)
+  emit('add-to-cart', props.product)
 }
 </script>
 
