@@ -1,6 +1,6 @@
 import logger from '../utils/logger.js'
 import { Request, Response } from 'express'
-import { getErrorMessage } from '@promo/shared'
+import { getErrorMessage, type CartItem } from '@promo/shared'
 import { sendSuccess, sendError } from '../utils/response.js'
 import {
   readCartItems,
@@ -24,7 +24,7 @@ export const getCartItems = async (req: Request, res: Response): Promise<void> =
       return sendError(res, '缺少用户ID', 400)
     }
 
-    let items: any[] = []
+    let items: CartItem[] = []
     try {
       items = await readCartItems(userId as string)
     } catch (dbError) {
@@ -53,7 +53,7 @@ export const getManagerCart = async (req: Request, res: Response): Promise<void>
       return sendError(res, '缺少经理ID', 400)
     }
 
-    let items: any[] = []
+    let items: CartItem[] = []
     try {
       items = await readCartByManagerId(managerId as string)
     } catch (dbError) {

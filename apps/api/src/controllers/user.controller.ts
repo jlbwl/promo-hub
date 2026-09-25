@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express'
-import { getErrorMessage } from '@promo/shared'
+import { getErrorMessage, type Manager } from '@promo/shared'
 import {
   sendSuccess,
   sendError,
@@ -12,6 +12,7 @@ import logger from '../utils/logger.js'
 import {
   readUsers,
   type UserRow,
+  type UserRecord,
   readUsersPaged,
   writeUsers,
   readManagers,
@@ -25,10 +26,16 @@ import {
   updateUser,
   withTransaction,
 } from '../data/index.js'
-import { login as sessionLogin, loginSync as sessionLoginSync, generateAuthToken, logout as sessionLogout, generateTokens, refreshAuthToken } from '../middleware/auth.js'
+import { login as sessionLogin, loginSync as sessionLoginSync, generateAuthToken, logout as sessionLogout, generateTokens, refreshAuthToken, type AuthUser } from '../middleware/auth.js'
 import { sendSmsCode } from '../utils/sms.js'
 import { generateSmsCode, saveSmsCode, verifySmsCode, deleteSmsCode } from '../utils/sms.js'
 import { hashPassword, verifyPassword } from '../utils/password.js'
+
+// 短信登录场景的用户行：phone 必有（按手机号查询/新建），role 收窄为系统角色
+type SmsLoginUser = UserRecord & {
+  phone: string
+  role: AuthUser['role']
+}
 
 // ============================================
 // 用户注册和登录
@@ -60,14 +67,14 @@ export const registerUser = asyncHandler(
 
     // 检查重复注册
     const users: UserRow[] = await readUsers()
-    const existingPhone = users.find((u: any) => u.phone === phone)
+    const existingPhone = users.find((u: UserRow) => u.phone === phone)
     if (existingPhone) {
       throw new AppError('该手机号已注册', ErrorCode.USER_ALREADY_EXISTS, HttpStatus.CONFLICT)
     }
 
     // 检查团队名称
     if (teamName) {
-      const existingTeam = users.find((u: any) => u.teamName === teamName)
+      const existingTeam = users.find((u: UserRow) => u.teamName === teamName)
       if (existingTeam) {
         throw new AppError('该团队名称已存在', ErrorCode.BAD_REQUEST, HttpStatus.CONFLICT)
       }
@@ -112,7 +119,7 @@ export const userLogin = asyncHandler(
 
     const users = await readUsers()
     const user = users.find(
-      (u: any) => u.phone === phone && u.status === 'active'
+      (u: UserRecord) => u.phone === phone && u.status === 'active'
     )
     if (!user) {
       throw new AppError(
@@ -187,13 +194,13 @@ export const userSmsLogin = asyncHandler(
       throw new AppError('验证码错误或已过期', ErrorCode.CODE_EXPIRED, HttpStatus.BAD_REQUEST)
     }
 
-    let user: any = null
+    let user: SmsLoginUser | null = null
     let isNewUser = false
 
     try {
       // 查询用户
       logger.debug('Querying user by phone', { phone })
-      user = await queryOne('SELECT * FROM users WHERE phone = ?', [phone])
+      user = await queryOne<SmsLoginUser>('SELECT * FROM users WHERE phone = ?', [phone])
       logger.debug('Query result', { userFound: !!user })
 
       if (!user) {
@@ -228,7 +235,7 @@ export const userSmsLogin = asyncHandler(
       } else {
         // 反序列化 loginMethods
         logger.debug('Updating existing user', { userId: user.id })
-        const loginMethods = deserialize(user.loginMethods)
+        const loginMethods = deserialize<string>(user.loginMethods)
         const newLoginMethods = Array.isArray(loginMethods) ? loginMethods : ['sms']
         if (!newLoginMethods.includes('sms')) {
           newLoginMethods.push('sms')
@@ -239,7 +246,7 @@ export const userSmsLogin = asyncHandler(
           updatedAt: new Date().toISOString(),
         })
         // 重新获取最新的用户数据
-        user = await queryOne('SELECT * FROM users WHERE id = ?', [user.id]) as any
+        user = await queryOne('SELECT * FROM users WHERE id = ?', [user.id]) as SmsLoginUser
         user.loginMethods = newLoginMethods
         logger.info('User updated', { userId: user.id })
       }
@@ -307,7 +314,7 @@ export const setUserPassword = asyncHandler(
     }
 
     let users = await readUsers()
-    const index = users.findIndex((u: any) => u.phone === phone)
+    const index = users.findIndex((u: UserRow) => u.phone === phone)
     if (index === -1) {
       throw new AppError('用户不存在', ErrorCode.USER_NOT_FOUND, HttpStatus.NOT_FOUND)
     }
@@ -332,7 +339,7 @@ export const setUserPassword = asyncHandler(
  */
 export const userLogout = asyncHandler(
   async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
-    logger.info('User logout', { userId: req.session?.user?.id || (req as any).user?.id })
+    logger.info('User logout', { userId: req.session?.user?.id || req.user?.id })
     
     // 清除 Session
     sessionLogout(req)
@@ -364,7 +371,7 @@ export const getUsers = asyncHandler(
       pageSize: pageSizeNum,
     })
 
-    const list = result.list.map((u: any) => ({
+    const list = result.list.map((u: UserRecord) => ({
       id: u.id,
       name: u.nickname,
       phone: u.phone,
@@ -386,7 +393,7 @@ export const getUserById = asyncHandler(
     const userId = req.params.id
 
     const managers = await readManagers()
-    const manager = managers.find((m: any) => m.id === userId)
+    const manager = managers.find((m: Manager) => m.id === userId)
     if (manager) {
       return sendSuccess(res, {
         id: manager.id,
@@ -400,7 +407,7 @@ export const getUserById = asyncHandler(
     }
 
     const users = await readUsers()
-    const user = users.find((u: any) => u.id === userId)
+    const user = users.find((u: UserRecord) => u.id === userId)
     if (user) {
       return sendSuccess(res, {
         id: user.id,
@@ -429,7 +436,7 @@ export const deleteUser = asyncHandler(
     }
     
     // 获取管理员信息（支持 session 和 JWT token）
-    const adminInfo = req.session?.user || (req as any).user
+    const adminInfo = req.session?.user || req.user
     if (!adminInfo || !adminInfo.phone) {
       throw new AppError('未登录', ErrorCode.UNAUTHORIZED, HttpStatus.UNAUTHORIZED)
     }
@@ -444,7 +451,7 @@ export const deleteUser = asyncHandler(
     // 检查用户是否存在
     const userId = req.params.id as string
     const users = await readUsers()
-    const exists = users.some((u: any) => u.id === userId)
+    const exists = users.some((u: UserRecord) => u.id === userId)
     if (!exists) {
       throw new AppError('用户不存在', ErrorCode.USER_NOT_FOUND, HttpStatus.NOT_FOUND)
     }
@@ -471,7 +478,7 @@ export const updateUserStatus = asyncHandler(
     const userId = req.params.id as string
 
     let managers = await readManagers()
-    const mgrIdx = managers.findIndex((m: any) => m.id === userId)
+    const mgrIdx = managers.findIndex((m: Manager) => m.id === userId)
     if (mgrIdx !== -1) {
       managers[mgrIdx].status = (status ? 'active' : 'disabled') as 'active' | 'inactive' | 'banned'
       managers[mgrIdx].updatedAt = new Date().toISOString()
@@ -496,7 +503,7 @@ export const updateUserStatus = asyncHandler(
     }
 
     let users = await readUsers()
-    const usrIdx = users.findIndex((u: any) => u.id === userId)
+    const usrIdx = users.findIndex((u: UserRecord) => u.id === userId)
     if (usrIdx !== -1) {
       users[usrIdx].status = status ? 'active' : 'disabled'
       users[usrIdx].updatedAt = new Date().toISOString()
@@ -518,7 +525,7 @@ export const updateUserRole = asyncHandler(
     const userId = req.params.id as string
 
     let managers = await readManagers()
-    const mgrIdx = managers.findIndex((m: any) => m.id === userId)
+    const mgrIdx = managers.findIndex((m: Manager) => m.id === userId)
     if (mgrIdx !== -1) {
       managers[mgrIdx].role = role
       managers[mgrIdx].updatedAt = new Date().toISOString()
@@ -528,7 +535,7 @@ export const updateUserRole = asyncHandler(
     }
 
     let users = await readUsers()
-    const usrIdx = users.findIndex((u: any) => u.id === userId)
+    const usrIdx = users.findIndex((u: UserRecord) => u.id === userId)
     if (usrIdx !== -1) {
       users[usrIdx].role = role
       users[usrIdx].updatedAt = new Date().toISOString()
@@ -556,8 +563,8 @@ export const updateUserTeamName = asyncHandler(
     let users = await readUsers()
     let managers = await readManagers()
     
-    const usrIdx = users.findIndex((u: any) => u.id === userId)
-    const mgrIdx = managers.findIndex((m: any) => m.id === userId)
+    const usrIdx = users.findIndex((u: UserRecord) => u.id === userId)
+    const mgrIdx = managers.findIndex((m: Manager) => m.id === userId)
     
     if (usrIdx === -1 && mgrIdx === -1) {
       throw new AppError('用户不存在', ErrorCode.USER_NOT_FOUND, HttpStatus.NOT_FOUND)
@@ -565,8 +572,8 @@ export const updateUserTeamName = asyncHandler(
 
     // 检查团队名称是否重复
     const isDuplicate = 
-      users.find((u: any) => u.id !== userId && u.teamName === teamName) || 
-      managers.find((m: any) => m.id !== userId && m.teamName === teamName)
+      users.find((u: UserRecord) => u.id !== userId && u.teamName === teamName) ||
+      managers.find((m: Manager) => m.id !== userId && m.teamName === teamName)
     
     if (isDuplicate) {
       throw new AppError('该团队名称已存在', ErrorCode.BAD_REQUEST, HttpStatus.CONFLICT)

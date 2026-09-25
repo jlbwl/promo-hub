@@ -1,4 +1,4 @@
-import mysql from 'mysql2/promise'
+import mysql, { type RowDataPacket } from 'mysql2/promise'
 import dotenv from 'dotenv'
 import { getErrorMessage } from '@promo/shared'
 import { join, dirname } from 'path'
@@ -33,7 +33,7 @@ const pool = mysql.createPool({
   connectTimeout: 10000,
 })
 
-export async function query(sql: string, params?: any[]): Promise<any> {
+export async function query(sql: string, params?: unknown[]): Promise<unknown> {
   const startTime = Date.now()
   let timeoutId: ReturnType<typeof setTimeout>
   try {
@@ -41,7 +41,7 @@ export async function query(sql: string, params?: any[]): Promise<any> {
       timeoutId = setTimeout(() => reject(new Error('Query timeout after 20s')), 20000)
     })
     const queryPromise = pool.query(sql, params)
-    const [rows] = await Promise.race([queryPromise, timeoutPromise]) as any
+    const [rows] = await Promise.race([queryPromise, timeoutPromise])
     const duration = Date.now() - startTime
     clearTimeout(timeoutId!)
     dbLogger.info(`Query completed in ${duration}ms`, { sql: sql.substring(0, 100) })
@@ -61,7 +61,9 @@ export async function query(sql: string, params?: any[]): Promise<any> {
   }
 }
 
-export async function queryOne(sql: string, params?: any[]): Promise<any> {
+// 泛型行查询：调用方通过类型参数声明期望的行结构；
+// 未声明时返回 unknown，消费处需自行收窄（truthy 判断可直接用）
+export async function queryOne<T = unknown>(sql: string, params?: unknown[]): Promise<T | null> {
   const startTime = Date.now()
   let timeoutId: ReturnType<typeof setTimeout>
   try {
@@ -69,14 +71,14 @@ export async function queryOne(sql: string, params?: any[]): Promise<any> {
       timeoutId = setTimeout(() => reject(new Error('Query timeout after 20s')), 20000)
     })
     const queryPromise = pool.query(sql, params)
-    const [rows] = await Promise.race([queryPromise, timeoutPromise]) as any
+    const [rows] = await Promise.race([queryPromise, timeoutPromise])
     const duration = Date.now() - startTime
     clearTimeout(timeoutId!)
     dbLogger.info(`QueryOne completed in ${duration}ms`, { sql: sql.substring(0, 100) })
     if (!isDev && duration >= SLOW_QUERY_THRESHOLD) {
       dbLogger.warn(`Slow query (queryOne): ${duration}ms`, { sql: sql.substring(0, 200) })
     }
-    return (rows as any[])[0] || null
+    return ((rows as RowDataPacket[])[0] as unknown as T) || null
   } catch (error) {
     const duration = Date.now() - startTime
     clearTimeout(timeoutId!)

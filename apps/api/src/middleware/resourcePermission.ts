@@ -1,7 +1,26 @@
 import { Request, Response, NextFunction } from 'express'
-import { getErrorMessage } from '@promo/shared'
-import { queryOne } from '../data/index.js'
+import { getErrorMessage, type Product } from '@promo/shared'
+import { queryOne, type UserRow } from '../data/index.js'
+import type { OrderRow } from '../data-memory.js'
+import type { AuthUser } from './auth.js'
 import logger from '../utils/logger.js'
+
+// 轻量行类型：仅声明调用点实际消费的字段（列查询用）
+interface ManagerIdRow {
+  managerId?: string
+}
+
+interface TeamNameRow {
+  teamName?: string
+}
+
+declare global {
+  namespace Express {
+    interface Request {
+      resourceOwnerId?: string
+    }
+  }
+}
 
 // 资源类型定义
 export type ResourceType = 'product' | 'manager' | 'user' | 'order' | 'category'
@@ -21,7 +40,7 @@ export interface ResourcePermissionConfig {
   resourceType: ResourceType
   resourceIdParam?: string // URL参数中的资源ID字段名，如 'id'
   action: ActionType
-  getOwnerId?: (resource: any) => string | null // 获取资源所有者ID的函数
+  getOwnerId?: (resource: unknown) => string | null // 获取资源所有者ID的函数
   adminOverride?: boolean // 管理员是否可以跳过检查
   allowPublic?: boolean // 是否允许公开访问
 }
@@ -33,7 +52,7 @@ export interface ResourcePermissionConfig {
 export const resourcePermission = (config: ResourcePermissionConfig) => {
   return async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const user = (req as any).user
+      const user = req.user
       
       if (!user) {
         res.status(401).json({
@@ -57,9 +76,9 @@ export const resourcePermission = (config: ResourcePermissionConfig) => {
       }
 
       // 获取资源ID
-      const resourceId = config.resourceIdParam 
-        ? (req.params as any)[config.resourceIdParam] 
-        : (req.params as any).id
+      const resourceId = (config.resourceIdParam
+        ? req.params[config.resourceIdParam]
+        : req.params.id) as string
       
       // 如果是列表操作，直接跳过
       if (config.action === 'list') {
@@ -87,7 +106,7 @@ export const resourcePermission = (config: ResourcePermissionConfig) => {
       
       if (result.hasPermission) {
         // 将资源所有者ID附加到请求上，方便后续使用
-        ;(req as any).resourceOwnerId = result.resourceOwnerId
+        ;req.resourceOwnerId = result.resourceOwnerId
         next()
       } else {
         logger.warn('[ResourcePermission] 资源权限验证失败', {
@@ -122,7 +141,7 @@ export const resourcePermission = (config: ResourcePermissionConfig) => {
  * 检查用户是否有权限访问资源
  */
 async function checkResourcePermission(
-  user: any,
+  user: AuthUser,
   resourceId: string,
   config: ResourcePermissionConfig
 ): Promise<ResourcePermissionResult> {
@@ -150,7 +169,7 @@ async function checkResourcePermission(
       if (config.action === 'read' || config.action === 'list') {
         return { hasPermission: true }
       }
-      return { hasPermission: user.role === 'admin', message: '只有管理员可以操作分类' }
+      return { hasPermission: (user.role as AuthUser['role']) === 'admin', message: '只有管理员可以操作分类' }
     
     default:
       return { hasPermission: false, message: '未知的资源类型' }
@@ -161,7 +180,7 @@ async function checkResourcePermission(
  * 产品权限检查
  */
 async function checkProductPermission(
-  user: any,
+  user: AuthUser,
   productId: string,
   action: ActionType
 ): Promise<ResourcePermissionResult> {
@@ -171,7 +190,7 @@ async function checkProductPermission(
   }
 
   // 获取产品信息
-  const product = await queryOne('SELECT * FROM products WHERE id = ?', [productId])
+  const product = await queryOne<Product>('SELECT * FROM products WHERE id = ?', [productId])
   if (!product) {
     return { hasPermission: false, message: '产品不存在' }
   }
@@ -199,7 +218,7 @@ async function checkProductPermission(
  * 经理权限检查
  */
 async function checkManagerPermission(
-  user: any,
+  user: AuthUser,
   managerId: string,
   action: ActionType
 ): Promise<ResourcePermissionResult> {
@@ -219,7 +238,7 @@ async function checkManagerPermission(
  * 用户权限检查
  */
 async function checkUserPermission(
-  user: any,
+  user: AuthUser,
   userId: string,
   action: ActionType
 ): Promise<ResourcePermissionResult> {
@@ -230,7 +249,7 @@ async function checkUserPermission(
 
   // 经理可以操作自己团队的用户
   if (user.role === 'manager') {
-    const targetUser = await queryOne('SELECT * FROM users WHERE id = ?', [userId])
+    const targetUser = await queryOne<UserRow>('SELECT * FROM users WHERE id = ?', [userId])
     if (targetUser && targetUser.teamName === user.teamName) {
       return { hasPermission: true, resourceOwnerId: user.id }
     }
@@ -249,7 +268,7 @@ async function checkUserPermission(
  * 订单权限检查
  */
 async function checkOrderPermission(
-  user: any,
+  user: AuthUser,
   orderId: string,
   action: ActionType
 ): Promise<ResourcePermissionResult> {
@@ -258,7 +277,7 @@ async function checkOrderPermission(
     return { hasPermission: true }
   }
 
-  const order = await queryOne('SELECT * FROM orders WHERE id = ?', [orderId])
+  const order = await queryOne<OrderRow>('SELECT * FROM orders WHERE id = ?', [orderId])
   if (!order) {
     return { hasPermission: false, message: '订单不存在' }
   }
@@ -271,7 +290,7 @@ async function checkOrderPermission(
   // 经理可以操作自己团队的订单
   if (user.role === 'manager') {
     // 获取产品信息，检查是否属于该经理
-    const product = await queryOne('SELECT managerId FROM products WHERE id = ?', [order.productId])
+    const product = await queryOne<ManagerIdRow>('SELECT managerId FROM products WHERE id = ?', [order.productId])
     if (product && product.managerId === user.id) {
       return { hasPermission: true, resourceOwnerId: user.id }
     }
@@ -299,12 +318,12 @@ export const ResourcePermissionChecker = {
     userRole: string,
     productId: string,
     action: ActionType = 'read'
-  ): Promise<{ allowed: boolean; message?: string; product?: any }> {
+  ): Promise<{ allowed: boolean; message?: string; product?: Product }> {
     if (userRole === 'admin') {
       return { allowed: true }
     }
 
-    const product = await queryOne('SELECT * FROM products WHERE id = ?', [productId])
+    const product = await queryOne<Product>('SELECT * FROM products WHERE id = ?', [productId])
     if (!product) {
       return { allowed: false, message: '产品不存在' }
     }
@@ -335,17 +354,17 @@ export const ResourcePermissionChecker = {
     userRole: string,
     targetUserId: string,
     action: ActionType = 'read'
-  ): Promise<{ allowed: boolean; message?: string; user?: any }> {
+  ): Promise<{ allowed: boolean; message?: string; user?: UserRow | null }> {
     if (userRole === 'admin') {
       return { allowed: true }
     }
 
     if (userRole === 'manager') {
-      const targetUser = await queryOne('SELECT * FROM users WHERE id = ?', [targetUserId])
+      const targetUser = await queryOne<UserRow>('SELECT * FROM users WHERE id = ?', [targetUserId])
       if (!targetUser) {
         return { allowed: false, message: '用户不存在' }
       }
-      const manager = await queryOne('SELECT teamName FROM managers WHERE id = ?', [userId])
+      const manager = await queryOne<TeamNameRow>('SELECT teamName FROM managers WHERE id = ?', [userId])
       if (manager && targetUser.teamName === manager.teamName) {
         return { allowed: true, user: targetUser }
       }
@@ -353,7 +372,7 @@ export const ResourcePermissionChecker = {
     }
 
     if (userRole === 'user' && userId === targetUserId) {
-      const targetUser = await queryOne('SELECT * FROM users WHERE id = ?', [targetUserId])
+      const targetUser = await queryOne<UserRow>('SELECT * FROM users WHERE id = ?', [targetUserId])
       return { allowed: true, user: targetUser }
     }
 

@@ -15,8 +15,8 @@ const csrfProtection: RequestHandler = csurf({
 // 安全获取CSRF token的中间件
 export function csrfTokenMiddleware(req: Request, res: Response, next: NextFunction) {
   try {
-    // 提供 csrfToken 方法
-    res.locals.csrfToken = () => (req as any).csrfToken()
+    // 提供 csrfToken 方法（类型由 @types/csurf 的 Express.Request 扩展提供）
+    res.locals.csrfToken = () => req.csrfToken()
     next()
   } catch (error) {
     next(error)
@@ -24,8 +24,8 @@ export function csrfTokenMiddleware(req: Request, res: Response, next: NextFunct
 }
 
 // CSRF错误处理中间件
-export function csrfErrorHandler(err: any, req: Request, res: Response, next: NextFunction) {
-  if (err.code !== 'EBADCSRFTOKEN') {
+export function csrfErrorHandler(err: unknown, req: Request, res: Response, next: NextFunction) {
+  if ((err as { code?: string }).code !== 'EBADCSRFTOKEN') {
     return next(err)
   }
 

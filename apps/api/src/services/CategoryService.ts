@@ -24,7 +24,7 @@ export class CategoryService {
    */
   async getAllCategories(includeArchived = false): Promise<Category[]> {
     let sql = 'SELECT * FROM product_categories'
-    const params: any[] = []
+    const params: unknown[] = []
 
     if (!includeArchived) {
       sql += ' WHERE status = ?'
@@ -56,8 +56,8 @@ export class CategoryService {
    * 根据ID获取分类
    */
   async getCategoryById(id: string): Promise<Category | null> {
-    const row = await queryOne('SELECT * FROM product_categories WHERE id = ?', [id])
-    return row as Category | null
+    const row = await queryOne<Category>('SELECT * FROM product_categories WHERE id = ?', [id])
+    return row
   }
 
   /**
@@ -91,7 +91,7 @@ export class CategoryService {
     }
 
     const updates: string[] = []
-    const params: any[] = []
+    const params: unknown[] = []
 
     if (data.name !== undefined) {
       updates.push('name = ?')

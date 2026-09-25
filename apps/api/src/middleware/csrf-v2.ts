@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express'
 import crypto from 'crypto'
+import { getErrorMessage } from '@promo/shared'
 import logger from '../utils/logger.js'
 
 /**
@@ -37,11 +38,12 @@ export function csrfGenerate(req: Request, res: Response, next: NextFunction) {
     res.locals.csrfToken = token
 
     // 将 token 附加到 request 对象，方便后续中间件使用
-    ;(req as any).csrfToken = token
+    // （@types/csurf 将 req.csrfToken 声明为函数，此中间件运行时存的是字符串值，需断言收窄）
+    ;(req as unknown as { csrfToken?: string }).csrfToken = token
 
     next()
   } catch (error) {
-    logger.error('[CSRF] Failed to generate token:', { error: error instanceof Error ? error.message : String(error) })
+    logger.error('[CSRF] Failed to generate token:', { error: getErrorMessage(error) })
     next()
   }
 }

@@ -36,6 +36,22 @@ declare module 'express-session' {
   }
 }
 
+declare global {
+  namespace Express {
+    interface Request {
+      user?: AuthUser
+    }
+  }
+}
+
+// JWT 载荷结构（sign 时写入的字段）
+interface JwtPayload {
+  id: string
+  phone: string
+  role: AuthUser['role']
+  type?: string
+}
+
 // Refresh Token 存储键前缀
 const REFRESH_TOKEN_PREFIX = 'refresh_token:'
 const ACCESS_TOKEN_PREFIX = 'access_token:'
@@ -59,8 +75,8 @@ function getTokenStore() {
 
 // 创建 session 中间件（支持 MongoDB 降级到内存存储）
 export const sessionMiddleware: RequestHandler = (() => {
-  let store: any = undefined
-  
+  let store: session.Store | undefined = undefined
+
   if (process.env.MONGODB_URI) {
     try {
       const MongoStore = require('connect-mongo').default
@@ -71,7 +87,7 @@ export const sessionMiddleware: RequestHandler = (() => {
       })
       logger.debug('[Session] 使用 MongoDB 存储，有效期90天')
     } catch (err) {
-      logger.warn('[Session] MongoDB 连接失败，降级到内存存储', { error: err instanceof Error ? err.message : String(err) })
+      logger.warn('[Session] MongoDB 连接失败，降级到内存存储', { error: getErrorMessage(err) })
     }
   } else {
     logger.debug('[Session] 未配置 MongoDB，使用内存存储')
@@ -134,7 +150,7 @@ export async function generateTokens(user: AuthUser): Promise<{ token: string; r
 // 验证 JWT Token
 function verifyAuthToken(token: string): AuthUser | null {
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as any
+    const decoded = jwt.verify(token, JWT_SECRET) as JwtPayload
     return {
       id: decoded.id,
       phone: decoded.phone,
@@ -166,7 +182,7 @@ export const authMiddleware = (allowedRoles?: Array<'admin' | 'manager' | 'user'
             return
           }
         }
-        ;(req as any).user = req.session.user
+        req.user = req.session.user
         next()
         return
       }
@@ -185,7 +201,7 @@ export const authMiddleware = (allowedRoles?: Array<'admin' | 'manager' | 'user'
               return
             }
           }
-          ;(req as any).user = user
+          req.user = user
           next()
           return
         }
@@ -196,7 +212,7 @@ export const authMiddleware = (allowedRoles?: Array<'admin' | 'manager' | 'user'
         const newTokens = await refreshAuthToken(refreshToken)
         if (newTokens) {
           try {
-            const decoded = jwt.verify(newTokens.token, JWT_SECRET) as any
+            const decoded = jwt.verify(newTokens.token, JWT_SECRET) as JwtPayload
             const user: AuthUser = {
               id: decoded.id,
               phone: decoded.phone,
@@ -215,7 +231,7 @@ export const authMiddleware = (allowedRoles?: Array<'admin' | 'manager' | 'user'
               }
             }
             
-            ;(req as any).user = user
+            req.user = user
             res.setHeader('X-New-Token', newTokens.token)
             res.setHeader('X-New-Refresh-Token', newTokens.refreshToken)
             next()
@@ -245,7 +261,7 @@ export const login = (req: Request, user: AuthUser): Promise<void> => {
       req.session.isAuthenticated = true
       req.session.save((err) => {
         if (err) {
-          logger.error('[Session] 保存会话失败:', err)
+          logger.error('[Session] 保存会话失败:', { error: getErrorMessage(err) })
           reject(err)
         } else {
           logger.debug(`[Session] 用户 ${user.id} (${user.role}) 登录成功`)
@@ -253,7 +269,7 @@ export const login = (req: Request, user: AuthUser): Promise<void> => {
         }
       })
     } catch (error) {
-      logger.error('[Session] 设置会话失败', { error: error instanceof Error ? error.message : String(error) })
+      logger.error('[Session] 设置会话失败', { error: getErrorMessage(error) })
       reject(error)
     }
   })
@@ -262,7 +278,7 @@ export const login = (req: Request, user: AuthUser): Promise<void> => {
 // 兼容旧的调用方式（不等待的版本）
 export const loginSync = (req: Request, user: AuthUser) => {
   login(req, user).catch(err => {
-    logger.error('[Session] 会话保存出错（但不影响请求）:', err)
+    logger.error('[Session] 会话保存出错（但不影响请求）:', { error: getErrorMessage(err) })
   })
 }
 
@@ -270,7 +286,7 @@ export const logout = (req: Request) => {
   const userId = req.session?.user?.id
   req.session.destroy((err) => {
     if (err) {
-      logger.error('[Session] 销毁会话失败:', err)
+      logger.error('[Session] 销毁会话失败:', { error: getErrorMessage(err) })
     } else {
       logger.debug(`[Session] 用户 ${userId} 已登出`)
     }
@@ -286,7 +302,7 @@ export const logout = (req: Request) => {
 //   4. 并发请求中的后续请求可从宽限期读取，使用相同的新 token
 export async function refreshAuthToken(refreshToken: string): Promise<{ token: string; refreshToken: string } | null> {
   try {
-    const decoded = jwt.verify(refreshToken, JWT_SECRET) as any
+    const decoded = jwt.verify(refreshToken, JWT_SECRET) as JwtPayload
     
     if (decoded.type !== 'refresh') {
       return null

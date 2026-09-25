@@ -5,6 +5,7 @@
 import { injectable, inject } from 'tsyringe'
 import {
   readProducts,
+  readOrders,
   readEmployeeById,
   readUser,
   readOrder,
@@ -15,62 +16,73 @@ import {
   deleteOrder,
   getOrdersPaginated,
   readOrderUserOptions,
+  type OrderUserOption,
 } from '../data/index.js'
 import type { OrderRow } from '../data-memory.js'
 import { query } from '../db.js'
 import { DatabaseService } from './DatabaseService.js'
 import { ErrorCode, throwNotFound, throwBadRequest, throwForbidden } from '@promo/shared'
 
+export interface OrderListParams {
+  page?: number
+  pageSize?: number
+  userId?: string
+  managerId?: string
+  employeeId?: string
+  status?: string
+  userPhone?: string
+  teamName?: string
+  keyword?: string
+  managedBy?: string
+}
+
+export interface OrderCreateData {
+  productId: string
+  userId?: string
+  employeeId?: string
+  optionLabel?: string
+  redirectUrl?: string
+  userName?: string
+  userPhone?: string
+  sharerId?: string
+}
+
+export interface AdminDeleteInfo {
+  reason?: string
+  adminId?: string
+  adminPhone?: string
+  adminName?: string
+}
+
+export interface OrderReviewParams {
+  action: 'approve' | 'reject'
+  reason?: string
+}
+
+export interface OrderSettleParams {
+  action: 'pending_payment' | 'paid'
+}
+
 export interface OrderService {
-  getOrders(params: {
-    page?: number
-    pageSize?: number
-    userId?: string
-    managerId?: string
-    employeeId?: string
-    status?: string
-    userPhone?: string
-    teamName?: string
-    keyword?: string
-    managedBy?: string
-  }): Promise<{ list: any[]; total: number }>
+  getOrders(params: OrderListParams): Promise<{ list: OrderRow[]; total: number }>
 
-  getOrderUserOptions(): Promise<any[]>
+  getOrderUserOptions(): Promise<OrderUserOption[]>
 
-  createOrder(orderData: {
-    productId: string
-    userId?: string
-    employeeId?: string
-    optionLabel?: string
-    redirectUrl?: string
-    userName?: string
-    userPhone?: string
-    sharerId?: string
-  }): Promise<{ order: any; remainingStock: number }>
+  createOrder(orderData: OrderCreateData): Promise<{ order: OrderRow; remainingStock: number }>
 
-  adminDeleteOrder(orderId: string, adminInfo: {
-    reason?: string
-    adminId?: string
-    adminPhone?: string
-    adminName?: string
-  }): Promise<void>
+  adminDeleteOrder(orderId: string, adminInfo: AdminDeleteInfo): Promise<void>
 
   deleteUserOrder(orderId: string, userId: string): Promise<void>
 
-  getDeletedOrders(userId: string): Promise<any[]>
+  getDeletedOrders(userId: string): Promise<OrderRow[]>
 
   restoreOrder(orderId: string, userId: string): Promise<void>
 
   submitFundAccount(orderId: string, userId: string, fundAccount: string): Promise<void>
 
-  reviewOrder(orderId: string, params: {
-    action: 'approve' | 'reject'
-    reason?: string
-  }): Promise<void>
+  reviewOrder(orderId: string, params: OrderReviewParams): Promise<void>
 
-  settleOrder(orderId: string, params: {
-    action: 'pending_payment' | 'paid'
-  }): Promise<void>
+  settleOrder(orderId: string, params: OrderSettleParams): Promise<void>
 
   updateOrderTeamName(orderId: string, teamName: string): Promise<void>
 }
@@ -81,7 +93,7 @@ export class OrderServiceImpl implements OrderService {
     @inject(DatabaseService) private db: DatabaseService
   ) {}
 
-  async getOrders(params) {
+  async getOrders(params: OrderListParams) {
     const { page = 1, pageSize = 20, userId, managerId, employeeId, status, userPhone, teamName, keyword, managedBy } = params
     return await getOrdersPaginated({ page, pageSize, userId, managerId, employeeId, status, userPhone, teamName, keyword, managedBy })
   }
@@ -90,11 +102,11 @@ export class OrderServiceImpl implements OrderService {
     return await readOrderUserOptions()
   }
 
-  async createOrder(orderData) {
+  async createOrder(orderData: OrderCreateData) {
     const { productId, userId, employeeId, optionLabel, redirectUrl, userName, userPhone, sharerId } = orderData
 
     const products = await this.db.readProducts()
-    const index = products.findIndex((p: any) => p.id === productId)
+    const index = products.findIndex((p) => p.id === productId)
     if (index === -1) {
       throwNotFound('产品不存在', ErrorCode.PRODUCT_NOT_FOUND)
     }
@@ -109,10 +121,10 @@ export class OrderServiceImpl implements OrderService {
     // SQL 条件: WHERE stock > 0，确保不会扣成负数
     let remainingStock: number
     if (product.stock && product.stock > 0) {
-      const [updateResult] = await query(
+      const [updateResult] = (await query(
         'UPDATE products SET stock = stock - 1, updatedAt = NOW() WHERE id = ? AND stock > 0',
         [product.id]
-      )
+      )) as { affectedRows?: number }[]
       if (!updateResult || updateResult.affectedRows === 0) {
         // 库存已被其他请求抢光
         throwBadRequest('库存不足，商品已被抢光', ErrorCode.INSUFFICIENT_STOCK)
@@ -151,7 +163,7 @@ export class OrderServiceImpl implements OrderService {
       id: `o_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
       productId,
       userId: finalUserId,
-      managerId: product.managerId,
+      managerId: product.managerId as string,
       employeeId: employeeId || '',
       productName: product.title,
       productPrice: product.price,
@@ -169,7 +181,7 @@ export class OrderServiceImpl implements OrderService {
     return { order, remainingStock }
   }
 
-  async adminDeleteOrder(orderId, adminInfo) {
+  async adminDeleteOrder(orderId: string, adminInfo: AdminDeleteInfo) {
     const { reason } = adminInfo
 
     const order = await readOrder(orderId)
@@ -180,7 +192,7 @@ export class OrderServiceImpl implements OrderService {
     await deleteOrder(orderId)
   }
 
-  async deleteUserOrder(orderId, userId) {
+  async deleteUserOrder(orderId: string, userId: string) {
     const order = await readOrder(orderId)
     if (!order) {
       throwNotFound('订单不存在')
@@ -193,13 +205,13 @@ export class OrderServiceImpl implements OrderService {
     await deleteOrder(orderId)
   }
 
-  async getDeletedOrders(userId) {
+  async getDeletedOrders(userId: string) {
     return await readDeletedOrders(userId)
   }
 
-  async restoreOrder(orderId, userId) {
+  async restoreOrder(orderId: string, userId: string) {
     const orders = await readDeletedOrders(userId)
-    const order = orders.find((o: any) => o.id === orderId)
+    const order = orders.find((o) => o.id === orderId)
 
     if (!order) {
       throwNotFound('订单不存在或不在回收站')
@@ -212,7 +224,7 @@ export class OrderServiceImpl implements OrderService {
     await restoreOrder(orderId)
   }
 
-  async submitFundAccount(orderId, userId, fundAccount) {
+  async submitFundAccount(orderId: string, userId: string, fundAccount: string) {
     const order = await readOrder(orderId)
     if (!order) {
       throwNotFound('订单不存在')
@@ -225,7 +237,7 @@ export class OrderServiceImpl implements OrderService {
     await updateOrder(orderId, { fundAccount })
   }
 
-  async reviewOrder(orderId, params) {
+  async reviewOrder(orderId: string, params: OrderReviewParams) {
     const { action, reason } = params
     const order = await readOrder(orderId)
     if (!order) {
@@ -253,7 +265,7 @@ export class OrderServiceImpl implements OrderService {
     }
   }
 
-  async settleOrder(orderId, params) {
+  async settleOrder(orderId: string, params: OrderSettleParams) {
     const { action } = params
     const order = await readOrder(orderId)
     if (!order) {
@@ -292,8 +304,9 @@ export class OrderServiceImpl implements OrderService {
   }
 }
 
-const db = {
+const db: DatabaseService = {
   readProducts,
+  readOrders,
   readUsers: async () => [],
   writeUsers: async () => {},
   writeProducts: async () => {},
@@ -304,6 +317,6 @@ const db = {
   writeCommissions: async () => {},
   readManagers: async () => [],
   writeManagers: async () => {},
-} as any
+}
 
 export const orderService: OrderService = new OrderServiceImpl(db)

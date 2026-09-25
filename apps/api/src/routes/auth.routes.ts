@@ -1,4 +1,5 @@
 import logger from '../utils/logger.js'
+import { getErrorMessage } from '@promo/shared'
 import { Router } from 'express'
 import { refreshAuthToken, revokeRefreshToken } from '../middleware/auth.js'
 import { sendSuccess, sendError } from '../utils/response.js'
@@ -31,7 +32,7 @@ router.post('/auth/logout', async (req, res) => {
   if (req.session) {
     req.session.destroy((err) => {
       if (err) {
-        logger.error('[Auth] 销毁会话失败:', err)
+        logger.error('[Auth] 销毁会话失败:', { error: getErrorMessage(err) })
       }
     })
   }

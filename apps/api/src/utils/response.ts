@@ -97,7 +97,7 @@ export const errorHandler = (
     req.method,
     req.originalUrl,
     req.ip,
-    (req.session as any)?.user?.id
+    req.session?.user?.id
   )
 
   // 应用错误
@@ -107,7 +107,7 @@ export const errorHandler = (
   }
 
   // Multer 错误
-  if ((err as any).code === 'LIMIT_FILE_SIZE') {
+  if ((err as { code?: string }).code === 'LIMIT_FILE_SIZE') {
     sendError(res, '文件大小超过限制', ErrorCode.BAD_REQUEST, HttpStatus.BAD_REQUEST)
     return
   }

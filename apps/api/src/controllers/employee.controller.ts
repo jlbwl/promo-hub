@@ -125,7 +125,7 @@ export const updateEmployeeById = async (req: Request, res: Response): Promise<v
       return sendError(res, '员工不存在', 1)
     }
     
-    const updateFields: Record<string, any> = {}
+    const updateFields: Record<string, unknown> = {}
     
     if (password && password.length >= 6) {
       updateFields.password = await hashPassword(password)

@@ -1,5 +1,5 @@
 import { Request, Response } from 'express'
-import { getErrorMessage } from '@promo/shared'
+import { getErrorMessage, type Manager, type Product } from '@promo/shared'
 import { sendSuccess, sendError } from '../utils/response.js'
 import { withTransaction } from '../db.js'
 import {
@@ -15,6 +15,7 @@ import {
   writeOrders,
   writeManagers,
   updateUser,
+  type UserRow,
 } from '../data/index.js'
 import { login as sessionLogin, generateTokens } from '../middleware/auth.js'
 import { sendSmsCode } from '../utils/sms.js'
@@ -48,7 +49,7 @@ export const getManagers = async (_req: Request, res: Response): Promise<void> =
 export const getManagerById = async (req: Request, res: Response): Promise<void> => {
   const managerId = req.params.id
   const managers = await readManagers()
-  const manager = managers.find((m: any) => m.id === managerId)
+  const manager = managers.find((m: Manager) => m.id === managerId)
   
   if (!manager) {
     return sendError(res, '经理不存在', 404)
@@ -77,12 +78,12 @@ export const createManager = async (req: Request, res: Response): Promise<void> 
       return sendError(res, '渠道名称和密码不能为空', 400)
     }
 
-    if (managers.find((m: any) => m.teamName === teamName)) {
+    if (managers.find((m: Manager) => m.teamName === teamName)) {
       logger.warn('[createManager] Manager teamName already exists', { teamName })
       return sendError(res, '该渠道名称已存在', 409)
     }
 
-    let users: any[] = []
+    let users: UserRow[] = []
     try {
       users = await readUsers()
     } catch (err) {
@@ -90,7 +91,7 @@ export const createManager = async (req: Request, res: Response): Promise<void> 
       // 如果读取用户失败，跳过这个检查
     }
 
-    if (users.length > 0 && users.find((u: any) => u.teamName === teamName)) {
+    if (users.length > 0 && users.find((u: UserRow) => u.teamName === teamName)) {
       logger.warn('[createManager] User teamName already exists', { teamName })
       return sendError(res, '该团队名称已存在', 409)
     }
@@ -128,7 +129,7 @@ export const createManager = async (req: Request, res: Response): Promise<void> 
 export const deleteManagerWithCascade = async (req: Request, res: Response): Promise<void> => {
   const smsCode = req.query.smsCode as string
   
-  const adminInfo = req.session?.user || (req as any).user
+  const adminInfo = req.session?.user || req.user
   if (!adminInfo?.phone) {
     return sendError(res, '未登录', 401)
   }
@@ -153,13 +154,13 @@ export const deleteManagerWithCascade = async (req: Request, res: Response): Pro
       'UPDATE products SET status = ?, updatedAt = ? WHERE managerId = ? AND status = ?',
       ['offline', now, managerId, 'published']
     )
-    const offlineCount = (productResult as any).affectedRows || 0
+    const offlineCount = (productResult as { affectedRows?: number }).affectedRows || 0
     
     const [orderResult] = await conn.execute(
       'UPDATE orders SET transferredFromManager = ?, transferredAt = ?, managedBy = ? WHERE managerId = ? AND status IN (?, ?, ?)',
       [managerName, now, 'admin', managerId, 'pending', 'approved', 'pending_payment']
     )
-    const transferredOrders = (orderResult as any).affectedRows || 0
+    const transferredOrders = (orderResult as { affectedRows?: number }).affectedRows || 0
     
     return { offlineCount, transferredOrders }
   })
@@ -172,7 +173,7 @@ export const deleteManagerWithCascade = async (req: Request, res: Response): Pro
  */
 export const updateManagerById = async (req: Request, res: Response): Promise<void> => {
   const managers = await readManagers()
-  const index = managers.findIndex((m: any) => m.id === req.params.id)
+  const index = managers.findIndex((m: Manager) => m.id === req.params.id)
   if (index === -1) {
     return sendError(res, '经理不存在', 404)
   }
@@ -191,10 +192,11 @@ export const updateManagerById = async (req: Request, res: Response): Promise<vo
   if (newStatus === 'disabled') {
     let products = await readProducts()
     let offlineCount = 0
-    const updatedProducts = products.map((p: any) => {
+    const updatedProducts = products.map((p: Product) => {
       if (p.managerId === req.params.id && p.status === 'published') {
         offlineCount++
-        return { ...p, status: 'offline', updatedAt: now }
+        // DB 中产品状态实际存在 'offline' 值，不在 shared Product 联合类型内
+        return { ...p, status: 'offline', updatedAt: now } as unknown as Product
       }
       return p
     })
@@ -223,13 +225,13 @@ export const updateManagerTeamName = async (req: Request, res: Response): Promis
 
     // 获取经理列表
     const managers = await readManagers()
-    const managerIndex = managers.findIndex((m: any) => m.id === managerId)
+    const managerIndex = managers.findIndex((m: Manager) => m.id === managerId)
     if (managerIndex === -1) {
       return sendError(res, '经理不存在', 404)
     }
 
     // 检查渠道名称是否重复
-    const existingManager = managers.find((m: any) => 
+    const existingManager = managers.find((m: Manager) =>
       m.teamName === finalTeamName && m.id !== managerId
     )
     if (existingManager) {
@@ -247,7 +249,7 @@ export const updateManagerTeamName = async (req: Request, res: Response): Promis
     // 同时更新该经理下所有用户的团队名称
     // 只更新 teamName 字段，避免修改其他字段
     const users = await readUsers()
-    const usersToUpdate = users.filter((u: any) => u.teamName === oldTeamName)
+    const usersToUpdate = users.filter((u: UserRow) => u.teamName === oldTeamName)
     
     for (const user of usersToUpdate) {
       await updateUser(user.id, { teamName: finalTeamName })
@@ -278,7 +280,7 @@ export const managerLogin = async (req: Request, res: Response): Promise<void> =
 
   const managers = await readManagers()
   const manager = managers.find(
-    (m: any) => m.phone === phone && m.status === 'active'
+    (m: Manager) => m.phone === phone && m.status === 'active'
   )
   if (!manager) {
     return sendError(res, '手机号或密码错误，或账号已被禁用', 401)
@@ -328,7 +330,7 @@ export const managerSmsLogin = async (req: Request, res: Response): Promise<void
   }
 
   const managers = await readManagers()
-  const manager = managers.find((m: any) => m.phone === phone && m.status === 'active')
+  const manager = managers.find((m: Manager) => m.phone === phone && m.status === 'active')
   if (!manager) {
     return sendError(res, '该手机号未注册或已被禁用', 404)
   }
@@ -346,7 +348,7 @@ export const managerSmsLogin = async (req: Request, res: Response): Promise<void
  */
 export const verifyManagerById = async (req: Request, res: Response): Promise<void> => {
   const managers = await readManagers()
-  const manager = managers.find((m: any) => m.id === req.params.id)
+  const manager = managers.find((m: Manager) => m.id === req.params.id)
   if (!manager) {
     return sendError(res, '账号已被删除', 401)
   }
@@ -374,7 +376,7 @@ export const setManagerPassword = async (req: Request, res: Response): Promise<v
   }
 
   let managers = await readManagers()
-  const index = managers.findIndex((m: any) => m.phone === phone)
+  const index = managers.findIndex((m: Manager) => m.phone === phone)
   if (index === -1) {
     return sendError(res, '经理不存在', 404)
   }

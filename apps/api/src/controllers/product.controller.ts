@@ -13,7 +13,7 @@ import { ResourcePermissionChecker } from '../middleware/resourcePermission.js'
  */
 export const getProducts = async (req: Request, res: Response): Promise<void> => {
   try {
-    const user = (req as any).user
+    const user = req.user
     const { page = '1', pageSize = '10', category, status, keyword, adminMode } = req.query
     
     // 根据用户角色自动设置managerId
@@ -62,7 +62,7 @@ export const getProducts = async (req: Request, res: Response): Promise<void> =>
 export const getProductById = async (req: Request, res: Response): Promise<void> => {
   const id = req.params.id as string
   try {
-    const user = (req as any).user
+    const user = req.user
     
     logger.info('[ProductController] 获取产品详情', {
       productId: id,
@@ -99,7 +99,7 @@ export const getProductById = async (req: Request, res: Response): Promise<void>
  */
 export const createProduct = async (req: Request, res: Response): Promise<void> => {
   try {
-    const user = (req as any).user
+    const user = req.user
     const productData = {
       ...req.body,
       // 确保managerId是当前用户的ID（经理自己创建自己的产品）
@@ -133,7 +133,7 @@ export const createProduct = async (req: Request, res: Response): Promise<void> 
 export const updateProductById = async (req: Request, res: Response): Promise<void> => {
   const id = req.params.id as string
   try {
-    const user = (req as any).user
+    const user = req.user
     
     // 从用户信息中获取managerId（中间件已经验证了权限）
     const managerId = user?.role === 'manager' ? user.id : (req.body.managerId || '')
@@ -166,7 +166,7 @@ export const updateProductById = async (req: Request, res: Response): Promise<vo
 export const deleteProductById = async (req: Request, res: Response): Promise<void> => {
   const id = req.params.id as string
   try {
-    const user = (req as any).user
+    const user = req.user
     
     // 从用户信息中获取managerId
     const managerId = user?.role === 'manager' ? user.id : (req.query.managerId as string || '')

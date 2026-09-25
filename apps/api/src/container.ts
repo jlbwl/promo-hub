@@ -11,7 +11,7 @@
  */
 
 import 'reflect-metadata'
-import { container } from 'tsyringe'
+import { container, type InjectionToken } from 'tsyringe'
 
 // ============================================
 // 基础设施层 (Infrastructure Layer)
@@ -68,7 +68,7 @@ container.registerSingleton('ManagerService', ManagerServiceImpl)
  * // 解析仓储
  * const userRepo = resolve<IUserRepository>('IUserRepository')
  */
-export function resolve<T>(token: any): T {
+export function resolve<T>(token: InjectionToken<T>): T {
   return container.resolve<T>(token)
 }
 
@@ -77,7 +77,7 @@ export function resolve<T>(token: any): T {
  * @param token 服务标识符
  * @returns 是否已注册
  */
-export function isRegistered(token: any): boolean {
+export function isRegistered(token: InjectionToken<unknown>): boolean {
   return container.isRegistered(token)
 }
 

@@ -16,7 +16,7 @@ interface LogEntry {
   timestamp: string
   level: LogLevel
   message: string
-  meta?: Record<string, any>
+  meta?: Record<string, unknown>
 }
 
 /**
@@ -42,7 +42,7 @@ const getTimestamp = (): string => {
 /**
  * 记录日志
  */
-const log = (level: LogLevel, message: string, meta?: Record<string, any>): void => {
+const log = (level: LogLevel, message: string, meta?: Record<string, unknown>): void => {
   const entry: LogEntry = {
     timestamp: getTimestamp(),
     level,
@@ -71,28 +71,28 @@ const log = (level: LogLevel, message: string, meta?: Record<string, any>): void
 /**
  * 记录调试信息
  */
-export const debug = (message: string, meta?: Record<string, any>): void => {
+export const debug = (message: string, meta?: Record<string, unknown>): void => {
   log(LogLevel.DEBUG, message, meta)
 }
 
 /**
  * 记录一般信息
  */
-export const info = (message: string, meta?: Record<string, any>): void => {
+export const info = (message: string, meta?: Record<string, unknown>): void => {
   log(LogLevel.INFO, message, meta)
 }
 
 /**
  * 记录警告
  */
-export const warn = (message: string, meta?: Record<string, any>): void => {
+export const warn = (message: string, meta?: Record<string, unknown>): void => {
   log(LogLevel.WARN, message, meta)
 }
 
 /**
  * 记录错误
  */
-export const error = (message: string, meta?: Record<string, any>): void => {
+export const error = (message: string, meta?: Record<string, unknown>): void => {
   log(LogLevel.ERROR, message, meta)
 }
 

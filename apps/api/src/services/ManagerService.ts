@@ -14,8 +14,44 @@ import {
   writeOrders,
 } from '../data/index.js'
 import { DatabaseService } from './DatabaseService.js'
-import { ErrorCode, throwNotFound, throwBadRequest, throwForbidden, throwConflict, throwUnauthorized } from '@promo/shared'
+import { ErrorCode, throwNotFound, throwBadRequest, throwForbidden, throwConflict, throwUnauthorized, type OrderStats, type Product } from '@promo/shared'
 import { hashPassword, verifyPassword } from '../utils/password.js'
+
+/** 对外返回的安全经理信息（不包含密码），形状与 data 层 Manager 行一致 */
+export interface SafeManager {
+  id: string
+  name?: string
+  phone?: string
+  avatar?: string
+  role?: string
+  status?: string
+  teamName?: string
+  managerId?: string
+  username?: string
+  totalCommission?: number
+  managedUserCount?: number
+  createdAt?: string
+  updatedAt?: string
+  [key: string]: unknown
+}
+
+/** 创建经理入参 */
+export interface ManagerCreateData {
+  teamName: string
+  password: string
+  phone?: string
+  name?: string
+}
+
+/** 更新经理入参 */
+export interface ManagerUpdateData {
+  teamName?: string
+  password?: string
+  phone?: string
+  name?: string
+  status?: string
+  [key: string]: unknown
+}
 
 /**
  * 经理服务接口
@@ -24,32 +60,27 @@ export interface ManagerService {
   /**
    * 获取经理列表
    */
-  getManagers(): Promise<any[]>
+  getManagers(): Promise<SafeManager[]>
 
   /**
    * 获取单个经理信息
    */
-  getManagerById(managerId: string): Promise<any>
+  getManagerById(managerId: string): Promise<SafeManager>
 
   /**
    * 创建经理
    */
-  createManager(managerData: {
-    teamName: string
-    password: string
-    phone?: string
-    name?: string
-  }): Promise<any>
+  createManager(managerData: ManagerCreateData): Promise<SafeManager>
 
   /**
    * 经理登录
    */
-  login(teamName: string, password: string): Promise<any>
+  login(teamName: string, password: string): Promise<SafeManager>
 
   /**
    * 更新经理信息
    */
-  updateManager(managerId: string, updateData: any): Promise<any>
+  updateManager(managerId: string, updateData: ManagerUpdateData): Promise<SafeManager>
 
   /**
    * 删除经理
@@ -59,12 +90,12 @@ export interface ManagerService {
   /**
    * 获取经理的产品列表
    */
-  getManagerProducts(managerId: string): Promise<any[]>
+  getManagerProducts(managerId: string): Promise<Product[]>
 
   /**
    * 获取经理的订单统计
    */
-  getManagerStats(managerId: string): Promise<any>
+  getManagerStats(managerId: string): Promise<OrderStats>
 }
 
 /**
@@ -81,7 +112,7 @@ export class ManagerServiceImpl implements ManagerService {
    */
   async getManagers() {
     const managers = await this.db.readManagers()
-    return managers.map((m: any) => {
+    return managers.map((m) => {
       const { password: _, ...safeManager } = m
       return safeManager
     })
@@ -90,9 +121,9 @@ export class ManagerServiceImpl implements ManagerService {
   /**
    * 获取单个经理信息
    */
-  async getManagerById(managerId) {
+  async getManagerById(managerId: string) {
     const managers = await this.db.readManagers()
-    const manager = managers.find((m: any) => m.id === managerId)
+    const manager = managers.find((m) => m.id === managerId)
 
     if (!manager) {
       throwNotFound('经理不存在')
@@ -105,7 +136,7 @@ export class ManagerServiceImpl implements ManagerService {
   /**
    * 创建经理
    */
-  async createManager(managerData) {
+  async createManager(managerData: ManagerCreateData) {
     const { teamName, password, phone, name } = managerData
 
     if (!teamName || !password) {
@@ -114,14 +145,14 @@ export class ManagerServiceImpl implements ManagerService {
 
     const managers = await this.db.readManagers()
 
-    if (managers.find((m: any) => m.teamName === teamName)) {
+    if (managers.find((m) => m.teamName === teamName)) {
       throwConflict('该渠道名称已存在')
     }
 
     try {
       const { readUsers } = await import('../data/index.js')
       const users = await readUsers()
-      if (users.find((u: any) => u.teamName === teamName)) {
+      if (users.find((u) => u.teamName === teamName)) {
         throwConflict('该团队名称已存在')
       }
     } catch {
@@ -149,17 +180,17 @@ export class ManagerServiceImpl implements ManagerService {
   /**
    * 经理登录
    */
-  async login(teamName, password) {
+  async login(teamName: string, password: string) {
     const managers = await this.db.readManagers()
     const manager = managers.find(
-      (m: any) => m.teamName === teamName && m.status === 'active'
+      (m) => m.teamName === teamName && m.status === 'active'
     )
 
     if (!manager) {
       throwUnauthorized('渠道名称或密码错误')
     }
 
-    const passwordValid = await verifyPassword(password, manager.password)
+    const passwordValid = await verifyPassword(password, manager.password as string)
     if (!passwordValid) {
       throwUnauthorized('渠道名称或密码错误')
     }
@@ -171,16 +202,16 @@ export class ManagerServiceImpl implements ManagerService {
   /**
    * 更新经理信息
    */
-  async updateManager(managerId, updateData) {
+  async updateManager(managerId: string, updateData: ManagerUpdateData) {
     const managers = await this.db.readManagers()
-    const index = managers.findIndex((m: any) => m.id === managerId)
+    const index = managers.findIndex((m) => m.id === managerId)
 
     if (index === -1) {
       throwNotFound('经理不存在')
     }
 
     if (updateData.teamName) {
-      const existing = managers.find((m: any) => m.teamName === updateData.teamName && m.id !== managerId)
+      const existing = managers.find((m) => m.teamName === updateData.teamName && m.id !== managerId)
       if (existing) {
         throwConflict('该渠道名称已存在')
       }
@@ -197,9 +228,9 @@ export class ManagerServiceImpl implements ManagerService {
   /**
    * 删除经理
    */
-  async deleteManager(managerId) {
+  async deleteManager(managerId: string) {
     const managers = await this.db.readManagers()
-    const manager = managers.find((m: any) => m.id === managerId)
+    const manager = managers.find((m) => m.id === managerId)
 
     if (!manager) {
       throwNotFound('经理不存在')
@@ -211,25 +242,25 @@ export class ManagerServiceImpl implements ManagerService {
   /**
    * 获取经理的产品列表
    */
-  async getManagerProducts(managerId) {
+  async getManagerProducts(managerId: string) {
     const products = await this.db.readProducts()
-    return products.filter((p: any) => p.managerId === managerId)
+    return products.filter((p) => p.managerId === managerId)
   }
 
   /**
    * 获取经理的订单统计
    */
-  async getManagerStats(managerId) {
+  async getManagerStats(managerId: string) {
     const orders = await this.db.readOrders()
-    const managerOrders = orders.filter((o: any) => o.managerId === managerId)
+    const managerOrders = orders.filter((o) => o.managerId === managerId)
 
     return {
       total: managerOrders.length,
-      pending: managerOrders.filter((o: any) => o.status === 'pending').length,
-      approved: managerOrders.filter((o: any) => o.status === 'approved').length,
-      pendingPayment: managerOrders.filter((o: any) => o.status === 'pending_payment').length,
-      settled: managerOrders.filter((o: any) => o.status === 'settled').length,
-      rejected: managerOrders.filter((o: any) => o.status === 'rejected').length,
+      pending: managerOrders.filter((o) => o.status === 'pending').length,
+      approved: managerOrders.filter((o) => o.status === 'approved').length,
+      pendingPayment: managerOrders.filter((o) => o.status === 'pending_payment').length,
+      settled: managerOrders.filter((o) => o.status === 'settled').length,
+      rejected: managerOrders.filter((o) => o.status === 'rejected').length,
     }
   }
 }
@@ -246,7 +277,7 @@ export const managerService: ManagerService = {
   async getManagers() {
     const managers = await readManagers()
     // 返回不包含密码的经理信息
-    return managers.map((m: any) => {
+    return managers.map((m) => {
       const { password: _, ...safeManager } = m
       return safeManager
     })
@@ -261,7 +292,7 @@ export const managerService: ManagerService = {
    */
   async getManagerById(managerId) {
     const managers = await readManagers()
-    const manager = managers.find((m: any) => m.id === managerId)
+    const manager = managers.find((m) => m.id === managerId)
 
     if (!manager) {
       throwNotFound('经理不存在')
@@ -289,7 +320,7 @@ export const managerService: ManagerService = {
     const managers = await readManagers()
 
     // 检查渠道名称唯一性
-    if (managers.find((m: any) => m.teamName === teamName)) {
+    if (managers.find((m) => m.teamName === teamName)) {
       throwConflict('该渠道名称已存在')
     }
 
@@ -297,7 +328,7 @@ export const managerService: ManagerService = {
     try {
       const { readUsers } = await import('../data/index.js')
       const users = await readUsers()
-      if (users.find((u: any) => u.teamName === teamName)) {
+      if (users.find((u) => u.teamName === teamName)) {
         throwConflict('该团队名称已存在')
       }
     } catch {
@@ -335,7 +366,7 @@ export const managerService: ManagerService = {
   async login(teamName, password) {
     const managers = await readManagers()
     const manager = managers.find(
-      (m: any) => m.teamName === teamName && m.status === 'active'
+      (m) => m.teamName === teamName && m.status === 'active'
     )
 
     if (!manager) {
@@ -361,7 +392,7 @@ export const managerService: ManagerService = {
    */
   async updateManager(managerId, updateData) {
     const managers = await readManagers()
-    const index = managers.findIndex((m: any) => m.id === managerId)
+    const index = managers.findIndex((m) => m.id === managerId)
 
     if (index === -1) {
       throwNotFound('经理不存在')
@@ -369,7 +400,7 @@ export const managerService: ManagerService = {
 
     // 如果更新了渠道名称，检查唯一性
     if (updateData.teamName) {
-      const existing = managers.find((m: any) => m.teamName === updateData.teamName && m.id !== managerId)
+      const existing = managers.find((m) => m.teamName === updateData.teamName && m.id !== managerId)
       if (existing) {
         throwConflict('该渠道名称已存在')
       }
@@ -394,7 +425,7 @@ export const managerService: ManagerService = {
    */
   async deleteManager(managerId) {
     const managers = await readManagers()
-    const manager = managers.find((m: any) => m.id === managerId)
+    const manager = managers.find((m) => m.id === managerId)
 
     if (!manager) {
       throwNotFound('经理不存在')
@@ -410,7 +441,7 @@ export const managerService: ManagerService = {
    */
   async getManagerProducts(managerId) {
     const products = await readProducts()
-    return products.filter((p: any) => p.managerId === managerId)
+    return products.filter((p) => p.managerId === managerId)
   },
 
   /**
@@ -420,15 +451,15 @@ export const managerService: ManagerService = {
    */
   async getManagerStats(managerId) {
     const orders = await readOrders()
-    const managerOrders = orders.filter((o: any) => o.managerId === managerId)
+    const managerOrders = orders.filter((o) => o.managerId === managerId)
 
     return {
       total: managerOrders.length,
-      pending: managerOrders.filter((o: any) => o.status === 'pending').length,
-      approved: managerOrders.filter((o: any) => o.status === 'approved').length,
-      pendingPayment: managerOrders.filter((o: any) => o.status === 'pending_payment').length,
-      settled: managerOrders.filter((o: any) => o.status === 'settled').length,
-      rejected: managerOrders.filter((o: any) => o.status === 'rejected').length,
+      pending: managerOrders.filter((o) => o.status === 'pending').length,
+      approved: managerOrders.filter((o) => o.status === 'approved').length,
+      pendingPayment: managerOrders.filter((o) => o.status === 'pending_payment').length,
+      settled: managerOrders.filter((o) => o.status === 'settled').length,
+      rejected: managerOrders.filter((o) => o.status === 'rejected').length,
     }
   },
 }

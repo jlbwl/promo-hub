@@ -1,7 +1,8 @@
 import logger from '../utils/logger.js'
 import { Request, Response } from 'express'
-import { CommissionStatus, getErrorMessage } from '@promo/shared'
+import { CommissionStatus, getErrorMessage, type Commission, type OrderStats, type Product } from '@promo/shared'
 import { sendSuccess, sendError } from '../utils/response.js'
+import type { OrderRow } from '../data-memory.js'
 import {
   getOrderStats,
   readOrders,
@@ -23,7 +24,7 @@ export const getStats = async (req: Request, res: Response): Promise<void> => {
   try {
     const { userId, managerId, employeeId } = req.query
 
-    let stats: any = null
+    let stats: OrderStats | null = null
     try {
       stats = await getOrderStats(managerId as string)
     } catch (dbError) {
@@ -33,7 +34,7 @@ export const getStats = async (req: Request, res: Response): Promise<void> => {
     }
 
     if (userId || employeeId) {
-      let orders: any[] = []
+      let orders: OrderRow[] = []
       try {
         orders = await readOrders()
       } catch (dbError2) {
@@ -42,18 +43,18 @@ export const getStats = async (req: Request, res: Response): Promise<void> => {
         orders = await memReadOrders()
       }
       
-      const filteredOrders = orders.filter((o: any) => {
+      const filteredOrders = orders.filter((o: OrderRow) => {
         if (employeeId) {
           return o.employeeId === employeeId
         }
         return o.userId === userId
       })
       
-      const pending = filteredOrders.filter((o: any) => o.status === 'pending').length
-      const approved = filteredOrders.filter((o: any) => o.status === 'approved').length
-      const pendingPayment = filteredOrders.filter((o: any) => o.status === 'pending_payment').length
-      const settled = filteredOrders.filter((o: any) => o.status === 'settled').length
-      const rejected = filteredOrders.filter((o: any) => o.status === 'rejected').length
+      const pending = filteredOrders.filter((o: OrderRow) => o.status === 'pending').length
+      const approved = filteredOrders.filter((o: OrderRow) => o.status === 'approved').length
+      const pendingPayment = filteredOrders.filter((o: OrderRow) => o.status === 'pending_payment').length
+      const settled = filteredOrders.filter((o: OrderRow) => o.status === 'settled').length
+      const rejected = filteredOrders.filter((o: OrderRow) => o.status === 'rejected').length
       sendSuccess(res, { total: filteredOrders.length, pending, approved, pendingPayment, settled, rejected })
     } else {
       sendSuccess(res, stats)
@@ -82,7 +83,7 @@ export const reviewOrder = async (req: Request, res: Response): Promise<void> =>
     }
 
     let orders = await readOrders()
-    const index = orders.findIndex((o: any) => o.id === orderId)
+    const index = orders.findIndex((o: OrderRow) => o.id === orderId)
     if (index === -1) {
       return sendError(res, '订单不存在', 404)
     }
@@ -122,7 +123,7 @@ export const reviewOrder = async (req: Request, res: Response): Promise<void> =>
       order.rejectReason = reason || '推广无效'
       order.reviewedAt = nowMySQL
       let products = await readProducts()
-      const pIdx = products.findIndex((p: any) => p.id === order.productId)
+      const pIdx = products.findIndex((p: Product) => p.id === order.productId)
       if (pIdx !== -1 && products[pIdx].stock !== undefined && products[pIdx].stock >= 0) {
         products[pIdx].stock = (products[pIdx].stock || 0) + 1
         await writeProducts(products)
@@ -153,7 +154,7 @@ export const settleOrder = async (req: Request, res: Response): Promise<void> =>
     }
 
     let orders = await readOrders()
-    const index = orders.findIndex((o: any) => o.id === orderId)
+    const index = orders.findIndex((o: OrderRow) => o.id === orderId)
     if (index === -1) {
       return sendError(res, '订单不存在', 404)
     }
@@ -187,7 +188,7 @@ export const settleOrder = async (req: Request, res: Response): Promise<void> =>
         String(now.getMinutes()).padStart(2, '0') + ':' +
         String(now.getSeconds()).padStart(2, '0')
       let commissions = await readCommissions()
-      const cIdx = commissions.findIndex((c: any) => c.orderId === order.id)
+      const cIdx = commissions.findIndex((c: Commission) => c.orderId === order.id)
       if (cIdx !== -1) {
         commissions[cIdx].status = CommissionStatus.PAID
         commissions[cIdx].paidAt = order.settledAt
@@ -217,24 +218,24 @@ export const getDashboardStats = async (req: Request, res: Response): Promise<vo
     const commissions = await readCommissions()
 
     const myProducts = managerId
-      ? products.filter((p: any) => p.managerId === managerId)
+      ? products.filter((p: Product) => p.managerId === managerId)
       : products
 
     const totalProducts = myProducts.length
-    const publishedProducts = myProducts.filter((p: any) => p.status === 'published').length
+    const publishedProducts = myProducts.filter((p: Product) => p.status === 'published').length
 
-    const myProductIds = new Set(myProducts.map((p: any) => p.id))
+    const myProductIds = new Set(myProducts.map((p: Product) => p.id))
     const myCommissions = managerId
-      ? commissions.filter((c: any) => myProductIds.has(c.productId))
+      ? commissions.filter((c: Commission) => myProductIds.has(c.productId as string))
       : commissions
 
     const pendingCommissions = myCommissions
-      .filter((c: any) => c.status === 'pending')
-      .reduce((sum: number, c: any) => sum + (c.amount || 0), 0)
+      .filter((c: Commission) => c.status === 'pending')
+      .reduce((sum: number, c: Commission) => sum + (c.amount || 0), 0)
 
     const totalCommissions = myCommissions
-      .filter((c: any) => c.status === 'paid')
-      .reduce((sum: number, c: any) => sum + (c.amount || 0), 0)
+      .filter((c: Commission) => c.status === 'paid')
+      .reduce((sum: number, c: Commission) => sum + (c.amount || 0), 0)
 
     sendSuccess(res, {
       totalProducts,

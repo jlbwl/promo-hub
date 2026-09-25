@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach, type Mock } from 'vitest'
 import {
   sendSuccess,
   sendError,
@@ -25,13 +25,18 @@ vi.mock('../logger.js', () => ({
 }))
 
 describe('response utils', () => {
-  let mockRes: any
+  type MockResponse = Response & {
+    json: Mock
+    status: Mock
+  }
+
+  let mockRes: MockResponse
 
   beforeEach(() => {
     mockRes = {
       json: vi.fn(),
       status: vi.fn().mockReturnThis(),
-    }
+    } as MockResponse
   })
 
   afterEach(() => {

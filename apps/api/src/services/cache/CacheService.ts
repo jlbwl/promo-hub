@@ -33,7 +33,7 @@ const DEFAULT_PREFIX = 'promo:'
  */
 export class CacheService {
   private client: RedisClientType | null = null
-  private memoryCache: Map<string, { value: any; expiry: number }> = new Map()
+  private memoryCache: Map<string, { value: unknown; expiry: number }> = new Map()
   private isRedisConnected = false
   private reconnectAttempts = 0
   private maxReconnectAttempts = 3

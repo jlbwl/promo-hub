@@ -69,7 +69,7 @@ app.use((req, _res, next) => {
     req.method,
     req.originalUrl,
     req.ip,
-    (req.session as any)?.user?.id
+    req.session?.user?.id
   )
   next()
 })
@@ -284,6 +284,6 @@ process.on('SIGINT', async () => {
 })
 
 start().catch(err => {
-  logger.error('Failed to start server:', err)
+  logger.error('Failed to start server:', { error: getErrorMessage(err) })
   process.exit(1)
 })

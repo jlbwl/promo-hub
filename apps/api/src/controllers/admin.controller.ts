@@ -147,7 +147,7 @@ export const adminPasswordUpdate = async (req: Request, res: Response): Promise<
     return sendError(res, '新密码长度不能超过32位', 400)
   }
 
-  const user = req.session?.user || (req as any).user
+  const user = req.session?.user || req.user
   if (!user) {
     return sendError(res, '未登录或会话已过期', 401)
   }
@@ -186,6 +186,14 @@ export const adminPasswordUpdate = async (req: Request, res: Response): Promise<
   sendSuccess(res, null, '密码修改成功，请重新登录')
 }
 
+// 仪表盘统计行：SQL 聚合列（COUNT/SUM）在 mysql2 中可能返回 string | number
+type AdminStatsRow = {
+  managerCount?: number | string
+  userCount?: number | string
+  publishedProductCount?: number | string
+  totalCommission?: number | string
+}
+
 /**
  * 获取管理员仪表盘统计数据
  */
@@ -198,7 +206,7 @@ export const getAdminStats = async (req: Request, res: Response): Promise<void> 
         (SELECT COUNT(*) FROM products WHERE status = 'published') as publishedProductCount,
         (SELECT COALESCE(SUM(amount), 0) FROM commissions WHERE status = 'paid') as totalCommission
     `
-    const result = await queryOne(sql)
+    const result = await queryOne<AdminStatsRow>(sql)
 
     sendSuccess(res, {
       managerCount: Number(result?.managerCount) || 0,

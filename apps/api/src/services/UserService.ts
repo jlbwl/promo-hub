@@ -7,6 +7,29 @@ import { ErrorCode, throwBadRequest, throwNotFound, throwConflict, throwUnauthor
 import { DatabaseService } from './DatabaseService.js'
 import { hashPassword, verifyPassword } from '../utils/password.js'
 
+/** 对外返回的安全用户信息（不包含密码），形状与 data 层 UserRow 一致 */
+export interface SafeUser {
+  id: string
+  phone?: string
+  nickname?: string
+  teamName?: string
+  role?: string
+  status?: string
+  alipayUserId?: string
+  wechatOpenId?: string
+  createdAt?: string
+  updatedAt?: string
+  [key: string]: unknown
+}
+
+/** 用户信息更新数据 */
+export interface UserUpdateData {
+  phone?: string
+  nickname?: string
+  teamName?: string
+  [key: string]: unknown
+}
+
 /**
  * 用户服务接口
  */
@@ -19,22 +42,22 @@ export interface UserService {
     password: string
     nickname?: string
     teamName?: string
-  }): Promise<any>
+  }): Promise<SafeUser>
 
   /**
    * 密码登录
    */
-  login(phone: string, password: string): Promise<any>
+  login(phone: string, password: string): Promise<SafeUser>
 
   /**
    * 获取用户信息
    */
-  getUserById(userId: string): Promise<any>
+  getUserById(userId: string): Promise<SafeUser>
 
   /**
    * 更新用户信息
    */
-  updateUser(userId: string, updateData: any): Promise<any>
+  updateUser(userId: string, updateData: UserUpdateData): Promise<SafeUser>
 }
 
 /**
@@ -73,14 +96,14 @@ export class UserServiceImpl implements UserService {
 
     // 检查重复注册
     const users = await this.db.readUsers()
-    const existingPhone = users.find((u: any) => u.phone === phone)
+    const existingPhone = users.find((u) => u.phone === phone)
     if (existingPhone) {
       throwConflict('该手机号已注册', ErrorCode.USER_ALREADY_EXISTS)
     }
 
     // 检查团队名称
     if (teamName) {
-      const existingTeam = users.find((u: any) => u.teamName === teamName)
+      const existingTeam = users.find((u) => u.teamName === teamName)
       if (existingTeam) {
         throwConflict('该团队名称已存在')
       }
@@ -119,7 +142,7 @@ export class UserServiceImpl implements UserService {
   async login(phone: string, password: string) {
     const users = await this.db.readUsers()
     const user = users.find(
-      (u: any) => u.phone === phone && u.status === 'active'
+      (u) => u.phone === phone && u.status === 'active'
     )
     if (!user) {
       throwUnauthorized('手机号或密码错误，或账号已被禁用', ErrorCode.INVALID_CREDENTIALS)
@@ -144,7 +167,7 @@ export class UserServiceImpl implements UserService {
    */
   async getUserById(userId: string) {
     const users = await this.db.readUsers()
-    const user = users.find((u: any) => u.id === userId)
+    const user = users.find((u) => u.id === userId)
 
     if (!user) {
       throwNotFound('用户不存在', ErrorCode.USER_NOT_FOUND)
@@ -161,9 +184,9 @@ export class UserServiceImpl implements UserService {
    * @returns 更新后的用户信息
    * @throws 用户不存在时抛出错误
    */
-  async updateUser(userId: string, updateData: any) {
+  async updateUser(userId: string, updateData: UserUpdateData) {
     const users = await this.db.readUsers()
-    const index = users.findIndex((u: any) => u.id === userId)
+    const index = users.findIndex((u) => u.id === userId)
 
     if (index === -1) {
       throwNotFound('用户不存在', ErrorCode.USER_NOT_FOUND)
@@ -171,7 +194,7 @@ export class UserServiceImpl implements UserService {
 
     // 如果更新了手机号，检查唯一性
     if (updateData.phone) {
-      const existingPhone = users.find((u: any) => u.phone === updateData.phone && u.id !== userId)
+      const existingPhone = users.find((u) => u.phone === updateData.phone && u.id !== userId)
       if (existingPhone) {
         throwConflict('该手机号已被使用')
       }
@@ -179,7 +202,7 @@ export class UserServiceImpl implements UserService {
 
     // 如果更新了团队名称，检查唯一性
     if (updateData.teamName) {
-      const existingTeam = users.find((u: any) => u.teamName === updateData.teamName && u.id !== userId)
+      const existingTeam = users.find((u) => u.teamName === updateData.teamName && u.id !== userId)
       if (existingTeam) {
         throwConflict('该团队名称已被使用')
       }
@@ -218,13 +241,13 @@ export const userService: UserService = {
     }
 
     const users: UserRow[] = await readUsers()
-    const existingPhone = users.find((u: any) => u.phone === phone)
+    const existingPhone = users.find((u) => u.phone === phone)
     if (existingPhone) {
       throwConflict('该手机号已注册', ErrorCode.USER_ALREADY_EXISTS)
     }
 
     if (teamName) {
-      const existingTeam = users.find((u: any) => u.teamName === teamName)
+      const existingTeam = users.find((u) => u.teamName === teamName)
       if (existingTeam) {
         throwConflict('该团队名称已存在')
       }
@@ -250,10 +273,10 @@ export const userService: UserService = {
     return safeUser
   },
 
-  async login(phone, password) {
+  async login(phone: string, password: string) {
     const users = await readUsers()
     const user = users.find(
-      (u: any) => u.phone === phone && u.status === 'active'
+      (u) => u.phone === phone && u.status === 'active'
     )
     if (!user) {
       throwUnauthorized('手机号或密码错误，或账号已被禁用', ErrorCode.INVALID_CREDENTIALS)
@@ -268,9 +291,9 @@ export const userService: UserService = {
     return safeUser
   },
 
-  async getUserById(userId) {
+  async getUserById(userId: string) {
     const users = await readUsers()
-    const user = users.find((u: any) => u.id === userId)
+    const user = users.find((u) => u.id === userId)
 
     if (!user) {
       throwNotFound('用户不存在', ErrorCode.USER_NOT_FOUND)
@@ -282,21 +305,21 @@ export const userService: UserService = {
 
   async updateUser(userId, updateData) {
     const users = await readUsers()
-    const index = users.findIndex((u: any) => u.id === userId)
+    const index = users.findIndex((u) => u.id === userId)
 
     if (index === -1) {
       throwNotFound('用户不存在', ErrorCode.USER_NOT_FOUND)
     }
 
     if (updateData.phone) {
-      const existingPhone = users.find((u: any) => u.phone === updateData.phone && u.id !== userId)
+      const existingPhone = users.find((u) => u.phone === updateData.phone && u.id !== userId)
       if (existingPhone) {
         throwConflict('该手机号已被使用')
       }
     }
 
     if (updateData.teamName) {
-      const existingTeam = users.find((u: any) => u.teamName === updateData.teamName && u.id !== userId)
+      const existingTeam = users.find((u) => u.teamName === updateData.teamName && u.id !== userId)
       if (existingTeam) {
         throwConflict('该团队名称已被使用')
       }

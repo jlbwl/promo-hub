@@ -1,5 +1,5 @@
 import { Request, Response } from 'express'
-import { CategoryService } from '../services/CategoryService.js'
+import { CategoryService, type Category } from '../services/CategoryService.js'
 import { sendSuccess, sendError } from '../utils/response.js'
 import * as dataMemory from '../data-memory.js'
 import logger from '../utils/logger.js'
@@ -68,7 +68,7 @@ export async function updateCategory(req: Request, res: Response) {
   const id = req.params.id as string
   const { name, sort, status } = req.body
 
-  let category: any = null
+  let category: Category | null = null
   
   try {
     category = await categoryService.updateCategory(id, { name, sort, status })

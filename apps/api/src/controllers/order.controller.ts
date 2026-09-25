@@ -4,6 +4,7 @@ import { getErrorMessage } from '@promo/shared'
 import { sendSuccess, sendError, sendPagination } from '../utils/response.js'
 import { orderService } from '../services/index.js'
 import { insertOperationLog } from '../data/index.js'
+import type { OrderRow } from '../data-memory.js'
 
 /**
  * 做单（创建订单）
@@ -28,7 +29,7 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
     }
 
     // 获取当前登录用户（支持登录用户和访客模式）
-    const currentUser = (req as any).user
+    const currentUser = req.user
     let realUserId: string | undefined
     let realEmployeeId: string | undefined
 
@@ -99,7 +100,7 @@ export const getOrders = async (req: Request, res: Response): Promise<void> => {
     }
 
     // P1-7: 根据登录角色强制覆盖查询参数，防止越权访问他人订单
-    const currentUser = (req as any).user
+    const currentUser = req.user
     if (!currentUser || !currentUser.id) {
       return sendError(res, '未登录', 401)
     }
@@ -134,7 +135,7 @@ export const getOrders = async (req: Request, res: Response): Promise<void> => {
       return sendError(res, '不支持的用户角色', 403)
     }
 
-    let result: { list: any[]; total: number }
+    let result: { list: OrderRow[]; total: number }
     try {
       result = await orderService.getOrders({
         userId: queryUserId,
