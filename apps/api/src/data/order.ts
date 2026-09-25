@@ -185,7 +185,7 @@ export async function getOrdersPaginated(params: {
           usersMap.set(user.id, user.teamName)
         })
       } catch (e) {
-        logger.warn('[订单查询] 获取用户信息失败:', e)
+        logger.warn('[订单查询] 获取用户信息失败', { error: e instanceof Error ? e.message : String(e) })
       }
     }
 

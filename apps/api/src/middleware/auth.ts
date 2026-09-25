@@ -15,7 +15,7 @@ const JWT_SECRET = process.env.JWT_SECRET
 
 // 验证 SESSION_SECRET 强度
 if (SESSION_SECRET.length < 32) {
-  logger.warn('[Security] SESSION_SECRET 长度不足（建议至少32字符），当前长度:', SESSION_SECRET.length)
+  logger.warn('[Security] SESSION_SECRET 长度不足（建议至少32字符）', { currentLength: SESSION_SECRET.length })
 }
 
 export interface AuthUser {
@@ -70,7 +70,7 @@ export const sessionMiddleware: RequestHandler = (() => {
       })
       logger.debug('[Session] 使用 MongoDB 存储，有效期90天')
     } catch (err) {
-      logger.warn('[Session] MongoDB 连接失败，降级到内存存储:', err)
+      logger.warn('[Session] MongoDB 连接失败，降级到内存存储', { error: err instanceof Error ? err.message : String(err) })
     }
   } else {
     logger.debug('[Session] 未配置 MongoDB，使用内存存储')
@@ -252,7 +252,7 @@ export const login = (req: Request, user: AuthUser): Promise<void> => {
         }
       })
     } catch (error) {
-      logger.error('[Session] 设置会话失败:', error)
+      logger.error('[Session] 设置会话失败', { error: error instanceof Error ? error.message : String(error) })
       reject(error)
     }
   })
