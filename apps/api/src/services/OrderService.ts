@@ -135,9 +135,13 @@ export class OrderServiceImpl implements OrderService {
       remainingStock = product.stock ?? -1
     }
 
-    // P0-2: 强制使用服务端传入的 userId（来自 req.user.id）
+    // P0-2: 强制使用服务端传入的 userId（来自 req.user.id 或分享归因）
     // 忽略客户端传入的 userId，防止业绩污染
-    let finalUserId = userId || 'guest'
+    // 防御兜底：controller 已 401 拦截无归属请求，此处二次防线，严禁生成无归属订单
+    if (!userId) {
+      throwForbidden('订单缺少归属人，禁止创建')
+    }
+    let finalUserId = userId
     if (employeeId) {
       const employee = await readEmployeeById(employeeId)
       if (employee) {
@@ -145,17 +149,8 @@ export class OrderServiceImpl implements OrderService {
       }
     }
 
-    if (sharerId && finalUserId === 'guest') {
-      finalUserId = sharerId
-    }
-
-    let teamName = ''
-    if (finalUserId !== 'guest') {
-      const user = await readUser(finalUserId)
-      if (user) {
-        teamName = user.teamName || ''
-      }
-    }
+    const user = await readUser(finalUserId)
+    const teamName = user?.teamName || ''
 
     const cleanRedirectUrl = (redirectUrl || '').replace(/`/g, '')
 

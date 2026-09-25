@@ -435,6 +435,13 @@ const submitGoOrder = (userInfo: OrderUserInfo) => {
     payload.sharerId = sharerId
   }
 
+  // 与后端归属规则一致：未登录且无分享归因（sharerId）时不允许下单
+  if (!isLoggedIn() && !sharerId) {
+    showToast('请先登录后再下单')
+    router.push({ name: 'Login', query: { redirect: route.fullPath } })
+    return
+  }
+
   let cleanUrlForJump = ''
   if (chosenOption) {
     payload.optionLabel = chosenOption.label

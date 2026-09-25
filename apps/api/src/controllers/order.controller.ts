@@ -7,15 +7,20 @@ import { insertOperationLog } from '../data/index.js'
 import type { OrderRow } from '../data-memory.js'
 
 /**
- * 做单（创建订单）
+ * 做单（创建订单）—— 代客下单模式
  * 验证产品存在性和状态，检查库存，扣减库存，创建订单记录
- * 支持用户做单、员工代做单和访客模式
- * 
+ *
+ * 归属规则（业绩归属唯一且由服务端裁决）：
+ * - 登录推广人员（user/manager/admin）：userId 强制 = req.user.id（当前登录的推广人员）
+ * - 员工子账号代做单：userId = 关联的主用户，employeeId = 员工本人
+ * - 访客：仅当携带 sharerId（分享链接归因）时允许，业绩归属分享的推广人员
+ * - 无任何归属依据：401 拒绝，严禁生成无归属订单
+ *
  * 安全设计：
- * - 登录用户：userId 从 req.user.id 获取，防止伪造
- * - 员工代做单：使用员工关联的 userId
- * - 访客模式：使用 sharerId（如果有）或标记为 guest
- * 
+ * - 严禁使用前端传来的手机号（userPhone）匹配或推断用户ID
+ * - 忽略客户端传入的任何 userId，防止业绩污染
+ * - 前端传来的 name/phone 是终端客户信息，仅作为 userName/userPhone 落库
+ *
  * @param req - HTTP请求对象，包含产品ID、产品选项等信息
  * @param res - HTTP响应对象
  * @returns 订单信息及剩余库存
@@ -28,29 +33,31 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
       return sendError(res, '缺少产品ID', 400)
     }
 
-    // 获取当前登录用户（支持登录用户和访客模式）
+    // 归属裁决：userId 一律由服务端按登录态/分享归因生成，绝不取自请求体
     const currentUser = req.user
     let realUserId: string | undefined
     let realEmployeeId: string | undefined
 
     if (currentUser && currentUser.id) {
-      // 已登录用户
       if (currentUser.role === 'employee') {
-        // 员工代做单：使用员工关联的 userId
+        // 员工代做单：业绩归属员工关联的主用户
         realEmployeeId = currentUser.id
-        realUserId = currentUser.userId  // 员工关联的真实用户ID
+        realUserId = currentUser.userId
         if (!realUserId) {
           return sendError(res, '员工账户未关联用户，无法做单', 403)
         }
       } else if (currentUser.role === 'user' || currentUser.role === 'manager' || currentUser.role === 'admin') {
-        // 普通用户/经理/管理员做单
+        // 推广人员做单：业绩强制归属当前登录人
         realUserId = currentUser.id
       } else {
         return sendError(res, '不支持的用户角色', 403)
       }
+    } else if (sharerId) {
+      // 访客 + 分享链接：归属分享的推广人员（有归属人，允许）
+      realUserId = sharerId
     } else {
-      // 访客模式：使用 sharerId（如果有）或标记为 guest
-      realUserId = sharerId || 'guest'
+      // 无归属人不允许下单
+      return sendError(res, '请先登录后再下单', 401)
     }
 
     const { order, remainingStock } = await orderService.createOrder({

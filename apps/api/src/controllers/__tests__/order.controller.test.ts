@@ -126,14 +126,28 @@ describe('order.controller', () => {
       expect(jsonPayload(res).message).toBe('员工账户未关联用户，无法做单')
     })
 
-    it('访客做单且无 sharerId 时滞留 guest（不划归，回归归属模型）', async () => {
-      vi.mocked(orderService.createOrder).mockResolvedValue(orderResult)
+    it('访客做单且无 sharerId 时返回 401（不允许生成无归属订单）', async () => {
+      const res = makeRes()
       const req = makeReq({ body: { productId: 'p_1', userPhone: '13800000001' } })
+
+      await createOrder(req, res)
+
+      expect(res.status).toHaveBeenCalledWith(401)
+      expect(jsonPayload(res).message).toBe('请先登录后再下单')
+      expect(orderService.createOrder).not.toHaveBeenCalled()
+    })
+
+    it('客户端伪造 userId/userPhone 不影响归属（强制取会话身份）', async () => {
+      vi.mocked(orderService.createOrder).mockResolvedValue(orderResult)
+      const req = makeReq({
+        body: { productId: 'p_1', userId: 'u_fake', userPhone: '13800000002' },
+        user: { id: 'u_self', role: 'user' },
+      })
 
       await createOrder(req, makeRes())
 
       expect(orderService.createOrder).toHaveBeenCalledWith(
-        expect.objectContaining({ userId: 'guest' })
+        expect.objectContaining({ userId: 'u_self', employeeId: undefined })
       )
     })
 
