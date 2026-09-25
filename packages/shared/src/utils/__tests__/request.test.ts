@@ -205,6 +205,13 @@ describe('request module', () => {
       expect(localStorage.removeItem).toHaveBeenCalledWith('token')
       expect(localStorage.removeItem).toHaveBeenCalledWith('manager_token')
       expect(localStorage.removeItem).toHaveBeenCalledWith('admin_token')
+      // 登出必须原子化：身份信息与登录类型随 token 一起清除，
+      // 否则 user_info 残留导致 getUserId() 非空，页面带失效身份反复请求触发 401 重载循环
+      expect(localStorage.removeItem).toHaveBeenCalledWith('user_info')
+      expect(localStorage.removeItem).toHaveBeenCalledWith('manager_info')
+      expect(localStorage.removeItem).toHaveBeenCalledWith('admin_info')
+      expect(localStorage.removeItem).toHaveBeenCalledWith('employee_info')
+      expect(localStorage.removeItem).toHaveBeenCalledWith('login_type')
       expect(window.location.reload).toHaveBeenCalled()
     })
 

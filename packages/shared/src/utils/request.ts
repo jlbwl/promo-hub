@@ -27,11 +27,14 @@ function readTokenKey(): string {
   )
 }
 
-// 所有角色的 token / refresh token 存储 key
+// 所有角色的 token / refresh token / 身份信息 / 登录类型 存储 key
+// 必须与 token 一起原子化清除：否则登出后 user_info 残留，
+// getUserId() 仍返回非空 id，页面会带着已失效身份反复请求并触发 401 重载循环
 const AUTH_STORAGE_KEYS = [
   'token', 'manager_token', 'admin_token', 'user_token', 'employee_token',
   'refresh_token', 'admin_refresh_token', 'manager_refresh_token',
   'user_refresh_token', 'employee_refresh_token',
+  'user_info', 'manager_info', 'admin_info', 'employee_info', 'login_type',
 ]
 
 function clearAllTokens(): void {
