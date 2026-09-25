@@ -23,8 +23,9 @@
       >
         产品大厅
       </van-tabbar-item>
-      <!-- 收藏（主账户和员工账户都显示） -->
+      <!-- 收藏（仅登录用户可见：主账户和员工账户） -->
       <van-tabbar-item
+        v-if="isLoggedIn"
         to="/cart"
         icon="star-o"
         name="cart"
@@ -32,8 +33,9 @@
       >
         收藏
       </van-tabbar-item>
-      <!-- 主账户和员工账户都显示佣金 -->
+      <!-- 佣金（仅登录用户可见：主账户和员工账户） -->
       <van-tabbar-item
+        v-if="isLoggedIn"
         to="/commissions"
         icon="gold-coin"
         name="commissions"
@@ -109,6 +111,13 @@ const isProductDetail = computed(() => route.path.startsWith('/product'))
 // 是否为员工账户
 const isEmployee = computed(() => {
   return localStorage.getItem('login_type') === 'employee'
+})
+
+// 是否已登录（主账户或员工账户）
+// 依赖 route.path：localStorage 非响应式，登录/登出发生页面跳转时随路由重新求值
+const isLoggedIn = computed(() => {
+  void route.path
+  return !!localStorage.getItem('user_token') || !!localStorage.getItem('employee_token')
 })
 
 // Tab 切换前拦截：访客不允许进入收藏/佣金页
