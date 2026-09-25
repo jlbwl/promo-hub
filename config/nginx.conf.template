@@ -50,14 +50,58 @@ server {
         try_files $uri $uri/ =404;
     }
 
-    # 管理员后台 (最优先)
-    location /admin/ { alias ${PROJECT_ROOT}/admin/; index index.html; try_files $uri $uri/ /admin/index.html; }
+    # 带内容哈希的构建产物：一年强缓存（Vite 产物文件名含 hash，内容变化即换名）
+    # 注意：chunk 缺失时直接 404，禁止 fallback 到 index.html（避免 text/html MIME 报错掩盖问题）
+    location ^~ /admin/assets/ {
+        alias ${PROJECT_ROOT}/admin/assets/;
+        expires 1y;
+        add_header Strict-Transport-Security "max-age=63072000; includeSubDomains" always;
+        add_header Cache-Control "public, immutable";
+        try_files $uri =404;
+    }
+
+    location ^~ /manager/assets/ {
+        alias ${PROJECT_ROOT}/manager/assets/;
+        expires 1y;
+        add_header Strict-Transport-Security "max-age=63072000; includeSubDomains" always;
+        add_header Cache-Control "public, immutable";
+        try_files $uri =404;
+    }
+
+    location ^~ /user/assets/ {
+        alias ${PROJECT_ROOT}/user/assets/;
+        expires 1y;
+        add_header Strict-Transport-Security "max-age=63072000; includeSubDomains" always;
+        add_header Cache-Control "public, immutable";
+        try_files $uri =404;
+    }
+
+    # 管理员后台 (最优先)：HTML 入口 no-cache 协商缓存，确保每次部署后浏览器立即拿到新入口
+    location /admin/ {
+        alias ${PROJECT_ROOT}/admin/;
+        index index.html;
+        add_header Strict-Transport-Security "max-age=63072000; includeSubDomains" always;
+        add_header Cache-Control "no-cache";
+        try_files $uri $uri/ /admin/index.html;
+    }
 
     # 渠道经理后台
-    location /manager/ { alias ${PROJECT_ROOT}/manager/; index index.html; try_files $uri $uri/ /manager/index.html; }
+    location /manager/ {
+        alias ${PROJECT_ROOT}/manager/;
+        index index.html;
+        add_header Strict-Transport-Security "max-age=63072000; includeSubDomains" always;
+        add_header Cache-Control "no-cache";
+        try_files $uri $uri/ /manager/index.html;
+    }
 
     # 用户端
-    location /user/ { alias ${PROJECT_ROOT}/user/; index index.html; try_files $uri $uri/ /user/index.html; }
+    location /user/ {
+        alias ${PROJECT_ROOT}/user/;
+        index index.html;
+        add_header Strict-Transport-Security "max-age=63072000; includeSubDomains" always;
+        add_header Cache-Control "no-cache";
+        try_files $uri $uri/ /user/index.html;
+    }
 
     # 上传图片静态文件（直接由 Nginx 提供，不经过 Node）
     location /uploads/ {
