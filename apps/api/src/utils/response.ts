@@ -44,20 +44,30 @@ export const sendPagination = <T>(
 
 /**
  * 发送错误响应
+ *
+ * 兼容两种调用方式：
+ * - sendError(res, message, code)          —— HTTP 状态码默认与业务错误码一致
+ * - sendError(res, message, code, status)  —— 显式区分业务码与 HTTP 状态码
+ *
+ * 历史背景：大量调用点只传了业务码（如 401/403/404），旧实现 HTTP 状态码恒为
+ * 默认值 400，导致 HTTP 语义错误（如"未登录"返回 HTTP 400）。现未显式传
+ * statusCode 时自动与业务码对齐（限合法 HTTP 范围），显式传参的调用不受影响。
  */
 export const sendError = (
   res: Response,
   message: string,
   code: number = ErrorCode.BAD_REQUEST,
-  statusCode: number = HttpStatus.BAD_REQUEST
+  statusCode?: number
 ): void => {
+  const httpStatus =
+    statusCode ?? (code >= 400 && code <= 599 ? code : HttpStatus.BAD_REQUEST)
   const response: ApiResponse<null> = {
     code,
     message,
     data: null,
     timestamp: Date.now(),
   }
-  res.status(statusCode).json(response)
+  res.status(httpStatus).json(response)
 }
 
 /**
