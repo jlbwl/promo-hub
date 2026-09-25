@@ -27,6 +27,17 @@ function readTokenKey(): string {
   )
 }
 
+// 所有角色的 token / refresh token 存储 key
+const AUTH_STORAGE_KEYS = [
+  'token', 'manager_token', 'admin_token', 'user_token', 'employee_token',
+  'refresh_token', 'admin_refresh_token', 'manager_refresh_token',
+  'user_refresh_token', 'employee_refresh_token',
+]
+
+function clearAllTokens(): void {
+  AUTH_STORAGE_KEYS.forEach((key) => localStorage.removeItem(key))
+}
+
 /**
  * 刷新 token（公共实现，供拦截器与各应用 useAuth 复用）
  * @returns 新的 access token
@@ -77,6 +88,59 @@ function createRequest(): AxiosInstance {
       }
     })
     failedQueue = []
+  }
+
+  // 登录/刷新类接口自身失败时不触发续期，避免死循环
+  const isAuthEndpoint = (url?: string): boolean =>
+    !!url && (
+      url.includes('/login') ||
+      url.includes('/register') ||
+      url.includes('/sms/send') ||
+      url.includes('/auth/refresh') ||
+      url.includes('/users/refresh')
+    )
+
+  /**
+   * 统一处理 401（HTTP 状态码 401 或业务 code 401）：
+   * 有 refresh token 则刷新后重放原请求；否则清除登录态并刷新页面。
+   */
+  const handleUnauthorized = (config: AxiosRequestConfig): Promise<AxiosResponse<ApiResponse>> => {
+    const headers = (config.headers ?? {}) as Record<string, string>
+    config.headers = headers
+    const canRefresh = !!readRefreshToken() && !isAuthEndpoint(config?.url) && !(config as { _retryAuth?: boolean })?._retryAuth
+
+    if (!canRefresh) {
+      clearAllTokens()
+      window.location.reload()
+      return Promise.reject(new Error('未登录或会话已过期'))
+    }
+
+    if (isRefreshing) {
+      return new Promise((resolve, reject) => {
+        failedQueue.push({ resolve, reject })
+      }).then((token) => {
+        headers.Authorization = `Bearer ${token}`
+        return instance(config)
+      }).catch((error: Error) => {
+        clearAllTokens()
+        window.location.reload()
+        return Promise.reject(error)
+      })
+    }
+
+    isRefreshing = true
+    return refreshTokens().then((token) => {
+      processQueue(token)
+      headers.Authorization = `Bearer ${token}`
+      return instance(config)
+    }).catch((error: Error) => {
+      processQueue('', error)
+      clearAllTokens()
+      window.location.reload()
+      return Promise.reject(error)
+    }).finally(() => {
+      isRefreshing = false
+    })
   }
 
   // 请求拦截器 — 自动携带 token（跳过登录相关接口）
@@ -138,71 +202,20 @@ function createRequest(): AxiosInstance {
         return response
       }
       if (code === 401 && !window.location.pathname.includes('/login')) {
-        const hasRefreshToken = readRefreshToken()
-
-        if (!hasRefreshToken) {
-          localStorage.removeItem('token')
-          localStorage.removeItem('manager_token')
-          localStorage.removeItem('admin_token')
-          localStorage.removeItem('user_token')
-          localStorage.removeItem('employee_token')
-          localStorage.removeItem('refresh_token')
-          localStorage.removeItem('admin_refresh_token')
-          localStorage.removeItem('manager_refresh_token')
-          localStorage.removeItem('user_refresh_token')
-          localStorage.removeItem('employee_refresh_token')
-          window.location.reload()
-          return Promise.reject(new Error(message || '未登录或会话已过期'))
-        }
-
-        if (isRefreshing) {
-          return new Promise((resolve, reject) => {
-            failedQueue.push({ resolve, reject })
-          }).then((token) => {
-            response.config.headers.Authorization = `Bearer ${token}`
-            return instance(response.config)
-          }).catch((error) => {
-            localStorage.removeItem('token')
-            localStorage.removeItem('manager_token')
-            localStorage.removeItem('admin_token')
-            localStorage.removeItem('user_token')
-            localStorage.removeItem('employee_token')
-            localStorage.removeItem('refresh_token')
-            localStorage.removeItem('admin_refresh_token')
-            localStorage.removeItem('manager_refresh_token')
-            localStorage.removeItem('user_refresh_token')
-            localStorage.removeItem('employee_refresh_token')
-            window.location.reload()
-            return Promise.reject(error)
-          })
-        }
-
-        isRefreshing = true
-        return refreshTokens().then((token) => {
-          processQueue(token)
-          response.config.headers.Authorization = `Bearer ${token}`
-          return instance(response.config)
-        }).catch((error) => {
-          processQueue('', error)
-          localStorage.removeItem('token')
-          localStorage.removeItem('manager_token')
-          localStorage.removeItem('admin_token')
-          localStorage.removeItem('user_token')
-          localStorage.removeItem('employee_token')
-          localStorage.removeItem('refresh_token')
-          localStorage.removeItem('admin_refresh_token')
-          localStorage.removeItem('manager_refresh_token')
-          localStorage.removeItem('user_refresh_token')
-          localStorage.removeItem('employee_refresh_token')
-          window.location.reload()
-          return Promise.reject(error)
-        }).finally(() => {
-          isRefreshing = false
-        })
+        ;(response.config as AxiosRequestConfig & { _retryAuth?: boolean })._retryAuth = true
+        return handleUnauthorized(response.config)
       }
       return Promise.reject(new Error(message || '请求失败'))
     },
     (error) => {
+      // HTTP 层 401（access token 过期）：同样走统一续期流程，避免误清登录态
+      if (error.response?.status === 401 && !window.location.pathname.includes('/login')) {
+        const config = error.config as (AxiosRequestConfig & { _retryAuth?: boolean }) | undefined
+        if (config) {
+          config._retryAuth = true
+          return handleUnauthorized(config)
+        }
+      }
       const msg = error.response?.data?.message || error.message || '网络错误'
       return Promise.reject(new Error(msg))
     },

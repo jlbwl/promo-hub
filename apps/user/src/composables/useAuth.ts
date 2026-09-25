@@ -1,7 +1,6 @@
 import { logger } from '@promo/shared/utils/logger'
 import { ref } from 'vue'
-import { get, refreshTokens } from '@promo/shared/utils/request'
-import type { User } from '@promo/shared/types'
+import { refreshTokens } from '@promo/shared/utils/request'
 
 /**
  * 认证状态管理
@@ -10,66 +9,41 @@ export function useAuth() {
   const isAuthenticated = ref(false)
 
   /**
-   * 检查是否已登录（通过 Token）
+   * 检查是否已登录（本地快验证）
+   *
+   * 刷新页面时不主动调用后端接口验证 token：
+   * - token 与用户信息齐全即视为已登录，真实有效性由请求层统一保障
+   *   （任一接口 401 时自动用 refresh token 续期，续期失败才清除登录态）
+   * - 避免刷新页面时因验证接口偶发失败（网络抖动、鉴权中间件变化）误清登录态
    */
   const checkAuth = async (): Promise<boolean> => {
     const token = localStorage.getItem('user_token')
-    
+
     if (!token) {
       isAuthenticated.value = false
       return false
     }
 
-    try {
-      // 尝试从本地存储获取用户信息
-      const userInfoStr = localStorage.getItem('user_info')
-      if (!userInfoStr) {
-        isAuthenticated.value = false
-        return false
-      }
+    const userInfoStr = localStorage.getItem('user_info')
+    if (!userInfoStr) {
+      isAuthenticated.value = false
+      return false
+    }
 
+    try {
       const userInfo = JSON.parse(userInfoStr) as { id?: string }
       if (!userInfo.id) {
+        // 用户信息损坏（缺少 id）：仅清理该项，保留 token 供重新拉取
+        localStorage.removeItem('user_info')
         isAuthenticated.value = false
         return false
       }
 
-      // 验证 Token 是否有效（通过调用后端接口）
-      const res = await get<User>(`/users/${userInfo.id}`, {}, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      })
-
-      if (res.code === 0) {
-        // Token 有效，更新用户信息
-        localStorage.setItem('user_info', JSON.stringify({
-          ...userInfo,
-          ...res.data
-        }))
-        isAuthenticated.value = true
-        return true
-      } else {
-        // Token 无效，清除本地存储
-        clearAuth()
-        isAuthenticated.value = false
-        return false
-      }
-    } catch (error) {
-      logger.error('自动登录验证失败:', error)
-
-      // 如果是 401 错误，说明 Token 已过期
-      if ((error as { status?: number })?.status === 401 || (error as { statusCode?: number })?.statusCode === 401) {
-        // 尝试使用 Refresh Token 刷新
-        const refreshed = await refreshToken()
-        if (refreshed) {
-          isAuthenticated.value = true
-          return true
-        }
-      }
-      
-      // 其他错误，清除本地存储
-      clearAuth()
+      isAuthenticated.value = true
+      return true
+    } catch {
+      // JSON 解析失败：用户信息损坏，仅清理该项
+      localStorage.removeItem('user_info')
       isAuthenticated.value = false
       return false
     }

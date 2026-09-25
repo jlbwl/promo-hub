@@ -194,9 +194,11 @@ describe('request module', () => {
           code: 401,
           message: 'Unauthorized',
         },
+        config: { headers: {}, url: '/orders' },
       }
 
-      await expect(responseSuccessInterceptor(mockResponse)).rejects.toThrow('Unauthorized')
+      // 无 refresh token 可用：清除登录态并刷新页面
+      await expect(responseSuccessInterceptor(mockResponse)).rejects.toThrow('未登录或会话已过期')
       expect(localStorage.removeItem).toHaveBeenCalledWith('token')
       expect(localStorage.removeItem).toHaveBeenCalledWith('manager_token')
       expect(localStorage.removeItem).toHaveBeenCalledWith('admin_token')
