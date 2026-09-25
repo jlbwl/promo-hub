@@ -164,9 +164,13 @@ export const sendUserSmsCode = asyncHandler(
 
     const code = generateSmsCode()
     saveSmsCode(phone, code, 300)
-    
-    logger.debug('SMS code sent', { phone })
-    await sendSmsCode(phone, code)
+
+    const result = await sendSmsCode(phone, code)
+    if (!result.success) {
+      logger.error('SMS code send failed', { phone, reason: result.message })
+      deleteSmsCode(phone)
+      throw new AppError('验证码发送失败，请稍后重试', ErrorCode.INTERNAL_SERVER_ERROR, HttpStatus.INTERNAL_SERVER_ERROR)
+    }
     sendSuccess(res, { expiresIn: 300 }, '验证码已发送')
   }
 )

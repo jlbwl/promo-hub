@@ -162,7 +162,8 @@ export async function sendSmsCode(phone: string, code: string): Promise<{ succes
     if (result.Code === 'OK') {
       return { success: true, message: '发送成功' }
     } else {
-      return { success: false, message: result.Message || '发送失败' }
+      // 携带阿里云错误码，便于上层日志定位（如 InvalidAccessKeyId.Inactive、BUSINESS_LIMIT_CONTROL）
+      return { success: false, message: `阿里云短信接口返回 ${result.Code}: ${result.Message || '未知错误'}` }
     }
   } catch (error) {
     return { success: false, message: getErrorMessage(error, '发送异常') }

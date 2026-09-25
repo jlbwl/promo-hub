@@ -310,8 +310,13 @@ export const sendManagerSmsCode = async (req: Request, res: Response): Promise<v
 
   const code = generateSmsCode()
   saveSmsCode(phone, code)
-  
-  await sendSmsCode(phone, code)
+
+  const result = await sendSmsCode(phone, code)
+  if (!result.success) {
+    logger.error('Manager SMS code send failed', { phone, reason: result.message })
+    deleteSmsCode(phone)
+    return sendError(res, '验证码发送失败，请稍后重试', 500)
+  }
   sendSuccess(res, null, '验证码已发送')
 }
 
