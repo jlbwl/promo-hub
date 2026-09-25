@@ -175,7 +175,7 @@
                           :show-file-list="false"
                           :auto-upload="false"
                           accept="image/*"
-                          @change="(file: any) => handleQrUpload(file, idx)"
+                          @change="(file: UploadFile) => handleQrUpload(file, idx)"
                         >
                           <el-button
                             type="primary"
@@ -347,11 +347,11 @@ import { logger } from '@promo/shared/utils/logger'
 import { getErrorMessage } from '@promo/shared/utils/errors'
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ElMessage, ElMessageBox, type FormInstance, type FormRules, type UploadProps } from 'element-plus'
+import { ElMessage, ElMessageBox, type FormInstance, type FormRules, type UploadFile, type UploadProps } from 'element-plus'
 import { ArrowLeft, Plus, PictureFilled, UploadFilled } from '@element-plus/icons-vue'
 import { get, post, put } from '@promo/shared/utils/request'
 import RichTextEditor from '@/components/RichTextEditor.vue'
-import type { ProductCategory } from '@promo/shared/types'
+import type { Product, ProductCategory } from '@promo/shared/types'
 
 const route = useRoute()
 const router = useRouter()
@@ -433,8 +433,9 @@ const handleAddOption = () => {
 }
 
 // 上传二维码识别链接
-const handleQrUpload = async (uploadFile: any, idx: number) => {
-  const file = uploadFile.raw || uploadFile
+const handleQrUpload = async (uploadFile: UploadFile, idx: number) => {
+  // raw 为 element-plus 包装的原始 File；兜底分支为直接传入 File 的历史调用
+  const file = (uploadFile.raw || uploadFile) as unknown as File
   if (!file) return
 
   form.options[idx]._qrLoading = true
@@ -750,7 +751,7 @@ const fetchProductDetail = async () => {
   if (!isEdit.value) return
 
   try {
-    const res = await get<any>(`/products/${route.params.id}`)
+    const res = await get<Product>(`/products/${route.params.id}`)
     if (res.data) {
       const p = res.data
       Object.assign(form, {

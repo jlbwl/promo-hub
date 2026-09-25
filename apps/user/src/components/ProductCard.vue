@@ -59,22 +59,19 @@
 </template>
 
 <script setup lang="ts">
+import type { Product } from '@promo/shared/types'
+
 /**
- * 产品数据接口
+ * 产品数据接口（在 Product 基础上附加本地展示状态）
  */
+interface ProductCardProduct extends Product {
+  cover?: string
+  inCart?: boolean
+  sales?: number
+}
+
 interface ProductCardProps {
-  product: {
-    id: string
-    title: string
-    price: number
-    cover?: string
-    coverImage?: string
-    sales?: number
-    category?: string
-    inCart?: boolean
-    managerId?: string
-    [key: string]: any
-  }
+  product: ProductCardProduct
   categoryName?: string
   showActions?: boolean
 }

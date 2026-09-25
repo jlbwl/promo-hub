@@ -94,12 +94,14 @@
 
 <script setup lang="ts">
 // 筛选栏：关键词、订单状态、经理、用户（用户选项值格式为 userPhone||teamName）
+import type { Manager } from '@promo/shared/types'
+
 defineProps<{
   keyword: string
   status: string
   manager: string
   user: string
-  managers: any[]
+  managers: Manager[]
   userOptions: { key: string; label: string }[]
 }>()
 

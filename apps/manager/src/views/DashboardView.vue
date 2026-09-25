@@ -160,10 +160,18 @@ const stats = reactive({
   totalCommissions: 0
 })
 
+// 仪表盘统计数据结构
+interface DashboardStatsData {
+  totalProducts?: number
+  publishedProducts?: number
+  pendingCommissions?: number
+  totalCommissions?: number
+}
+
 // 获取统计数据
 const fetchStats = async () => {
   try {
-    const res = await get<any>('/stats/dashboard', {
+    const res = await get<DashboardStatsData>('/stats/dashboard', {
       managerId: getManagerId() || undefined,
     })
     if (res.data) {

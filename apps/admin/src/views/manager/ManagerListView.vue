@@ -274,6 +274,7 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
 import { get, post, put, del } from '@promo/shared/utils/request'
 import { getErrorMessage } from '@promo/shared/utils/errors'
+import type { Manager } from '@promo/shared/types'
 
 // 格式化时间（北京时区 UTC+8）
 const formatTime = (iso: string) => {
@@ -299,14 +300,14 @@ const searchKeyword = ref('')
 const loading = ref(false)
 
 // 表格数据
-const tableData = ref<any[]>([])
+const tableData = ref<Manager[]>([])
 
 // 过滤后的数据
 const filteredData = computed(() => {
   if (!searchKeyword.value) return tableData.value
   const keyword = searchKeyword.value.toLowerCase()
   return tableData.value.filter(
-    (item: any) =>
+    (item: Manager) =>
       (item.teamName || '').toLowerCase().includes(keyword) ||
       (item.phone || '').includes(keyword)
   )
@@ -328,7 +329,7 @@ const teamNameLoading = ref(false)
 const teamNameForm = reactive({
   teamName: ''
 })
-const editRow = ref<any>(null)
+const editRow = ref<Manager | null>(null)
 
 const addFormRules: FormRules = {
   teamName: [
@@ -348,7 +349,7 @@ const addFormRules: FormRules = {
 const loadData = async () => {
   loading.value = true
   try {
-    const res = await get<any>('/managers')
+    const res = await get<Manager[]>('/managers')
     tableData.value = res.data || []
   } catch (error) {
     ElMessage.error(getErrorMessage(error, '获取数据失败'))
@@ -397,7 +398,7 @@ const handleAdd = async () => {
 }
 
 // 切换渠道状态
-const handleToggleManagerStatus = async (row: any, newStatus: string) => {
+const handleToggleManagerStatus = async (row: Manager, newStatus: string) => {
   if (row.status === newStatus) return
   
   const action = newStatus === 'active' ? '启用' : '禁用'
@@ -418,7 +419,7 @@ const handleToggleManagerStatus = async (row: any, newStatus: string) => {
 }
 
 // 删除
-const handleDelete = async (row: any) => {
+const handleDelete = async (row: Manager) => {
   try {
     await ElMessageBox.confirm(
       `删除后将清空该渠道「${row.teamName}」的所有档案，且数据不可找回，确定要删除吗？`,
@@ -442,7 +443,7 @@ const handleDelete = async (row: any) => {
 }
 
 // 短信验证码相关
-const deleteRow = ref<any>(null)
+const deleteRow = ref<Manager | null>(null)
 const deleteSmsDialogVisible = ref(false)
 const smsCode = ref('')
 const smsLoading = ref(false)
@@ -519,7 +520,7 @@ const confirmDelete = async () => {
 }
 
 // 修改渠道名称
-const handleEditTeamName = (row: any) => {
+const handleEditTeamName = (row: Manager) => {
   editRow.value = row
   teamNameForm.teamName = row.teamName || ''
   teamNameDialogVisible.value = true

@@ -118,9 +118,17 @@ import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import { post } from '@promo/shared/utils/request'
 import { getErrorMessage } from '@promo/shared/utils/errors'
+import type { Manager } from '@promo/shared/types'
 
 const router = useRouter()
 const route = useRoute()
+
+// 经理登录接口响应数据结构
+interface ManagerLoginData {
+  manager?: Manager
+  token?: string
+  refreshToken?: string
+}
 
 if (route.query.expired === '1') {
   ElMessage.warning('账号已被删除或禁用，请重新登录')
@@ -167,7 +175,7 @@ const handlePasswordLogin = async () => {
     await pwdFormRef.value.validate()
     loading.value = true
 
-    const res = await post<any>('/managers/login', {
+    const res = await post<ManagerLoginData>('/managers/login', {
       phone: pwdForm.phone,
       password: pwdForm.password,
     })
@@ -222,7 +230,7 @@ const handleSmsLogin = async () => {
     await smsFormRef.value.validate()
     loading.value = true
 
-    const res = await post<any>('/managers/sms/login', {
+    const res = await post<ManagerLoginData>('/managers/sms/login', {
       phone: smsForm.phone,
       code: smsForm.code,
     })

@@ -225,6 +225,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { showToast } from 'vant'
 import { post } from '@promo/shared/utils/request'
 import { getErrorMessage } from '@promo/shared/utils/errors'
+import type { Employee, User } from '@promo/shared/types'
 
 const router = useRouter()
 const route = useRoute()
@@ -258,8 +259,27 @@ onUnmounted(() => {
   if (smsTimer) clearInterval(smsTimer)
 })
 
+/**
+ * 用户登录接口返回数据
+ */
+interface UserLoginResult {
+  token: string
+  refreshToken?: string
+  user: User
+}
+
+/**
+ * 员工登录接口返回数据
+ */
+interface EmployeeLoginResult {
+  token: string
+  refreshToken?: string
+  user: User
+  employee: Employee
+}
+
 // 通用登录成功处理
-const onLoginSuccess = (data: any) => {
+const onLoginSuccess = (data: UserLoginResult) => {
   localStorage.setItem('user_token', data.token)
   localStorage.setItem('user_info', JSON.stringify(data.user))
   if (data.refreshToken) {
@@ -278,12 +298,12 @@ const handlePasswordLogin = async () => {
 
   loading.value = true
   try {
-    const res = await post<any>('/users/login', { phone: pwdForm.phone, password: pwdForm.password })
+    const res = await post<UserLoginResult>('/users/login', { phone: pwdForm.phone, password: pwdForm.password })
     onLoginSuccess(res.data)
   } catch (e) {
     // 普通登录失败，尝试员工登录
     try {
-      const employeeRes = await post<any>('/employees/login', { phone: pwdForm.phone, password: pwdForm.password })
+      const employeeRes = await post<EmployeeLoginResult>('/employees/login', { phone: pwdForm.phone, password: pwdForm.password })
       
       // 保存员工信息到 localStorage
       localStorage.setItem('employee_info', JSON.stringify(employeeRes.data.employee))
@@ -333,7 +353,7 @@ const handleSmsLogin = async () => {
 
   loading.value = true
   try {
-    const res = await post<any>('/users/sms/login', { phone: smsForm.phone, code: smsForm.code, teamName: smsForm.teamName })
+    const res = await post<UserLoginResult>('/users/sms/login', { phone: smsForm.phone, code: smsForm.code, teamName: smsForm.teamName })
     onLoginSuccess(res.data)
   } catch (e) {
     showToast(getErrorMessage(e, '登录失败'))

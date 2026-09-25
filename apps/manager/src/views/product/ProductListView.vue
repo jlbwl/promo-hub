@@ -216,7 +216,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Picture } from '@element-plus/icons-vue'
 import { get, put, del } from '@promo/shared/utils/request'
-import type { ProductCategory } from '@promo/shared/types'
+import type { PaginatedResponse, ProductCategory } from '@promo/shared/types'
 
 const router = useRouter()
 const route = useRoute()
@@ -252,7 +252,24 @@ interface Product {
   commission: number
   status: ProductStatus
   createdAt: string
-  publishedAt: string
+  publishedAt?: string
+  offlineReason?: string
+  category?: string
+  categoryId?: string
+  categoryNameSnapshot?: string
+}
+
+// 产品列表接口返回的原始数据结构
+interface ProductApiItem {
+  id: string
+  title: string
+  coverImage: string
+  price: number
+  status: ProductStatus
+  createdAt: string
+  cover?: string
+  commission?: number
+  publishedAt?: string
   offlineReason?: string
   category?: string
   categoryId?: string
@@ -342,7 +359,7 @@ const fetchData = async () => {
     const currentManagerId = getManagerId()
     logger.debug('[fetchData] 正在获取产品列表，managerId:', currentManagerId)
     
-    const res = await get<any>('/products', {
+    const res = await get<PaginatedResponse<ProductApiItem>>('/products', {
       page: pagination.page,
       pageSize: pagination.pageSize,
       status: searchStatus.value || undefined,
@@ -354,7 +371,7 @@ const fetchData = async () => {
     logger.debug('[fetchData] 获取到产品列表:', { listCount: list.length, total })
     
     // 映射字段：coverImage -> cover
-    tableData.value = list.map((p: any) => ({
+    tableData.value = list.map((p: ProductApiItem) => ({
       ...p,
       cover: p.coverImage || p.cover || '',
       commission: p.commission || 0,
@@ -432,7 +449,7 @@ const handleDelete = async (row: Product) => {
     )
     const url = `/products/${row.id}?managerId=${getManagerId()}`
     logger.debug('[删除产品] 发送请求:', url)
-    const res = await del<any>(url)
+    const res = await del<unknown>(url)
     logger.debug('[删除产品] 响应:', res)
     ElMessage.success('删除成功')
     fetchData()

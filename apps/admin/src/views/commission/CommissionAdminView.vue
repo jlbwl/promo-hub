@@ -56,6 +56,7 @@ import EditTeamNameDialog from './components/EditTeamNameDialog.vue'
 import DeleteOrderDialog from './components/DeleteOrderDialog.vue'
 import StatDetailDialog from './components/StatDetailDialog.vue'
 import { useCommissionAdmin } from './composables/useCommissionAdmin'
+import type { Order } from '@promo/shared/types'
 
 const {
   loading,
@@ -73,16 +74,16 @@ const {
   refreshAll,
 } = useCommissionAdmin()
 
-const editTeamNameDialogRef = ref<{ open: (row: any) => void } | null>(null)
-const deleteDialogRef = ref<{ open: (row: any) => void } | null>(null)
+const editTeamNameDialogRef = ref<{ open: (row: Order) => void } | null>(null)
+const deleteDialogRef = ref<{ open: (row: Order) => void } | null>(null)
 const statDetailDialogRef = ref<{ open: (status: string, title: string) => void } | null>(null)
 
 // 打开统计明细弹窗
 const openStatDetail = (status: string, title: string) => statDetailDialogRef.value?.open(status, title)
 // 打开编辑团队名称弹窗
-const openEditTeamName = (row: any) => editTeamNameDialogRef.value?.open(row)
+const openEditTeamName = (row: Order) => editTeamNameDialogRef.value?.open(row)
 // 打开删除确认弹窗
-const openDelete = (row: any) => deleteDialogRef.value?.open(row)
+const openDelete = (row: Order) => deleteDialogRef.value?.open(row)
 </script>
 
 <style lang="scss" scoped>

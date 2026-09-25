@@ -39,10 +39,22 @@ export function useLocalStorage<T>(key: string, defaultValue: T) {
 }
 
 /**
+ * user_info 在 localStorage 中的存储结构
+ */
+export interface StoredUserInfo {
+  id?: string
+  managerId?: string
+  nickname?: string
+  avatar?: string
+  phone?: string
+  teamName?: string
+}
+
+/**
  * 获取用户信息
  */
 export function useUser() {
-  const storage = useLocalStorage<any>('user_info', {})
+  const storage = useLocalStorage<StoredUserInfo>('user_info', {})
   const loginType = useLocalStorage<string>('login_type', '')
 
   const getUserId = (): string => {

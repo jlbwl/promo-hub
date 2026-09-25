@@ -757,6 +757,7 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Document, Clock, CircleCheck, CircleClose, Wallet, SuccessFilled } from '@element-plus/icons-vue'
 import { get, put } from '@promo/shared/utils/request'
+import type { Order, OrderStats, PaginatedResponse } from '@promo/shared/types'
 
 // 加载状态
 const loading = ref(false)
@@ -783,15 +784,15 @@ const stats = reactive({
 })
 
 // 表格数据
-const tableData = ref<any[]>([])
+const tableData = ref<Order[]>([])
 
 // ====== 通用数据查看模态框 ======
 const statDialogVisible = ref(false)
 const statDialogTitle = ref('')
-const statDialogOrders = ref<any[]>([])
+const statDialogOrders = ref<Order[]>([])
 
 const statDialogTotal = computed(() => {
-  return statDialogOrders.value.reduce((sum: number, o: any) => sum + (Number(o.productPrice) || 0), 0).toFixed(2)
+  return statDialogOrders.value.reduce((sum: number, o: Order) => sum + (Number(o.productPrice) || 0), 0).toFixed(2)
 })
 
 // 打开通用数据查看弹窗
@@ -800,13 +801,17 @@ const openStatDialog = async (status: string, title: string) => {
   statDialogVisible.value = true
 
   try {
-    const params: any = {
+    const params: {
+      managerId?: string
+      pageSize: number
+      status?: string
+    } = {
       managerId: getManagerId() || undefined,
       pageSize: 999,
     }
     if (status !== 'all') params.status = status
 
-    const res = await get<any>('/orders', params)
+    const res = await get<PaginatedResponse<Order>>('/orders', params)
     statDialogOrders.value = res.data?.list || []
   } catch (error) {
     ElMessage.error('获取数据失败')
@@ -817,7 +822,7 @@ const openStatDialog = async (status: string, title: string) => {
 // ====== 待付款结算相关 ======
 const paymentDialogVisible = ref(false)
 const paymentStep = ref<'list' | 'method' | 'success'>('list')
-const paymentOrders = ref<any[]>([])
+const paymentOrders = ref<Order[]>([])
 const selectedPaymentMethod = ref('')
 const settleLoading = ref(false)
 
@@ -828,7 +833,7 @@ const paymentMethods = [
 ]
 
 const paymentTotal = computed(() => {
-  return paymentOrders.value.reduce((sum: number, o: any) => sum + (Number(o.productPrice) || 0), 0).toFixed(2)
+  return paymentOrders.value.reduce((sum: number, o: Order) => sum + (Number(o.productPrice) || 0), 0).toFixed(2)
 })
 
 const methodLabel = computed(() => {
@@ -898,7 +903,7 @@ const maskName = (name: string) => {
 // 获取统计数据
 const fetchStats = async () => {
   try {
-    const res = await get<any>('/orders/stats', {
+    const res = await get<OrderStats>('/orders/stats', {
       managerId: getManagerId() || undefined,
     })
     if (res.data) {
@@ -918,7 +923,7 @@ const fetchStats = async () => {
 const fetchData = async () => {
   loading.value = true
   try {
-    const res = await get<any>('/orders', {
+    const res = await get<PaginatedResponse<Order>>('/orders', {
       page: pagination.page,
       pageSize: pagination.pageSize,
       managerId: getManagerId() || undefined,
@@ -946,7 +951,7 @@ const handleReset = () => {
 }
 
 // 审核通过
-const handleApprove = async (row: any) => {
+const handleApprove = async (row: Order) => {
   try {
     await ElMessageBox.confirm(
       `确认「${row.productName}」记录有效，发放记录 ¥${row.productPrice}？`,
@@ -968,7 +973,7 @@ const handleApprove = async (row: any) => {
 }
 
 // 驳回申请
-const handleReject = async (row: any) => {
+const handleReject = async (row: Order) => {
   try {
     const { value: reason } = await ElMessageBox.prompt(
       '请输入驳回原因',
@@ -999,7 +1004,7 @@ const handleReject = async (row: any) => {
 }
 
 // 添加到待付款
-const handleAddToPayment = async (row: any) => {
+const handleAddToPayment = async (row: Order) => {
   try {
     await ElMessageBox.confirm(
       `确认将「${row.productName}」添加到待发放列表？`,
@@ -1032,7 +1037,7 @@ const openPaymentDialog = async () => {
 
   // 加载待付款订单
   try {
-    const res = await get<any>('/orders', {
+    const res = await get<PaginatedResponse<Order>>('/orders', {
       managerId: getManagerId() || undefined,
       status: 'pending_payment',
       pageSize: 999,

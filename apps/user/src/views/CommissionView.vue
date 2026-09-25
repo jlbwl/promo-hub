@@ -80,7 +80,7 @@
         <van-swipe-cell
           v-for="record in records"
           :key="record.id"
-          :ref="el => { if (el) swipeCellRefs[record.id] = el }"
+          :ref="el => { if (el) swipeCellRefs[record.id] = el as SwipeCellInstance }"
           :right-width="getSwipeWidth(record.id)"
           @close="handleSwipeClose(record.id)"
         >
@@ -124,7 +124,7 @@
             <div class="record-right">
               <span class="record-price">{{ record.productPrice }}</span>
               <van-tag
-                :type="(statusType(record.status) as any)"
+                :type="statusType(record.status)"
                 size="medium"
                 round
               >
@@ -286,6 +286,8 @@ import { logger } from '@promo/shared/utils/logger'
 import { ref, reactive, onMounted, onActivated } from 'vue'
 import { get, del, post } from '@promo/shared/utils/request'
 import { getErrorMessage } from '@promo/shared/utils/errors'
+import type { Order, OrderStats } from '@promo/shared/types'
+import type { SwipeCellInstance, TagType } from 'vant'
 import { showToast } from 'vant'
 
 // 当前激活的 Tab
@@ -310,13 +312,13 @@ const overview = reactive({
 })
 
 // 订单记录
-const records = ref<any[]>([])
+const records = ref<Order[]>([])
 
 // 正在确认删除的记录ID列表（两步删除确认）
 const confirmingIds = ref<string[]>([])
 
 // swipe-cell 组件引用，用于控制菜单打开状态
-const swipeCellRefs: Record<string, any> = {}
+const swipeCellRefs: Record<string, SwipeCellInstance> = {}
 
 // 资金号输入框引用
 const fundInputRefs: Record<string, HTMLInputElement> = {}
@@ -335,12 +337,12 @@ let isLoading = false
 
 // 回收站相关
 const showRecycleBin = ref(false)
-const deletedOrders = ref<any[]>([])
+const deletedOrders = ref<Order[]>([])
 
 // 获取当前用户 ID
 const getUserId = () => {
   try {
-    const info = JSON.parse(localStorage.getItem('user_info') || '{}')
+    const info = JSON.parse(localStorage.getItem('user_info') || '{}') as { id?: string }
     return info.id || ''
   } catch { return '' }
 }
@@ -348,7 +350,7 @@ const getUserId = () => {
 // 获取员工ID
 const getEmployeeId = () => {
   try {
-    const info = JSON.parse(localStorage.getItem('employee_info') || '{}')
+    const info = JSON.parse(localStorage.getItem('employee_info') || '{}') as { id?: string }
     return info.id || ''
   } catch { return '' }
 }
@@ -359,8 +361,8 @@ const isEmployee = () => {
 }
 
 // 状态映射
-const statusType = (status: string) => {
-  const map: Record<string, string> = {
+const statusType = (status: string): TagType => {
+  const map: Record<string, TagType> = {
     pending: 'warning',
     approved: 'success',
     pending_payment: 'primary',
@@ -382,7 +384,7 @@ const statusLabel = (status: string) => {
 }
 
 // 格式化时间
-const formatTime = (iso: string) => {
+const formatTime = (iso?: string) => {
   if (!iso) return ''
   const d = new Date(iso)
   const pad = (n: number) => String(n).padStart(2, '0')
@@ -403,13 +405,16 @@ const maskName = (name: string) => {
 // 加载统计数据
 const loadStats = async () => {
   try {
-    const params: any = {}
+    const params: {
+      employeeId?: string
+      userId?: string
+    } = {}
     if (isEmployee()) {
       params.employeeId = getEmployeeId()
     } else {
       params.userId = getUserId()
     }
-    const res = await get<any>('/orders/stats', params)
+    const res = await get<OrderStats>('/orders/stats', params)
     if (res.data) {
       overview.total = res.data.total || 0
       overview.pending = res.data.pending || 0
@@ -431,22 +436,28 @@ const loadRecords = async () => {
   }
   isLoading = true
   try {
-    const params: any = {
+    const params: {
+      page: number
+      pageSize: number
+      employeeId?: string
+      userId?: string
+      status?: string
+    } = {
       page: page.value,
       pageSize,
     }
-    
+
     if (isEmployee()) {
       params.employeeId = getEmployeeId()
     } else {
       params.userId = getUserId() || undefined
     }
-    
+
     if (activeTab.value !== 'all') {
       params.status = activeTab.value
     }
 
-    const res = await get<any>('/orders', params)
+    const res = await get<{ list: Order[]; total: number }>('/orders', params)
     if (res.data) {
       const { list, total } = res.data
       if (page.value === 1) {
@@ -497,7 +508,7 @@ const getSwipeWidth = (recordId: string): number => {
 }
 
 // 显示资金号输入框
-const handleShowFundInput = (record: any) => {
+const handleShowFundInput = (record: Order) => {
   // 标记正在切换状态
   switchingIds.value.push(record.id)
   // 进入资金号输入状态
@@ -528,7 +539,7 @@ const handleShowFundInput = (record: any) => {
 }
 
 // 提交资金号
-const submitFundAccount = async (record: any) => {
+const submitFundAccount = async (record: Order) => {
   const fundAccount = fundAccountNumbers[record.id]?.trim()
   if (!fundAccount) {
     showToast('请输入资金号')
@@ -561,7 +572,7 @@ const submitFundAccount = async (record: any) => {
 }
 
 // 删除订单（两步确认）
-const handleDelete = async (record: any) => {
+const handleDelete = async (record: Order) => {
   // 检查是否已处于确认状态
   const isConfirming = confirmingIds.value.includes(record.id)
   
@@ -629,7 +640,7 @@ const openRecycleBin = async () => {
 // 加载已删除订单
 const loadDeletedOrders = async () => {
   try {
-    const res = await get<any>('/user/orders/deleted', { userId: getUserId() })
+    const res = await get<Order[]>('/user/orders/deleted', { userId: getUserId() })
     if (res.code === 0) {
       deletedOrders.value = res.data || []
     }
@@ -639,7 +650,7 @@ const loadDeletedOrders = async () => {
 }
 
 // 恢复订单
-const handleRestore = async (order: any) => {
+const handleRestore = async (order: Order) => {
   if (!order) {
     showToast('请选择要恢复的订单')
     return

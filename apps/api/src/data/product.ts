@@ -1,7 +1,7 @@
 
 import logger from '../utils/logger.js'
 import { getErrorMessage } from '@promo/shared'
-import type { Product } from '@promo/shared'
+import type { Product, ProductOption } from '@promo/shared'
 import { query, queryOne } from '../db.js'
 import { deserialize, serialize, formatDateTime, columnExists } from './utils.js'
 
@@ -27,7 +27,7 @@ export async function readProducts(): Promise<Product[]> {
     requireName: Boolean(Number(row.requireName)),
     requirePhone: Boolean(Number(row.requirePhone)),
     images: deserialize<string>(row.images),
-    options: deserialize<unknown>(row.options),
+    options: deserialize<ProductOption>(row.options),
   }))
 }
 
@@ -42,7 +42,7 @@ export async function readProduct(id: string): Promise<Product | null> {
     requireName: Boolean(Number(row.requireName)),
     requirePhone: Boolean(Number(row.requirePhone)),
     images: deserialize<string>(row.images),
-    options: deserialize<unknown>(row.options),
+    options: deserialize<ProductOption>(row.options),
   }
 }
 
@@ -279,7 +279,7 @@ export async function getProductsPaginated(params: {
         requireName: Boolean(Number(product.requireName)),
         requirePhone: Boolean(Number(product.requirePhone)),
         images: deserialize<string>(product.images),
-        options: deserialize<unknown>(product.options),
+        options: deserialize<ProductOption>(product.options),
         sales: salesMap.get(product.id) || 0,
       })),
       total,

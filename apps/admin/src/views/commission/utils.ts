@@ -1,6 +1,7 @@
 /**
  * 佣金管理页共享纯函数：脱敏、时间格式化、状态映射
  */
+import type { Manager } from '@promo/shared/types'
 
 // 订单状态对应的标签类型
 export const statusTagType = (s: string) => ({ pending: 'warning', approved: 'success', pending_payment: '', settled: 'success', rejected: 'danger' }[s] || 'info')
@@ -26,14 +27,14 @@ export const formatTime = (iso: string) => {
   return `${year}-${p(month)}-${p(day)} ${p(hours)}:${p(d.getUTCMinutes())}`
 }
 
-// 手机号脱敏
-export const maskPhone = (phone: string) => {
+// 手机号脱敏（接口冗余字段可能缺省）
+export const maskPhone = (phone: string | undefined) => {
   if (!phone || phone.length < 7) return phone || '--'
   return phone.slice(0, 3) + '****' + phone.slice(-4)
 }
 
-// 姓名脱敏
-export const maskName = (name: string) => {
+// 姓名脱敏（接口冗余字段可能缺省）
+export const maskName = (name: string | undefined) => {
   if (!name) return '--'
   if (name.length <= 1) return name
   if (name.length === 2) return name[0] + '*'
@@ -41,7 +42,7 @@ export const maskName = (name: string) => {
 }
 
 // 根据经理 ID 获取经理团队名称
-export const getManagerTeamName = (managers: any[], managerId: string) => {
+export const getManagerTeamName = (managers: Manager[], managerId: string) => {
   if (!managerId) return '--'
   const manager = managers.find(m => m.id === managerId)
   if (manager) {

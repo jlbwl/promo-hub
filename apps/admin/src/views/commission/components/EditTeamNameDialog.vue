@@ -60,13 +60,14 @@ import type { FormInstance, FormRules } from 'element-plus'
 import { put } from '@promo/shared/utils/request'
 import { getErrorMessage } from '@promo/shared/utils/errors'
 import { maskName } from '../utils'
+import type { Order } from '@promo/shared/types'
 
 const emit = defineEmits<{
   success: []
 }>()
 
 const visible = ref(false)
-const row = ref<any>(null)
+const row = ref<Order | null>(null)
 const loading = ref(false)
 const formRef = ref<FormInstance>()
 const form = reactive({ teamName: '' })
@@ -75,7 +76,7 @@ const rules: FormRules = {
 }
 
 // 打开编辑团队名称弹窗
-const open = (r: any) => {
+const open = (r: Order) => {
   row.value = r
   form.teamName = r.teamName || ''
   visible.value = true

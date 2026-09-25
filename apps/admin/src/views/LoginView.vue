@@ -154,6 +154,13 @@ const smsRules: FormRules = {
 const smsCooldown = ref(0)
 let smsTimer: ReturnType<typeof setInterval> | null = null
 
+// 管理员登录响应 data 结构
+interface AdminLoginData {
+  token: string
+  refreshToken?: string
+  admin: Record<string, unknown>
+}
+
 const handlePasswordLogin = async () => {
   if (!pwdFormRef.value) return
 
@@ -162,7 +169,7 @@ const handlePasswordLogin = async () => {
 
     loading.value = true
     try {
-      const res = await post<any>('/admin/login', {
+      const res = await post<AdminLoginData>('/admin/login', {
         phone: pwdForm.phone,
         password: pwdForm.password,
       })
@@ -214,7 +221,7 @@ const handleSmsLogin = async () => {
 
     loading.value = true
     try {
-      const res = await post<any>('/admin/sms/login', {
+      const res = await post<AdminLoginData>('/admin/sms/login', {
         phone: smsForm.phone,
         code: smsForm.code,
       })

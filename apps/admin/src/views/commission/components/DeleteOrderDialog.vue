@@ -57,17 +57,18 @@ import { ElMessage } from 'element-plus'
 import { Warning } from '@element-plus/icons-vue'
 import { del } from '@promo/shared/utils/request'
 import { getErrorMessage } from '@promo/shared/utils/errors'
+import type { Order } from '@promo/shared/types'
 
 const emit = defineEmits<{
   success: []
 }>()
 
 const visible = ref(false)
-const row = ref<any>(null)
+const row = ref<Order | null>(null)
 const reason = ref('')
 
 // 打开删除确认弹窗
-const open = (r: any) => {
+const open = (r: Order) => {
   row.value = r
   reason.value = ''
   visible.value = true

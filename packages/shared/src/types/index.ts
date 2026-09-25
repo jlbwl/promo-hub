@@ -10,6 +10,14 @@ export enum UserRole {
 }
 
 // ============ 产品相关 ============
+// 产品单选选项（manager 端编辑下发，user 端做单时选择；
+// manager 编辑表单会临时附加 _qrLoading UI 状态，属本地扩展不进此类型）
+export interface ProductOption {
+  label: string
+  limit?: string
+  redirectUrl?: string
+}
+
 export interface Product {
   id: string
   title: string
@@ -24,7 +32,7 @@ export interface Product {
   status: 'draft' | 'published' | 'archived'
   managerId?: string
   stock?: number
-  options?: any[]
+  options?: ProductOption[]
   publishedBy?: string
   publishedAt?: string
   offlineReason?: string

@@ -206,7 +206,38 @@ import { reactive, ref, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { showToast, showDialog } from 'vant'
 import { get, post } from '@promo/shared/utils/request'
+import { getErrorMessage } from '@promo/shared/utils/errors'
+import type { Product, ProductOption } from '@promo/shared/types'
 import QRCode from 'qrcode'
+
+/**
+ * 产品详情接口返回数据（在 Product 基础上附加展示字段）
+ */
+interface ProductDetailData extends Product {
+  sales?: number
+}
+
+/**
+ * 做单需要补充的用户信息
+ */
+interface OrderUserInfo {
+  userName?: string
+  userPhone?: string
+}
+
+/**
+ * 做单请求 payload
+ */
+interface OrderPayload {
+  productId: string
+  userId: string
+  userName?: string
+  userPhone?: string
+  employeeId?: string
+  sharerId?: string
+  optionLabel?: string
+  redirectUrl?: string
+}
 
 // 路由实例
 const router = useRouter()
@@ -228,7 +259,7 @@ const product = reactive({
   rate: '-',
   images: [] as string[],
   description: '',
-  options: [] as { label: string; limit: string; redirectUrl: string }[],
+  options: [] as ProductOption[],
   requireName: false,
   requirePhone: false
 })
@@ -250,7 +281,7 @@ const isShareMode = ref(false)
 // 加载产品详情
 const fetchProductDetail = async () => {
   try {
-    const res = await get<any>(`/products/${productId}`)
+    const res = await get<ProductDetailData>(`/products/${productId}`)
     if (res.data) {
       const p = res.data
       product.id = p.id
@@ -313,7 +344,7 @@ const handleShare = async () => {
   shareQrCode.value = ''
   
   const sharerId = (() => {
-    try { return JSON.parse(localStorage.getItem('user_info') || '{}').id || '' } catch { return '' }
+    try { return (JSON.parse(localStorage.getItem('user_info') || '{}') as { id?: string }).id || '' } catch { return '' }
   })()
   
   let shareUrl = `${window.location.origin}/user/product/${productId}?share=true`
@@ -369,7 +400,7 @@ const submitInfoForm = () => {
 }
 
 // 执行做单
-const submitGoOrder = (userInfo: any) => {
+const submitGoOrder = (userInfo: OrderUserInfo) => {
   // 获取选中的选项
   const chosenOption = product.options.length > 0 ? product.options[selectedOption.value] : null
 
@@ -377,16 +408,16 @@ const submitGoOrder = (userInfo: any) => {
 
   // 调用做单接口
   const userId = (() => {
-    try { return JSON.parse(localStorage.getItem('user_info') || '{}').id || '' } catch { return '' }
+    try { return (JSON.parse(localStorage.getItem('user_info') || '{}') as { id?: string }).id || '' } catch { return '' }
   })()
 
   // 检查是否是员工账户
   const isEmployee = localStorage.getItem('login_type') === 'employee'
   const employeeId = isEmployee ? (() => {
-    try { return JSON.parse(localStorage.getItem('employee_info') || '{}').id || '' } catch { return '' }
+    try { return (JSON.parse(localStorage.getItem('employee_info') || '{}') as { id?: string }).id || '' } catch { return '' }
   })() : undefined
 
-  const payload: any = { productId: product.id, userId, ...userInfo }
+  const payload: OrderPayload = { productId: product.id, userId, ...userInfo }
   if (isEmployee && employeeId) {
     payload.employeeId = employeeId
   }
@@ -401,7 +432,7 @@ const submitGoOrder = (userInfo: any) => {
     payload.optionLabel = chosenOption.label
     // 清理 redirectUrl 中的反引号和首尾空格/换行
     payload.redirectUrl = (chosenOption.redirectUrl || '').replace(/`/g, '').trim()
-    cleanUrlForJump = payload.redirectUrl
+    cleanUrlForJump = payload.redirectUrl ?? ''
     logger.debug('[做单] 原始redirectUrl:', chosenOption.redirectUrl)
     logger.debug('[做单] 清理后redirectUrl:', payload.redirectUrl)
   }
@@ -419,7 +450,7 @@ const submitGoOrder = (userInfo: any) => {
   }
   
   // 先提交订单，成功后再跳转
-  post('/orders', payload).then((res: any) => {
+  post('/orders', payload).then((res) => {
     logger.debug('[做单] 成功, 响应:', JSON.stringify(res))
     
     // 订单提交成功后执行跳转
@@ -449,9 +480,9 @@ const submitGoOrder = (userInfo: any) => {
       fetchProductDetail()
       showToast('做单成功')
     }
-  }).catch((error: any) => {
+  }).catch((error: unknown) => {
     logger.error('[做单] 失败:', error)
-    showToast(error.message || '做单失败')
+    showToast(getErrorMessage(error, '做单失败'))
   })
 }
 </script>

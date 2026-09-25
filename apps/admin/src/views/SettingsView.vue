@@ -87,7 +87,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
-import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
+import { ElMessage, type FormInstance, type FormItemRule, type FormRules } from 'element-plus'
 import { post } from '@promo/shared/utils/request'
 import { getErrorMessage } from '@promo/shared/utils/errors'
 
@@ -106,7 +106,7 @@ const securityForm = reactive({
 })
 
 // 账户安全表单校验规则
-const validateConfirmPassword = (_rule: any, value: string, callback: any) => {
+const validateConfirmPassword = (_rule: FormItemRule, value: string, callback: (error?: string | Error) => void) => {
   if (value !== securityForm.newPassword) {
     callback(new Error('两次输入的密码不一致'))
   } else {

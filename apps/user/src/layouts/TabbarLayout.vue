@@ -57,6 +57,7 @@ import { ref, computed, watch, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { showConfirmDialog } from 'vant'
 import { get } from '@promo/shared/utils/request'
+import type { CartItem } from '@promo/shared/types'
 import IcpFooter from '../components/IcpFooter.vue'
 
 // 从环境变量读取 ICP 备案号（未配置时使用默认备案号）
@@ -73,10 +74,10 @@ const getUserId = () => {
   try {
     const loginType = localStorage.getItem('login_type')
     if (loginType === 'employee') {
-      const employeeInfo = JSON.parse(localStorage.getItem('employee_info') || '{}')
+      const employeeInfo = JSON.parse(localStorage.getItem('employee_info') || '{}') as { userId?: string; id?: string }
       return employeeInfo.userId || employeeInfo.id || ''
     }
-    const info = JSON.parse(localStorage.getItem('user_info') || '{}')
+    const info = JSON.parse(localStorage.getItem('user_info') || '{}') as { id?: string }
     return info.id || ''
   } catch { return '' }
 }
@@ -86,7 +87,7 @@ const fetchCartCount = async () => {
   const userId = getUserId()
   if (!userId) return
   try {
-    const res = await get<any[]>('/cart', { userId })
+    const res = await get<CartItem[]>('/cart', { userId })
     if (res.code === 0) {
       cartCount.value = res.data?.length || 0
     }

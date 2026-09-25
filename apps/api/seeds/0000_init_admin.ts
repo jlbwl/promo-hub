@@ -5,7 +5,7 @@ const SALT_ROUNDS = 12
 
 export async function seed(knex: Knex): Promise<void> {
   const adminCount = await knex('admins').count('* as count').first()
-  if ((adminCount as any).count === 0) {
+  if (Number(adminCount?.count) === 0) {
     const adminPhone = process.env.ADMIN_PHONE
     const adminPassword = process.env.ADMIN_PASSWORD
     const adminName = process.env.ADMIN_NAME || '超级管理员'

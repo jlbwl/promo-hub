@@ -70,6 +70,17 @@ import { useRouter } from 'vue-router'
 import { showToast } from 'vant'
 import { post } from '@promo/shared/utils/request'
 import { getErrorMessage } from '@promo/shared/utils/errors'
+import type { Employee, User } from '@promo/shared/types'
+
+/**
+ * 员工登录接口返回数据
+ */
+interface EmployeeLoginResult {
+  token: string
+  refreshToken?: string
+  user: User
+  employee: Employee
+}
 
 const router = useRouter()
 
@@ -84,7 +95,7 @@ const handleSubmit = async () => {
   loading.value = true
 
   try {
-    const res: any = await post('/employees/login', {
+    const res = await post<EmployeeLoginResult>('/employees/login', {
       phone: form.phone,
       password: form.password
     })

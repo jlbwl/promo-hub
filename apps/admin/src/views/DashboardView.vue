@@ -311,6 +311,15 @@ import { User, UserFilled, Goods, Money } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { get, put } from '@promo/shared/utils/request'
 import { getErrorMessage } from '@promo/shared/utils/errors'
+import type { Manager, PaginatedResponse, Product } from '@promo/shared/types'
+
+// /admin/stats 响应结构
+interface AdminStats {
+  managerCount: number
+  userCount: number
+  publishedProductCount: number
+  totalCommission: number
+}
 
 // 统计数据
 const stats = reactive({
@@ -323,14 +332,14 @@ const stats = reactive({
 // 上架产品弹窗
 const productDialogVisible = ref(false)
 const productLoading = ref(false)
-const publishedProducts = ref<any[]>([])
+const publishedProducts = ref<Product[]>([])
 
 // 下架结果弹窗
 const offlineResultVisible = ref(false)
-const offlineProduct = ref<any>(null)
+const offlineProduct = ref<Product | null>(null)
 
 // 经理列表（用于显示经理姓名）
-const managers = ref<any[]>([])
+const managers = ref<Manager[]>([])
 
 // 分类映射
 const getCategoryName = (category: string) => {
@@ -350,7 +359,7 @@ const getCategoryName = (category: string) => {
 }
 
 // 获取经理名称
-const getManagerName = (managerId: string) => {
+const getManagerName = (managerId?: string) => {
   if (!managerId) return '--'
   const manager = managers.value.find(m => m.id === managerId)
   if (manager) {
@@ -380,7 +389,7 @@ const formatTime = (iso: string) => {
 // 获取全局统计数据
 const fetchStats = async () => {
   try {
-    const res = await get<any>('/admin/stats')
+    const res = await get<AdminStats>('/admin/stats')
     if (res.data) {
       stats.managerCount = res.data.managerCount || 0
       stats.userCount = res.data.userCount || 0
@@ -404,8 +413,8 @@ const openProductDialog = async () => {
     // 同时获取产品列表和经理列表
     // adminMode=true 让管理员能看到所有上架产品，不受活跃经理限制
     const [productsRes, managersRes] = await Promise.all([
-      get<any>('/products', { status: 'published', pageSize: 999, adminMode: true }),
-      get<any>('/managers')
+      get<PaginatedResponse<Product>>('/products', { status: 'published', pageSize: 999, adminMode: true }),
+      get<Manager[]>('/managers')
     ])
     publishedProducts.value = productsRes.data?.list || []
     managers.value = managersRes.data || []
@@ -417,7 +426,7 @@ const openProductDialog = async () => {
 }
 
 // 下架产品
-const handleOffline = async (row: any) => {
+const handleOffline = async (row: Product) => {
   try {
     const { value: reason } = await ElMessageBox.prompt(
       `请输入下架「${row.title}」的理由（将同步通知所属经理）：`,
@@ -437,7 +446,7 @@ const handleOffline = async (row: any) => {
     await put(`/admin/products/${row.id}/offline`, { reason })
     ElMessage.success('已下架')
     // 刷新列表和统计
-    publishedProducts.value = publishedProducts.value.filter((p: any) => p.id !== row.id)
+    publishedProducts.value = publishedProducts.value.filter((p: Product) => p.id !== row.id)
     stats.publishedProductCount = publishedProducts.value.length
     // 显示整改建议
     offlineProduct.value = { ...row, offlineReason: reason }

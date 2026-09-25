@@ -196,16 +196,36 @@ import { get } from '@promo/shared/utils/request'
 import { getErrorMessage } from '@promo/shared/utils/errors'
 
 const loading = ref(false)
-const tableData = ref<any[]>([])
+const tableData = ref<OperationLogRow[]>([])
 const pagination = reactive({ page: 1, pageSize: 10, total: 0 })
 const searchForm = reactive({ operationType: '', targetType: '', adminId: '' })
 const detailVisible = ref(false)
-const currentLog = ref<any>(null)
+const currentLog = ref<OperationLogRow | null>(null)
+
+// /admin/operation-logs 列表项结构
+interface OperationLogRow {
+  id?: string
+  createdAt: string
+  adminName: string
+  adminPhone: string
+  operationType: string
+  targetType: string
+  targetId?: string
+  targetName: string
+  reason?: string
+  detail?: string
+}
 
 const fetchLogs = async () => {
   loading.value = true
   try {
-    const params: any = {
+    const params: {
+      page: number
+      pageSize: number
+      operationType?: string
+      targetType?: string
+      adminId?: string
+    } = {
       page: pagination.page,
       pageSize: pagination.pageSize,
     }
@@ -213,7 +233,7 @@ const fetchLogs = async () => {
     if (searchForm.targetType) params.targetType = searchForm.targetType
     if (searchForm.adminId) params.adminId = searchForm.adminId
 
-    const res = await get<{ list: any[]; total: number }>('/admin/operation-logs', params)
+    const res = await get<{ list: OperationLogRow[]; total: number }>('/admin/operation-logs', params)
     if (res.code === 0) {
       tableData.value = res.data?.list || []
       pagination.total = res.data?.total || 0
@@ -233,7 +253,7 @@ const resetForm = () => {
   fetchLogs()
 }
 
-const showDetail = (row: any) => {
+const showDetail = (row: OperationLogRow) => {
   currentLog.value = row
   detailVisible.value = true
 }

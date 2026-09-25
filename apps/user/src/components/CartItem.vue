@@ -57,19 +57,13 @@
 </template>
 
 <script setup lang="ts">
+import type { CartItem as CartItemEntity } from '@promo/shared/types'
+
 /**
  * 购物车项数据接口
  */
 interface CartItemProps {
-  item: {
-    id: string
-    productId: string
-    productName: string
-    productPrice: number
-    coverImage?: string
-    optionLabel?: string
-    [key: string]: any
-  }
+  item: CartItemEntity
   isEmployee?: boolean
 }
 

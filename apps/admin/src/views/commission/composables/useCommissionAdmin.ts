@@ -4,6 +4,25 @@ import { ElMessage } from 'element-plus'
 import { get } from '@promo/shared/utils/request'
 import { getErrorMessage } from '@promo/shared/utils/errors'
 import { maskName, maskPhone } from '../utils'
+import type { Manager, Order, OrderStats, PaginatedResponse } from '@promo/shared/types'
+
+// 用户筛选选项：订单中"用户+团队名称"去重组合的列表项
+interface UserOptionItem {
+  userName?: string
+  userPhone?: string
+  teamName?: string
+}
+
+// /orders 列表查询参数
+interface OrderQueryParams {
+  page: number
+  pageSize: number
+  status?: string
+  managerId?: string
+  userPhone?: string
+  teamName?: string
+  keyword?: string
+}
 
 /**
  * 佣金管理页：筛选、分页、统计与选项数据的获取逻辑
@@ -15,17 +34,17 @@ export function useCommissionAdmin() {
   const filterUser = ref('')
   const filterKeyword = ref('')
   const pagination = reactive({ page: 1, pageSize: 10, total: 0 })
-  const tableData = ref<any[]>([])
+  const tableData = ref<Order[]>([])
 
   // 经理列表和用户筛选选项（来自订单中"用户+团队名称"去重组合）
-  const managers = ref<any[]>([])
+  const managers = ref<Manager[]>([])
   const userOptions = ref<{ key: string; label: string }[]>([])
 
   const stats = reactive({ total: 0, pending: 0, approved: 0, pendingPayment: 0, settled: 0, rejected: 0 })
 
   const fetchStats = async () => {
     try {
-      const res = await get<any>('/orders/stats')
+      const res = await get<OrderStats>('/orders/stats')
       if (res.data) Object.assign(stats, { total: res.data.total || 0, pending: res.data.pending || 0, approved: res.data.approved || 0, pendingPayment: res.data.pendingPayment || 0, settled: res.data.settled || 0, rejected: res.data.rejected || 0 })
     } catch (e) { logger.error(e) }
   }
@@ -33,7 +52,7 @@ export function useCommissionAdmin() {
   // 获取经理列表
   const fetchManagers = async () => {
     try {
-      const res = await get<any>('/managers')
+      const res = await get<Manager[]>('/managers')
       if (res.data) managers.value = res.data || []
     } catch (e) { logger.error(e) }
   }
@@ -41,8 +60,8 @@ export function useCommissionAdmin() {
   // 获取用户筛选选项：订单中"用户+团队名称"去重组合（订单冗余了用户信息，users 表不含访客单）
   const fetchUserOptions = async () => {
     try {
-      const res = await get<any>('/orders/user-options')
-      const list: any[] = res.data || []
+      const res = await get<UserOptionItem[]>('/orders/user-options')
+      const list: UserOptionItem[] = res.data || []
       const seen = new Set<string>()
       const options: { key: string; label: string }[] = []
       for (const o of list) {
@@ -61,7 +80,7 @@ export function useCommissionAdmin() {
   const fetchData = async () => {
     loading.value = true
     try {
-      const params: any = { page: pagination.page, pageSize: pagination.pageSize }
+      const params: OrderQueryParams = { page: pagination.page, pageSize: pagination.pageSize }
       if (filterStatus.value) params.status = filterStatus.value
       if (filterManager.value) params.managerId = filterManager.value
       if (filterUser.value) {
@@ -71,7 +90,7 @@ export function useCommissionAdmin() {
         if (team) params.teamName = team
       }
       if (filterKeyword.value) params.keyword = filterKeyword.value
-      const res = await get<any>('/orders', params)
+      const res = await get<PaginatedResponse<Order>>('/orders', params)
       if (res.data) { tableData.value = res.data.list || []; pagination.total = res.data.total || 0 }
     } catch (e) { ElMessage.error(getErrorMessage(e, '获取失败')) }
     finally { loading.value = false }

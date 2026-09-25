@@ -920,10 +920,10 @@ const handleExportProducts = async () => {
         })
 
         worksheet.addImage(qrCodeImage, {
-          tl: { col: 1, row: qrCodeRow.number - 1 } as any,
-          br: { col: 4, row: qrCodeRow.number } as any,
-          editAs: 'oneCell' as any
-        })
+          tl: { col: 1, row: qrCodeRow.number - 1 },
+          br: { col: 4, row: qrCodeRow.number },
+          editAs: 'oneCell'
+        } as Parameters<ExcelJS.Worksheet['addImage']>[1])
       } catch (error) {
         logger.error('Failed to add QR code to Excel:', error)
         ElMessage.warning('二维码插入失败')

@@ -1,6 +1,14 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import type { RouteRecordRaw } from 'vue-router'
 
+// 路由 meta 字段扩展
+declare module 'vue-router' {
+  interface RouteMeta {
+    title?: string
+    requiresAuth?: boolean
+  }
+}
+
 // 路由配置
 const routes: RouteRecordRaw[] = [
   {
@@ -69,7 +77,7 @@ const router = createRouter({
 })
 
 // 处理动态导入失败（部署后缓存问题）
-router.onError((error: any) => {
+router.onError((error: Error) => {
   const pattern = /Failed to fetch dynamically imported module/i
   if (pattern.test(error.message)) {
     window.location.reload()
@@ -79,7 +87,7 @@ router.onError((error: any) => {
 // 路由守卫：检查登录状态
 router.beforeEach((to, _from, next) => {
   // 设置页面标题
-  const title = to.meta.title as string
+  const title = to.meta.title
   if (title) {
     document.title = `${title} - 管理后台`
   }

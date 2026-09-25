@@ -263,6 +263,7 @@ import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { get, put, del, post } from '@promo/shared/utils/request'
 import { getErrorMessage } from '@promo/shared/utils/errors'
+import type { PaginatedResponse } from '@promo/shared/types'
 
 // 格式化时间（北京时区 UTC+8）
 const formatTime = (iso: string) => {
@@ -321,7 +322,7 @@ const editRow = ref<UserItem | null>(null)
 const loadData = async () => {
   loading.value = true
   try {
-    const res = await get<any>('/users', {
+    const res = await get<PaginatedResponse<UserItem>>('/users', {
       page: pagination.page,
       pageSize: pagination.pageSize,
       status: searchStatus.value !== '' ? searchStatus.value : undefined,

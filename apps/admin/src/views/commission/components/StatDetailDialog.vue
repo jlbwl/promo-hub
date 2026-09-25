@@ -122,15 +122,16 @@ import { ref, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import { get } from '@promo/shared/utils/request'
 import { maskName, maskPhone, formatTime, getManagerTeamName } from '../utils'
+import type { Manager, Order, PaginatedResponse } from '@promo/shared/types'
 
 const props = defineProps<{
-  managers: any[]
+  managers: Manager[]
 }>()
 
 const visible = ref(false)
 const title = ref('')
-const orders = ref<any[]>([])
-const total = computed(() => orders.value.reduce((s: number, o: any) => s + (Number(o.productPrice) || 0), 0).toFixed(2))
+const orders = ref<Order[]>([])
+const total = computed(() => orders.value.reduce((s: number, o: Order) => s + (Number(o.productPrice) || 0), 0).toFixed(2))
 
 // 根据经理 ID 获取渠道名称
 const teamNameOf = (managerId: string) => getManagerTeamName(props.managers, managerId)
@@ -140,9 +141,9 @@ const open = async (status: string, t: string) => {
   title.value = t + '明细'
   visible.value = true
   try {
-    const params: any = { pageSize: 999 }
+    const params: { pageSize: number; status?: string } = { pageSize: 999 }
     if (status !== 'all') params.status = status
-    const res = await get<any>('/orders', params)
+    const res = await get<PaginatedResponse<Order>>('/orders', params)
     orders.value = res.data?.list || []
   } catch {
     ElMessage.error('获取数据失败')

@@ -182,11 +182,12 @@
 <script setup lang="ts">
 import { Edit } from '@element-plus/icons-vue'
 import { maskName, maskPhone, formatTime, statusTagType, statusText, getManagerTeamName } from '../utils'
+import type { Manager, Order } from '@promo/shared/types'
 
 const props = defineProps<{
   loading: boolean
-  data: any[]
-  managers: any[]
+  data: Order[]
+  managers: Manager[]
   total: number
   page: number
   pageSize: number
@@ -196,8 +197,8 @@ const emit = defineEmits<{
   'update:page': [value: number]
   'update:pageSize': [value: number]
   'page-change': []
-  'edit-team': [row: any]
-  delete: [row: any]
+  'edit-team': [row: Order]
+  delete: [row: Order]
 }>()
 
 // 根据经理 ID 获取渠道名称

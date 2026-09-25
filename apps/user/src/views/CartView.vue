@@ -60,6 +60,7 @@ import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { get, del } from '@promo/shared/utils/request'
 import { getErrorMessage } from '@promo/shared/utils/errors'
+import type { CartItem as CartItemEntity } from '@promo/shared/types'
 import { showToast } from 'vant'
 import CartItem from '../components/CartItem.vue'
 import { useUser } from '../composables/useLocalStorage'
@@ -77,7 +78,7 @@ const { getUserId, getManagerId, isEmployee: checkIsEmployee } = useUser()
 /**
  * 购物车数据
  */
-const cartItems = ref<any[]>([])
+const cartItems = ref<CartItemEntity[]>([])
 
 /**
  * 是否为员工账户
@@ -89,19 +90,19 @@ const isEmployee = computed(() => checkIsEmployee())
  */
 const loadCart = async () => {
   try {
-    let items: any[] = []
+    let items: CartItemEntity[] = []
     if (isEmployee.value) {
       // 员工账户：获取其所属经理负责的主账户的购物车
       const managerId = getManagerId()
       if (managerId) {
-        const res = await get<any[]>('/manager/cart', { managerId })
+        const res = await get<CartItemEntity[]>('/manager/cart', { managerId })
         if (res.code === 0) {
           items = res.data || []
         }
       }
     } else {
       // 主账户：获取自己的购物车
-      const res = await get<any[]>('/cart', { userId: getUserId() })
+      const res = await get<CartItemEntity[]>('/cart', { userId: getUserId() })
       if (res.code === 0) {
         items = res.data || []
       }
@@ -115,14 +116,14 @@ const loadCart = async () => {
 /**
  * 跳转到产品详情
  */
-const goToProduct = (item: any) => {
+const goToProduct = (item: CartItemEntity) => {
   router.push(`/product/${item.productId}`)
 }
 
 /**
  * 移除购物车项
  */
-const handleRemove = async (item: any) => {
+const handleRemove = async (item: CartItemEntity) => {
   try {
     const res = await del(`/cart/${item.id}`)
     if (res.code === 0) {

@@ -469,6 +469,8 @@ import { useRouter } from 'vue-router'
 import { showDialog, showToast } from 'vant'
 import { get, post, put, del } from '@promo/shared/utils/request'
 import { getErrorMessage } from '@promo/shared/utils/errors'
+import type { ApiResponse, Employee, User } from '@promo/shared/types'
+import type { StoredUserInfo } from '../composables/useLocalStorage'
 
 // 路由实例
 const router = useRouter()
@@ -482,10 +484,10 @@ const passwordDialogVisible = ref(false)
 // 创建员工弹窗
 const showCreateEmployee = ref(false)
 const showEmployeeList = ref(false)
-const editingEmployee = ref<any>(null)
+const editingEmployee = ref<Employee | null>(null)
 
 // 员工列表
-const employees = ref<any[]>([])
+const employees = ref<Employee[]>([])
 const loadingEmployees = ref(false)
 const employeesFinished = ref(false)
 const employeeCount = ref(0)
@@ -534,7 +536,7 @@ const loadUserInfo = async () => {
       return
     }
     
-    const info = JSON.parse(infoStr)
+    const info = JSON.parse(infoStr) as StoredUserInfo
     if (!info.id) {
       logger.warn('localStorage 中的用户信息不完整，缺少 id')
       return
@@ -548,7 +550,7 @@ const loadUserInfo = async () => {
 
     // 从后端获取最新的用户信息
     if (userInfo.id) {
-      const res: any = await get(`/users/${userInfo.id}`)
+      const res = await get<User>(`/users/${userInfo.id}`)
       if (res.code === 0 && res.data) {
         userInfo.nickname = res.data.name || userInfo.nickname
         userInfo.phone = res.data.phone || userInfo.phone
@@ -706,8 +708,8 @@ const handleCreateEmployee = async () => {
   }
 
   try {
-    let res: any
-    
+    let res: ApiResponse<unknown>
+
     if (editingEmployee.value) {
       // 编辑模式：调用PUT更新，不包含手机号
       res = await put(`/employees/${editingEmployee.value.id}`, {
@@ -739,16 +741,16 @@ const handleCreateEmployee = async () => {
 }
 
 // 编辑员工
-const editEmployee = (emp: any) => {
+const editEmployee = (emp: Employee) => {
   editingEmployee.value = emp
   employeeForm.phone = emp.phone
-  employeeForm.nickname = emp.nickname
+  employeeForm.nickname = emp.nickname || ''
   showEmployeeList.value = false
   showCreateEmployee.value = true
 }
 
 // 删除员工
-const handleDeleteEmployee = async (emp: any) => {
+const handleDeleteEmployee = async (emp: Employee) => {
   try {
     await showDialog({
       title: '确认删除',
@@ -758,7 +760,7 @@ const handleDeleteEmployee = async (emp: any) => {
       confirmButtonColor: '#ee0a24'
     })
     
-    const res: any = await del(`/employees/${emp.id}`)
+    const res = await del(`/employees/${emp.id}`)
     if (res.code === 0) {
       showToast('删除成功')
       loadEmployees()
@@ -791,7 +793,7 @@ const loadEmployees = async () => {
       const infoStr = localStorage.getItem('user_info')
       if (infoStr) {
         try {
-          const info = JSON.parse(infoStr)
+          const info = JSON.parse(infoStr) as { id: string }
           userId = info.id
           logger.debug('[员工列表] 从 localStorage 获取到 userId:', userId)
         } catch (e) {
@@ -811,7 +813,7 @@ const loadEmployees = async () => {
     }
     
     logger.debug('[员工列表] 开始请求 API，userId:', userId)
-    const res: any = await get('/employees', { userId })
+    const res = await get<Employee[]>('/employees', { userId })
     logger.debug('[员工列表] API 返回结果:', res)
     
     if (res.code === 0) {

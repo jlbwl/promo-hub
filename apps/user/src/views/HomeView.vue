@@ -46,6 +46,7 @@ import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { get, post } from '@promo/shared/utils/request'
 import { getErrorMessage } from '@promo/shared/utils/errors'
+import type { CartItem, Product } from '@promo/shared/types'
 import { showToast, showConfirmDialog } from 'vant'
 import ProductCard from '../components/ProductCard.vue'
 import CategoryList from '../components/CategoryList.vue'
@@ -86,9 +87,17 @@ const searchKeyword = ref('')
 const activeCategory = ref('all')
 
 /**
+ * 首页产品项（在 Product 基础上附加本地展示状态）
+ */
+type HomeProduct = Product & {
+  cover?: string
+  inCart?: boolean
+}
+
+/**
  * 产品列表数据
  */
-const products = ref<any[]>([])
+const products = ref<HomeProduct[]>([])
 
 /**
  * 加载状态
@@ -108,7 +117,7 @@ const pageSize = 10
 const loadProducts = async () => {
   try {
     const categoryValue = displayCategories.value.find(c => c.id === activeCategory.value)?.value
-    const res = await get<any>('/products', {
+    const res = await get<{ list: HomeProduct[]; total: number }>('/products', {
       page: page.value,
       pageSize,
       category: categoryValue || undefined,
@@ -119,7 +128,7 @@ const loadProducts = async () => {
       finished.value = true
     } else {
       // 检查产品在购物车中的状态
-      const newProducts = list.map((p: any) => ({
+      const newProducts = list.map((p) => ({
         ...p,
         cover: p.coverImage || '',
         inCart: p.inCart || false
@@ -148,9 +157,9 @@ const checkCartStatus = async () => {
   if (!userId) return
 
   try {
-    const res = await get<any[]>('/cart', { userId })
+    const res = await get<CartItem[]>('/cart', { userId })
     if (res.code === 0 && res.data) {
-      const cartProductIds = res.data.map((item: any) => item.productId)
+      const cartProductIds = res.data.map((item) => item.productId)
       products.value.forEach(p => {
         if (cartProductIds.includes(p.id)) {
           p.inCart = true
@@ -184,14 +193,14 @@ const handleSearch = () => {
 /**
  * 跳转产品详情
  */
-const goToDetail = (product: any) => {
+const goToDetail = (product: HomeProduct) => {
   router.push(`/product/${product.id}`)
 }
 
 /**
  * 加入购物车
  */
-const addToCart = async (product: any) => {
+const addToCart = async (product: HomeProduct) => {
   const userId = getUserId()
   if (!userId) {
     const guestDialogOptions = {

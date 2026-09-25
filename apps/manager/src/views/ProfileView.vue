@@ -126,8 +126,9 @@
 import { logger } from '@promo/shared/utils/logger'
 import { getErrorMessage } from '@promo/shared/utils/errors'
 import { ref, reactive, onMounted, onUnmounted } from 'vue'
-import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
+import { ElMessage, type FormInstance, type FormItemRule, type FormRules } from 'element-plus'
 import { get, post } from '@promo/shared/utils/request'
+import type { Manager } from '@promo/shared/types'
 
 // 密码表单引用
 const passwordFormRef = ref<FormInstance>()
@@ -155,7 +156,7 @@ const passwordForm = reactive({
 })
 
 // 确认密码校验器
-const validateConfirmPassword = (_rule: any, value: string, callback: Function) => {
+const validateConfirmPassword = (_rule: FormItemRule, value: string, callback: (error?: Error) => void) => {
   if (value !== passwordForm.newPassword) {
     callback(new Error('两次输入的密码不一致'))
   } else {
@@ -197,7 +198,7 @@ const fetchManagerInfo = async () => {
     // 从后端获取最新的经理信息
     const managerId = getManagerId()
     if (managerId) {
-      const res = await get<any>(`/managers/${managerId}`)
+      const res = await get<Manager>(`/managers/${managerId}`)
       if (res.data) {
         managerInfo.name = res.data.name || managerInfo.name
         managerInfo.phone = res.data.phone || managerInfo.phone

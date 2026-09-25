@@ -1,6 +1,7 @@
 import { logger } from '@promo/shared/utils/logger'
 import { ref } from 'vue'
 import { get, refreshTokens } from '@promo/shared/utils/request'
+import type { User } from '@promo/shared/types'
 
 /**
  * 认证状态管理
@@ -27,14 +28,14 @@ export function useAuth() {
         return false
       }
 
-      const userInfo = JSON.parse(userInfoStr)
+      const userInfo = JSON.parse(userInfoStr) as { id?: string }
       if (!userInfo.id) {
         isAuthenticated.value = false
         return false
       }
 
       // 验证 Token 是否有效（通过调用后端接口）
-      const res: any = await get(`/users/${userInfo.id}`, {}, { 
+      const res = await get<User>(`/users/${userInfo.id}`, {}, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -112,7 +113,7 @@ export function useAuth() {
     const userInfoStr = localStorage.getItem('user_info')
     if (!userInfoStr) return null
     try {
-      return JSON.parse(userInfoStr)
+      return JSON.parse(userInfoStr) as { id?: string }
     } catch {
       return null
     }
