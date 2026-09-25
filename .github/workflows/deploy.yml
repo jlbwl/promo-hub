@@ -600,6 +600,18 @@ jobs:
             echo "✅ npm依赖已安装（包括 reflect-metadata、tsyringe 和 knex）"
 
             # =======================
+            # 6.1 sharp 平台二进制自检（原生包漏装会导致 API 启动崩溃循环）
+            # =======================
+            echo "🔍 sharp 加载自检..."
+            if node -e "import('sharp').then(()=>process.exit(0)).catch(()=>process.exit(1))"; then
+              echo "✅ sharp 自检通过"
+            else
+              echo "⚠️ sharp 无法加载，补装 linux-x64 平台二进制..."
+              npm install --no-save --os=linux --cpu=x64 sharp 2>&1 || true
+              node -e "import('sharp').then(()=>console.log('✅ sharp 补装后自检通过')).catch((e)=>{console.error('❌ sharp 仍无法加载:', e.message); process.exit(1);})"
+            fi
+
+            # =======================
             # 6.5 执行数据库迁移
             # =======================
             echo "🔄 执行数据库迁移..."
