@@ -286,6 +286,11 @@ const fetchProductDetail = async () => {
       const p = res.data
       product.id = p.id
       product.title = p.title || ''
+      // 微信内菜单转发/收藏生成的卡片标题取 document.title，
+      // 路由守卫固定设为「产品详情」，这里改为具体产品标题以区分不同产品
+      if (product.title) {
+        document.title = product.title
+      }
       product.price = String(p.price || 0)
       product.stock = p.stock || 0
       product.sales = String(p.sales || 0)
