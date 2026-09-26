@@ -347,9 +347,11 @@ const handleShare = async () => {
     try { return (JSON.parse(localStorage.getItem('user_info') || '{}') as { id?: string }).id || '' } catch { return '' }
   })()
   
-  let shareUrl = `${window.location.origin}/user/product/${productId}?share=true`
+  // 分享落地页：按产品输出标题/封面 OG 标签，微信卡片可区分具体产品；
+  // 落地页自动跳转到详情页并保留 sharerId 归因参数
+  let shareUrl = `${window.location.origin}/api/share/product/${productId}`
   if (sharerId) {
-    shareUrl += `&sharerId=${sharerId}`
+    shareUrl += `?sharerId=${sharerId}`
   }
   
   try {

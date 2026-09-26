@@ -10,6 +10,7 @@ import statsRoutes from './stats.routes.js'
 import categoryRoutes from './category.routes.js'
 import authRoutes from './auth.routes.js'
 import qrcodeRoutes from './qrcode.routes.js'
+import shareRoutes from './share.routes.js'
 
 const router: Router = Router()
 
@@ -25,5 +26,6 @@ router.use(employeeRoutes)
 router.use(productRoutes)
 router.use(statsRoutes)
 router.use(qrcodeRoutes)
+router.use(shareRoutes)
 
 export default router
