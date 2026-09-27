@@ -54,7 +54,7 @@
                   v-if="order.userName || order.userPhone"
                   class="deleted-user-info"
                 >
-                  <span v-if="order.userName">姓名：{{ maskName(order.userName) }}</span>
+                  <span v-if="order.userName">姓名：{{ order.userName }}</span>
                   <span
                     v-if="order.userPhone"
                     class="phone-span"
@@ -94,7 +94,7 @@
 </template>
 
 <script setup lang="ts">
-import { formatTime, maskPhone, maskName } from '../utils'
+import { formatTime, maskPhone } from '../utils'
 import type { Order } from '@promo/shared/types'
 
 defineProps<{

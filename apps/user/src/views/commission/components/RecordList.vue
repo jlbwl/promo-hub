@@ -40,7 +40,7 @@
               v-if="record.userName || record.userPhone"
               class="record-user-info"
             >
-              <span v-if="record.userName">姓名：{{ maskName(record.userName) }}</span>
+              <span v-if="record.userName">姓名：{{ record.userName }}</span>
               <span
                 v-if="record.userPhone"
                 style="margin-left: 8px;"
@@ -131,7 +131,7 @@ import { reactive, ref } from 'vue'
 import { showToast } from 'vant'
 import { post, del } from '@promo/shared/utils/request'
 import { getErrorMessage } from '@promo/shared/utils/errors'
-import { getUserId, statusType, statusLabel, formatTime, maskPhone, maskName } from '../utils'
+import { getUserId, statusType, statusLabel, formatTime, maskPhone } from '../utils'
 import type { Order } from '@promo/shared/types'
 import type { SwipeCellInstance } from 'vant'
 
