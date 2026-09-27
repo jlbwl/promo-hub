@@ -336,9 +336,8 @@ const handleDelete = async (record: Order) => {
   font-weight: 500;
   color: #323233;
   margin-bottom: 6px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  line-height: 1.5;
+  word-break: break-all;
 }
 
 .record-user-info {

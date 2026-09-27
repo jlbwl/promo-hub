@@ -162,6 +162,7 @@ const emit = defineEmits<{
 
 .deleted-title-row {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 6px;
   margin-bottom: 6px;
@@ -171,9 +172,8 @@ const emit = defineEmits<{
   font-size: 15px;
   font-weight: 500;
   color: #323233;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.5;
+  word-break: break-all;
 }
 
 .deleted-user-info {
