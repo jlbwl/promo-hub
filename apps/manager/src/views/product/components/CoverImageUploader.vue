@@ -77,6 +77,7 @@
 <script setup lang="ts">
 import { logger } from '@promo/shared/utils/logger'
 import { getErrorMessage } from '@promo/shared/utils/errors'
+import { post } from '@promo/shared/utils/request'
 import { ref } from 'vue'
 import { ElMessage, ElMessageBox, type UploadProps } from 'element-plus'
 import { UploadFilled } from '@element-plus/icons-vue'
@@ -159,24 +160,21 @@ const uploadCoverImage = async (file: File) => {
       }
     }, 200)
 
-    // 发送上传请求（原生 fetch 需手动携带 CSRF token，与 shared/request 拦截器逻辑一致）
-    const csrfToken = document.cookie
-      .split('; ')
-      .find(row => row.startsWith('csrfToken='))
-      ?.split('=')[1]
-    const response = await fetch('/api/upload/cover', {
-      method: 'POST',
-      body: formData,
-      credentials: 'include',
-      headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : undefined,
+    // 发送上传请求（走 shared 请求实例，自动携带 token/CSRF 并支持 401 自动续期）
+    // 显式声明 multipart，避免 axios 将 FormData 序列化为 JSON
+    const result = await post<{
+      url: string
+      width: number
+      height: number
+      size: number
+    }>('/upload/cover', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
     })
 
     clearInterval(progressInterval)
     uploadProgress.value = 100
 
-    const result = await response.json()
-
-    if (result.code === 0) {
+    if (result.code === 0 && result.data) {
       emit('update:cover', result.data.url)
       emit('update:coverInfo', {
         width: result.data.width,
