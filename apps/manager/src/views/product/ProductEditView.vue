@@ -126,21 +126,11 @@
           />
         </el-form-item>
 
-        <!-- 用户信息收集 -->
+        <!-- 用户信息收集：业务规则已改为做单一律必须填写姓名和手机号，无需配置 -->
         <el-form-item label="用户信息">
           <div style="width: 100%;">
-            <div style="display: flex; gap: 24px; align-items: center;">
-              <el-checkbox v-model="form.requireName">
-                <span>需要用户填写姓名</span>
-                <span style="color: #f56c6c; margin-left: 4px;">*</span>
-              </el-checkbox>
-              <el-checkbox v-model="form.requirePhone">
-                <span>需要用户填写手机号</span>
-                <span style="color: #f56c6c; margin-left: 4px;">*</span>
-              </el-checkbox>
-            </div>
-            <div style="font-size: 12px; color: #909399; margin-top: 8px;">
-              用户端去做单前会显示信息填写表单
+            <div style="font-size: 12px; color: #909399;">
+              用户做单前必须填写姓名和手机号（系统统一要求，无需配置）
             </div>
           </div>
         </el-form-item>

@@ -117,6 +117,17 @@ export class OrderServiceImpl implements OrderService {
       throwBadRequest('该产品已下架')
     }
 
+    // 业务规则：做单必须填写客户姓名和手机号（做单记录仅收录完整提交的订单）。
+    // 在库存扣减之前校验，校验失败不消耗库存；接口直调/旧缓存客户端也无法绕过
+    const cleanName = (userName || '').trim()
+    if (!cleanName) {
+      throwBadRequest('请填写姓名')
+    }
+    const cleanPhone = (userPhone || '').trim()
+    if (!/^1[3-9]\d{9}$/.test(cleanPhone)) {
+      throwBadRequest('请填写正确的手机号')
+    }
+
     // P1-1: 使用乐观锁扣减库存，防止并发超卖
     // SQL 条件: WHERE stock > 0，确保不会扣成负数
     let remainingStock: number
@@ -164,8 +175,8 @@ export class OrderServiceImpl implements OrderService {
       productPrice: product.price,
       optionLabel: optionLabel || '',
       redirectUrl: cleanRedirectUrl,
-      userName: userName || '',
-      userPhone: userPhone || '',
+      userName: cleanName,
+      userPhone: cleanPhone,
       teamName,
       sharerId: sharerId || '',
       status: 'pending',

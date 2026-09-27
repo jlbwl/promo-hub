@@ -165,7 +165,6 @@
         <van-form @submit="submitInfoForm">
           <van-cell-group inset>
             <van-field
-              v-if="product.requireName"
               v-model="infoForm.name"
               name="name"
               label="姓名"
@@ -173,7 +172,6 @@
               :rules="[{ required: true, message: '请填写姓名' }]"
             />
             <van-field
-              v-if="product.requirePhone"
               v-model="infoForm.phone"
               name="phone"
               label="手机号"
@@ -386,22 +384,16 @@ const handleGoOrder = async () => {
     return
   }
 
-  // 检查是否需要收集用户信息
-  if (product.requireName || product.requirePhone) {
-    infoForm.name = ''
-    infoForm.phone = ''
-    infoFormVisible.value = true
-    return
-  }
-
-  // 直接做单（不需要收集信息）
-  submitGoOrder({})
+  // 做单必须填写客户姓名和手机号（与后端校验规则一致）
+  infoForm.name = ''
+  infoForm.phone = ''
+  infoFormVisible.value = true
 }
 
 // 提交信息表单
 const submitInfoForm = () => {
-  const userName = product.requireName ? infoForm.name : undefined
-  const userPhone = product.requirePhone ? infoForm.phone : undefined
+  const userName = infoForm.name
+  const userPhone = infoForm.phone
   infoFormVisible.value = false
   submitGoOrder({ userName, userPhone })
 }
