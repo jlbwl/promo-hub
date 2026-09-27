@@ -27,7 +27,7 @@
           <van-swipe-cell
             v-for="order in orders"
             :key="order.id"
-            right-width="140"
+            right-width="200"
           >
             <div class="deleted-item">
               <div class="deleted-info">
@@ -210,8 +210,10 @@ const emit = defineEmits<{
   height: 100%;
   width: 100%;
 
-  // 永久删除按钮：橙色警示，区别于恢复（蓝）与取消（红）
+  // 永久删除按钮：橙色警示，区别于恢复（蓝）与取消（红）；
+  // 文字较长，分配更大宽度并禁止换行，保证三个按钮完整显示
   .purge-btn {
+    flex: 1.4;
     background-color: #ff976a;
     color: #ffffff;
   }
@@ -225,8 +227,9 @@ const emit = defineEmits<{
     align-items: center;
     justify-content: center;
     border: none;
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 500;
+    white-space: nowrap;
 
     &.van-button--danger {
       background-color: #ee0a24;
