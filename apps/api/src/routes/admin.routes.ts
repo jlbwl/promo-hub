@@ -9,6 +9,7 @@ import {
   adminPasswordUpdate,
   getAdminStats,
   getOperationLogs,
+  adminOfflineProduct,
 } from '../controllers/admin.controller.js'
 
 const router: Router = Router()
@@ -21,5 +22,6 @@ router.post('/admin/change-password', requireAdmin, adminChangePassword)
 router.post('/admin/password/update', requireAdmin, adminPasswordUpdate)
 router.get('/admin/stats', requireAdmin, getAdminStats)
 router.get('/admin/operation-logs', requireAdmin, getOperationLogs)
+router.put('/admin/products/:id/offline', requireAdmin, adminOfflineProduct)
 
 export default router

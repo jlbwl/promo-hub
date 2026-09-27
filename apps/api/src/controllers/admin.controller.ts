@@ -6,8 +6,11 @@ import {
   readAdminByPhone,
   updateAdmin,
   readOperationLogs,
+  updateProduct,
+  insertOperationLog,
 } from '../data/index.js'
 import { queryOne } from '../db.js'
+import { getCacheService, CacheKeys } from '../services/cache/index.js'
 import { login as sessionLogin, generateTokens } from '../middleware/auth.js'
 import { generateSmsCode, saveSmsCode, verifySmsCode, deleteSmsCode } from '../utils/sms.js'
 import { sendSmsCode } from '../utils/sms.js'
@@ -189,6 +192,65 @@ export const adminPasswordUpdate = async (req: Request, res: Response): Promise<
   await updateAdmin(admin.id, { password: hashedPassword })
 
   sendSuccess(res, null, '密码修改成功，请重新登录')
+}
+
+/**
+ * 管理员下架产品
+ * 将产品状态置为 admin_offline，记录下架理由与时间，并写入操作日志
+ */
+export const adminOfflineProduct = async (req: Request, res: Response): Promise<void> => {
+  const id = req.params.id as string
+  try {
+    const reason = String(req.body?.reason || '').trim()
+    if (!reason) {
+      return sendError(res, '请输入下架理由', 400)
+    }
+
+    const product = await queryOne<{ id: string; title: string; status: string }>(
+      'SELECT id, title, status FROM products WHERE id = ?',
+      [id]
+    )
+    if (!product) {
+      return sendError(res, '产品不存在', 404)
+    }
+    if (product.status === 'admin_offline') {
+      return sendError(res, '该产品已被下架', 400)
+    }
+
+    await updateProduct(id, {
+      status: 'admin_offline',
+      offlineReason: reason,
+      offlineAt: new Date().toISOString(),
+    })
+
+    // 清除产品相关缓存，保证用户端/经理端列表立即生效
+    try {
+      const cache = getCacheService()
+      await cache.delete(CacheKeys.PRODUCT_DETAIL(id))
+      await cache.deletePattern('product:list:*')
+    } catch (cacheError) {
+      logger.warn('[管理员下架产品] 缓存清理失败:', { error: getErrorMessage(cacheError) })
+    }
+
+    // 记录操作日志
+    const user = req.session?.user || req.user
+    await insertOperationLog({
+      adminId: user?.id || '',
+      adminPhone: user?.phone || '',
+      adminName: user?.nickname || '未知管理员',
+      operationType: 'offline',
+      targetType: 'product',
+      targetId: id,
+      targetName: product.title,
+      reason,
+      detail: '',
+    })
+
+    sendSuccess(res, null, '已下架')
+  } catch (error) {
+    logger.error('[管理员下架产品] 错误:', { productId: id, error: getErrorMessage(error) })
+    sendError(res, getErrorMessage(error, '下架失败'), 500)
+  }
 }
 
 // 仪表盘统计行：SQL 聚合列（COUNT/SUM）在 mysql2 中可能返回 string | number
