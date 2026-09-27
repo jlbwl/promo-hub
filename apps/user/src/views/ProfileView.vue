@@ -5,9 +5,7 @@
 
     <!-- 数据统计 -->
     <StatsCard
-      :stats="stats"
       :employee-count="employeeCount"
-      @go="goTo"
       @show-employees="showEmployeeList = true"
     />
 
@@ -21,19 +19,6 @@
         icon="user-o"
         is-link
         @click="openCreateEmployee"
-      />
-      <van-cell
-        title="累计佣金"
-        icon="gold-coin"
-        is-link
-        :value="stats.totalCommission"
-        @click="goTo('/commissions')"
-      />
-      <van-cell
-        title="兑换记录"
-        icon="gift-o"
-        is-link
-        @click="goTo('/commissions')"
       />
     </van-cell-group>
 
@@ -116,7 +101,7 @@
 
 <script setup lang="ts">
 import { logger } from '@promo/shared/utils/logger'
-import { reactive, ref, onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { showDialog, showToast } from 'vant'
 import { post } from '@promo/shared/utils/request'
@@ -135,13 +120,6 @@ const router = useRouter()
 // 用户信息
 const { userInfo, loadUserInfo } = useUserInfo()
 
-// 统计数据
-const stats = reactive({
-  totalCommission: '¥0.00',
-  promotionCount: '0',
-  withdrawCount: '0'
-})
-
 // 员工子账户列表
 const {
   showEmployeeList,
@@ -159,11 +137,6 @@ const passwordDialogRef = ref<{ open: () => void } | null>(null)
 onMounted(() => {
   loadUserInfo()
 })
-
-// 页面跳转
-const goTo = (path: string) => {
-  router.push(path)
-}
 
 // 打开创建员工弹窗
 const openCreateEmployee = () => {

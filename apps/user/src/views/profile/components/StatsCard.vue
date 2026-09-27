@@ -3,19 +3,6 @@
   <div class="stats-card">
     <div
       class="stat-item"
-      @click="emit('go', '/commissions')"
-    >
-      <van-icon
-        name="coins"
-        size="20"
-        color="#1989fa"
-      />
-      <span class="stat-value">{{ stats.totalCommission }}</span>
-      <span class="stat-label">累计佣金</span>
-    </div>
-    <div class="stat-divider" />
-    <div
-      class="stat-item"
       @click="emit('show-employees')"
     >
       <van-icon
@@ -26,34 +13,15 @@
       <span class="stat-value">{{ employeeCount }}</span>
       <span class="stat-label">我的团队</span>
     </div>
-    <div class="stat-divider" />
-    <div
-      class="stat-item"
-      @click="emit('go', '/commissions')"
-    >
-      <van-icon
-        name="gift-o"
-        size="20"
-        color="#1989fa"
-      />
-      <span class="stat-value">{{ stats.withdrawCount }}</span>
-      <span class="stat-label">兑换记录</span>
-    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 defineProps<{
-  stats: {
-    totalCommission: string
-    promotionCount: string
-    withdrawCount: string
-  }
   employeeCount: number
 }>()
 
 const emit = defineEmits<{
-  go: [path: string]
   'show-employees': []
 }>()
 </script>
@@ -94,11 +62,5 @@ const emit = defineEmits<{
 .stat-label {
   font-size: 12px;
   color: #969799;
-}
-
-.stat-divider {
-  width: 1px;
-  height: 30px;
-  background-color: #eee;
 }
 </style>
