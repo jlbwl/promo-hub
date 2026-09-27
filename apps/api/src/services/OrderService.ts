@@ -11,6 +11,7 @@ import {
   readOrder,
   readDeletedOrders,
   restoreOrder,
+  purgeOrder,
   updateOrder,
   insertOrder,
   deleteOrder,
@@ -77,6 +78,8 @@ export interface OrderService {
   getDeletedOrders(userId: string): Promise<OrderRow[]>
 
   restoreOrder(orderId: string, userId: string): Promise<void>
+
+  purgeOrder(orderId: string, userId: string): Promise<void>
 
   submitFundAccount(orderId: string, userId: string, fundAccount: string): Promise<void>
 
@@ -228,6 +231,22 @@ export class OrderServiceImpl implements OrderService {
     }
 
     await restoreOrder(orderId)
+  }
+
+  /** 永久删除订单（物理删除，仅限本人回收站中的订单，不可恢复） */
+  async purgeOrder(orderId: string, userId: string) {
+    const orders = await readDeletedOrders(userId)
+    const order = orders.find((o) => o.id === orderId)
+
+    if (!order) {
+      throwNotFound('订单不存在或不在回收站')
+    }
+
+    if (order.userId !== userId) {
+      throwForbidden('无权操作此订单')
+    }
+
+    await purgeOrder(orderId)
   }
 
   async submitFundAccount(orderId: string, userId: string, fundAccount: string) {

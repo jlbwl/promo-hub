@@ -59,6 +59,7 @@
       v-model:show="showRecycleBin"
       :orders="deletedOrders"
       @restore="handleRestore"
+      @purge="handlePurge"
     />
   </div>
 </template>
@@ -82,6 +83,7 @@ const {
   onTabChange,
   openRecycleBin,
   handleRestore,
+  handlePurge,
 } = useCommission()
 
 // 删除成功后：从列表中移除记录并更新统计

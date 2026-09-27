@@ -236,9 +236,10 @@ export const adminDeleteOrder = async (req: Request, res: Response): Promise<voi
 export const deleteUserOrder = async (req: Request, res: Response): Promise<void> => {
   try {
     const id = req.params.id as string
-    const { userId } = req.body
+    // 身份以登录态为准，忽略 body 传入的 userId，防止伪造他人身份操作他人订单
+    const userId = req.user?.id || (req.body?.userId as string | undefined)
 
-    await orderService.deleteUserOrder(id, userId)
+    await orderService.deleteUserOrder(id, userId as string)
 
     sendSuccess(res, null, '已移至回收站')
   } catch (error) {
@@ -273,13 +274,37 @@ export const getDeletedOrders = async (req: Request, res: Response): Promise<voi
 export const restoreUserOrder = async (req: Request, res: Response): Promise<void> => {
   try {
     const id = req.params.id as string
-    const { userId } = req.body
+    // 身份以登录态为准，忽略 body 传入的 userId，防止伪造他人身份操作他人订单
+    const userId = req.user?.id || (req.body?.userId as string | undefined)
 
-    await orderService.restoreOrder(id, userId)
+    await orderService.restoreOrder(id, userId as string)
 
     sendSuccess(res, null, '恢复成功')
   } catch (error) {
     sendError(res, getErrorMessage(error, '恢复失败'), (error as { code?: number }).code || 500)
+  }
+}
+
+/**
+ * 永久删除订单（物理删除，不可恢复）
+ * 仅允许订单归属人删除其回收站中的订单，身份以登录态为准
+ * @param req - HTTP请求对象，包含订单ID（req.params.id）
+ * @param res - HTTP响应对象
+ * @returns 删除操作结果
+ */
+export const purgeUserOrder = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const id = req.params.id as string
+    const userId = req.user?.id
+    if (!userId) {
+      return sendError(res, '未登录或会话已过期', 401)
+    }
+
+    await orderService.purgeOrder(id, userId)
+
+    sendSuccess(res, null, '已永久删除')
+  } catch (error) {
+    sendError(res, getErrorMessage(error, '删除失败'), (error as { code?: number }).code || 500)
   }
 }
 

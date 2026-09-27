@@ -1,7 +1,7 @@
 import { logger } from '@promo/shared/utils/logger'
 import { ref, reactive, onMounted, onActivated } from 'vue'
-import { showToast } from 'vant'
-import { get, post } from '@promo/shared/utils/request'
+import { showToast, showConfirmDialog } from 'vant'
+import { get, post, del } from '@promo/shared/utils/request'
 import { getErrorMessage } from '@promo/shared/utils/errors'
 import { getUserId, getEmployeeId, isEmployee } from '../utils'
 import type { Order, OrderStats } from '@promo/shared/types'
@@ -163,6 +163,41 @@ export function useCommission() {
     }
   }
 
+  // 永久删除订单（物理删除，不可恢复）
+  const handlePurge = async (order: Order) => {
+    if (!order) {
+      return
+    }
+
+    try {
+      await showConfirmDialog({
+        title: '永久删除',
+        message: '该订单将从数据库中彻底移除，且不可恢复。确定要永久删除吗？',
+        confirmButtonText: '永久删除',
+        cancelButtonText: '再想想'
+      })
+    } catch {
+      return // 用户取消
+    }
+
+    try {
+      const res = await del(`/user/orders/${order.id}/purge`)
+      if (res.code === 0) {
+        showToast('已永久删除')
+        // 从回收站移除
+        const index = deletedOrders.value.findIndex(o => o.id === order.id)
+        if (index > -1) {
+          deletedOrders.value.splice(index, 1)
+        }
+      } else {
+        showToast(res.message || '删除失败')
+      }
+    } catch (error) {
+      logger.error('永久删除订单失败:', error)
+      showToast(getErrorMessage(error, '删除失败'))
+    }
+  }
+
   // Tab 切换
   const onTabChange = () => {
     page.value = 1
@@ -198,6 +233,7 @@ export function useCommission() {
     overview,
     records,
     showRecycleBin,
+    handlePurge,
     deletedOrders,
     loadRecords,
     onTabChange,

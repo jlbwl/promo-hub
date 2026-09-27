@@ -13,7 +13,9 @@ vi.mock('../../data/index.js', () => ({
   getOrdersPaginated: vi.fn(),
   readEmployeeById: vi.fn(),
   readUser: vi.fn().mockResolvedValue({ teamName: '测试团队' }),
-  insertOrder: vi.fn()
+  insertOrder: vi.fn(),
+  readDeletedOrders: vi.fn(),
+  purgeOrder: vi.fn()
 }))
 
 // Mock 数据库连接（订单创建的库存扣减 SQL）
@@ -27,7 +29,9 @@ import {
   readOrder,
   getOrdersPaginated,
   readUser,
-  insertOrder
+  insertOrder,
+  readDeletedOrders,
+  purgeOrder
 } from '../../data/index.js'
 import { query } from '../../db.js'
 
@@ -120,6 +124,22 @@ describe('OrderService', () => {
       expect(insertOrder).toHaveBeenCalledWith(
         expect.objectContaining({ userName: '张三', userPhone: '13400005565', userId: 'u1' })
       )
+    })
+  })
+
+  describe('purgeOrder 永久删除', () => {
+    it('本人回收站中的订单可被物理删除', async () => {
+      vi.mocked(readDeletedOrders).mockResolvedValue([
+        { id: 'o1', userId: 'u1' } as never
+      ])
+      await orderService.purgeOrder('o1', 'u1')
+      expect(purgeOrder).toHaveBeenCalledWith('o1')
+    })
+
+    it('订单不在本人回收站时拒绝删除', async () => {
+      vi.mocked(readDeletedOrders).mockResolvedValue([])
+      await expect(orderService.purgeOrder('oX', 'u1')).rejects.toThrow('订单不存在或不在回收站')
+      expect(purgeOrder).not.toHaveBeenCalled()
     })
   })
 })

@@ -8,6 +8,7 @@ import {
   deleteUserOrder,
   getDeletedOrders,
   restoreUserOrder,
+  purgeUserOrder,
   submitFundAccount,
   reviewOrder,
   settleOrder,
@@ -30,6 +31,8 @@ router.delete('/user/orders/:id', requireAuth, deleteUserOrder)
 router.get('/user/orders/deleted', requireAuth, getDeletedOrders)
 // 用户从回收站恢复订单
 router.post('/user/orders/:id/restore', requireAuth, restoreUserOrder)
+// 用户永久删除回收站订单（物理删除，不可恢复）
+router.delete('/user/orders/:id/purge', requireAuth, purgeUserOrder)
 // 用户提交资金号
 router.post('/user/orders/fund-account', requireAuth, submitFundAccount)
 // 经理/管理员审核订单

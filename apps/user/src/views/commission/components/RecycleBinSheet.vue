@@ -75,6 +75,12 @@
                   @click="emit('restore', order)"
                 />
                 <van-button
+                  class="purge-btn"
+                  square
+                  text="永久删除"
+                  @click="emit('purge', order)"
+                />
+                <van-button
                   type="danger"
                   square
                   text="取消"
@@ -99,6 +105,7 @@ defineProps<{
 const emit = defineEmits<{
   'update:show': [value: boolean]
   restore: [order: Order]
+  purge: [order: Order]
 }>()
 </script>
 
@@ -202,6 +209,12 @@ const emit = defineEmits<{
   align-items: stretch;
   height: 100%;
   width: 100%;
+
+  // 永久删除按钮：橙色警示，区别于恢复（蓝）与取消（红）
+  .purge-btn {
+    background-color: #ff976a;
+    color: #ffffff;
+  }
 
   :deep(.van-button) {
     flex: 1;
