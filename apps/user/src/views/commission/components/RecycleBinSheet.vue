@@ -6,12 +6,13 @@
     cancel-text="关闭"
     @update:show="emit('update:show', $event)"
   >
-    <template #description>
-      <div class="recycle-bin-content">
-        <div
-          v-if="orders.length === 0"
-          class="empty-recycle"
-        >
+    <!-- 内容放默认插槽：__content 容器自带 max-height: 80% + overflow-y: auto，
+         列表超长时可在弹窗内上下滑动；description 插槽容器无滚动能力，会导致弹窗被撑出屏幕 -->
+    <div class="recycle-bin-content">
+      <div
+        v-if="orders.length === 0"
+        class="empty-recycle"
+      >
           <van-icon
             name="trash-o"
             size="48"
@@ -83,7 +84,6 @@
           </van-swipe-cell>
         </div>
       </div>
-    </template>
   </van-action-sheet>
 </template>
 
