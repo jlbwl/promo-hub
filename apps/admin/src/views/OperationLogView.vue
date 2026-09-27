@@ -64,8 +64,11 @@
           prop="createdAt"
           label="操作时间"
           width="180"
-          :formatter="formatTime"
-        />
+        >
+          <template #default="{ row }">
+            {{ formatTime(row.createdAt) }}
+          </template>
+        </el-table-column>
         <el-table-column
           prop="adminName"
           label="操作人"
@@ -88,6 +91,7 @@
             >
               删除
             </el-tag>
+            <span v-else-if="row.operationType === 'offline'">下架</span>
             <span v-else>{{ row.operationType }}</span>
           </template>
         </el-table-column>
@@ -98,6 +102,7 @@
         >
           <template #default="{ row }">
             <span v-if="row.targetType === 'order'">订单</span>
+            <span v-else-if="row.targetType === 'product'">产品</span>
             <span v-else>{{ row.targetType }}</span>
           </template>
         </el-table-column>
@@ -162,11 +167,11 @@
         </div>
         <div class="detail-row">
           <span class="detail-label">操作类型：</span>
-          <span class="detail-value">{{ currentLog.operationType === 'delete' ? '删除' : currentLog.operationType }}</span>
+          <span class="detail-value">{{ currentLog.operationType === 'delete' ? '删除' : currentLog.operationType === 'offline' ? '下架' : currentLog.operationType }}</span>
         </div>
         <div class="detail-row">
           <span class="detail-label">目标类型：</span>
-          <span class="detail-value">{{ currentLog.targetType === 'order' ? '订单' : currentLog.targetType }}</span>
+          <span class="detail-value">{{ currentLog.targetType === 'order' ? '订单' : currentLog.targetType === 'product' ? '产品' : currentLog.targetType }}</span>
         </div>
         <div class="detail-row">
           <span class="detail-label">目标ID：</span>
