@@ -159,11 +159,16 @@ const uploadCoverImage = async (file: File) => {
       }
     }, 200)
 
-    // 发送上传请求
+    // 发送上传请求（原生 fetch 需手动携带 CSRF token，与 shared/request 拦截器逻辑一致）
+    const csrfToken = document.cookie
+      .split('; ')
+      .find(row => row.startsWith('csrfToken='))
+      ?.split('=')[1]
     const response = await fetch('/api/upload/cover', {
       method: 'POST',
       body: formData,
       credentials: 'include',
+      headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : undefined,
     })
 
     clearInterval(progressInterval)
