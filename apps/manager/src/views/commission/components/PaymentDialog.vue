@@ -65,7 +65,7 @@
           show-overflow-tooltip
         >
           <template #default="{ row }">
-            <span>{{ maskName(row.userName) }}</span>
+            <span>{{ row.userName }}</span>
           </template>
         </el-table-column>
         <el-table-column
@@ -206,7 +206,7 @@ import { ref, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { SuccessFilled } from '@element-plus/icons-vue'
 import { get, put } from '@promo/shared/utils/request'
-import { maskName, maskPhone, formatTime, getManagerId } from '../utils'
+import { maskPhone, formatTime, getManagerId } from '../utils'
 import type { Order, PaginatedResponse } from '@promo/shared/types'
 
 const emit = defineEmits<{

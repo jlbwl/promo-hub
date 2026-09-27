@@ -41,7 +41,7 @@
       show-overflow-tooltip
     >
       <template #default="{ row }">
-        <span>{{ maskName(row.userName) }}</span>
+        <span>{{ row.userName }}</span>
       </template>
     </el-table-column>
     <el-table-column
@@ -167,7 +167,7 @@
 </template>
 
 <script setup lang="ts">
-import { maskName, maskPhone, formatTime, statusTagType, statusText } from '../utils'
+import { maskPhone, formatTime, statusTagType, statusText } from '../utils'
 import type { Order } from '@promo/shared/types'
 
 defineProps<{

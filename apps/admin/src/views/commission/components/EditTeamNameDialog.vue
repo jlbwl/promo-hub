@@ -21,7 +21,7 @@
         </el-form-item>
         <el-form-item label="用户姓名">
           <el-input
-            :value="maskName(row?.userName)"
+            :value="row?.userName"
             disabled
           />
         </el-form-item>
@@ -59,7 +59,6 @@ import { ElMessage } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
 import { put } from '@promo/shared/utils/request'
 import { getErrorMessage } from '@promo/shared/utils/errors'
-import { maskName } from '../utils'
 import type { Order } from '@promo/shared/types'
 
 const emit = defineEmits<{

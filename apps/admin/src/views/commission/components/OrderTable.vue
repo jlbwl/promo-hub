@@ -41,7 +41,7 @@
       show-overflow-tooltip
     >
       <template #default="{ row }">
-        <span>{{ maskName(row.userName) }}</span>
+        <span>{{ row.userName }}</span>
       </template>
     </el-table-column>
     <el-table-column
@@ -181,7 +181,7 @@
 
 <script setup lang="ts">
 import { Edit } from '@element-plus/icons-vue'
-import { maskName, maskPhone, formatTime, statusTagType, statusText, getManagerTeamName } from '../utils'
+import { maskPhone, formatTime, statusTagType, statusText, getManagerTeamName } from '../utils'
 import type { Manager, Order } from '@promo/shared/types'
 
 const props = defineProps<{

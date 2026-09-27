@@ -60,7 +60,7 @@
           show-overflow-tooltip
         >
           <template #default="{ row }">
-            <span>{{ maskName(row.userName) }}</span>
+            <span>{{ row.userName }}</span>
           </template>
         </el-table-column>
         <el-table-column
@@ -121,7 +121,7 @@
 import { ref, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import { get } from '@promo/shared/utils/request'
-import { maskName, maskPhone, formatTime, getManagerTeamName } from '../utils'
+import { maskPhone, formatTime, getManagerTeamName } from '../utils'
 import type { Manager, Order, PaginatedResponse } from '@promo/shared/types'
 
 const props = defineProps<{

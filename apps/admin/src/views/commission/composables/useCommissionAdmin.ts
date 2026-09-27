@@ -3,7 +3,7 @@ import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { get } from '@promo/shared/utils/request'
 import { getErrorMessage } from '@promo/shared/utils/errors'
-import { maskName, maskPhone } from '../utils'
+import { maskPhone } from '../utils'
 import type { Manager, Order, OrderStats, PaginatedResponse } from '@promo/shared/types'
 
 // 用户筛选选项：订单中"用户+团队名称"去重组合的列表项
@@ -68,7 +68,7 @@ export function useCommissionAdmin() {
         const key = `${o.userPhone || ''}||${o.teamName || ''}`
         if (seen.has(key)) continue
         seen.add(key)
-        const name = o.userName ? maskName(o.userName) : '--'
+        const name = o.userName || '--'
         const phone = o.userPhone ? maskPhone(o.userPhone) : '--'
         const who = `${name} ${phone}`
         options.push({ key, label: o.teamName ? `${o.teamName}（${who}）` : who })
