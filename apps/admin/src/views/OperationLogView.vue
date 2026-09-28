@@ -124,7 +124,8 @@
         >
           <template #default="{ row }">
             <el-button
-              type="text"
+              link
+              type="primary"
               @click="showDetail(row)"
             >
               查看详情
