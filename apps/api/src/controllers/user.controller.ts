@@ -489,14 +489,15 @@ export const updateUserStatus = asyncHandler(
       
       if (!status) {
         // P1-4: 禁用经理时需要同时下架其产品，使用事务保证一致性
+        // updatedAt 由数据库 NOW() 生成，避免 ISO 字符串写入 DATETIME 报错
         await withTransaction(async (conn) => {
           await conn.execute(
-            'UPDATE managers SET status = ?, updatedAt = ? WHERE id = ?',
-            ['disabled', managers[mgrIdx].updatedAt as string, userId]
+            'UPDATE managers SET status = ?, updatedAt = NOW() WHERE id = ?',
+            ['disabled', userId]
           )
           await conn.execute(
-            'UPDATE products SET status = ?, updatedAt = ? WHERE managerId = ? AND status = ?',
-            ['offline', managers[mgrIdx].updatedAt as string, userId, 'published']
+            'UPDATE products SET status = ?, updatedAt = NOW() WHERE managerId = ? AND status = ?',
+            ['offline', userId, 'published']
           )
         })
       } else {
@@ -583,25 +584,24 @@ export const updateUserTeamName = asyncHandler(
       throw new AppError('该团队名称已存在', ErrorCode.BAD_REQUEST, HttpStatus.CONFLICT)
     }
 
-    const now = new Date().toISOString()
-
     // P1-4: 更新团队名称时需要同时更新历史订单的 teamName，使用事务保证一致性
+    // updatedAt 统一由数据库 NOW() 生成，避免 ISO 字符串时区/格式问题
     await withTransaction(async (conn) => {
       if (usrIdx !== -1) {
         await conn.execute(
-          'UPDATE users SET teamName = ?, updatedAt = ? WHERE id = ?',
-          [teamName, now, userId]
+          'UPDATE users SET teamName = ?, updatedAt = NOW() WHERE id = ?',
+          [teamName, userId]
         )
       } else {
         await conn.execute(
-          'UPDATE managers SET teamName = ?, updatedAt = ? WHERE id = ?',
-          [teamName, now, userId]
+          'UPDATE managers SET teamName = ?, updatedAt = NOW() WHERE id = ?',
+          [teamName, userId]
         )
       }
       // 更新该用户的所有历史订单的团队名称
       await conn.execute(
-        'UPDATE orders SET teamName = ?, updatedAt = ? WHERE userId = ?',
-        [teamName, now, userId]
+        'UPDATE orders SET teamName = ?, updatedAt = NOW() WHERE userId = ?',
+        [teamName, userId]
       )
     })
 

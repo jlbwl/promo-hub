@@ -147,20 +147,19 @@ export const deleteManagerWithCascade = async (req: Request, res: Response): Pro
   }
   const managerName = manager.name || ''
   
-  const now = new Date().toISOString()
-  
+  // 时间字段统一由数据库 NOW() 生成，避免 ISO 字符串写入 DATETIME 报错
   await withTransaction(async (conn) => {
     await conn.execute('DELETE FROM managers WHERE id = ?', [managerId])
-    
+
     const [productResult] = await conn.execute(
-      'UPDATE products SET status = ?, updatedAt = ? WHERE managerId = ? AND status = ?',
-      ['offline', now, managerId, 'published']
+      'UPDATE products SET status = ?, updatedAt = NOW() WHERE managerId = ? AND status = ?',
+      ['offline', managerId, 'published']
     )
     const offlineCount = (productResult as { affectedRows?: number }).affectedRows || 0
-    
+
     const [orderResult] = await conn.execute(
-      'UPDATE orders SET transferredFromManager = ?, transferredAt = ?, managedBy = ? WHERE managerId = ? AND status IN (?, ?, ?)',
-      [managerName, now, 'admin', managerId, 'pending', 'approved', 'pending_payment']
+      'UPDATE orders SET transferredFromManager = ?, transferredAt = NOW(), managedBy = ? WHERE managerId = ? AND status IN (?, ?, ?)',
+      [managerName, 'admin', managerId, 'pending', 'approved', 'pending_payment']
     )
     const transferredOrders = (orderResult as { affectedRows?: number }).affectedRows || 0
     
