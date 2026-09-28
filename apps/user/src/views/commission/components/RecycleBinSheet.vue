@@ -13,83 +13,83 @@
         v-if="orders.length === 0"
         class="empty-recycle"
       >
-          <van-icon
-            name="trash-o"
-            size="48"
-            color="#ccc"
-          />
-          <p>回收站是空的</p>
-        </div>
-        <div
-          v-else
-          class="deleted-list"
+        <van-icon
+          name="trash-o"
+          size="48"
+          color="#ccc"
+        />
+        <p>回收站是空的</p>
+      </div>
+      <div
+        v-else
+        class="deleted-list"
+      >
+        <van-swipe-cell
+          v-for="order in orders"
+          :key="order.id"
+          right-width="200"
         >
-          <van-swipe-cell
-            v-for="order in orders"
-            :key="order.id"
-            right-width="200"
-          >
-            <div class="deleted-item">
-              <div class="deleted-info">
-                <div class="deleted-title-row">
-                  <span class="deleted-title">{{ order.productName }}</span>
-                  <van-tag
-                    v-if="order.optionLabel"
-                    type="primary"
-                    plain
-                    size="medium"
-                  >
-                    {{ order.optionLabel }}
-                  </van-tag>
-                  <van-tag
-                    v-if="order.fundAccount"
-                    type="primary"
-                    plain
-                    size="medium"
-                  >
-                    {{ order.fundAccount }}
-                  </van-tag>
-                </div>
-                <div
-                  v-if="order.userName || order.userPhone"
-                  class="deleted-user-info"
+          <div class="deleted-item">
+            <div class="deleted-info">
+              <div class="deleted-title-row">
+                <span class="deleted-title">{{ order.productName }}</span>
+                <van-tag
+                  v-if="order.optionLabel"
+                  type="primary"
+                  plain
+                  size="medium"
                 >
-                  <span v-if="order.userName">姓名：{{ order.userName }}</span>
-                  <span
-                    v-if="order.userPhone"
-                    class="phone-span"
-                  >手机：{{ maskPhone(order.userPhone) }}</span>
-                </div>
-                <div class="deleted-price-row">
-                  <span class="deleted-price">{{ order.productPrice }}</span>
-                  <span class="deleted-time">删除于 {{ formatTime(order.deletedAt) }}</span>
-                </div>
+                  {{ order.optionLabel }}
+                </van-tag>
+                <van-tag
+                  v-if="order.fundAccount"
+                  type="primary"
+                  plain
+                  size="medium"
+                >
+                  {{ order.fundAccount }}
+                </van-tag>
+              </div>
+              <div
+                v-if="order.userName || order.userPhone"
+                class="deleted-user-info"
+              >
+                <span v-if="order.userName">姓名：{{ order.userName }}</span>
+                <span
+                  v-if="order.userPhone"
+                  class="phone-span"
+                >手机：{{ maskPhone(order.userPhone) }}</span>
+              </div>
+              <div class="deleted-price-row">
+                <span class="deleted-price">{{ order.productPrice }}</span>
+                <span class="deleted-time">删除于 {{ formatTime(order.deletedAt) }}</span>
               </div>
             </div>
-            <template #right>
-              <div class="recycle-swipe-actions">
-                <van-button
-                  type="primary"
-                  square
-                  text="恢复"
-                  @click="emit('restore', order)"
-                />
-                <van-button
-                  class="purge-btn"
-                  square
-                  text="永久删除"
-                  @click="emit('purge', order)"
-                />
-                <van-button
-                  type="danger"
-                  square
-                  text="取消"
-                />
-              </div>
-            </template>
-          </van-swipe-cell>
-        </div>
+          </div>
+          <template #right>
+            <div class="recycle-swipe-actions">
+              <van-button
+                type="primary"
+                square
+                text="恢复"
+                @click="emit('restore', order)"
+              />
+              <van-button
+                class="purge-btn"
+                square
+                text="永久删除"
+                @click="emit('purge', order)"
+              />
+              <van-button
+                type="danger"
+                square
+                text="取消"
+              />
+            </div>
+          </template>
+        </van-swipe-cell>
       </div>
+    </div>
   </van-action-sheet>
 </template>
 

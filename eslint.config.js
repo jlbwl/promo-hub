@@ -85,6 +85,13 @@ module.exports = [
     },
   },
   {
+    // 种子脚本独立运行，console 输出即其日志方式，豁免 no-console
+    files: ['**/seeds/**'],
+    rules: {
+      'no-console': 'off',
+    },
+  },
+  {
     ignores: [
       'node_modules/',
       'dist/',
