@@ -43,9 +43,10 @@ export const createEmployee = async (req: Request, res: Response): Promise<void>
       return sendError(res, '该手机号已被注册为员工', 1)
     }
     
-    const expiresAt = new Date()
-    expiresAt.setHours(expiresAt.getHours() + expiresHours)
-    
+    // 过期时间 = 当前时刻 + N 小时，用 Date 对象直传
+    // mysql2 写入/读取 DATETIME 均按连接时区（+08:00），避免本地运算+toISOString 双重时区偏移
+    const expiresAt = new Date(Date.now() + expiresHours * 3600 * 1000)
+
     const hashedPassword = await hashPassword(password)
     const employee: EmployeeInput = {
       id: `emp_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
@@ -53,7 +54,7 @@ export const createEmployee = async (req: Request, res: Response): Promise<void>
       phone,
       password: hashedPassword,
       nickname: nickname || `员工${phone.slice(-4)}`,
-      expiresAt: expiresAt.toISOString().slice(0, 19).replace('T', ' '),
+      expiresAt,
       status: 'active',
     }
     
@@ -136,9 +137,8 @@ export const updateEmployeeById = async (req: Request, res: Response): Promise<v
     }
     
     if (expiresHours && expiresHours >= 1) {
-      const expiresAt = new Date()
-      expiresAt.setHours(expiresAt.getHours() + expiresHours)
-      updateFields.expiresAt = expiresAt.toISOString().slice(0, 19).replace('T', ' ')
+      // 同创建逻辑：Date 对象直传，避免双重时区偏移
+      updateFields.expiresAt = new Date(Date.now() + expiresHours * 3600 * 1000)
     }
     
     if (Object.keys(updateFields).length === 0) {

@@ -60,7 +60,11 @@ export async function readEmployeeByPhone(phone: string): Promise<EmployeeRecord
 }
 
 // 写入参数：与 shared Employee 一致，但 createdAt 由 DB NOW() 生成、可缺省
-export type EmployeeInput = Omit<Employee, 'createdAt'> & { createdAt?: string }
+// expiresAt 支持 Date 对象：mysql2 按连接时区写入 DATETIME，与读取侧解析保持一致
+export type EmployeeInput = Omit<Employee, 'createdAt' | 'expiresAt'> & {
+  createdAt?: string
+  expiresAt: string | Date
+}
 
 export async function insertEmployee(e: EmployeeInput): Promise<void> {
   await query(
