@@ -66,46 +66,6 @@
       </el-col>
     </el-row>
 
-    <!-- 快捷操作 -->
-    <el-row
-      :gutter="20"
-      style="margin-top: 20px;"
-    >
-      <el-col :span="24">
-        <el-card shadow="hover">
-          <template #header>
-            <span>快捷操作</span>
-          </template>
-          <el-row :gutter="20">
-            <el-col :span="6">
-              <el-button
-                type="primary"
-                @click="$router.push('/managers')"
-              >
-                系统管理后台
-              </el-button>
-            </el-col>
-            <el-col :span="6">
-              <el-button
-                type="success"
-                @click="$router.push('/users')"
-              >
-                用户管理
-              </el-button>
-            </el-col>
-            <el-col :span="6">
-              <el-button
-                type="warning"
-                @click="$router.push('/settings')"
-              >
-                系统设置
-              </el-button>
-            </el-col>
-          </el-row>
-        </el-card>
-      </el-col>
-    </el-row>
-
     <!-- ====== 上架产品模态框 ====== -->
     <el-dialog
       v-model="productDialogVisible"
