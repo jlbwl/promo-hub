@@ -195,12 +195,12 @@ async function checkProductPermission(
     return { hasPermission: false, message: '产品不存在' }
   }
 
-  // 读操作：manager可以看自己的，user可以看所有已发布的
+  // 读操作：manager可以看自己的，user/employee（员工子账户，隶属主账户）可以看所有已发布的
   if (action === 'read') {
     if (user.role === 'manager' && product.managerId === user.id) {
       return { hasPermission: true, resourceOwnerId: product.managerId }
     }
-    if (user.role === 'user' && product.status === 'published') {
+    if ((user.role === 'user' || user.role === 'employee') && product.status === 'published') {
       return { hasPermission: true, resourceOwnerId: product.managerId }
     }
     return { hasPermission: false, message: '您没有权限查看此产品' }
@@ -332,7 +332,8 @@ export const ResourcePermissionChecker = {
       if (userRole === 'manager' && product.managerId === userId) {
         return { allowed: true, product }
       }
-      if (userRole === 'user' && product.status === 'published') {
+      // employee 为员工子账户，隶属主账户，与主用户同权查看已发布产品
+      if ((userRole === 'user' || userRole === 'employee') && product.status === 'published') {
         return { allowed: true, product }
       }
       return { allowed: false, message: '您没有权限查看此产品' }
