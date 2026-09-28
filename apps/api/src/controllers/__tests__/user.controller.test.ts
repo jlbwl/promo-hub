@@ -73,16 +73,15 @@ import {
   deleteSmsCode,
 } from '../../utils/sms.js'
 import { verifyPassword } from '../../utils/password.js'
+import { registerUser } from '../user-register.controller.js'
 import {
-  registerUser,
   userLogin,
-  sendUserSmsCode,
   userSmsLogin,
   setUserPassword,
   userLogout,
-  getUserById,
-  deleteUser,
-} from '../user.controller.js'
+} from '../user-login.controller.js'
+import { sendUserSmsCode } from '../user-sms.controller.js'
+import { getUserById, deleteUser } from '../user-admin.controller.js'
 
 const makeReq = (overrides: Partial<Request> = {}): Request =>
   ({

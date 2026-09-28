@@ -7,7 +7,10 @@ src/
 ├── controllers/     # 控制器层 - 处理 HTTP 请求/响应
 │   ├── admin.controller.ts
 │   ├── manager.controller.ts
-│   ├── user.controller.ts
+│   ├── user-register.controller.ts   # 用户注册
+│   ├── user-login.controller.ts      # 用户登录/登出/密码
+│   ├── user-sms.controller.ts        # 短信验证码
+│   ├── user-admin.controller.ts      # 管理后台用户管理
 │   ├── employee.controller.ts
 │   ├── product.controller.ts
 │   ├── order.controller.ts

@@ -7,18 +7,22 @@ import { resourcePermission } from '../middleware/resourcePermission.js'
 import { sendSuccess, sendError } from '../utils/response.js'
 import {
   registerUser,
+} from '../controllers/user-register.controller.js'
+import {
   userLogin,
-  sendUserSmsCode,
   userSmsLogin,
   setUserPassword,
+  userLogout,
+} from '../controllers/user-login.controller.js'
+import { sendUserSmsCode } from '../controllers/user-sms.controller.js'
+import {
   getUsers,
   getUserById,
   deleteUser,
   updateUserStatus,
   updateUserRole,
   updateUserTeamName,
-  userLogout,
-} from '../controllers/user.controller.js'
+} from '../controllers/user-admin.controller.js'
 
 const router: Router = Router()
 
