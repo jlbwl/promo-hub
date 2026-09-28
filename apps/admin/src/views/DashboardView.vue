@@ -5,7 +5,7 @@
       :gutter="20"
       class="stat-row"
     >
-      <el-col :span="6">
+      <el-col :span="8">
         <el-card
           shadow="hover"
           class="stat-card"
@@ -22,7 +22,7 @@
           </el-statistic>
         </el-card>
       </el-col>
-      <el-col :span="6">
+      <el-col :span="8">
         <el-card
           shadow="hover"
           class="stat-card"
@@ -40,7 +40,7 @@
         </el-card>
       </el-col>
       <!-- 上架产品 - 可点击按钮 -->
-      <el-col :span="6">
+      <el-col :span="8">
         <el-card
           shadow="hover"
           class="stat-card clickable"
@@ -62,24 +62,6 @@
           >
             查看
           </div>
-        </el-card>
-      </el-col>
-      <el-col :span="6">
-        <el-card
-          shadow="hover"
-          class="stat-card"
-        >
-          <el-statistic
-            title="佣金总额"
-            :value="stats.totalCommission"
-            :precision="2"
-          >
-            <template #prefix>
-              <el-icon style="color: #f56c6c;">
-                <Money />
-              </el-icon>
-            </template>
-          </el-statistic>
         </el-card>
       </el-col>
     </el-row>
@@ -308,7 +290,7 @@
 import { logger } from '@promo/shared/utils/logger'
 import { formatTime as formatTimeBase } from '@promo/shared/utils/helpers'
 import { reactive, ref, onMounted } from 'vue'
-import { User, UserFilled, Goods, Money } from '@element-plus/icons-vue'
+import { User, UserFilled, Goods } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { get, put } from '@promo/shared/utils/request'
 import { getErrorMessage } from '@promo/shared/utils/errors'
