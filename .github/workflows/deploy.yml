@@ -187,6 +187,9 @@ jobs:
             cp -r seeds dist/seeds
             echo "✅ seeds 目录已复制到 dist"
           fi
+          # 复制 knexfile（迁移配置，服务器上由 tsx 加载执行）
+          cp knexfile.ts dist/knexfile.ts
+          echo "✅ knexfile.ts 已复制到 dist"
           
           # 3. 修改 package.json，移除 workspace:* 依赖（因为我们会内联 shared）
           node << 'EOF'
@@ -621,16 +624,13 @@ jobs:
             # 6.5 执行数据库迁移
             # =======================
             echo "🔄 执行数据库迁移..."
-            if [ -d "migrations" ]; then
-              if command -v npx >/dev/null 2>&1; then
-                npx knex migrate:latest --env production || { echo "❌ 数据库迁移失败，终止部署"; exit 1; }
-                echo "✅ 数据库迁移完成"
-              else
-                echo "❌ npx 不可用，无法执行数据库迁移，终止部署"
-                exit 1
-              fi
+            if [ -f "knexfile.ts" ] && [ -d "migrations" ]; then
+              # knexfile/迁移文件为 TS，通过 tsx 加载执行（缺失则临时下载）
+              npx --yes tsx node_modules/knex/bin/cli.js migrate:latest --env production || { echo "❌ 数据库迁移失败，终止部署"; exit 1; }
+              echo "✅ 数据库迁移完成"
             else
-              echo "⚠️ migrations 目录不存在，跳过数据库迁移"
+              echo "❌ knexfile.ts 或 migrations 目录缺失，终止部署"
+              exit 1
             fi
 
             # =======================
