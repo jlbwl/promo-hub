@@ -271,7 +271,7 @@ export function useProductEdit() {
         if (p.coverImage) {
           coverImageInfo.value = {
             width: 800,
-            height: 800,
+            height: 400,
             size: 0
           }
         }

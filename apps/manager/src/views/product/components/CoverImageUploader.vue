@@ -58,7 +58,7 @@
         </div>
         <template #tip>
           <div class="el-upload__tip">
-            建议尺寸 800x800，支持 JPG/PNG/WebP，文件大小不超过 5MB
+            建议尺寸 800x400，支持 JPG/PNG/WebP，文件大小不超过 5MB
           </div>
         </template>
       </el-upload>

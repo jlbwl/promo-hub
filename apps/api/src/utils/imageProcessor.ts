@@ -32,9 +32,9 @@ if (!existsSync(COVER_DIR)) mkdirSync(COVER_DIR, { recursive: true })
  * 封面图片配置
  */
 export const COVER_IMAGE_CONFIG = {
-  // 目标尺寸（正方形）
+  // 目标尺寸（2:1 横图）
   targetWidth: 800,
-  targetHeight: 800,
+  targetHeight: 400,
   // 质量设置 (0-100)
   quality: 85,
   // 支持的格式
