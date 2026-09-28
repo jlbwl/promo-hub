@@ -596,7 +596,13 @@ jobs:
                 > package.json
             fi
 
-            npm install --production --legacy-peer-deps 2>&1 || true
+            # 非交互 SSH 可能缺少 nvm/homebrew 的 PATH，显式补全
+            export PATH="/usr/local/bin:/usr/bin:/bin:$PATH"
+            if [ -d "/root/.nvm" ] && [ -f "/root/.nvm/nvm.sh" ]; then
+              source /root/.nvm/nvm.sh >/dev/null 2>&1 || true
+            fi
+
+            npm install --production --legacy-peer-deps --no-audit --no-fund
             echo "✅ npm依赖已安装（包括 reflect-metadata、tsyringe 和 knex）"
 
             # =======================
@@ -617,10 +623,11 @@ jobs:
             echo "🔄 执行数据库迁移..."
             if [ -d "migrations" ]; then
               if command -v npx >/dev/null 2>&1; then
-                npx knex migrate:latest --env production 2>&1 || true
+                npx knex migrate:latest --env production || { echo "❌ 数据库迁移失败，终止部署"; exit 1; }
                 echo "✅ 数据库迁移完成"
               else
-                echo "⚠️ npx 不可用，跳过数据库迁移"
+                echo "❌ npx 不可用，无法执行数据库迁移，终止部署"
+                exit 1
               fi
             else
               echo "⚠️ migrations 目录不存在，跳过数据库迁移"
@@ -630,32 +637,32 @@ jobs:
             # 7. 验证 Shared 包并确保正确部署
             # =======================
             echo "🔍 检查 @promo/shared 包..."
-            
-            # 确保 node_modules/@promo/shared 存在
-            if [ ! -d "node_modules/@promo/shared" ]; then
-              echo "⚠️ node_modules/@promo/shared 不存在，尝试修复..."
-              mkdir -p "node_modules/@promo"
-              
-              # 优先检查内联到 dist 中的 shared
-              if [ -d "dist/node_modules/@promo/shared" ]; then
+
+            # npm install 会清掉非 package.json 声明的包（含内联的 @promo/shared），必须重建
+            # 优先使用符号链接指向 ../shared（与构建产物 package.json 的 exports 一致）
+            mkdir -p "node_modules/@promo"
+            if [ ! -e "node_modules/@promo/shared" ]; then
+              if [ -d "../shared" ]; then
+                ln -sfn "$DEPLOY_DIR/shared" "node_modules/@promo/shared"
+                echo "✅ 已建立符号链接 node_modules/@promo/shared -> ../shared"
+              elif [ -d "dist/node_modules/@promo/shared" ]; then
                 cp -r dist/node_modules/@promo/shared node_modules/@promo/
                 echo "✅ 从 dist 复制 @promo/shared 成功"
-              # 其次检查 ../shared 目录
-              elif [ -d "../shared" ]; then
-                cp -r ../shared node_modules/@promo/shared
-                echo "✅ 从 ../shared 复制成功"
               else
-                echo "❌ 无法找到 @promo/shared 源"
+                echo "❌ 无法找到 @promo/shared 源，终止部署"
+                exit 1
               fi
             fi
 
-            # 验证关键文件是否存在
-            if [ -d "node_modules/@promo/shared" ]; then
-              echo "✅ @promo/shared 包已正确部署"
-              ls -la node_modules/@promo/shared/ 2>&1 | head -10
-            else
-              echo "⚠️ 警告：@promo/shared 包可能不完整"
-            fi
+            # =======================
+            # 7.5 关键依赖最终自检（npm install 失败/清包必须在此暴露）
+            # =======================
+            echo "🔍 关键依赖加载自检..."
+            node -e "
+              Promise.all([import('@promo/shared'), import('reflect-metadata'), import('tsyringe'), import('sharp'), import('mysql2')])
+                .then(() => { console.log('✅ 关键依赖自检通过'); })
+                .catch((e) => { console.error('❌ 依赖自检失败:', e.message); process.exit(1); })
+            "
 
             # =======================
             # 8. 检查 index.js
@@ -681,15 +688,49 @@ jobs:
             nginx -t || true
 
             # =======================
-            # 10. 重启 API 服务
+            # 10. 重启 API 服务（找不到 PM2 必须失败，绝不允许静默跳过）
             # =======================
-            if command -v pm2 >/dev/null 2>&1; then
-              pm2 delete promo-api 2>/dev/null || true
-              pm2 start "$API_ENTRY" --name promo-api
+            PM2_BIN="$(command -v pm2 || true)"
+            if [ -z "$PM2_BIN" ]; then
+              for candidate in /usr/local/bin/pm2 /usr/bin/pm2 /root/.nvm/versions/node/*/bin/pm2; do
+                if [ -x "$candidate" ]; then PM2_BIN="$candidate"; break; fi
+              done
+            fi
+            if [ -n "$PM2_BIN" ]; then
+              "$PM2_BIN" delete promo-api 2>/dev/null || true
+              "$PM2_BIN" start "$API_ENTRY" --name promo-api --time
               echo "✅ API服务已启动 (入口文件: $API_ENTRY)"
             else
-              echo "⚠️ PM2未安装，跳过PM2启动"
+              echo "❌ 错误：PM2 不可用，无法重启 API，终止部署"
+              exit 1
             fi
+
+            # =======================
+            # 10.5 健康检查（重启后必须探测通过，否则判定部署失败）
+            # =======================
+            echo "🔍 API 健康检查..."
+            HEALTH_OK=""
+            for i in $(seq 1 15); do
+              sleep 2
+              if curl -sf -m 5 http://127.0.0.1:3000/api/health > /dev/null 2>&1; then
+                HEALTH_OK="yes"
+                echo "✅ API 健康检查通过（第 ${i} 次探测）"
+                break
+              fi
+              echo "⏳ 第 ${i} 次探测失败，等待重试..."
+            done
+            if [ -z "$HEALTH_OK" ]; then
+              echo "❌ API 健康检查 30 秒内未通过，部署失败！"
+              echo "--- pm2 状态 ---"
+              "$PM2_BIN" list || true
+              echo "--- 最近错误日志 ---"
+              tail -30 /root/.pm2/logs/promo-api-error.log 2>/dev/null || true
+              exit 1
+            fi
+
+            # 记录部署版本，便于核对线上运行版本
+            echo "${{ github.sha }}" > "$DEPLOY_DIR/RELEASE"
+            echo "📌 部署版本: ${{ github.sha }}"
 
             # =======================
             # 11. 重载 Nginx
