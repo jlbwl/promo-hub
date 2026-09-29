@@ -68,12 +68,17 @@ export async function insertManager(m: ManagerInput): Promise<void> {
   await query(`INSERT INTO managers (${insertColumns.join(', ')}) VALUES (${placeholders.join(', ')})`, insertValues)
 }
 
-export async function updateManager(id: string, fields: Record<string, unknown>): Promise<void> {
+/**
+ * managers 表允许动态 UPDATE 的字段白名单（防止任意 key 拼接进 SQL）。
+ */
+const MANAGER_MUTABLE_FIELDS = new Set(['name', 'phone', 'password', 'teamName', 'role', 'status'])
+
+export async function updateManager(id: string, fields: object): Promise<void> {
   const hasRole = await columnExists('managers', 'role')
   const sets: string[] = []
   const values: unknown[] = []
-  for (const [key, val] of Object.entries(fields)) {
-    if (key === 'id') continue
+  for (const [key, val] of Object.entries(fields as Record<string, unknown>)) {
+    if (key === 'id' || !MANAGER_MUTABLE_FIELDS.has(key)) continue
     if (key === 'role' && !hasRole) continue
     sets.push(`${key} = ?`)
     values.push(val ?? '')

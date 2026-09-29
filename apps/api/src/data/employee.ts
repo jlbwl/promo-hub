@@ -73,11 +73,16 @@ export async function insertEmployee(e: EmployeeInput): Promise<void> {
   )
 }
 
-export async function updateEmployee(id: string, fields: Record<string, unknown>): Promise<void> {
+/**
+ * employees 表允许动态 UPDATE 的字段白名单（防止任意 key 拼接进 SQL）。
+ */
+const EMPLOYEE_MUTABLE_FIELDS = new Set(['userId', 'phone', 'password', 'nickname', 'expiresAt', 'status'])
+
+export async function updateEmployee(id: string, fields: object): Promise<void> {
   const sets: string[] = []
   const values: unknown[] = []
-  for (const [key, val] of Object.entries(fields)) {
-    if (key === 'id') continue
+  for (const [key, val] of Object.entries(fields as Record<string, unknown>)) {
+    if (key === 'id' || !EMPLOYEE_MUTABLE_FIELDS.has(key)) continue
     sets.push(`${key} = ?`)
     values.push(val ?? '')
   }

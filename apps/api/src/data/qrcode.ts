@@ -85,12 +85,17 @@ export async function insertQrCode(qrCode: {
   )
 }
 
-export async function updateQrCode(id: string, fields: Record<string, unknown>): Promise<void> {
+/**
+ * qr_codes 表允许动态 UPDATE 的字段白名单（key 为调用方传入的驼峰字段名）。
+ */
+const QRCODE_MUTABLE_FIELDS = new Set(['url', 'dataUrl', 'centerText', 'topText', 'isDefault'])
+
+export async function updateQrCode(id: string, fields: object): Promise<void> {
   await ensureQrCodesTable()
   const sets: string[] = []
   const values: unknown[] = []
-  for (const [key, val] of Object.entries(fields)) {
-    if (key === 'id') continue
+  for (const [key, val] of Object.entries(fields as Record<string, unknown>)) {
+    if (key === 'id' || !QRCODE_MUTABLE_FIELDS.has(key)) continue
     if (key === 'dataUrl') {
       sets.push('data_url = ?')
     } else if (key === 'centerText') {

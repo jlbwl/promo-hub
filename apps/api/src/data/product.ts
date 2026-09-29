@@ -166,14 +166,25 @@ export async function insertProduct(p: Product): Promise<void> {
   await query(sqlQuery, values)
 }
 
-export async function updateProduct(id: string, fields: Record<string, unknown>): Promise<void> {
+/**
+ * products 表允许动态 UPDATE 的字段白名单（与 writeProducts 全量更新列保持一致）。
+ * 防止调用方意外传入任意 key 拼接进 SQL（mass assignment / SQL 注入纵深防御）。
+ */
+const PRODUCT_MUTABLE_FIELDS = new Set([
+  'title', 'description', 'coverImage', 'images', 'price', 'originalPrice',
+  'category', 'categoryId', 'categoryNameSnapshot', 'status', 'managerId',
+  'stock', 'options', 'publishedBy', 'publishedAt', 'offlineReason', 'offlineAt',
+  'requireName', 'requirePhone',
+])
+
+export async function updateProduct(id: string, fields: object): Promise<void> {
   const hasCategoryId = await columnExists('products', 'categoryId')
   const hasCategoryNameSnapshot = await columnExists('products', 'categoryNameSnapshot')
 
   const sets: string[] = []
   const values: unknown[] = []
-  for (const [key, val] of Object.entries(fields)) {
-    if (key === 'id' || key === 'updatedAt') continue
+  for (const [key, val] of Object.entries(fields as Record<string, unknown>)) {
+    if (key === 'id' || key === 'updatedAt' || !PRODUCT_MUTABLE_FIELDS.has(key)) continue
     if (key === 'categoryId' && !hasCategoryId) continue
     if (key === 'categoryNameSnapshot' && !hasCategoryNameSnapshot) continue
 

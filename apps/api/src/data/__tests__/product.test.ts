@@ -146,6 +146,23 @@ describe('data/product.ts', () => {
 
       expect(mockQuery).not.toHaveBeenCalled()
     })
+
+    it('非白名单字段被过滤，不拼进 SQL', async () => {
+      setupColumnExists()
+      await updateProduct('p_1', {
+        title: '正常标题',
+        createdAt: '2026-01-01',
+        deleted: 1,
+        malicious: 'x',
+      })
+
+      const sql = lastSql()
+      expect(sql).toContain('title = ?')
+      expect(sql).not.toContain('createdAt')
+      expect(sql).not.toContain('deleted')
+      expect(sql).not.toContain('malicious')
+      expect(lastParams()).toEqual(['正常标题', 'p_1'])
+    })
   })
 
   describe('insertProduct', () => {

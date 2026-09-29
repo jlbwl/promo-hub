@@ -101,11 +101,22 @@ export async function insertOrder(o: OrderRow): Promise<void> {
   )
 }
 
-export async function updateOrder(id: string, fields: Record<string, unknown>): Promise<void> {
+/**
+ * orders 表允许动态 UPDATE 的字段白名单（与 writeOrders 全量更新列保持一致）。
+ * 防止调用方意外传入任意 key 拼接进 SQL（mass assignment / SQL 注入纵深防御）。
+ */
+const ORDER_MUTABLE_FIELDS = new Set([
+  'productId', 'userId', 'managerId', 'employeeId', 'productName', 'productPrice',
+  'optionLabel', 'redirectUrl', 'userName', 'userPhone', 'teamName', 'fundAccount',
+  'status', 'reviewedAt', 'rejectReason', 'addedToPaymentAt', 'settledAt',
+  'transferredFromManager', 'transferredAt', 'managedBy',
+])
+
+export async function updateOrder(id: string, fields: object): Promise<void> {
   const sets: string[] = []
   const values: unknown[] = []
-  for (const [key, val] of Object.entries(fields)) {
-    if (key === 'id') continue
+  for (const [key, val] of Object.entries(fields as Record<string, unknown>)) {
+    if (key === 'id' || !ORDER_MUTABLE_FIELDS.has(key)) continue
     sets.push(`${key} = ?`)
     values.push(val ?? null)
   }
@@ -120,19 +131,19 @@ export async function updateOrder(id: string, fields: Record<string, unknown>): 
  */
 export async function updateOrderIfStatus(
   id: string,
-  fields: Record<string, unknown>,
+  fields: object,
   expectedStatus: string
 ): Promise<boolean> {
   const sets: string[] = []
   const values: unknown[] = []
-  for (const [key, val] of Object.entries(fields)) {
-    if (key === 'id' || key === 'status') continue
+  for (const [key, val] of Object.entries(fields as Record<string, unknown>)) {
+    if (key === 'id' || key === 'status' || !ORDER_MUTABLE_FIELDS.has(key)) continue
     sets.push(`${key} = ?`)
     values.push(val ?? null)
   }
   if (sets.length === 0) return false
   sets.push('status = ?')
-  values.push(fields.status)
+  values.push((fields as Record<string, unknown>).status)
   values.push(id, expectedStatus)
   const result = (await query(
     `UPDATE orders SET ${sets.join(', ')} WHERE id = ? AND status = ?`,
@@ -147,7 +158,7 @@ export async function updateOrderIfStatus(
  */
 export async function applyOrderReview(
   orderId: string,
-  fields: Record<string, unknown>,
+  fields: object,
   expectedStatus: string,
   nextStatus: string,
   commissionInsert?: {
@@ -164,8 +175,8 @@ export async function applyOrderReview(
   return withTransaction(async (conn) => {
     const sets: string[] = ['status = ?']
     const values: unknown[] = [nextStatus]
-    for (const [key, val] of Object.entries(fields)) {
-      if (key === 'id' || key === 'status') continue
+    for (const [key, val] of Object.entries(fields as Record<string, unknown>)) {
+      if (key === 'id' || key === 'status' || !ORDER_MUTABLE_FIELDS.has(key)) continue
       sets.push(`${key} = ?`)
       values.push(val ?? null)
     }

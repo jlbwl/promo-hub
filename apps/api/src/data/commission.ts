@@ -44,11 +44,17 @@ export async function insertCommission(c: CommissionInput): Promise<void> {
   )
 }
 
-export async function updateCommission(id: string, fields: Record<string, unknown>): Promise<void> {
+/**
+ * commissions 表允许动态 UPDATE 的字段白名单（防止任意 key 拼接进 SQL）。
+ * amount 不在白名单内：佣金金额由订单审核时确定，不允许事后修改。
+ */
+const COMMISSION_MUTABLE_FIELDS = new Set(['status', 'paidAt'])
+
+export async function updateCommission(id: string, fields: object): Promise<void> {
   const sets: string[] = []
   const values: unknown[] = []
-  for (const [key, val] of Object.entries(fields)) {
-    if (key === 'id') continue
+  for (const [key, val] of Object.entries(fields as Record<string, unknown>)) {
+    if (key === 'id' || !COMMISSION_MUTABLE_FIELDS.has(key)) continue
     sets.push(`${key} = ?`)
     values.push(val ?? null)
   }

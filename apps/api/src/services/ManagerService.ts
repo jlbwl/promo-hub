@@ -50,7 +50,6 @@ export interface ManagerUpdateData {
   phone?: string
   name?: string
   status?: string
-  [key: string]: unknown
 }
 
 /**

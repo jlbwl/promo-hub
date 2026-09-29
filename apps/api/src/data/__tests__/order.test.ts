@@ -74,6 +74,20 @@ describe('data/order.ts', () => {
 
       expect(mockQuery).not.toHaveBeenCalled()
     })
+
+    it('非白名单字段被过滤，不拼进 SQL', async () => {
+      await updateOrder('o_1', {
+        teamName: '新团队',
+        password: 'leaked',
+        isAdmin: true,
+      })
+
+      const sql = lastSql()
+      expect(sql).toContain('teamName = ?')
+      expect(sql).not.toContain('password')
+      expect(sql).not.toContain('isAdmin')
+      expect(lastParams()).toEqual(['新团队', 'o_1'])
+    })
   })
 
   describe('updateOrderIfStatus 条件更新', () => {

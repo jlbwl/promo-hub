@@ -64,7 +64,8 @@ export interface ProductUpdateData {
   stock?: number
   options?: unknown[]
   publishedAt?: string | Date | null
-  [key: string]: unknown
+  offlineReason?: string
+  offlineAt?: string | Date | null
 }
 
 /** product_categories 表行结构 */

@@ -173,15 +173,22 @@ export async function insertUser(u: UserRow): Promise<void> {
   await query(`INSERT INTO users (${insertColumns.join(', ')}) VALUES (${placeholders.join(', ')})`, insertValues)
 }
 
-export async function updateUser(id: string, fields: Record<string, unknown>): Promise<void> {
+/**
+ * users 表允许动态 UPDATE 的字段白名单（与 insertUser 列保持一致）。
+ * 防止调用方意外传入任意 key 拼接进 SQL（mass assignment / SQL 注入纵深防御）。
+ */
+const USER_MUTABLE_FIELDS = new Set([
+  'phone', 'password', 'nickname', 'teamName', 'status',
+  'alipayUserId', 'wechatOpenId', 'loginMethods', 'role',
+])
+
+export async function updateUser(id: string, fields: object): Promise<void> {
   const hasRole = await columnExists('users', 'role')
   const sets: string[] = []
   const values: unknown[] = []
-  for (const [key, val] of Object.entries(fields)) {
-    if (key === 'id') continue
+  for (const [key, val] of Object.entries(fields as Record<string, unknown>)) {
+    if (key === 'id' || key === 'updatedAt' || !USER_MUTABLE_FIELDS.has(key)) continue
     if (key === 'role' && !hasRole) continue
-    // updatedAt 由下方 NOW() 统一管理，忽略调用方传入（防止 ISO 字符串写入 DATETIME 列报错）
-    if (key === 'updatedAt') continue
     sets.push(`${key} = ?`)
     if (key === 'loginMethods') {
       values.push(serialize(val))
