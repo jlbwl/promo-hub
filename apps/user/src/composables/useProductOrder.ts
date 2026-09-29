@@ -33,7 +33,7 @@ export const resolveSharerId = (route: Pick<RouteLocationNormalizedLoaded, 'quer
 }
 
 /**
- * 组装做单 payload 并计算选中的跳转链接
+ * 组装做单 payload 并计算选中的跳转链接（员工身份由模块内自行解析）
  */
 export const buildOrderPayload = (input: {
   productId: string
@@ -42,16 +42,16 @@ export const buildOrderPayload = (input: {
   userName: string
   userPhone: string
   userId: string
-  employeeId?: string
   sharerId?: string
 }): { payload: OrderPayload; jumpUrl: string } => {
-  const { productId, options, selectedOption, userName, userPhone, userId, employeeId, sharerId } = input
+  const { productId, options, selectedOption, userName, userPhone, userId, sharerId } = input
   const chosenOption = options.length > 0 ? options[selectedOption] : null
 
   logger.debug('[做单] 选中的选项:', JSON.stringify(chosenOption))
 
   const payload: OrderPayload = { productId, userId, userName, userPhone }
-  if (isEmployeeAccount() && employeeId) {
+  const employeeId = getEmployeeId()
+  if (employeeId) {
     payload.employeeId = employeeId
   }
   if (sharerId) {

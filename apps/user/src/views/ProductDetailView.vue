@@ -210,7 +210,6 @@ import QRCode from 'qrcode'
 import { useUser } from '@/composables/useLocalStorage'
 import {
   buildOrderPayload,
-  getEmployeeId,
   jumpToUrl,
   resolveSharerId,
 } from '@/composables/useProductOrder'
@@ -392,7 +391,6 @@ const submitGoOrder = (userName: string, userPhone: string) => {
     userName,
     userPhone,
     userId: getUserId(),
-    employeeId: getEmployeeId(),
     sharerId: resolveSharerId(route),
   })
 

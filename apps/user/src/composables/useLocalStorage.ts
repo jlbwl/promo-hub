@@ -55,7 +55,6 @@ export interface StoredUserInfo {
  */
 export function useUser() {
   const storage = useLocalStorage<StoredUserInfo>('user_info', {})
-  const loginType = useLocalStorage<string>('login_type', '')
 
   const getUserId = (): string => {
     const info = storage.get()
@@ -69,8 +68,9 @@ export function useUser() {
 
   const getUserInfo = () => storage.get
 
+  // login_type 全项目以原始字符串写入/比较（见 LoginView/EmployeeLoginView），不走 JSON 序列化
   const isEmployee = (): boolean => {
-    return loginType.get() === 'employee'
+    return localStorage.getItem('login_type') === 'employee'
   }
 
   return {
