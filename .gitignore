@@ -11,10 +11,10 @@ dist_*
 dist_migrate
 *migrate*.js
 
-# Environment
+# Environment（.env.* 全忽略，仅放行 example 模板，防止 .env.production 等变体误入库）
 .env
-.env.local
-.env.*.local
+.env.*
+!.env.example
 
 # IDE
 .vscode/*
