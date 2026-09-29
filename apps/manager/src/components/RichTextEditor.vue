@@ -69,9 +69,10 @@ import { getErrorMessage } from '@promo/shared/utils/errors'
 import { ref, onMounted, watch, nextTick, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import { PictureFilled, InfoFilled, Loading } from '@element-plus/icons-vue'
-import { post } from '@promo/shared/utils/request'
+import { sanitizeHtml } from './rich-editor/sanitizeHtml'
+import { isMobile, compressConfig, compressImage, uploadToServer } from './rich-editor/imageUpload'
 
- 
+
 const props = withDefaults(defineProps<{
   modelValue: string
   placeholder?: string
@@ -93,29 +94,6 @@ const currentLength = computed(() => {
   const textContent = editorRef.value.textContent || ''
   return textContent.length
 })
-
-// 检测是否为移动设备
-const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
-
-// 压缩配置 - 根据设备类型优化
-const COMPRESS_CONFIG = {
-  desktop: {
-    maxWidth: 1920,
-    maxHeight: 1920,
-    quality: 0.85,
-    maxFileSize: 10 * 1024 * 1024,
-    mimeType: 'image/jpeg'
-  },
-  mobile: {
-    maxWidth: 1080,
-    maxHeight: 1080,
-    quality: 0.7,
-    maxFileSize: 5 * 1024 * 1024,
-    mimeType: 'image/jpeg'
-  }
-}
-
-const config = isMobile ? COMPRESS_CONFIG.mobile : COMPRESS_CONFIG.desktop
 
 // 初始化编辑器
 const initEditor = () => {
@@ -173,33 +151,6 @@ const handlePaste = async (e: ClipboardEvent) => {
   }
 }
 
-// 清理HTML
-const sanitizeHtml = (html: string): string => {
-  const div = document.createElement('div')
-  div.innerHTML = html
-  
-  // 移除script标签
-  const scripts = div.querySelectorAll('script')
-  scripts.forEach(s => s.remove())
-  
-  // 移除style标签
-  const styles = div.querySelectorAll('style')
-  styles.forEach(s => s.remove())
-  
-  // 移除on*属性
-  const allElements = div.querySelectorAll('*')
-  allElements.forEach(el => {
-    const attrs = Array.from(el.attributes)
-    attrs.forEach(attr => {
-      if (attr.name.startsWith('on')) {
-        el.removeAttribute(attr.name)
-      }
-    })
-  })
-  
-  return div.innerHTML
-}
-
 // 处理拖拽悬停
 const handleDragOver = (e: DragEvent) => {
   e.dataTransfer!.dropEffect = 'copy'
@@ -226,102 +177,24 @@ const handleDrop = async (e: DragEvent) => {
   }
 }
 
-// 图片压缩
-const compressImage = async (file: File): Promise<Blob> => {
-  return new Promise((resolve, reject) => {
-    const img = new Image()
-    const url = URL.createObjectURL(file)
-    
-    img.onload = () => {
-      URL.revokeObjectURL(url)
-      
-      // 计算缩放比例
-      let width = img.width
-      let height = img.height
-      
-      if (width > config.maxWidth) {
-        height = (height * config.maxWidth) / width
-        width = config.maxWidth
-      }
-      
-      if (height > config.maxHeight) {
-        width = (width * config.maxHeight) / height
-        height = config.maxHeight
-      }
-      
-      // 创建 canvas
-      const canvas = document.createElement('canvas')
-      canvas.width = width
-      canvas.height = height
-      
-      const ctx = canvas.getContext('2d')
-      if (!ctx) {
-        reject(new Error('Canvas 不支持'))
-        return
-      }
-      
-      // 使用平滑绘制
-      ctx.imageSmoothingEnabled = true
-      ctx.imageSmoothingQuality = 'high'
-      
-      // 绘制图片
-      ctx.drawImage(img, 0, 0, width, height)
-      
-      // 转换为 Blob
-      canvas.toBlob(
-        (blob) => {
-          if (blob) {
-            resolve(blob)
-          } else {
-            reject(new Error('图片压缩失败'))
-          }
-        },
-        config.mimeType,
-        config.quality
-      )
-    }
-    
-    img.onerror = () => {
-      URL.revokeObjectURL(url)
-      reject(new Error('图片加载失败'))
-    }
-    
-    img.src = url
-  })
-}
-
-// 上传图片到服务器
-const uploadToServer = async (file: File): Promise<string> => {
-  const formData = new FormData()
-  formData.append('file', file)
-  
-  const res = await post<{ url: string }>('/upload', formData, {
-    headers: {
-      'Content-Type': 'multipart/form-data'
-    }
-  })
-  
-  return res.data.url
-}
-
 // 处理图片完整流程
 const processImage = async (file: File) => {
   try {
     uploading.value = true
-    
+
     // 检查文件大小
-    if (file.size > config.maxFileSize * 2) {
-      ElMessage.error(`图片大小不能超过 ${(config.maxFileSize / 1024 / 1024).toFixed(0)}MB`)
+    if (file.size > compressConfig.maxFileSize * 2) {
+      ElMessage.error(`图片大小不能超过 ${(compressConfig.maxFileSize / 1024 / 1024).toFixed(0)}MB`)
       return
     }
-    
+
     // 压缩图片
     logger.debug(`[图片处理] 原大小: ${(file.size / 1024).toFixed(1)}KB, 设备: ${isMobile ? '手机' : '电脑'}`)
     const compressedBlob = await compressImage(file)
     const compressedFile = new File(
-      [compressedBlob], 
-      file.name.replace(/\.[^.]+$/, `.${config.mimeType.split('/')[1]}`), 
-      { type: config.mimeType }
+      [compressedBlob],
+      file.name.replace(/\.[^.]+$/, `.${compressConfig.mimeType.split('/')[1]}`),
+      { type: compressConfig.mimeType }
     )
     logger.debug(`[图片压缩] 压缩后: ${(compressedFile.size / 1024).toFixed(1)}KB, 压缩比: ${((1 - compressedFile.size / file.size) * 100).toFixed(1)}%`)
     

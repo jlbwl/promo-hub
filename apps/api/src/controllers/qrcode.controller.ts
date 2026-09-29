@@ -3,7 +3,7 @@ import { getErrorMessage } from '@promo/shared'
 import { readQrCodes, insertQrCode, updateQrCode, deleteQrCode, setDefaultQrCode, readDefaultQrCode } from '../data/index.js'
 import { sendSuccess, sendError } from '../utils/response.js'
 
-export const getQrCodes = async (req: Request, res: Response): Promise<void> => {
+export const getQrCodes = async (_req: Request, res: Response): Promise<void> => {
   try {
     const qrCodes = await readQrCodes()
     sendSuccess(res, qrCodes, '获取成功')
@@ -12,7 +12,7 @@ export const getQrCodes = async (req: Request, res: Response): Promise<void> => 
   }
 }
 
-export const getDefaultQrCode = async (req: Request, res: Response): Promise<void> => {
+export const getDefaultQrCode = async (_req: Request, res: Response): Promise<void> => {
   try {
     const qrCode = await readDefaultQrCode()
     sendSuccess(res, qrCode || {}, '获取成功')

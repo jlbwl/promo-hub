@@ -111,19 +111,6 @@ export class ProductServiceImpl implements ProductService {
     @inject(CacheService) private cache: CacheService
   ) {}
 
-  private getProductListCacheKey(params: ProductListParams): string {
-    const { page, pageSize, category, status, managerId, keyword, adminMode } = params
-    const pageStr = String(page || 1)
-    const pageSizeStr = String(pageSize || 10)
-    const categoryStr = category || 'all'
-    const statusStr = status || 'all'
-    const managerIdStr = managerId || 'all'
-    const keywordStr = keyword || 'none'
-    const adminModeStr = adminMode ? 'admin' : 'normal'
-    
-    return `:${pageStr}:${pageSizeStr}:${categoryStr}:${statusStr}:${managerIdStr}:${keywordStr}:${adminModeStr}`
-  }
-
   private async getCategoryInfo(categoryValue?: string, categoryId?: string): Promise<CategoryRow | null> {
     if (categoryId) {
       const category = await queryOne<CategoryRow>('SELECT * FROM product_categories WHERE id = ?', [categoryId])
@@ -244,7 +231,7 @@ export class ProductServiceImpl implements ProductService {
     return savedProduct as Product
   }
 
-  async updateProduct(id: string, managerId: string, updateData: ProductUpdateData) {
+  async updateProduct(id: string, _managerId: string, updateData: ProductUpdateData) {
     const existing = await queryOne<ProductExistingRow>('SELECT * FROM products WHERE id = ?', [id])
     if (!existing) {
       throwNotFound('产品不存在', ErrorCode.PRODUCT_NOT_FOUND)

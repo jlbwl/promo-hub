@@ -220,7 +220,7 @@ async function checkProductPermission(
 async function checkManagerPermission(
   user: AuthUser,
   managerId: string,
-  action: ActionType
+  _action: ActionType
 ): Promise<ResourcePermissionResult> {
   // 只有管理员或经理自己可以操作
   if (user.role === 'admin') {
@@ -240,7 +240,7 @@ async function checkManagerPermission(
 async function checkUserPermission(
   user: AuthUser,
   userId: string,
-  action: ActionType
+  _action: ActionType
 ): Promise<ResourcePermissionResult> {
   // 管理员可以操作所有用户
   if (user.role === 'admin') {
@@ -270,7 +270,7 @@ async function checkUserPermission(
 async function checkOrderPermission(
   user: AuthUser,
   orderId: string,
-  action: ActionType
+  _action: ActionType
 ): Promise<ResourcePermissionResult> {
   if (!orderId) {
     // 列表操作
@@ -354,7 +354,7 @@ export const ResourcePermissionChecker = {
     userId: string,
     userRole: string,
     targetUserId: string,
-    action: ActionType = 'read'
+    _action: ActionType = 'read'
   ): Promise<{ allowed: boolean; message?: string; user?: UserRow | null }> {
     if (userRole === 'admin') {
       return { allowed: true }

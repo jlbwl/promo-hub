@@ -1,7 +1,7 @@
 import logger from '../utils/logger.js'
 import { getErrorMessage } from '@promo/shared'
 import { Request, Response, NextFunction, RequestHandler } from 'express'
-import session, { Session } from 'express-session'
+import session from 'express-session'
 import jwt from 'jsonwebtoken'
 import { getCacheService } from '../services/cache/index.js'
 import { readEmployeeById } from '../data/index.js'
@@ -54,7 +54,6 @@ interface JwtPayload {
 
 // Refresh Token 存储键前缀
 const REFRESH_TOKEN_PREFIX = 'refresh_token:'
-const ACCESS_TOKEN_PREFIX = 'access_token:'
 // P0-7: 宽限期键前缀，旧 token 删除后 60 秒内仍可用
 const REFRESH_TOKEN_GRACE_PREFIX = 'refresh_token_grace:'
 const REFRESH_TOKEN_GRACE_TTL = 60  // 60秒宽限期

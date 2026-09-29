@@ -207,6 +207,13 @@ import { get, post } from '@promo/shared/utils/request'
 import { getErrorMessage } from '@promo/shared/utils/errors'
 import type { Product, ProductOption } from '@promo/shared/types'
 import QRCode from 'qrcode'
+import { useUser } from '@/composables/useLocalStorage'
+import {
+  buildOrderPayload,
+  getEmployeeId,
+  jumpToUrl,
+  resolveSharerId,
+} from '@/composables/useProductOrder'
 
 /**
  * 产品详情接口返回数据（在 Product 基础上附加展示字段）
@@ -215,34 +222,15 @@ interface ProductDetailData extends Product {
   sales?: number
 }
 
-/**
- * 做单需要补充的用户信息
- */
-interface OrderUserInfo {
-  userName?: string
-  userPhone?: string
-}
-
-/**
- * 做单请求 payload
- */
-interface OrderPayload {
-  productId: string
-  userId: string
-  userName?: string
-  userPhone?: string
-  employeeId?: string
-  sharerId?: string
-  optionLabel?: string
-  redirectUrl?: string
-}
-
 // 路由实例
 const router = useRouter()
 const route = useRoute()
 
 // 获取产品 ID
 const productId = route.params.id as string
+
+// 本地身份信息（user_info / login_type）
+const { getUserId } = useUser()
 
 // 选中的选项
 const selectedOption = ref<number>(-1)
@@ -345,18 +333,15 @@ const requireLogin = async (action: string): Promise<boolean> => {
 const handleShare = async () => {
   shareVisible.value = true
   shareQrCode.value = ''
-  
-  const sharerId = (() => {
-    try { return (JSON.parse(localStorage.getItem('user_info') || '{}') as { id?: string }).id || '' } catch { return '' }
-  })()
-  
+
   // 分享落地页：按产品输出标题/封面 OG 标签，微信卡片可区分具体产品；
   // 落地页自动跳转到详情页并保留 sharerId 归因参数
   let shareUrl = `${window.location.origin}/api/share/product/${productId}`
+  const sharerId = getUserId()
   if (sharerId) {
     shareUrl += `?sharerId=${sharerId}`
   }
-  
+
   try {
     shareQrCode.value = await QRCode.toDataURL(shareUrl, {
       width: 200,
@@ -395,100 +380,37 @@ const submitInfoForm = () => {
   const userName = infoForm.name
   const userPhone = infoForm.phone
   infoFormVisible.value = false
-  submitGoOrder({ userName, userPhone })
+  submitGoOrder(userName, userPhone)
 }
 
 // 执行做单
-const submitGoOrder = (userInfo: OrderUserInfo) => {
-  // 获取选中的选项
-  const chosenOption = product.options.length > 0 ? product.options[selectedOption.value] : null
-
-  logger.debug('[做单] 选中的选项:', JSON.stringify(chosenOption))
-
-  // 调用做单接口
-  const userId = (() => {
-    try { return (JSON.parse(localStorage.getItem('user_info') || '{}') as { id?: string }).id || '' } catch { return '' }
-  })()
-
-  // 检查是否是员工账户
-  const isEmployee = localStorage.getItem('login_type') === 'employee'
-  const employeeId = isEmployee ? (() => {
-    try { return (JSON.parse(localStorage.getItem('employee_info') || '{}') as { id?: string }).id || '' } catch { return '' }
-  })() : undefined
-
-  const payload: OrderPayload = { productId: product.id, userId, ...userInfo }
-  if (isEmployee && employeeId) {
-    payload.employeeId = employeeId
-  }
-
-  const sharerId = (() => {
-    // 优先取当前 URL 参数；站内跳转会丢失 query，用 sessionStorage 记住最近一次分享来源
-    const fromQuery = route.query.sharerId as string
-    if (fromQuery) {
-      sessionStorage.setItem('sharer_id', fromQuery)
-      return fromQuery
-    }
-    return sessionStorage.getItem('sharer_id') || ''
-  })()
-  if (sharerId) {
-    payload.sharerId = sharerId
-  }
+const submitGoOrder = (userName: string, userPhone: string) => {
+  const { payload, jumpUrl } = buildOrderPayload({
+    productId: product.id,
+    options: product.options,
+    selectedOption: selectedOption.value,
+    userName,
+    userPhone,
+    userId: getUserId(),
+    employeeId: getEmployeeId(),
+    sharerId: resolveSharerId(route),
+  })
 
   // 与后端归属规则一致：未登录且无分享归因（sharerId）时不允许下单
-  if (!isLoggedIn() && !sharerId) {
+  if (!isLoggedIn() && !payload.sharerId) {
     showToast('请先登录后再下单')
     router.push({ name: 'Login', query: { redirect: route.fullPath } })
     return
   }
 
-  let cleanUrlForJump = ''
-  if (chosenOption) {
-    payload.optionLabel = chosenOption.label
-    // 清理 redirectUrl 中的反引号和首尾空格/换行
-    payload.redirectUrl = (chosenOption.redirectUrl || '').replace(/`/g, '').trim()
-    cleanUrlForJump = payload.redirectUrl ?? ''
-    logger.debug('[做单] 原始redirectUrl:', chosenOption.redirectUrl)
-    logger.debug('[做单] 清理后redirectUrl:', payload.redirectUrl)
-  }
-
-  logger.debug('[做单] 开始提交, payload:', JSON.stringify(payload))
-  
-  // 获取跳转链接
-  let jumpUrl = ''
-  if (chosenOption?.redirectUrl) {
-    jumpUrl = cleanUrlForJump.trim()
-    if (jumpUrl && !jumpUrl.startsWith('http://') && !jumpUrl.startsWith('https://')) {
-      jumpUrl = 'https://' + jumpUrl
-    }
-    logger.debug('[做单] 跳转链接:', jumpUrl)
-  }
-  
   // 先提交订单，成功后再跳转
   post('/orders', payload).then((res) => {
     logger.debug('[做单] 成功, 响应:', JSON.stringify(res))
-    
+
     // 订单提交成功后执行跳转
     if (jumpUrl) {
       logger.debug('[做单] 订单提交成功，准备跳转:', jumpUrl)
-      try {
-        if (navigator.userAgent.includes('MicroMessenger')) {
-          logger.debug('[做单] 微信环境检测')
-          window.location.href = jumpUrl
-        } else {
-          try {
-            const newWindow = window.open(jumpUrl, '_blank')
-            if (!newWindow || newWindow.closed === false) {
-              throw new Error('window.open 可能被拦截')
-            }
-          } catch (err) {
-            logger.debug('[做单] window.open 失败，使用 location.href', err)
-            window.location.href = jumpUrl
-          }
-        }
-      } catch (err) {
-        logger.error('[做单] 跳转失败:', err)
-        window.location.href = jumpUrl
-      }
+      jumpToUrl(jumpUrl)
     } else {
       // 没有跳转链接时刷新详情
       fetchProductDetail()

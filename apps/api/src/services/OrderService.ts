@@ -190,9 +190,7 @@ export class OrderServiceImpl implements OrderService {
     return { order, remainingStock }
   }
 
-  async adminDeleteOrder(orderId: string, adminInfo: AdminDeleteInfo) {
-    const { reason } = adminInfo
-
+  async adminDeleteOrder(orderId: string, _adminInfo: AdminDeleteInfo) {
     const order = await readOrder(orderId)
     if (!order) {
       throwNotFound('订单不存在')

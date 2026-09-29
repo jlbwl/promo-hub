@@ -264,7 +264,7 @@ type AdminStatsRow = {
 /**
  * 获取管理员仪表盘统计数据
  */
-export const getAdminStats = async (req: Request, res: Response): Promise<void> => {
+export const getAdminStats = async (_req: Request, res: Response): Promise<void> => {
   try {
     const sql = `
       SELECT

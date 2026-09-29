@@ -10,11 +10,9 @@ import {
   deleteManager,
   readProducts,
   readOrders,
-  writeProducts,
-  writeOrders,
 } from '../data/index.js'
 import { DatabaseService } from './DatabaseService.js'
-import { ErrorCode, throwNotFound, throwBadRequest, throwForbidden, throwConflict, throwUnauthorized, type OrderStats, type Product } from '@promo/shared'
+import { throwNotFound, throwBadRequest, throwConflict, throwUnauthorized, type OrderStats, type Product } from '@promo/shared'
 import { hashPassword, verifyPassword } from '../utils/password.js'
 
 /** 对外返回的安全经理信息（不包含密码），形状与 data 层 Manager 行一致 */

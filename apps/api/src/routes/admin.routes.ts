@@ -1,4 +1,4 @@
-import { Router, RequestHandler } from 'express'
+import { Router } from 'express'
 import { smsLimiter, loginLimiter } from '../middleware/rateLimit.js'
 import { requireAdmin } from '../middleware/auth.js'
 import {
