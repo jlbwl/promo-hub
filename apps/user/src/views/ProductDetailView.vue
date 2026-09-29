@@ -203,103 +203,41 @@ import { logger } from '@promo/shared/utils/logger'
 import { reactive, ref, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { showToast, showDialog } from 'vant'
-import { get, post } from '@promo/shared/utils/request'
+import { post } from '@promo/shared/utils/request'
 import { getErrorMessage } from '@promo/shared/utils/errors'
-import type { Product, ProductOption } from '@promo/shared/types'
-import QRCode from 'qrcode'
-import { useUser } from '@/composables/useLocalStorage'
 import {
   buildOrderPayload,
   jumpToUrl,
   resolveSharerId,
 } from '@/composables/useProductOrder'
-
-/**
- * 产品详情接口返回数据（在 Product 基础上附加展示字段）
- */
-interface ProductDetailData extends Product {
-  sales?: number
-}
+import { useProductDetail } from '@/composables/useProductDetail'
 
 // 路由实例
 const router = useRouter()
 const route = useRoute()
 
-// 获取产品 ID
-const productId = route.params.id as string
+// 产品详情（加载/选项选择/分享）
+const {
+  product,
+  selectedOption,
+  isShareMode,
+  shareVisible,
+  shareQrCode,
+  getUserId,
+  fetchProductDetail,
+  initDetail,
+  handleShare,
+} = useProductDetail(route)
 
-// 本地身份信息（user_info / login_type）
-const { getUserId } = useUser()
-
-// 选中的选项
-const selectedOption = ref<number>(-1)
-
-// 产品数据
-const product = reactive({
-  id: productId,
-  title: '',
-  price: '0',
-  stock: 0,
-  sales: '0',
-  rate: '-',
-  images: [] as string[],
-  description: '',
-  options: [] as ProductOption[],
-  requireName: false,
-  requirePhone: false
-})
-
-// 信息填写弹窗
+// 信息填写弹窗（做单流程）
 const infoFormVisible = ref(false)
 const infoForm = reactive({
   name: '',
   phone: ''
 })
 
-// 分享弹窗
-const shareVisible = ref(false)
-const shareQrCode = ref('')
-
-// 是否是分享模式
-const isShareMode = ref(false)
-
-// 加载产品详情
-const fetchProductDetail = async () => {
-  try {
-    const res = await get<ProductDetailData>(`/products/${productId}`)
-    if (res.data) {
-      const p = res.data
-      product.id = p.id
-      product.title = p.title || ''
-      // 微信内菜单转发/收藏生成的卡片标题取 document.title，
-      // 路由守卫固定设为「产品详情」，这里改为具体产品标题以区分不同产品
-      if (product.title) {
-        document.title = product.title
-      }
-      product.price = String(p.price || 0)
-      product.stock = p.stock || 0
-      product.sales = String(p.sales || 0)
-      product.images = p.images && p.images.length > 0 ? p.images : (p.coverImage ? [p.coverImage] : [])
-      product.description = p.description || ''
-      product.options = p.options || []
-      product.requireName = p.requireName || false
-      product.requirePhone = p.requirePhone || false
-      logger.debug('[产品详情] options:', JSON.stringify(product.options))
-      if (product.options.length > 0) {
-        selectedOption.value = 0
-      } else {
-        selectedOption.value = -1
-      }
-    }
-  } catch (error) {
-    logger.error('获取产品详情失败:', error)
-    showToast('获取产品详情失败')
-  }
-}
-
 onMounted(() => {
-  isShareMode.value = route.query.share === 'true'
-  fetchProductDetail()
+  initDetail()
 })
 
 // 检查是否已登录（支持员工账户）
@@ -325,30 +263,6 @@ const requireLogin = async (action: string): Promise<boolean> => {
     return false
   } catch {
     return true
-  }
-}
-
-// 转发分享
-const handleShare = async () => {
-  shareVisible.value = true
-  shareQrCode.value = ''
-
-  // 分享落地页：按产品输出标题/封面 OG 标签，微信卡片可区分具体产品；
-  // 落地页自动跳转到详情页并保留 sharerId 归因参数
-  let shareUrl = `${window.location.origin}/api/share/product/${productId}`
-  const sharerId = getUserId()
-  if (sharerId) {
-    shareUrl += `?sharerId=${sharerId}`
-  }
-
-  try {
-    shareQrCode.value = await QRCode.toDataURL(shareUrl, {
-      width: 200,
-      margin: 2
-    })
-  } catch (error) {
-    logger.error('生成分享二维码失败:', error)
-    showToast('生成分享二维码失败')
   }
 }
 
@@ -421,232 +335,4 @@ const submitGoOrder = (userName: string, userPhone: string) => {
 }
 </script>
 
-<style scoped lang="scss">
-.product-detail-page {
-  min-height: 100%;
-  background-color: #f7f8fa;
-  padding-bottom: 60px;
-}
-
-// 轮播图
-.product-swipe {
-  .image-placeholder {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    height: 100%;
-    background-color: #f5f5f5;
-  }
-}
-
-// 产品信息
-.product-info {
-  background-color: #ffffff;
-  padding: 16px;
-  margin-bottom: 12px;
-}
-
-.price-row {
-  display: flex;
-  align-items: center;
-  margin-bottom: 8px;
-}
-
-.price {
-  font-size: 24px;
-  font-weight: 700;
-  color: #ee0a24;
-}
-
-.stock-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  margin-left: 12px;
-  padding: 4px 10px;
-  border-radius: 4px;
-  font-size: 12px;
-  color: #ffffff;
-  background: linear-gradient(135deg, #ff6034, #ee0a24);
-
-  &.unlimited {
-    background: linear-gradient(135deg, #07c160, #06ad56);
-  }
-}
-
-.title {
-  font-size: 16px;
-  font-weight: 500;
-  color: #323233;
-  line-height: 1.5;
-  margin-bottom: 8px;
-}
-
-.meta-row {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  font-size: 12px;
-  color: #969799;
-}
-
-// 佣金卡片
-.commission-card {
-  margin-bottom: 12px;
-  border-radius: 8px;
-  overflow: hidden;
-}
-
-.commission-detail {
-  width: 100%;
-}
-
-.commission-item {
-  display: flex;
-  justify-content: space-between;
-  padding: 6px 0;
-  font-size: 14px;
-
-  .label {
-    color: #969799;
-  }
-
-  .value {
-    color: #323233;
-
-    &.highlight {
-      color: #ee0a24;
-      font-weight: 600;
-    }
-  }
-}
-
-// 产品描述
-.product-desc {
-  background-color: #ffffff;
-  padding: 16px;
-  margin-bottom: 12px;
-}
-
-// 单选框组
-.option-section {
-  background-color: #ffffff;
-  padding: 16px;
-  margin-bottom: 12px;
-
-  .option-radio-group {
-    margin-top: 8px;
-  }
-
-  .option-meta {
-    display: flex;
-    gap: 12px;
-    margin-top: 4px;
-
-    .option-limit {
-      font-size: 12px;
-      color: #e6a23c;
-    }
-
-    .option-redirect {
-      font-size: 12px;
-      color: #1989fa;
-    }
-  }
-}
-
-.section-title {
-  font-size: 15px;
-  font-weight: 600;
-  color: #323233;
-  margin-bottom: 12px;
-  padding-left: 8px;
-  border-left: 3px solid #1989fa;
-}
-
-.desc-content {
-  font-size: 14px;
-  color: #666;
-  line-height: 1.8;
-
-  :deep(ul) {
-    padding-left: 20px;
-    margin: 8px 0;
-  }
-
-  :deep(li) {
-    margin-bottom: 4px;
-  }
-}
-
-// 信息填写弹窗
-.info-form-container {
-  background: #fff;
-  border-radius: 16px 16px 0 0;
-  padding-bottom: 24px;
-
-  .info-form-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 16px 20px;
-    border-bottom: 1px solid #f0f0f0;
-
-    .info-form-title {
-      font-size: 16px;
-      font-weight: 600;
-      color: #323233;
-    }
-  }
-
-  .info-form-footer {
-    padding: 16px 20px 24px;
-  }
-}
-
-// 分享弹窗
-.share-container {
-  background: #fff;
-  border-radius: 16px;
-  padding: 20px;
-  text-align: center;
-
-  .share-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 20px;
-
-    .share-title {
-      font-size: 16px;
-      font-weight: 600;
-      color: #323233;
-    }
-  }
-
-  .share-qrcode {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-bottom: 16px;
-
-    .qrcode-image {
-      width: 200px;
-      height: 200px;
-    }
-
-    .qrcode-loading {
-      width: 200px;
-      height: 200px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-  }
-
-  .share-tip {
-    font-size: 14px;
-    color: #969799;
-  }
-}
-</style>
+<style scoped lang="scss" src="./ProductDetailView.scss"></style>
