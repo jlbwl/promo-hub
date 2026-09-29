@@ -21,6 +21,7 @@
     "lint:fix": "eslint . --ext .vue,.js,.ts,.tsx --fix",
     "type-check": "pnpm --filter @promo/admin exec vue-tsc --noEmit && pnpm --filter @promo/manager exec vue-tsc --noEmit && pnpm --filter @promo/user exec vue-tsc --noEmit && pnpm --filter @promo/shared exec tsc --noEmit && pnpm --filter @promo/api exec tsc --noEmit",
     "test": "pnpm build:shared && vitest run",
+    "test:e2e": "playwright test",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "test:ui": "vitest --ui",
@@ -57,6 +58,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.0.0",
+    "@playwright/test": "^1.63.0",
     "@testing-library/user-event": "^14.6.1",
     "@testing-library/vue": "^8.1.0",
     "@typescript-eslint/eslint-plugin": "^8.0.0",
