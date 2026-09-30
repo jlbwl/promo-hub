@@ -133,12 +133,13 @@ export class OrderServiceImpl implements OrderService {
 
     // P1-1: 使用乐观锁扣减库存，防止并发超卖
     // SQL 条件: WHERE stock > 0，确保不会扣成负数
+    // 注意：db.ts 的 query() 返回 rows 本身（UPDATE 为 ResultSetHeader），不可数组解构
     let remainingStock: number
     if (product.stock && product.stock > 0) {
-      const [updateResult] = (await query(
+      const updateResult = (await query(
         'UPDATE products SET stock = stock - 1, updatedAt = NOW() WHERE id = ? AND stock > 0',
         [product.id]
-      )) as { affectedRows?: number }[]
+      )) as { affectedRows?: number }
       if (!updateResult || updateResult.affectedRows === 0) {
         // 库存已被其他请求抢光
         throwBadRequest('库存不足，商品已被抢光', ErrorCode.INSUFFICIENT_STOCK)

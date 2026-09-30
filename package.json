@@ -22,6 +22,7 @@
     "type-check": "pnpm --filter @promo/admin exec vue-tsc --noEmit && pnpm --filter @promo/manager exec vue-tsc --noEmit && pnpm --filter @promo/user exec vue-tsc --noEmit && pnpm --filter @promo/shared exec tsc --noEmit && pnpm --filter @promo/api exec tsc --noEmit",
     "test": "pnpm build:shared && vitest run",
     "test:e2e": "playwright test",
+    "test:e2e:full": "tsx scripts/e2e/setup-db.ts && tsx scripts/e2e/seed.ts && playwright test -c playwright.full.config.ts",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "test:ui": "vitest --ui",
