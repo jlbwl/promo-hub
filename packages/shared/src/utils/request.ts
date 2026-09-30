@@ -171,6 +171,12 @@ function createRequest(): AxiosInstance {
         }
       }
 
+      // GET 请求附加时间戳参数改写 URL：强制绕过微信 X5/XWeb 等 WebView
+      // 与中间代理对无 Cache-Control 响应的启发式缓存（服务端忽略未知参数）
+      if ((config.method || 'get').toLowerCase() === 'get') {
+        config.params = { ...(config.params ?? {}), _t: Date.now() }
+      }
+
       // 自动携带 CSRF token（从 cookie 中读取）
       if (typeof document !== 'undefined') {
         const csrfToken = document.cookie
@@ -181,7 +187,7 @@ function createRequest(): AxiosInstance {
           config.headers['X-CSRF-Token'] = csrfToken
         }
       }
-      
+
       return config
     },
     (error) => Promise.reject(error),

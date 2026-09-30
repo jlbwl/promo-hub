@@ -54,6 +54,13 @@ app.use(express.json())
 app.use(cookieParser())
 app.use(sessionMiddleware)
 
+// 动态接口禁用缓存：微信 X5/XWeb 等 WebView 对无 Cache-Control 的 GET 响应走启发式缓存，
+// 会把偶发的错误/过期响应持久缓存导致个别用户持续复现「获取产品详情失败」等问题
+app.use((_req, res, next) => {
+  res.setHeader('Cache-Control', 'no-store')
+  next()
+})
+
 // CSRF token 中间件（生成 + 验证）
 app.use(csrfGenerate)
 
