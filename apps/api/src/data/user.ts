@@ -95,62 +95,60 @@ export async function readUser(id: string): Promise<UserRecord | null> {
   return { ...row, loginMethods: deserialize<string>(row.loginMethods) || ['sms'] }
 }
 
+// 列值构造辅助：columns 与 values 严格一一对应（排除 createdAt/updatedAt 这类 NOW() 列），
+// role 列在尾部追加，保证列序 == 值序，杜绝 splice/push 错位写串列的事故
+function buildUserColumns(u: UserRow, hasRole: boolean): { columns: string[]; values: unknown[] } {
+  const columns = ['phone', 'password', 'nickname', 'teamName', 'status', 'alipayUserId', 'wechatOpenId', 'loginMethods']
+  const values: unknown[] = [
+    u.phone || '',
+    u.password || '',
+    u.nickname || '',
+    u.teamName || '',
+    u.status || 'active',
+    u.alipayUserId || '',
+    u.wechatOpenId || '',
+    serialize(u.loginMethods),
+  ]
+  if (hasRole) {
+    columns.push('role')
+    values.push(u.role || 'user')
+  }
+  return { columns, values }
+}
+
 export async function writeUsers(users: UserRow[]): Promise<void> {
   const hasRole = await columnExists('users', 'role')
-  
+  const hasLoginMethods = await columnExists('users', 'loginMethods')
+
   for (const u of users) {
+    const { columns, values } = buildUserColumns(u, hasRole)
+
     const existing = await queryOne('SELECT id FROM users WHERE id = ?', [u.id])
     if (existing) {
-      let updateColumns = ['phone=?', 'password=?', 'nickname=?', 'teamName=?', 'status=?', 'alipayUserId=?', 'wechatOpenId=?', 'loginMethods=?', 'updatedAt=NOW()']
-      let updateValues: string[] = [u.phone || '', u.password || '', u.nickname || '', u.teamName || '', u.status || 'active', u.alipayUserId || '', u.wechatOpenId || '', serialize(u.loginMethods), u.id]
-      
-      if (hasRole) {
-        updateColumns.splice(updateColumns.length - 3, 0, 'role=?')
-        updateValues.splice(updateValues.length - 1, 0, u.role || 'user')
+      const sets = columns.map(c => `${c} = ?`)
+      if (!hasLoginMethods) {
+        const idx = columns.indexOf('loginMethods')
+        sets.splice(idx, 1)
+        values.splice(idx, 1)
       }
-      
-      try {
-        await query(`UPDATE users SET ${updateColumns.join(', ')} WHERE id=?`, updateValues)
-      } catch (e) {
-        logger.error('[writeUsers] 更新用户失败', { userId: u.id, error: e })
-        try {
-          const safeUpdateColumns = updateColumns.filter(c => c !== 'loginMethods=?')
-          const safeUpdateValues = updateValues.filter((_, i) => updateColumns[i] !== 'loginMethods=?')
-          await query(`UPDATE users SET ${safeUpdateColumns.join(', ')} WHERE id=?`, safeUpdateValues)
-        } catch (e2) {
-          logger.error('[writeUsers] 安全更新也失败了', { userId: u.id, error: e2 })
-          throw e2
-        }
-      }
+      await query(`UPDATE users SET ${sets.join(', ')}, updatedAt = NOW() WHERE id = ?`, [...values, u.id])
     } else {
-      let insertColumns = ['id', 'phone', 'password', 'nickname', 'teamName', 'status', 'alipayUserId', 'wechatOpenId', 'loginMethods', 'createdAt']
-      let insertValues: string[] = [u.id, u.phone || '', u.password || '', u.nickname || '', u.teamName || '', u.status || 'active', u.alipayUserId || '', u.wechatOpenId || '', serialize(u.loginMethods)]
-      let placeholders = insertValues.map(() => '?')
+      const cols = [...columns, 'id', 'createdAt']
+      const vals = [...values, u.id]
+      const placeholders = vals.map(() => '?')
       placeholders.push('NOW()')
-      
-      if (hasRole) {
-        insertColumns.splice(insertColumns.length - 2, 0, 'role')
-        insertValues.push(u.role || 'user')
-        placeholders.splice(placeholders.length - 1, 0, '?')
-      }
-      
+
       try {
-        await query(`INSERT INTO users (${insertColumns.join(', ')}) VALUES (${placeholders.join(', ')})`, insertValues)
+        await query(`INSERT INTO users (${cols.join(', ')}) VALUES (${placeholders.join(', ')})`, vals)
       } catch (e) {
         logger.error('[writeUsers] 插入用户失败', { userId: u.id, error: e })
-        try {
-          const safeInsertColumns = insertColumns.filter(c => c !== 'loginMethods')
-          const safeInsertValues = insertValues.filter((_, i) => insertColumns[i] !== 'loginMethods')
-          safeInsertColumns.push('loginMethods')
-          safeInsertValues.push(JSON.stringify(["sms"]))
-          const safePlaceholders = safeInsertValues.map(() => '?')
-          safePlaceholders[safePlaceholders.length - 1] = 'NOW()'
-          
-          await query(`INSERT INTO users (${safeInsertColumns.join(', ')}) VALUES (${safePlaceholders.join(', ')})`, safeInsertValues)
-        } catch (e2) {
-          logger.error('[writeUsers] 安全插入也失败了', { userId: u.id, error: e2 })
-          throw e2
-        }
+        // 降级：去掉 loginMethods 列重试（旧表无此列）
+        const li = cols.indexOf('loginMethods')
+        const safeCols = cols.filter((_, i) => i !== li)
+        const safeVals = vals.filter((_, i) => i !== li)
+        const safePlaceholders = safeVals.map(() => '?')
+        safePlaceholders.push('NOW()')
+        await query(`INSERT INTO users (${safeCols.join(', ')}) VALUES (${safePlaceholders.join(', ')})`, safeVals)
       }
     }
   }
@@ -158,19 +156,14 @@ export async function writeUsers(users: UserRow[]): Promise<void> {
 
 export async function insertUser(u: UserRow): Promise<void> {
   const hasRole = await columnExists('users', 'role')
-  
-  let insertColumns = ['id', 'phone', 'password', 'nickname', 'teamName', 'status', 'alipayUserId', 'wechatOpenId', 'loginMethods', 'createdAt']
-  let insertValues: string[] = [u.id, u.phone || '', u.password || '', u.nickname || '', u.teamName || '', u.status || 'active', u.alipayUserId || '', u.wechatOpenId || '', serialize(u.loginMethods)]
-  let placeholders = insertValues.map(() => '?')
+
+  const { columns, values } = buildUserColumns(u, hasRole)
+  const cols = [...columns, 'id', 'createdAt']
+  const vals = [...values, u.id]
+  const placeholders = vals.map(() => '?')
   placeholders.push('NOW()')
-  
-  if (hasRole) {
-    insertColumns.splice(insertColumns.length - 2, 0, 'role')
-    insertValues.push(u.role || 'user')
-    placeholders.splice(placeholders.length - 1, 0, '?')
-  }
-  
-  await query(`INSERT INTO users (${insertColumns.join(', ')}) VALUES (${placeholders.join(', ')})`, insertValues)
+
+  await query(`INSERT INTO users (${cols.join(', ')}) VALUES (${placeholders.join(', ')})`, vals)
 }
 
 /**

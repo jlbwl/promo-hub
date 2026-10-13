@@ -19,53 +19,56 @@ export async function readManager(id: string): Promise<Manager | null> {
   return (await queryOne('SELECT * FROM managers WHERE id = ?', [id])) as Manager | null
 }
 
+// 列值构造辅助：columns 与 values 严格一一对应（排除 createdAt/updatedAt 这类 NOW() 列），
+// role 列在尾部追加，保证列序 == 值序，杜绝 splice/push 错位写串列的事故
+function buildManagerColumns(m: ManagerInput, hasRole: boolean): { columns: string[]; values: unknown[] } {
+  const columns = ['username', 'password', 'name', 'phone', 'status', 'teamName']
+  const values: unknown[] = [
+    m.username || '',
+    m.password || '',
+    m.name || '',
+    m.phone || '',
+    m.status || 'active',
+    m.teamName || '',
+  ]
+  if (hasRole) {
+    columns.push('role')
+    values.push(m.role || 'manager')
+  }
+  return { columns, values }
+}
+
 export async function writeManagers(managers: ManagerInput[]): Promise<void> {
   const hasRole = await columnExists('managers', 'role')
-  
+
   for (const m of managers) {
+    const { columns, values } = buildManagerColumns(m, hasRole)
+
     const existing = await queryOne('SELECT id FROM managers WHERE id = ?', [m.id])
     if (existing) {
-      let updateColumns = ['username=?', 'password=?', 'name=?', 'phone=?', 'status=?', 'teamName=?', 'updatedAt=NOW()']
-      let updateValues: string[] = [m.username || '', m.password || '', m.name || '', m.phone || '', m.status || 'active', m.teamName || '', m.id]
-      
-      if (hasRole) {
-        updateColumns.splice(updateColumns.length - 2, 0, 'role=?')
-        updateValues.splice(updateValues.length - 1, 0, m.role || 'manager')
-      }
-      
-      await query(`UPDATE managers SET ${updateColumns.join(', ')} WHERE id=?`, updateValues)
+      const sets = columns.map(c => `${c} = ?`)
+      await query(`UPDATE managers SET ${sets.join(', ')}, updatedAt = NOW() WHERE id = ?`, [...values, m.id])
     } else {
-      let insertColumns = ['id', 'username', 'password', 'name', 'phone', 'status', 'teamName', 'createdAt']
-      let insertValues: string[] = [m.id, m.username || '', m.password || '', m.name || '', m.phone || '', m.status || 'active', m.teamName || '']
-      let placeholders = insertValues.map(() => '?')
+      const cols = [...columns, 'id', 'createdAt']
+      const vals = [...values, m.id]
+      const placeholders = vals.map(() => '?')
       placeholders.push('NOW()')
-      
-      if (hasRole) {
-        insertColumns.splice(insertColumns.length - 1, 0, 'role')
-        insertValues.push(m.role || 'manager')
-        placeholders.splice(placeholders.length - 1, 0, '?')
-      }
-      
-      await query(`INSERT INTO managers (${insertColumns.join(', ')}) VALUES (${placeholders.join(', ')})`, insertValues)
+
+      await query(`INSERT INTO managers (${cols.join(', ')}) VALUES (${placeholders.join(', ')})`, vals)
     }
   }
 }
 
 export async function insertManager(m: ManagerInput): Promise<void> {
   const hasRole = await columnExists('managers', 'role')
-  
-  let insertColumns = ['id', 'username', 'password', 'name', 'phone', 'status', 'teamName', 'createdAt']
-  let insertValues: string[] = [m.id, m.username || '', m.password || '', m.name || '', m.phone || '', m.status || 'active', m.teamName || '']
-  let placeholders = insertValues.map(() => '?')
+
+  const { columns, values } = buildManagerColumns(m, hasRole)
+  const cols = [...columns, 'id', 'createdAt']
+  const vals = [...values, m.id]
+  const placeholders = vals.map(() => '?')
   placeholders.push('NOW()')
-  
-  if (hasRole) {
-    insertColumns.splice(insertColumns.length - 1, 0, 'role')
-    insertValues.push(m.role || 'manager')
-    placeholders.splice(placeholders.length - 1, 0, '?')
-  }
-  
-  await query(`INSERT INTO managers (${insertColumns.join(', ')}) VALUES (${placeholders.join(', ')})`, insertValues)
+
+  await query(`INSERT INTO managers (${cols.join(', ')}) VALUES (${placeholders.join(', ')})`, vals)
 }
 
 /**

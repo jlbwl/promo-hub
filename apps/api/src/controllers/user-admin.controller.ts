@@ -5,9 +5,9 @@ import logger from '../utils/logger.js'
 import {
   readUsers,
   readUsersPaged,
-  writeUsers,
+  updateUser,
   readManagers,
-  writeManagers,
+  updateManager,
   query,
   withTransaction,
   type UserRecord,
@@ -145,9 +145,6 @@ export const updateUserStatus = asyncHandler(
     let managers = await readManagers()
     const mgrIdx = managers.findIndex((m: Manager) => m.id === userId)
     if (mgrIdx !== -1) {
-      managers[mgrIdx].status = (status ? 'active' : 'disabled') as 'active' | 'inactive' | 'banned'
-      managers[mgrIdx].updatedAt = new Date().toISOString()
-
       if (!status) {
         // P1-4: 禁用经理时需要同时下架其产品，使用事务保证一致性
         // updatedAt 由数据库 NOW() 生成，避免 ISO 字符串写入 DATETIME 报错
@@ -162,7 +159,7 @@ export const updateUserStatus = asyncHandler(
           )
         })
       } else {
-        await writeManagers(managers)
+        await updateManager(userId, { status: 'active' })
       }
       logger.info('Manager status updated', { managerId: userId, status })
       return sendSuccess(res, null, '更新成功')
@@ -171,9 +168,8 @@ export const updateUserStatus = asyncHandler(
     let users = await readUsers()
     const usrIdx = users.findIndex((u: UserRecord) => u.id === userId)
     if (usrIdx !== -1) {
-      users[usrIdx].status = status ? 'active' : 'disabled'
-      users[usrIdx].updatedAt = new Date().toISOString()
-      await writeUsers(users)
+      // 定点更新，避免全量读改写
+      await updateUser(userId, { status: status ? 'active' : 'disabled' })
       logger.info('User status updated', { userId, status })
       return sendSuccess(res, null, '更新成功')
     }
@@ -185,27 +181,30 @@ export const updateUserStatus = asyncHandler(
 /**
  * 切换用户角色
  */
+const ALLOWED_USER_ROLES = new Set(['user', 'vip'])
+
 export const updateUserRole = asyncHandler(
   async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
     const { role } = req.body
     const userId = req.params.id as string
 
-    let managers = await readManagers()
+    if (typeof role !== 'string' || !ALLOWED_USER_ROLES.has(role)) {
+      throw new AppError('不支持的用户角色', ErrorCode.BAD_REQUEST, HttpStatus.BAD_REQUEST)
+    }
+
+    const managers = await readManagers()
     const mgrIdx = managers.findIndex((m: Manager) => m.id === userId)
     if (mgrIdx !== -1) {
-      managers[mgrIdx].role = role
-      managers[mgrIdx].updatedAt = new Date().toISOString()
-      await writeManagers(managers)
+      await updateManager(userId, { role })
       logger.info('Manager role updated', { managerId: userId, role })
       return sendSuccess(res, null, '更新成功')
     }
 
-    let users = await readUsers()
+    const users = await readUsers()
     const usrIdx = users.findIndex((u: UserRecord) => u.id === userId)
     if (usrIdx !== -1) {
-      users[usrIdx].role = role
-      users[usrIdx].updatedAt = new Date().toISOString()
-      await writeUsers(users)
+      // 定点更新，避免全量读改写
+      await updateUser(userId, { role })
       logger.info('User role updated', { userId, role })
       return sendSuccess(res, null, '更新成功')
     }
