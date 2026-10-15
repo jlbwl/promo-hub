@@ -11,9 +11,9 @@
       v-model:keyword="filterKeyword"
       v-model:status="filterStatus"
       v-model:manager="filterManager"
-      v-model:user="filterUser"
+      v-model:team="filterTeam"
       :managers="managers"
-      :user-options="userOptions"
+      :team-options="teamOptions"
       @change="fetchData"
       @reset="handleReset"
     />
@@ -62,12 +62,12 @@ const {
   loading,
   filterStatus,
   filterManager,
-  filterUser,
+  filterTeam,
   filterKeyword,
   pagination,
   tableData,
   managers,
-  userOptions,
+  teamOptions,
   stats,
   fetchData,
   handleReset,

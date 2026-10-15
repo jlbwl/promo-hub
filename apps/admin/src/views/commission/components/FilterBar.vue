@@ -63,20 +63,20 @@
       />
     </el-select>
     <el-select
-      :model-value="user"
-      placeholder="筛选用户"
+      :model-value="team"
+      placeholder="筛选团队"
       clearable
       filterable
-      style="width: 260px; margin-left: 12px;"
-      @update:model-value="emit('update:user', $event)"
+      style="width: 200px; margin-left: 12px;"
+      @update:model-value="emit('update:team', $event)"
       @change="emit('change')"
     >
       <el-option
-        label="全部用户"
+        label="全部团队"
         value=""
       />
       <el-option
-        v-for="o in userOptions"
+        v-for="o in teamOptions"
         :key="o.key"
         :label="o.label"
         :value="o.key"
@@ -93,23 +93,23 @@
 </template>
 
 <script setup lang="ts">
-// 筛选栏：关键词、订单状态、经理、用户（用户选项值格式为 userPhone||teamName）
+// 筛选栏：关键词、订单状态、经理、团队（团队选项值格式为 teamName）
 import type { Manager } from '@promo/shared/types'
 
 defineProps<{
   keyword: string
   status: string
   manager: string
-  user: string
+  team: string
   managers: Manager[]
-  userOptions: { key: string; label: string }[]
+  teamOptions: { key: string; label: string }[]
 }>()
 
 const emit = defineEmits<{
   'update:keyword': [value: string]
   'update:status': [value: string]
   'update:manager': [value: string]
-  'update:user': [value: string]
+  'update:team': [value: string]
   change: []
   reset: []
 }>()
