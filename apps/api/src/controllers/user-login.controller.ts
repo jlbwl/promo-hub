@@ -11,6 +11,7 @@ import {
   deserialize,
   insertUser,
   updateUser,
+  touchUserLastLogin,
 } from '../data/index.js'
 import { login as sessionLogin, logout as sessionLogout, generateTokens, type AuthUser } from '../middleware/auth.js'
 import { verifySmsCode } from '../utils/sms.js'
@@ -60,6 +61,13 @@ export const userLogin = asyncHandler(
     const authUser = { id: user.id, phone: user.phone as string, role: 'user' as const, nickname: user.nickname, teamName: user.teamName }
     const tokens = await generateTokens(authUser)
     await sessionLogin(req, { ...authUser, token: tokens.token })
+
+    // 记录最近登录时间（失败不阻断登录）
+    try {
+      await touchUserLastLogin(user.id)
+    } catch (e) {
+      logger.warn('Update lastLoginAt failed', { userId: user.id, error: getErrorMessage(e) })
+    }
 
     logger.info('User logged in', { userId: user.id, method: 'password' })
     const { password: _, ...safeUser } = user
@@ -145,6 +153,13 @@ export const userSmsLogin = asyncHandler(
         user = await queryOne('SELECT * FROM users WHERE id = ?', [user.id]) as SmsLoginUser
         user.loginMethods = newLoginMethods
         logger.info('User updated', { userId: user.id })
+      }
+
+      // 记录最近登录时间（新注册用户同样算一次登录；失败不阻断登录）
+      try {
+        await touchUserLastLogin(user.id)
+      } catch (e) {
+        logger.warn('Update lastLoginAt failed', { userId: user.id, error: getErrorMessage(e) })
       }
 
       // 处理 session - 非阻塞模式，即使保存失败也继续

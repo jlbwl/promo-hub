@@ -66,6 +66,7 @@ export interface User {
   password?: string
   createdAt: string
   updatedAt?: string
+  lastLoginAt?: string | null
 }
 
 export interface Manager extends User {

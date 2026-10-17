@@ -134,6 +134,14 @@
           </template>
         </el-table-column>
         <el-table-column
+          label="最近登录"
+          width="180"
+        >
+          <template #default="{ row }">
+            {{ formatTime(row.lastLoginAt, '从未登录') }}
+          </template>
+        </el-table-column>
+        <el-table-column
           label="操作"
           min-width="180"
           fixed="right"
@@ -262,8 +270,8 @@ import { onMounted } from 'vue'
 import { formatTime as formatTimeBase } from '@promo/shared/utils/helpers'
 import { useUserList } from '../../composables/useUserList'
 
-// 格式化时间（shared 统一北京时区实现）
-const formatTime = (iso: string) => formatTimeBase(iso, '--')
+// 格式化时间（shared 统一北京时区实现；空值可自定义文案，如"从未登录"）
+const formatTime = (iso?: string, emptyText = '--') => formatTimeBase(iso, emptyText)
 
 const {
   searchKeyword,

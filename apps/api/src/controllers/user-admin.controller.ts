@@ -44,6 +44,7 @@ export const getUsers = asyncHandler(
       role: u.role,
       status: u.status === 'active' ? 1 : 0,
       createdAt: u.createdAt,
+      lastLoginAt: u.lastLoginAt ?? null,
     }))
 
     sendSuccess(res, { list, total: result.total, page: pageNum, pageSize: pageSizeNum }, 'success')
@@ -82,6 +83,7 @@ export const getUserById = asyncHandler(
         role: user.role,
         status: user.status === 'active' ? 1 : 0,
         createdAt: user.createdAt,
+        lastLoginAt: user.lastLoginAt ?? null,
       }, 'success')
     }
 

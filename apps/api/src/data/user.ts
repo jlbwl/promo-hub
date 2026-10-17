@@ -17,6 +17,7 @@ export interface UserRow {
   wechatOpenId?: string
   loginMethods?: unknown
   createdAt?: string
+  lastLoginAt?: string | null
   [key: string]: unknown
 }
 
@@ -197,4 +198,12 @@ export async function updateUser(id: string, fields: object): Promise<void> {
 
 export async function deleteUser(id: string): Promise<void> {
   await query('DELETE FROM users WHERE id = ?', [id])
+}
+
+/**
+ * 记录用户最近登录时间：仅登录成功后调用，时间由数据库 NOW() 统一生成。
+ * 独立于 updateUser 白名单，避免外部输入伪造登录时间；不更新 updatedAt（登录不算资料变更）。
+ */
+export async function touchUserLastLogin(id: string): Promise<void> {
+  await query('UPDATE users SET lastLoginAt = NOW() WHERE id = ?', [id])
 }

@@ -14,6 +14,7 @@ export interface UserItem {
   role: string
   status: number
   createdAt: string
+  lastLoginAt?: string | null
 }
 
 export function useUserList() {
