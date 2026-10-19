@@ -2,7 +2,7 @@ import { logger } from '@promo/shared/utils/logger'
 import { getErrorMessage } from '@promo/shared/utils/errors'
 import { ref, computed, watch, onMounted, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
-import { sanitizeHtml } from '../components/rich-editor/sanitizeHtml'
+import { sanitizeHtml, stripFormatting } from '../components/rich-editor/sanitizeHtml'
 import { isMobile, compressConfig, compressImage, uploadToServer } from '../components/rich-editor/imageUpload'
 
 interface RichEditorProps {
@@ -61,10 +61,10 @@ export function useRichEditor(props: RichEditorProps, emitUpdate: (html: string)
       }
     }
 
-    // 如果是粘贴HTML，清理一下并移除base64图片
+    // 如果是粘贴HTML，先做 XSS 清理，再剥离颜色/背景/加粗等格式，最后移除base64图片
     if (!hasImage && e.clipboardData?.types.includes('text/html')) {
       const html = e.clipboardData.getData('text/html')
-      let sanitizedHtml = sanitizeHtml(html)
+      let sanitizedHtml = stripFormatting(sanitizeHtml(html))
       // 额外清理base64图片
       const base64ImgRegex = /<img[^>]+src=["']data:image[^>]+>/gi
       const hasBase64Img = base64ImgRegex.test(sanitizedHtml)

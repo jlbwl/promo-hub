@@ -6,7 +6,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { defineComponent, h, nextTick, reactive } from 'vue'
 import { flushPromises, mount } from '@vue/test-utils'
 import { useRichEditor } from '../useRichEditor'
-import { sanitizeHtml } from '../../components/rich-editor/sanitizeHtml'
+import { sanitizeHtml, stripFormatting } from '../../components/rich-editor/sanitizeHtml'
 import { compressImage, uploadToServer } from '../../components/rich-editor/imageUpload'
 import { ElMessage } from 'element-plus'
 
@@ -20,6 +20,7 @@ vi.mock('@promo/shared/utils/logger', () => ({
 
 vi.mock('../../components/rich-editor/sanitizeHtml', () => ({
   sanitizeHtml: vi.fn((html: string) => html),
+  stripFormatting: vi.fn((html: string) => html),
 }))
 
 vi.mock('../../components/rich-editor/imageUpload', () => ({
@@ -188,6 +189,30 @@ describe('handlePaste', () => {
     expect(ElMessage.warning).toHaveBeenCalledWith('粘贴内容中的图片已移除，请使用编辑器上传功能插入图片')
     expect(preventDefault).toHaveBeenCalled()
     expect(execCommand).toHaveBeenCalledWith('insertHTML', false, '<p>hi</p>')
+  })
+
+  it('粘贴带格式的 HTML 时先剥离格式再插入', async () => {
+    const el = createEditor()
+    const { api } = setupBare()
+    api.editorRef.value = el
+
+    const execCommand = vi.fn()
+    Object.defineProperty(document, 'execCommand', { value: execCommand, configurable: true, writable: true })
+    const html = '<p style="color:red"><b>红色加粗</b></p>'
+    vi.mocked(stripFormatting).mockReturnValueOnce('<p>红色加粗</p>')
+    const preventDefault = vi.fn()
+    const event = {
+      clipboardData: { items: [], types: ['text/html'], getData: vi.fn(() => html) },
+      preventDefault,
+    } as unknown as ClipboardEvent
+
+    await api.handlePaste(event)
+
+    // 粘贴链路：sanitizeHtml(XSS 清理) → stripFormatting(剥离格式) → insertHTML
+    expect(sanitizeHtml).toHaveBeenCalledWith(html)
+    expect(stripFormatting).toHaveBeenCalledWith(html)
+    expect(preventDefault).toHaveBeenCalled()
+    expect(execCommand).toHaveBeenCalledWith('insertHTML', false, '<p>红色加粗</p>')
   })
 })
 
