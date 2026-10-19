@@ -117,7 +117,7 @@ export const createDispatchWorkbook = (products: Product[], categories: ProductC
   declarationRow.eachCell((cell) => {
     cell.font = {
       color: { argb: 'FFFF0000' },
-      size: 11
+      size: 22
     }
     cell.alignment = {
       horizontal: 'left',
@@ -125,7 +125,7 @@ export const createDispatchWorkbook = (products: Product[], categories: ProductC
       wrapText: true
     }
   })
-  declarationRow.height = 60
+  declarationRow.height = 120
 
   const nextDay = new Date()
   nextDay.setDate(nextDay.getDate() + 1)
@@ -135,14 +135,14 @@ export const createDispatchWorkbook = (products: Product[], categories: ProductC
   titleRow.eachCell((cell) => {
     cell.font = {
       bold: true,
-      size: 14
+      size: 28
     }
     cell.alignment = {
       horizontal: 'center',
       vertical: 'middle'
     }
   })
-  titleRow.height = 30
+  titleRow.height = 60
 
   const applyHeaderStyle = (row: ExcelJS.Row) => {
     row.eachCell((cell) => {
@@ -153,7 +153,8 @@ export const createDispatchWorkbook = (products: Product[], categories: ProductC
       }
       cell.font = {
         bold: true,
-        color: { argb: 'FF000000' }
+        color: { argb: 'FF000000' },
+        size: 22
       }
       cell.alignment = {
         horizontal: 'center',
@@ -168,7 +169,7 @@ export const createDispatchWorkbook = (products: Product[], categories: ProductC
     })
   }
 
-  const rowHeight = 18
+  const rowHeight = 36
 
   Object.keys(groupedProducts).forEach((categoryName) => {
     const categoryHeaderRow = worksheet.addRow(headers)
@@ -189,6 +190,9 @@ export const createDispatchWorkbook = (products: Product[], categories: ProductC
 
     productRows.forEach(dataRow => {
       dataRow.eachCell((cell, colNumber) => {
+        cell.font = {
+          size: 22
+        }
         cell.alignment = {
           vertical: 'middle',
           horizontal: (colNumber === 1 || colNumber === 4) ? 'center' : 'left'
