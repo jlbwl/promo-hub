@@ -21,6 +21,15 @@ export interface QrCodeItem {
 // 格式化时间（shared 统一北京时区实现，秒级）
 export const formatTime = (iso: string) => (iso ? formatDate(iso) : '--')
 
+// 导出前清洗产品描述：去除所有 HTML 标签（含 img/br/p 等），只保留纯文字
+export const stripHtmlTags = (html: string): string =>
+  html
+    .replace(/<br\s*\/?>/gi, ' ')
+    .replace(/<[^>]*>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+
 // 在二维码图片上方/中心拼接文字后返回新的 dataUrl（无文字时原样返回）
 export const addTextToQrCode = async (qrCodeDataUrl: string, topText: string, centerText: string): Promise<string> => {
   if (!topText && !centerText) {
@@ -93,7 +102,7 @@ export const createDispatchWorkbook = (products: Product[], categories: ProductC
     categoryName: categoryMap.get(product.category) || product.category || '未分类',
     title: product.title,
     price: product.price,
-    description: product.description || ''
+    description: stripHtmlTags(product.description || '')
   }))
 
   mappedProducts.sort((a, b) => a.categoryName.localeCompare(b.categoryName, 'zh-CN'))
@@ -237,7 +246,8 @@ export const createDispatchWorkbook = (products: Product[], categories: ProductC
   return workbook
 }
 
-// 将二维码图片追加到派单表末尾（插入失败仅警告，不中断导出）
+// 将二维码图片追加到派单表末尾：最后一行合并 A-D 列，图片在合并单元格内居中
+// （插入失败仅警告，不中断导出）
 export const appendQrCodeToWorkbook = (workbook: ExcelJS.Workbook, qrCodeDataUrl: string) => {
   const worksheet = workbook.getWorksheet('派单表')
   if (!worksheet || !qrCodeDataUrl) return
@@ -247,7 +257,8 @@ export const appendQrCodeToWorkbook = (workbook: ExcelJS.Workbook, qrCodeDataUrl
   const qrCodeRow = worksheet.addRow([''])
   qrCodeRow.height = 200
 
-  worksheet.mergeCells(`A${qrCodeRow.number}:E${qrCodeRow.number}`)
+  // 最后一行第 1~4 列合并为独立单元格，专用于展示二维码
+  worksheet.mergeCells(`A${qrCodeRow.number}:D${qrCodeRow.number}`)
 
   qrCodeRow.eachCell((cell) => {
     cell.alignment = {
@@ -263,10 +274,43 @@ export const appendQrCodeToWorkbook = (workbook: ExcelJS.Workbook, qrCodeDataUrl
       extension: 'png'
     })
 
+    // 从 PNG 头同步读取原始宽高，保证二维码等比缩放不变形
+    let naturalWidth = 0
+    let naturalHeight = 0
+    try {
+      const binary = atob(base64Data.slice(0, 64))
+      naturalWidth = ((binary.charCodeAt(16) << 24) | (binary.charCodeAt(17) << 16) | (binary.charCodeAt(18) << 8) | binary.charCodeAt(19)) >>> 0
+      naturalHeight = ((binary.charCodeAt(20) << 24) | (binary.charCodeAt(21) << 16) | (binary.charCodeAt(22) << 8) | binary.charCodeAt(23)) >>> 0
+    } catch {
+      naturalWidth = 0
+      naturalHeight = 0
+    }
+
+    // 目标宽度 200px，按原始比例换算高度（读不到尺寸时按正方形处理）
+    const imgWidthPx = 200
+    const imgHeightPx = naturalWidth > 0 && naturalHeight > 0
+      ? Math.round(imgWidthPx * naturalHeight / naturalWidth)
+      : imgWidthPx
+
+    // 估算 A-D 合并区域的像素宽度，计算图片居中所需的偏移
+    const colWidthToPx = (width?: number) => (width ? width * 7 + 5 : 64)
+    const mergedWidthPx = [1, 2, 3, 4].reduce(
+      (sum, col) => sum + colWidthToPx(worksheet.getColumn(col).width),
+      0
+    )
+    const offsetXPx = Math.max((mergedWidthPx - imgWidthPx) / 2, 0)
+    const rowHeightPx = 200 * 4 / 3 // 行高单位是磅，换算为像素
+    const offsetYPx = Math.max((rowHeightPx - imgHeightPx) / 2, 0)
+    const pxToEmu = (px: number) => Math.round(px * 9525)
+
     worksheet.addImage(qrCodeImage, {
-      tl: { col: 1, row: qrCodeRow.number - 1 },
-      br: { col: 4, row: qrCodeRow.number },
-      editAs: 'oneCell'
+      tl: {
+        col: 0,
+        row: qrCodeRow.number - 1,
+        colOff: pxToEmu(offsetXPx),
+        rowOff: pxToEmu(offsetYPx)
+      },
+      ext: { width: imgWidthPx, height: imgHeightPx }
     } as Parameters<ExcelJS.Worksheet['addImage']>[1])
   } catch (error) {
     logger.error('Failed to add QR code to Excel:', error)
