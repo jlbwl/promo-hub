@@ -3,7 +3,7 @@
   <el-dialog
     v-model="visible"
     :title="title"
-    width="950px"
+    width="1100px"
     destroy-on-close
   >
     <div
@@ -12,7 +12,33 @@
     >
       <div class="payment-summary">
         <span>共 <strong>{{ orders.length }}</strong> 条记录</span>
-        <span class="payment-total">合计佣金：<strong>{{ total }}</strong></span>
+        <div class="payment-summary-right">
+          <span class="payment-total">合计佣金：<strong>{{ total }}</strong></span>
+          <el-popover
+            placement="bottom-end"
+            :width="180"
+            trigger="click"
+          >
+            <template #reference>
+              <el-button
+                size="small"
+                text
+                bg
+              >
+                列设置
+              </el-button>
+            </template>
+            <div class="column-settings">
+              <el-checkbox
+                v-for="col in columnOptions"
+                :key="col.key"
+                v-model="visibleColumns[col.key]"
+              >
+                {{ col.label }}
+              </el-checkbox>
+            </div>
+          </el-popover>
+        </div>
       </div>
       <el-table
         :data="orders"
@@ -27,6 +53,7 @@
           width="40"
         />
         <el-table-column
+          v-if="visibleColumns.productName"
           prop="productName"
           label="产品名称"
           min-width="200"
@@ -54,6 +81,7 @@
           </template>
         </el-table-column>
         <el-table-column
+          v-if="visibleColumns.userName"
           prop="userName"
           label="用户姓名"
           width="90"
@@ -64,6 +92,7 @@
           </template>
         </el-table-column>
         <el-table-column
+          v-if="visibleColumns.managerName"
           label="渠道名称"
           width="110"
           show-overflow-tooltip
@@ -73,12 +102,14 @@
           </template>
         </el-table-column>
         <el-table-column
+          v-if="visibleColumns.teamName"
           prop="teamName"
           label="团队名称"
           width="110"
           show-overflow-tooltip
         />
         <el-table-column
+          v-if="visibleColumns.userPhone"
           prop="userPhone"
           label="手机号"
           width="100"
@@ -89,6 +120,7 @@
           </template>
         </el-table-column>
         <el-table-column
+          v-if="visibleColumns.productPrice"
           prop="productPrice"
           label="推广费"
           width="70"
@@ -99,12 +131,35 @@
           </template>
         </el-table-column>
         <el-table-column
+          v-if="visibleColumns.createdAt"
           label="做单时间"
           width="130"
           align="center"
         >
           <template #default="{ row }">
             {{ formatTime(row.createdAt) }}
+          </template>
+        </el-table-column>
+        <el-table-column
+          v-if="visibleColumns.settledAt"
+          prop="settledAt"
+          label="结算时间"
+          width="130"
+          align="center"
+        >
+          <template #default="{ row }">
+            <span>{{ row.settledAt ? formatTime(row.settledAt) : '--' }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column
+          v-if="visibleColumns.rejectReason"
+          prop="rejectReason"
+          label="驳回理由"
+          min-width="150"
+          show-overflow-tooltip
+        >
+          <template #default="{ row }">
+            <span style="color: #f56c6c;">{{ row.rejectReason || '--' }}</span>
           </template>
         </el-table-column>
       </el-table>
@@ -118,7 +173,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, reactive } from 'vue'
 import { ElMessage } from 'element-plus'
 import { get } from '@promo/shared/utils/request'
 import { maskPhone, formatTime, getManagerTeamName } from '../utils'
@@ -132,6 +187,33 @@ const visible = ref(false)
 const title = ref('')
 const orders = ref<Order[]>([])
 const total = computed(() => orders.value.reduce((s: number, o: Order) => s + (Number(o.productPrice) || 0), 0).toFixed(2))
+
+// 列显示/隐藏配置（序号列固定显示，不提供开关）
+const columnOptions = [
+  { key: 'productName', label: '产品名称' },
+  { key: 'userName', label: '用户姓名' },
+  { key: 'managerName', label: '渠道名称' },
+  { key: 'teamName', label: '团队名称' },
+  { key: 'userPhone', label: '手机号' },
+  { key: 'productPrice', label: '推广费' },
+  { key: 'createdAt', label: '做单时间' },
+  { key: 'settledAt', label: '结算时间' },
+  { key: 'rejectReason', label: '驳回理由' },
+] as const
+
+type ColumnKey = (typeof columnOptions)[number]['key']
+
+const visibleColumns = reactive<Record<ColumnKey, boolean>>({
+  productName: true,
+  userName: true,
+  managerName: true,
+  teamName: true,
+  userPhone: true,
+  productPrice: true,
+  createdAt: true,
+  settledAt: true,
+  rejectReason: true,
+})
 
 // 根据经理 ID 获取渠道名称
 const teamNameOf = (managerId: string) => getManagerTeamName(props.managers, managerId)
@@ -156,7 +238,11 @@ defineExpose({ open })
 
 <style lang="scss" scoped>
 .payment-summary { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: #f5f7fa; border-radius: 8px; margin-bottom: 16px; font-size: 14px; color: #606266;
+  .payment-summary-right { display: flex; align-items: center; gap: 12px; }
   .payment-total { color: #409eff; font-size: 16px; }
+}
+.column-settings { display: flex; flex-direction: column; gap: 6px;
+  :deep(.el-checkbox) { margin-right: 0; }
 }
 .payment-actions { display: flex; justify-content: flex-end; gap: 12px; margin-top: 20px; padding-top: 16px; border-top: 1px solid #ebeef5; }
 
