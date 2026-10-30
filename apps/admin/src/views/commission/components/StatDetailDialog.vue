@@ -30,7 +30,7 @@
             </template>
             <div class="column-settings">
               <el-checkbox
-                v-for="col in columnOptions"
+                v-for="col in visibleColumnOptions"
                 :key="col.key"
                 v-model="visibleColumns[col.key]"
               >
@@ -202,7 +202,22 @@
           </template>
         </el-table-column>
         <el-table-column
-          v-if="visibleColumns.rejectReason"
+          v-if="visibleColumns.auditResult && currentStatus !== 'rejected'"
+          label="审核结果"
+          width="90"
+          align="center"
+        >
+          <template #default="{ row }">
+            <el-tag
+              size="small"
+              :type="row.status === 'pending' ? 'warning' : 'success'"
+            >
+              {{ auditResultOf(row) }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column
+          v-if="visibleColumns.rejectReason && currentStatus === 'rejected'"
           prop="rejectReason"
           label="驳回理由"
           min-width="150"
@@ -236,6 +251,8 @@ const props = defineProps<{
 const visible = ref(false)
 const title = ref('')
 const orders = ref<Order[]>([])
+// 当前弹窗对应的订单状态（用于区分审核结果/驳回理由列）
+const currentStatus = ref('')
 
 // 明细筛选条件：渠道（按 managerId）、团队名称、结算日期区间
 const filters = reactive<{ managerId: string; teamName: string; dateRange: string[] | null }>({
@@ -287,6 +304,7 @@ const columnOptions = [
   { key: 'productPrice', label: '推广费' },
   { key: 'createdAt', label: '做单时间' },
   { key: 'settledAt', label: '结算时间' },
+  { key: 'auditResult', label: '审核结果' },
   { key: 'rejectReason', label: '驳回理由' },
 ] as const
 
@@ -301,8 +319,19 @@ const visibleColumns = reactive<Record<ColumnKey, boolean>>({
   productPrice: true,
   createdAt: true,
   settledAt: true,
+  auditResult: true,
   rejectReason: true,
 })
+
+// 列设置项随弹窗类型变化：驳回明细只有「驳回理由」，其余明细用「审核结果」
+const visibleColumnOptions = computed(() => columnOptions.filter(col => {
+  if (col.key === 'auditResult') return currentStatus.value !== 'rejected'
+  if (col.key === 'rejectReason') return currentStatus.value === 'rejected'
+  return true
+}))
+
+// 审核结果：待审核保持原状态，通过审核（含已结算）即判定合格
+const auditResultOf = (row: Order) => (row.status === 'pending' ? '待审核' : '合格')
 
 // 根据经理 ID 获取渠道名称
 const teamNameOf = (managerId: string) => getManagerTeamName(props.managers, managerId)
@@ -310,6 +339,7 @@ const teamNameOf = (managerId: string) => getManagerTeamName(props.managers, man
 // 打开统计明细弹窗（status 为 'all' 时查询全部）
 const open = async (status: string, t: string) => {
   title.value = t + '明细'
+  currentStatus.value = status
   resetFilters()
   visible.value = true
   try {
