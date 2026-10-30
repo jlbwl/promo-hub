@@ -13,7 +13,10 @@
       <div class="payment-summary">
         <span>共 <strong>{{ filteredOrders.length }}</strong> 条记录</span>
         <div class="payment-summary-right">
-          <span class="payment-total">合计佣金：<strong>{{ total }}</strong></span>
+          <span
+            v-if="currentStatus !== 'rejected'"
+            class="payment-total"
+          >合计佣金：<strong>{{ total }}</strong></span>
           <el-popover
             placement="bottom-end"
             :width="180"
@@ -71,8 +74,12 @@
             :value="name"
           />
         </el-select>
-        <span class="filter-label">结算时间</span>
+        <span
+          v-if="currentStatus !== 'rejected'"
+          class="filter-label"
+        >结算时间</span>
         <el-date-picker
+          v-if="currentStatus !== 'rejected'"
           v-model="filters.dateRange"
           type="daterange"
           size="small"
@@ -170,7 +177,7 @@
           </template>
         </el-table-column>
         <el-table-column
-          v-if="visibleColumns.productPrice"
+          v-if="visibleColumns.productPrice && currentStatus !== 'rejected'"
           prop="productPrice"
           label="推广费"
           width="70"
@@ -191,7 +198,7 @@
           </template>
         </el-table-column>
         <el-table-column
-          v-if="visibleColumns.settledAt"
+          v-if="visibleColumns.settledAt && currentStatus !== 'rejected'"
           prop="settledAt"
           label="结算时间"
           width="130"
@@ -199,6 +206,17 @@
         >
           <template #default="{ row }">
             <span>{{ row.settledAt ? formatTime(row.settledAt) : '--' }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column
+          v-if="visibleColumns.reviewedAt && currentStatus === 'rejected'"
+          prop="reviewedAt"
+          label="审核时间"
+          width="130"
+          align="center"
+        >
+          <template #default="{ row }">
+            <span>{{ row.reviewedAt ? formatTime(row.reviewedAt) : '--' }}</span>
           </template>
         </el-table-column>
         <el-table-column
@@ -304,6 +322,7 @@ const columnOptions = [
   { key: 'productPrice', label: '推广费' },
   { key: 'createdAt', label: '做单时间' },
   { key: 'settledAt', label: '结算时间' },
+  { key: 'reviewedAt', label: '审核时间' },
   { key: 'auditResult', label: '审核结果' },
   { key: 'rejectReason', label: '驳回理由' },
 ] as const
@@ -319,14 +338,18 @@ const visibleColumns = reactive<Record<ColumnKey, boolean>>({
   productPrice: true,
   createdAt: true,
   settledAt: true,
+  reviewedAt: true,
   auditResult: true,
   rejectReason: true,
 })
 
-// 列设置项随弹窗类型变化：驳回明细只有「驳回理由」，其余明细用「审核结果」
+// 列设置项随弹窗类型变化：
+// 驳回明细不含推广费/结算时间/审核结果，改为审核时间 + 驳回理由
 const visibleColumnOptions = computed(() => columnOptions.filter(col => {
-  if (col.key === 'auditResult') return currentStatus.value !== 'rejected'
-  if (col.key === 'rejectReason') return currentStatus.value === 'rejected'
+  if (col.key === 'productPrice' || col.key === 'settledAt' || col.key === 'auditResult') {
+    return currentStatus.value !== 'rejected'
+  }
+  if (col.key === 'reviewedAt' || col.key === 'rejectReason') return currentStatus.value === 'rejected'
   return true
 }))
 
