@@ -11,7 +11,7 @@
       style="overflow: hidden;"
     >
       <div class="payment-summary">
-        <span>共 <strong>{{ orders.length }}</strong> 条记录</span>
+        <span>共 <strong>{{ filteredOrders.length }}</strong> 条记录</span>
         <div class="payment-summary-right">
           <span class="payment-total">合计佣金：<strong>{{ total }}</strong></span>
           <el-popover
@@ -40,8 +40,58 @@
           </el-popover>
         </div>
       </div>
+      <div class="detail-filters">
+        <span class="filter-label">渠道名称</span>
+        <el-select
+          v-model="filters.managerId"
+          size="small"
+          clearable
+          placeholder="全部渠道"
+          style="width: 150px;"
+        >
+          <el-option
+            v-for="opt in channelOptions"
+            :key="opt.value"
+            :label="opt.label"
+            :value="opt.value"
+          />
+        </el-select>
+        <span class="filter-label">团队名称</span>
+        <el-select
+          v-model="filters.teamName"
+          size="small"
+          clearable
+          placeholder="全部团队"
+          style="width: 150px;"
+        >
+          <el-option
+            v-for="name in teamOptions"
+            :key="name"
+            :label="name"
+            :value="name"
+          />
+        </el-select>
+        <span class="filter-label">结算时间</span>
+        <el-date-picker
+          v-model="filters.dateRange"
+          type="daterange"
+          size="small"
+          value-format="YYYY-MM-DD"
+          range-separator="至"
+          start-placeholder="开始日期"
+          end-placeholder="结束日期"
+          style="width: 240px;"
+        />
+        <el-button
+          size="small"
+          text
+          @click="resetFilters"
+        >
+          重置
+        </el-button>
+      </div>
       <el-table
-        :data="orders"
+        :data="filteredOrders"
         border
         size="small"
         max-height="450"
@@ -186,7 +236,46 @@ const props = defineProps<{
 const visible = ref(false)
 const title = ref('')
 const orders = ref<Order[]>([])
-const total = computed(() => orders.value.reduce((s: number, o: Order) => s + (Number(o.productPrice) || 0), 0).toFixed(2))
+
+// 明细筛选条件：渠道（按 managerId）、团队名称、结算日期区间
+const filters = reactive<{ managerId: string; teamName: string; dateRange: string[] | null }>({
+  managerId: '',
+  teamName: '',
+  dateRange: null,
+})
+
+// 渠道下拉选项（渠道名称由经理信息推导，按 managerId 去重）
+const channelOptions = computed(() => {
+  const map = new Map<string, string>()
+  orders.value.forEach(o => {
+    if (o.managerId && !map.has(o.managerId)) map.set(o.managerId, getManagerTeamName(props.managers, o.managerId))
+  })
+  return [...map.entries()].map(([value, label]) => ({ value, label }))
+})
+
+// 团队名称下拉选项（订单内出现的团队去重）
+const teamOptions = computed(() => [...new Set(orders.value.map(o => o.teamName).filter((n): n is string => !!n))])
+
+const filteredOrders = computed(() => orders.value.filter(o => {
+  if (filters.managerId && o.managerId !== filters.managerId) return false
+  if (filters.teamName && o.teamName !== filters.teamName) return false
+  if (filters.dateRange?.length === 2) {
+    if (!o.settledAt) return false
+    // settledAt 为 YYYY-MM-DD HH:mm:ss，取日期部分做闭区间比较
+    const day = String(o.settledAt).slice(0, 10)
+    if (day < filters.dateRange[0] || day > filters.dateRange[1]) return false
+  }
+  return true
+}))
+
+const total = computed(() => filteredOrders.value.reduce((s: number, o: Order) => s + (Number(o.productPrice) || 0), 0).toFixed(2))
+
+// 清空筛选条件
+const resetFilters = () => {
+  filters.managerId = ''
+  filters.teamName = ''
+  filters.dateRange = null
+}
 
 // 列显示/隐藏配置（序号列固定显示，不提供开关）
 const columnOptions = [
@@ -221,6 +310,7 @@ const teamNameOf = (managerId: string) => getManagerTeamName(props.managers, man
 // 打开统计明细弹窗（status 为 'all' 时查询全部）
 const open = async (status: string, t: string) => {
   title.value = t + '明细'
+  resetFilters()
   visible.value = true
   try {
     const params: { pageSize: number; status?: string } = { pageSize: 999 }
@@ -243,6 +333,9 @@ defineExpose({ open })
 }
 .column-settings { display: flex; flex-direction: column; gap: 6px;
   :deep(.el-checkbox) { margin-right: 0; }
+}
+.detail-filters { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 12px;
+  .filter-label { font-size: 13px; color: #606266; }
 }
 .payment-actions { display: flex; justify-content: flex-end; gap: 12px; margin-top: 20px; padding-top: 16px; border-top: 1px solid #ebeef5; }
 
