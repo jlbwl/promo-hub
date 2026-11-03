@@ -1,13 +1,15 @@
 import { createWorker, type Worker } from 'tesseract.js'
 import jsQR from 'jsqr'
 import { logger } from '@promo/shared/utils/logger'
+import { post } from '@promo/shared/utils/request'
 
 /**
  * 海报批量识别：二维码链接提取 + 顶部区域券商名称 OCR
  *
  * - 二维码：jsQR 多策略解码（全图缩放 / 原分辨率 / 四角与中心裁剪，含反色尝试），优先提取标准 http(s) URL
- * - 券商名：tesseract.js 中文 OCR 识别图片顶部区域（Logo 附近），严格匹配「名称 + 证券/期货」；
- *   未命中金融后缀时返回空串，由弹窗跳过该行，绝不输出任意文字兜底
+ * - 券商名：优先云端识别（后端阿里云 OCR /api/ocr/poster，识别顶部区域后严格匹配「名称 + 证券/期货」）；
+ *   云端不可用（未配置密钥 / 网络异常）时回退本地 tesseract.js（同样严格匹配，含二值化重试与
+ *   「券」形近误识纠错）。未命中金融后缀时返回空串，由弹窗跳过该行，绝不输出任意文字兜底
  * - worker / wasm / 中文语言包均已自托管（public/tess、public/tessdata），不依赖外部 CDN
  */
 
@@ -364,6 +366,48 @@ async function ocrBrokerName(img: HTMLImageElement, report: PosterProgressReport
   }
 }
 
+/** 云端海报识别返回结构（后端 /api/ocr/poster） */
+interface OcrPosterApiData {
+  brokerName?: string
+  lines?: string[]
+}
+
+/**
+ * 云端识别券商名称：整图压缩后上传后端，由阿里云 OCR 识别顶部区域（Logo 附近）并
+ * 按严格规则提取「名称 + 证券/期货」。未配置密钥 / 网络 / 识别失败等情况一律返回空串，
+ * 由调用方回退本地 tesseract 识别。
+ */
+async function recognizeBrokerNameFromApi(img: HTMLImageElement, report: PosterProgressReporter): Promise<string> {
+  const w = img.naturalWidth
+  const h = img.naturalHeight
+  if (!w || !h) return ''
+  // 整图压缩到 ≤1600px 上传（裁剪顶部区域由后端 sharp 处理）
+  const drawn = drawRegionToImageData(img, { sx: 0, sy: 0, sw: w, sh: h, targetW: Math.min(1600, w) })
+  if (!drawn) return ''
+
+  const blob = await new Promise<Blob | null>((resolve) => {
+    try {
+      drawn.canvas.toBlob((b) => resolve(b), 'image/jpeg', 0.85)
+    } catch {
+      resolve(null)
+    }
+  })
+  if (!blob) return ''
+
+  try {
+    report(50, '云端识别券商名称')
+    const formData = new FormData()
+    formData.append('image', new File([blob], 'poster.jpg', { type: 'image/jpeg' }))
+    const res = await post<OcrPosterApiData>('/ocr/poster', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    })
+    return res.data?.brokerName ?? ''
+  } catch (error) {
+    logger.warn('云端 OCR 不可用，回退本地识别:', error)
+    return ''
+  }
+}
+
 /**
  * 识别单张海报：二维码链接 + 顶部券商名称（两者独立识别，互不影响）
  */
@@ -393,11 +437,14 @@ export async function recognizePosterFile(
   const qrStageEnd = redirectUrl ? 40 : 45
   report(qrStageEnd, redirectUrl ? '识别券商名称' : '未识别到二维码，继续识别券商名称')
 
-  let brokerName = ''
-  try {
-    brokerName = await ocrBrokerName(img, report)
-  } catch (error) {
-    logger.error('券商名称识别失败:', error)
+  // 券商名称：优先云端阿里云 OCR（识别质量更高），云端不可用时回退本地 tesseract
+  let brokerName = await recognizeBrokerNameFromApi(img, report)
+  if (!brokerName) {
+    try {
+      brokerName = await ocrBrokerName(img, report)
+    } catch (error) {
+      logger.error('券商名称识别失败:', error)
+    }
   }
 
   report(100, '完成')

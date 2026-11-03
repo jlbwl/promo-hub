@@ -11,6 +11,7 @@ import categoryRoutes from './category.routes.js'
 import authRoutes from './auth.routes.js'
 import qrcodeRoutes from './qrcode.routes.js'
 import shareRoutes from './share.routes.js'
+import ocrRoutes from './ocr.routes.js'
 
 const router: Router = Router()
 
@@ -27,5 +28,6 @@ router.use(productRoutes)
 router.use(statsRoutes)
 router.use(qrcodeRoutes)
 router.use(shareRoutes)
+router.use(ocrRoutes)
 
 export default router

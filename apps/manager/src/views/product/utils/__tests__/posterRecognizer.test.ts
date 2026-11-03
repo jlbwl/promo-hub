@@ -5,9 +5,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { logger } from '@promo/shared/utils/logger'
 
-const { createWorkerMock, jsQRMocket } = vi.hoisted(() => ({
+const { createWorkerMock, jsQRMocket, postMock } = vi.hoisted(() => ({
   createWorkerMock: vi.fn(),
   jsQRMocket: vi.fn(),
+  postMock: vi.fn(),
 }))
 
 vi.mock('tesseract.js', () => ({ createWorker: createWorkerMock }))
@@ -15,6 +16,7 @@ vi.mock('jsqr', () => ({ default: jsQRMocket }))
 vi.mock('@promo/shared/utils/logger', () => ({
   logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }))
+vi.mock('@promo/shared/utils/request', () => ({ post: postMock }))
 
 import type { Worker } from 'tesseract.js'
 import type { PosterProgressReporter } from '../posterRecognizer'
@@ -96,6 +98,13 @@ beforeEach(() => {
   const proto = HTMLCanvasElement.prototype as unknown as Record<string, unknown>
   if (typeof proto.getContext !== 'function') proto.getContext = () => null
   vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(() => makeCtx() as unknown as CanvasRenderingContext2D)
+  // 默认 toBlob 产出 null：云端识别跳过，存量用例全部走本地 tesseract 路径
+  Object.defineProperty(HTMLCanvasElement.prototype, 'toBlob', {
+    value: vi.fn((cb: (blob: Blob | null) => void) => cb(null)),
+    configurable: true,
+    writable: true
+  })
+  postMock.mockResolvedValue({ code: 0, message: '未识别到券商名称', data: { brokerName: '', lines: [] } })
   jsQRMocket.mockReturnValue(null)
 })
 
@@ -206,6 +215,40 @@ describe('recognizePosterFile', () => {
 
     const result = await recognizePosterFile(makeFile())
     expect(result.brokerName).toBe('')
+  })
+
+  it('云端识别命中券商名时直接采用，跳过本地 tesseract', async () => {
+    const { recognizePosterFile } = await loadModule()
+    // toBlob 产出有效 JPEG Blob → 走云端识别
+    Object.defineProperty(HTMLCanvasElement.prototype, 'toBlob', {
+      value: vi.fn((cb: (blob: Blob | null) => void) => cb(new Blob(['jpeg'], { type: 'image/jpeg' }))),
+      configurable: true,
+      writable: true
+    })
+    postMock.mockResolvedValue({ code: 0, message: '识别成功', data: { brokerName: '中国银河证券' } })
+
+    const result = await recognizePosterFile(makeFile())
+
+    expect(result.brokerName).toBe('中国银河证券')
+    expect(postMock).toHaveBeenCalledWith('/ocr/poster', expect.any(FormData), expect.objectContaining({ headers: expect.anything() }))
+    // 云端命中 → 不创建本地 OCR Worker
+    expect(createWorkerMock).not.toHaveBeenCalled()
+  })
+
+  it('云端不可用（未配置/失败）时回退本地 tesseract 识别', async () => {
+    const { recognizePosterFile } = await loadModule()
+    Object.defineProperty(HTMLCanvasElement.prototype, 'toBlob', {
+      value: vi.fn((cb: (blob: Blob | null) => void) => cb(new Blob(['jpeg'], { type: 'image/jpeg' }))),
+      configurable: true,
+      writable: true
+    })
+    postMock.mockRejectedValue(new Error('503 OCR 服务未配置'))
+    setOcrResults(['首创证券'])
+
+    const result = await recognizePosterFile(makeFile())
+
+    expect(result.brokerName).toBe('首创证券')
+    expect(logger.warn).toHaveBeenCalledWith('云端 OCR 不可用，回退本地识别:', expect.any(Error))
   })
 
   it('OCR 全部失败时券商名为空但不抛错', async () => {
