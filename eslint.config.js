@@ -102,6 +102,7 @@ module.exports = [
       '.git/',
       'apps/**/dist/',
       'apps/**/dist_*/',
+      'apps/**/public/',
       'packages/**/dist/',
       'scripts/',
       'upload-cert.exp',

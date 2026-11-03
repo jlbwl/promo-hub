@@ -50,7 +50,7 @@
       "qs": "^6.15.2",
       "body-parser": "^1.20.9",
       "vite": "^6.4.4",
-      "follow-redirects": "^1.16.1",
+      "follow-redirects": "^1.16.2",
       "ws": "^8.22.0",
       "js-yaml@4": "^4.3.2",
       "immutable": "^5.1.9",

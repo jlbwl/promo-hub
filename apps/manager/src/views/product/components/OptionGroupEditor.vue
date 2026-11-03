@@ -122,13 +122,21 @@
       <el-icon><Plus /></el-icon>
       <span>添加一行数据</span>
     </div>
+
+    <!-- 批量添加弹窗：上传海报自动识别二维码链接与券商名称 -->
+    <PosterBatchAddDialog
+      v-model="batchDialogVisible"
+      @add-rows="rows => emit('batch-add', rows)"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ElMessage, ElMessageBox, type UploadFile } from 'element-plus'
+import { ref } from 'vue'
+import { ElMessageBox, type UploadFile } from 'element-plus'
 import { Plus, PictureFilled } from '@element-plus/icons-vue'
-import type { ProductOptionItem } from '../composables/useProductEdit'
+import PosterBatchAddDialog from './PosterBatchAddDialog.vue'
+import type { BatchOptionRow, ProductOptionItem } from '../composables/useProductEdit'
 
 const props = defineProps<{
   options: ProductOptionItem[]
@@ -139,10 +147,13 @@ const emit = defineEmits<{
   copy: [idx: number]
   remove: [idx: number]
   clear: []
-  'batch-add': [labels: string[]]
+  'batch-add': [rows: BatchOptionRow[]]
   'update-field': [idx: number, field: 'label' | 'limit' | 'redirectUrl', value: string]
   'qr-upload': [file: UploadFile, idx: number]
 }>()
+
+// 批量添加弹窗
+const batchDialogVisible = ref(false)
 
 // 清空所有选项
 const confirmClear = () => {
@@ -152,22 +163,9 @@ const confirmClear = () => {
     .catch(() => {})
 }
 
-// 批量添加选项
+// 批量添加：打开海报上传识别弹窗（上传多张海报自动生成选项行）
 const openBatchAdd = () => {
-  ElMessageBox.prompt('每行一个选项名称，例如：\n套餐A\n套餐B\n套餐C', '批量添加选项', {
-    confirmButtonText: '添加',
-    cancelButtonText: '取消',
-    inputType: 'textarea',
-    inputPlaceholder: '每行一个选项',
-    inputValidator: (val: string) => {
-      if (!val || !val.trim()) return '请输入至少一个选项'
-      return true
-    }
-  }).then(({ value }) => {
-    const lines = value.split('\n').map(l => l.trim()).filter(l => l)
-    emit('batch-add', lines)
-    ElMessage.success(`已添加 ${lines.length} 个选项`)
-  }).catch(() => {})
+  batchDialogVisible.value = true
 }
 </script>
 

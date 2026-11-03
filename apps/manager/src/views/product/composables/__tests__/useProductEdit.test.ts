@@ -51,9 +51,12 @@ describe('isEdit 与选项行操作', () => {
     api.clearOptions()
     expect(api.form.options).toHaveLength(0)
 
-    api.pushOptionLabels(['a', 'b'])
+    api.pushOptionLabels([
+      { label: 'a', redirectUrl: 'https://example.com/a' },
+      { label: 'b' }
+    ])
     expect(api.form.options).toHaveLength(2)
-    expect(api.form.options[0]).toEqual({ label: 'a', limit: '', redirectUrl: '' })
+    expect(api.form.options[0]).toEqual({ label: 'a', limit: '', redirectUrl: 'https://example.com/a' })
     expect(api.form.options[1]).toEqual({ label: 'b', limit: '', redirectUrl: '' })
   })
 

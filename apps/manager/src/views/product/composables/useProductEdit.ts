@@ -15,6 +15,12 @@ export interface ProductOptionItem {
   _qrLoading?: boolean
 }
 
+// 批量添加行：海报识别结果（选项名称 + 二维码跳转链接）
+export interface BatchOptionRow {
+  label: string
+  redirectUrl?: string
+}
+
 /**
  * 产品编辑页：表单数据与校验、分类/详情加载、选项行操作、封面信息与保存逻辑
  */
@@ -158,10 +164,14 @@ export function useProductEdit() {
     form.options = []
   }
 
-  // 批量添加选项
-  const pushOptionLabels = (labels: string[]) => {
-    labels.forEach(label => {
-      form.options.push({ label, limit: '', redirectUrl: '' })
+  // 批量添加选项（海报识别结果：每张图片对应一行，填入券商名称与跳转链接）
+  const pushOptionLabels = (rows: BatchOptionRow[]) => {
+    rows.forEach(row => {
+      form.options.push({
+        label: row.label || '',
+        limit: '',
+        redirectUrl: row.redirectUrl || ''
+      })
     })
   }
 
