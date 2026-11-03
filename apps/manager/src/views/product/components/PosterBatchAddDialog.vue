@@ -23,7 +23,7 @@
       </div>
       <template #tip>
         <div class="el-upload__tip">
-          支持 JPG / PNG，可一次选择多张；系统将自动识别二维码跳转链接与顶部券商名称，每张图片生成一行选项数据
+          支持 JPG / PNG，可一次选择多张；系统将自动识别二维码跳转链接与顶部券商名称，仅当识别到「证券/期货」名称时才生成选项行
         </div>
       </template>
     </el-upload>
@@ -81,21 +81,29 @@
           <template v-else-if="item.status === 'done'">
             <div class="poster-result">
               <span class="lbl">选项</span>
-              <span :class="{ missing: !item.result?.brokerName }">{{ item.result?.brokerName || '未识别到券商名称，请手动填写' }}</span>
+              <span
+                v-if="item.result?.brokerName"
+              >{{ item.result.brokerName }}</span>
+              <span
+                v-else
+                class="missing"
+              >未识别到「证券/期货」名称，已跳过该行，请手动添加</span>
             </div>
-            <div class="poster-result">
+            <div
+              v-if="item.result?.redirectUrl"
+              class="poster-result"
+            >
               <span class="lbl">跳转</span>
               <span
                 class="url"
-                :class="{ missing: !item.result?.redirectUrl }"
-                :title="item.result?.redirectUrl"
-              >{{ item.result?.redirectUrl || '未识别到二维码链接，请手动填写' }}</span>
+                :title="item.result.redirectUrl"
+              >{{ item.result.redirectUrl }}</span>
             </div>
           </template>
 
           <template v-else>
             <div class="poster-status failed">
-              识别失败：{{ item.statusText }}，已生成空行请手动填写
+              识别失败：{{ item.statusText }}，已跳过该行，请手动添加
             </div>
           </template>
         </div>
@@ -128,7 +136,7 @@ import { recognizePosterFile, type PosterRecognitionResult } from '../utils/post
 
 /**
  * 批量添加弹窗：上传多张海报 → 逐张识别（二维码链接 + 券商名称 OCR）
- * 每张图片处理完成后 emit 一行数据，保证图片与选项行严格一一对应
+ * 识别到「证券/期货」名称时 emit 一行数据；未识别到的图片跳过，不生成选项行
  */
 
 const props = defineProps<{
@@ -137,7 +145,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   'update:modelValue': [value: boolean]
-  /** 每张图片识别完成后触发一次，rows 为该图对应的选项行 */
+  /** 识别到「证券/期货」名称的图片完成后触发一次，rows 为该图对应的选项行 */
   'add-rows': [rows: Array<{ label: string; redirectUrl: string }>]
 }>()
 
@@ -225,11 +233,14 @@ const processQueue = async () => {
         next.statusText = getErrorMessage(error, '识别异常')
         next.status = 'failed'
       }
-      // 成功填入识别结果；失败也生成一行空数据，保证每张图片必有一行
-      emit('add-rows', [{
-        label: next.result?.brokerName || '',
-        redirectUrl: next.result?.redirectUrl || ''
-      }])
+      // 仅当识别到「证券/期货」名称时才生成选项行；未识别到（或识别失败）直接跳过，
+      // 避免把海报标题等无关文字生成为乱码选项
+      if (next.result?.brokerName) {
+        emit('add-rows', [{
+          label: next.result.brokerName,
+          redirectUrl: next.result.redirectUrl || ''
+        }])
+      }
     }
   } finally {
     processing.value = false

@@ -6,7 +6,8 @@ import { logger } from '@promo/shared/utils/logger'
  * 海报批量识别：二维码链接提取 + 顶部区域券商名称 OCR
  *
  * - 二维码：jsQR 多策略解码（全图缩放 / 原分辨率 / 四角与中心裁剪，含反色尝试），优先提取标准 http(s) URL
- * - 券商名：tesseract.js 中文 OCR 识别图片顶部区域（Logo 附近），提取「××证券」
+ * - 券商名：tesseract.js 中文 OCR 识别图片顶部区域（Logo 附近），严格匹配「名称 + 证券/期货」；
+ *   未命中金融后缀时返回空串，由弹窗跳过该行，绝不输出任意文字兜底
  * - worker / wasm / 中文语言包均已自托管（public/tess、public/tessdata），不依赖外部 CDN
  */
 
@@ -166,37 +167,102 @@ function decodeQrFromImage(img: HTMLImageElement): string {
   return fallback
 }
 
-/**
- * 从 OCR 文本中提取券商名称
- * 优先匹配「××证券」模式（自动去除 OCR 插入的空白），兜底取最长中文片段
- */
-export function extractBrokerName(rawText: string): string {
-  const compact = (rawText || '').replace(/\s+/g, '')
+// ===== 券商名称提取（严格规则）=====
+// 仅接受「名称 + 证券/期货」的金融后缀片段；不满足时返回空串，
+// 由调用方跳过该行，绝不使用任意中文片段兜底（避免产生乱码选项）。
+const FINANCE_SUFFIXES = ['证券', '期货'] as const
+// 「券」的常见 OCR 形近误识（实测：首创证券 → 首创证劳/证刚/证芬）
+const KUAI_MISREADS = new Set(['劳', '势', '芬', '刚', '剪', '拳', '眷', '卷'])
+// 候选名称中不允许混入的无关词（银行/开户等），命中时截取其后的段落作为名称
+const NOISE_WORDS = [
+  '银行', '开户', '存管', '免责', '条款', '声明', '热线', '客服', '电话',
+  '投资', '风险', '入市', '谨慎', '建议', '扫码', '长按', '识别', '关注',
+  '二维码', '下载', '官网', '网址', '福利', '活动', '专享', '服务'
+]
+// 券商名称的最大长度（「证券」前连续中文的上限）
+const BROKER_NAME_MAX = 8
+
+/** 剔除候选名称中的无关前缀（银行/开户等），取最后一个噪声词之后的段落 */
+function trimNoisePrefix(name: string): string {
+  let result = name
+  for (;;) {
+    let lastEnd = -1
+    for (const word of NOISE_WORDS) {
+      const idx = result.lastIndexOf(word)
+      if (idx >= 0 && idx + word.length > lastEnd) lastEnd = idx + word.length
+    }
+    if (lastEnd < 0) break
+    result = result.slice(lastEnd)
+  }
+  return result
+}
+
+/** 取 compact 中 end 位置之前的连续中文（≤8 字）作为候选名称，剔除噪声词后校验 */
+function candidateNameBefore(compact: string, end: number): string {
+  let start = end
+  let count = 0
+  while (start > 0 && count < BROKER_NAME_MAX) {
+    const prev = compact[start - 1] ?? ''
+    if (!/[\u4e00-\u9fa5]/.test(prev)) break
+    start--
+    count++
+  }
+  const prefix = compact.slice(start, end)
+  if (prefix.length < 2) return ''
+  const trimmed = trimNoisePrefix(prefix)
+  return trimmed.length >= 2 ? trimmed : ''
+}
+
+/** 单行内严格匹配「名称 + 证券/期货」，无命中返回空串 */
+function matchFinanceNameInLine(line: string): string {
+  const compact = line.replace(/\s+/g, '')
   if (!compact) return ''
-  const brokerMatch = compact.match(/[\u4e00-\u9fa5]{2,8}证券/)
-  if (brokerMatch) return brokerMatch[0]
-  const segments = compact.match(/[\u4e00-\u9fa5]{3,10}/g) || []
-  if (segments.length) {
-    return segments.sort((a, b) => b.length - a.length)[0] ?? ''
+  for (const suffix of FINANCE_SUFFIXES) {
+    let from = 0
+    for (;;) {
+      const idx = compact.indexOf(suffix, from)
+      if (idx < 0) break
+      const name = candidateNameBefore(compact, idx)
+      if (name) return name + suffix
+      from = idx + suffix.length
+    }
   }
   return ''
 }
 
-/** 严格匹配「××证券」模式（识别结果必须包含「证券」二字才可信） */
-function matchBrokerPattern(rawText: string): string {
-  const compact = (rawText || '').replace(/\s+/g, '')
-  return compact.match(/[\u4e00-\u9fa5]{2,8}证券/)?.[0] ?? ''
+/**
+ * 从 OCR 文本中提取券商名称（严格规则）
+ * 逐行匹配「名称 + 证券/期货」，行内空白去除、跨行不拼接；
+ * 候选名称自动剔除「银行/开户」等无关前缀（如「中国建设银行中国银河证券」→「中国银河证券」）。
+ * 不含金融后缀时返回空字符串（不产生任意兜底结果）。
+ */
+export function extractBrokerName(rawText: string): string {
+  const lines = (rawText || '').split(/\n+/)
+  for (const line of lines) {
+    const name = matchFinanceNameInLine(line)
+    if (name) return name
+  }
+  return ''
 }
 
 /**
- * 模糊纠错：中文券商名称均以「证券」结尾，OCR 常把「券」误识为形近字
- * （实测「首创证券」→「首创证劳/证刚/证芬」）。在整段文本不含「证券」时，
- * 将「××证Y」修正为「××证券」。
+ * 模糊纠错：OCR 常把「券」误识为形近字（证劳/证刚/证芬…）。
+ * 逐行将「名称 + 证Y（Y∈券的形近字）」修正为「名称 + 证券」，
+ * 仅在严格匹配失败后使用；噪声词剔除规则与严格匹配一致。
  */
 function fuzzyBrokerName(rawText: string): string {
-  const compact = (rawText || '').replace(/\s+/g, '')
-  const m = compact.match(/([\u4e00-\u9fa5]{2,7})证./)
-  return m ? `${m[1]}证券` : ''
+  const lines = (rawText || '').split(/\n+/)
+  for (const line of lines) {
+    const compact = line.replace(/\s+/g, '')
+    for (let i = 0; i < compact.length - 1; i++) {
+      if (compact[i] !== '证') continue
+      const next = compact[i + 1] ?? ''
+      if (!KUAI_MISREADS.has(next)) continue
+      const name = candidateNameBefore(compact, i)
+      if (name) return `${name}证券`
+    }
+  }
+  return ''
 }
 
 /**
@@ -279,23 +345,20 @@ async function ocrBrokerName(img: HTMLImageElement, report: PosterProgressReport
   progressReporter = report
   try {
     const firstText = (await worker.recognize(drawn.canvas)).data.text
-    let name = matchBrokerPattern(firstText)
+    let name = extractBrokerName(firstText)
     if (name) return name
 
-    // 兜底一：二值化（含反色）后重试，优先采纳包含「证券」的严格匹配
+    // 兜底一：二值化（含反色）后重试，再次严格匹配「名称 + 证券/期货」
     const binarized = binarizeCanvas(drawn.canvas)
     let secondText = ''
     if (binarized) {
       secondText = (await worker.recognize(binarized)).data.text
-      name = matchBrokerPattern(secondText)
+      name = extractBrokerName(secondText)
       if (name) return name
     }
 
-    // 兜底二：模糊纠错「××证Y」→「××证券」；最后退回最长中文片段
-    return fuzzyBrokerName(secondText)
-      || fuzzyBrokerName(firstText)
-      || extractBrokerName(secondText)
-      || extractBrokerName(firstText)
+    // 兜底二：模糊纠错「券」的形近误识；仍无命中返回空串 → 调用方跳过该行
+    return fuzzyBrokerName(secondText) || fuzzyBrokerName(firstText)
   } finally {
     progressReporter = null
   }

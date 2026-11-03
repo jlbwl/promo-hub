@@ -183,13 +183,23 @@ describe('识别队列与事件契约', () => {
     expect(wrapper.emitted('add-rows')).toHaveLength(3)
   })
 
-  it('识别失败时仍生成一行空数据（1:1 兜底）并标记失败', async () => {
+  it('识别失败时跳过该行（不生成选项行）并标记失败', async () => {
     vi.mocked(recognizePosterFile).mockRejectedValue(new Error('boom'))
     const wrapper = mountDialog()
     await upload(wrapper, makeUploadFile(1, 'bad.png'))
 
-    expect(wrapper.emitted('add-rows')).toEqual([[[{ label: '', redirectUrl: '' }]]])
+    expect(wrapper.emitted('add-rows')).toBeUndefined()
     expect(wrapper.find('.poster-status.failed').text()).toContain('识别失败：识别异常')
+    expect(wrapper.find('.poster-status.failed').text()).toContain('已跳过该行')
+  })
+
+  it('未识别到券商名称时不生成选项行（跳过），展示跳过提示', async () => {
+    vi.mocked(recognizePosterFile).mockResolvedValue({ brokerName: '', redirectUrl: 'https://example.com/x' })
+    const wrapper = mountDialog()
+    await upload(wrapper, makeUploadFile(1, 'p.png'))
+
+    expect(wrapper.emitted('add-rows')).toBeUndefined()
+    expect(wrapper.find('.poster-result').text()).toContain('已跳过该行')
   })
 
   it('识别进行中关闭弹窗不清理列表，空闲时关闭才清理并释放预览', async () => {

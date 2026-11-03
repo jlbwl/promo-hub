@@ -98,10 +98,10 @@ test('上传多张海报自动识别：每张图恰好一行，券商名与链�
   await expect(firstLabel).toHaveValue('手动修改的券商')
 })
 
-test('识别失败的图片仍生成空行：行数与图片数保持 1:1 兜底', async ({ page }) => {
+test('无法识别券商名称的图片跳过该行：不生成乱码选项', async ({ page }) => {
   await loginManagerAndOpenCreate(page)
 
-  // 3 张正常海报 + 1 张损坏图片（伪 PNG 字节），损坏图放最后不影响前面行的对应关系
+  // 3 张正常海报 + 1 张损坏图片（伪 PNG 字节），损坏图放最后
   await uploadInDialog(page, [
     ...POSTERS.map(p => join(POSTERS_DIR, p.file)),
     { name: 'broken.png', mimeType: 'image/png', buffer: Buffer.from('this is not a valid png') },
@@ -109,19 +109,18 @@ test('识别失败的图片仍生成空行：行数与图片数保持 1:1 兜底
   const items = page.locator('.poster-item')
   await expect(items).toHaveCount(4)
 
-  // 损坏图片标记失败；其余三张正常完成
+  // 损坏图片标记失败并提示已跳过；其余三张正常完成
   const failedItem = page.locator('.poster-item', { hasText: 'broken.png' })
   await expect(failedItem.locator('.el-tag')).toHaveText('失败', { timeout: 180_000 })
   await expect(failedItem.locator('.poster-status.failed')).toContainText('识别失败')
+  await expect(failedItem.locator('.poster-status.failed')).toContainText('已跳过该行')
   await expect(page.locator('.poster-item .el-tag', { hasText: '完成' })).toHaveCount(3)
 
-  // 表格仍生成 4 行：3 行识别结果 + 1 行空数据（等待手动填写）
+  // 表格只生成 3 行（损坏图不生成空行/乱码行），内容与上传顺序严格一致
   const rows = page.locator('.option-table tbody tr')
-  await expect(rows).toHaveCount(4)
+  await expect(rows).toHaveCount(3)
   for (const [i, p] of POSTERS.entries()) {
     await expect(rows.nth(i).locator('td').nth(0).locator('input')).toHaveValue(p.broker)
     await expect(rows.nth(i).locator('input[placeholder="输入跳转链接（不填则不跳转）"]')).toHaveValue(p.url)
   }
-  await expect(rows.nth(3).locator('td').nth(0).locator('input')).toHaveValue('')
-  await expect(rows.nth(3).locator('input[placeholder="输入跳转链接（不填则不跳转）"]')).toHaveValue('')
 })

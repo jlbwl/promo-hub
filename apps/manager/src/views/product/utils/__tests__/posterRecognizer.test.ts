@@ -107,15 +107,23 @@ describe('extractBrokerName', () => {
     ['国新证券股份有限公司', '国新证券'],
     ['SCZQ\n首创证券\n热销', '首创证券'],
     ['国泰君安证券欢迎您', '国泰君安证券'],
+    ['信达期货开户', '信达期货'],
+    // 银行联合海报：剔除「建设银行」等无关前缀，仅保留券商名
+    ['中国建设银行 中国银河证券', '中国银河证券'],
+    ['中国建设银行 China Construction Bank 中国银河证券 CHINA GALAXY SECURITIES', '中国银河证券'],
+    ['免责条款中国银河证券实际开通情况为准', '中国银河证券'],
   ])('从 OCR 文本「%s」中提取「%s」', (input, expected) => {
     return loadModule().then(({ extractBrokerName }) => {
       expect(extractBrokerName(input)).toBe(expected)
     })
   })
 
-  it('不含「证券」时兜底返回最长中文片段', async () => {
+  it('不含「证券/期货」后缀时返回空字符串（不再兜底任意中文片段，避免乱码选项）', async () => {
     const { extractBrokerName } = await loadModule()
-    expect(extractBrokerName('东方财富热销中 abc')).toBe('东方财富热销中')
+    expect(extractBrokerName('东方财富热销中 abc')).toBe('')
+    expect(extractBrokerName('一键开户 智选银河')).toBe('')
+    expect(extractBrokerName('丐下扒手得利天级')).toBe('')
+    expect(extractBrokerName('全牌照综合性券商')).toBe('')
   })
 
   it('空文本或无中文时返回空字符串', async () => {
@@ -190,6 +198,14 @@ describe('recognizePosterFile', () => {
 
     const result = await recognizePosterFile(makeFile())
     expect(result.brokerName).toBe('国新证券')
+  })
+
+  it('「证明」等非「券」形近误识不做模糊纠错，避免误判', async () => {
+    const { recognizePosterFile } = await loadModule()
+    setOcrResults(['相关证明', '相关证明'])
+
+    const result = await recognizePosterFile(makeFile())
+    expect(result.brokerName).toBe('')
   })
 
   it('OCR 全部失败时券商名为空但不抛错', async () => {
