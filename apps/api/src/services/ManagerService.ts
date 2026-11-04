@@ -12,6 +12,7 @@ import {
 } from '../data/index.js'
 import { throwNotFound, throwBadRequest, throwConflict, throwUnauthorized, type OrderStats, type Product } from '@promo/shared'
 import { hashPassword, verifyPassword } from '../utils/password.js'
+import logger from '../utils/logger.js'
 
 /** 对外返回的安全经理信息（不包含密码），形状与 data 层 Manager 行一致 */
 export interface SafeManager {
@@ -159,8 +160,8 @@ export const managerService: ManagerService = {
       if (users.find((u) => u.teamName === teamName)) {
         throwConflict('该团队名称已存在')
       }
-    } catch {
-      // 如果无法导入用户模块，忽略检查
+    } catch (error) {
+      logger.warn('Failed to check team name uniqueness in users table', { error: (error as Error).message })
     }
 
     // 创建经理

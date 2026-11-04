@@ -92,6 +92,30 @@ export const commissionStatusMap: Record<string, { label: string; color: string 
   rejected: { label: '已驳回', color: '#ef4444' },
 }
 
+/** 订单状态标签类型（适用于 Element Plus / Vant） */
+export const orderStatusTagType = (status: string): string => {
+  const map: Record<string, string> = {
+    pending: 'warning',
+    approved: 'success',
+    pending_payment: '',
+    settled: 'success',
+    rejected: 'danger',
+  }
+  return map[status] || 'info'
+}
+
+/** 订单状态中文文案 */
+export const orderStatusText = (status: string): string => {
+  const map: Record<string, string> = {
+    pending: '待审核',
+    approved: '已通过',
+    pending_payment: '待发放',
+    settled: '已发放',
+    rejected: '已驳回',
+  }
+  return map[status] || status
+}
+
 /** 用户状态映射 */
 export const userStatusMap: Record<string, { label: string; color: string }> = {
   active: { label: '正常', color: '#10b981' },

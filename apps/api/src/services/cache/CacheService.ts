@@ -3,6 +3,7 @@
  * 提供高性能的缓存功能，支持自动降级到内存缓存
  */
 import { createClient, RedisClientType } from 'redis'
+import logger from '../../utils/logger.js'
 
 /**
  * Redis 配置接口
@@ -86,7 +87,8 @@ export class CacheService {
 
       await this.client.connect()
       this.isRedisConnected = true
-    } catch {
+    } catch (error) {
+      logger.warn('Redis connect failed', { error: (error as Error).message })
       this.isRedisConnected = false
     }
   }
@@ -118,7 +120,8 @@ export class CacheService {
         if (value) {
           return JSON.parse(value) as T
         }
-      } catch {
+      } catch (error) {
+        logger.warn('Redis get failed, falling back to memory', { key: fullKey, error: (error as Error).message })
       }
     }
 
@@ -141,7 +144,8 @@ export class CacheService {
     if (this.isRedisConnected && this.client) {
       try {
         await this.client.setEx(fullKey, expiryTime, serialized)
-      } catch {
+      } catch (error) {
+        logger.warn('Redis set failed, using memory only', { key: fullKey, error: (error as Error).message })
       }
     }
 
@@ -157,7 +161,8 @@ export class CacheService {
     if (this.isRedisConnected && this.client) {
       try {
         await this.client.del(fullKey)
-      } catch {
+      } catch (error) {
+        logger.warn('Redis delete failed', { key: fullKey, error: (error as Error).message })
       }
     }
 
@@ -182,7 +187,8 @@ export class CacheService {
         if (keys.length > 0) {
           await this.client.del(keys)
         }
-      } catch {
+      } catch (error) {
+        logger.warn('Redis keys/delete failed', { pattern: fullPattern, error: (error as Error).message })
       }
     }
 
@@ -201,7 +207,8 @@ export class CacheService {
     if (this.isRedisConnected && this.client) {
       try {
         await this.client.flushDb()
-      } catch {
+      } catch (error) {
+        logger.warn('Redis flushDb failed', { error: (error as Error).message })
       }
     }
 
@@ -242,7 +249,8 @@ export class CacheService {
     try {
       await this.client.ping()
       return true
-    } catch {
+    } catch (error) {
+      logger.warn('Redis health check failed', { error: (error as Error).message })
       return false
     }
   }

@@ -17,6 +17,7 @@ import {
 import { CacheService, CacheKeys, CacheTTL, getCacheService as getGlobalCacheService } from './cache/index.js'
 import { DatabaseService } from './DatabaseService.js'
 import { ErrorCode, throwNotFound, throwBadRequest, throwForbidden, throwConflict, type Product } from '@promo/shared'
+import logger from '../utils/logger.js'
 
 /** 携带做单量的产品（列表场景） */
 export type ProductWithSales = Product & { sales: number }
@@ -225,7 +226,8 @@ export class ProductServiceImpl implements ProductService {
 
     try {
       await this.cache.flush()
-    } catch {
+    } catch (error) {
+      logger.warn('Cache flush failed after product creation', { error: (error as Error).message })
     }
 
     return savedProduct as Product
