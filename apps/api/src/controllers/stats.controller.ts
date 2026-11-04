@@ -1,20 +1,15 @@
 import logger from '../utils/logger.js'
 import { Request, Response } from 'express'
-import { CommissionStatus, getErrorMessage, type Commission, type OrderStats, type Product } from '@promo/shared'
+import { getErrorMessage, type OrderStats, type Product, type Commission } from '@promo/shared'
 import { sendSuccess, sendError } from '../utils/response.js'
 import type { OrderRow } from '../data-memory.js'
 import {
   getOrderStats,
   readOrders,
-  readOrder,
   readProducts,
   readCommissions,
-  readProduct,
-  readCommissionByOrderId,
-  updateCommission,
-  applyOrderReview,
-  updateOrderIfStatus,
 } from '../data/index.js'
+import { orderService } from '../services/index.js'
 
 /**
  * 获取订单统计
@@ -96,63 +91,11 @@ export const reviewOrder = async (req: Request, res: Response): Promise<void> =>
       return sendError(res, '无效的审核操作', 400)
     }
 
-    const order = await readOrder(orderId)
-    if (!order) {
-      return sendError(res, '订单不存在', 404)
-    }
-    if (order.status !== 'pending') {
-      return sendError(res, '该订单已审核', 400)
-    }
-
-    const now = new Date()
-    // 转换为 MySQL DATETIME 格式（不接受 ISO 8601 带 Z 后缀）
-    const nowMySQL = now.getFullYear() + '-' +
-      String(now.getMonth() + 1).padStart(2, '0') + '-' +
-      String(now.getDate()).padStart(2, '0') + ' ' +
-      String(now.getHours()).padStart(2, '0') + ':' +
-      String(now.getMinutes()).padStart(2, '0') + ':' +
-      String(now.getSeconds()).padStart(2, '0')
-
-    let updated = false
-    if (action === 'approve') {
-      // 事务：更新订单 + 创建待发放佣金记录，原子提交
-      updated = await applyOrderReview(orderId, { reviewedAt: nowMySQL }, 'pending', 'approved', {
-        id: `c_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-        orderId: order.id,
-        userId: order.userId,
-        managerId: order.managerId,
-        productName: order.productName,
-        amount: order.productPrice,
-        status: CommissionStatus.PENDING,
-      })
-    } else {
-      // 不限库存（stock 未设置或 -1）的产品驳回时不回补
-      const product = order.productId ? await readProduct(order.productId) : null
-      const shouldRestoreStock = !!product && product.stock !== undefined && product.stock >= 0
-      // 事务：更新订单 + 库存回补，原子提交
-      updated = await applyOrderReview(
-        orderId,
-        { reviewedAt: nowMySQL, rejectReason: reason || '推广无效' },
-        'pending',
-        'rejected',
-        undefined,
-        shouldRestoreStock ? product!.id : undefined
-      )
-    }
-
-    if (!updated) {
-      // 并发下订单已被审核
-      return sendError(res, '该订单已审核', 400)
-    }
+    const updatedOrder = await orderService.reviewOrder(orderId, { action, reason })
 
     sendSuccess(
       res,
-      {
-        ...order,
-        status: action === 'approve' ? 'approved' : 'rejected',
-        reviewedAt: nowMySQL,
-        ...(action === 'reject' ? { rejectReason: reason || '推广无效' } : {}),
-      },
+      updatedOrder,
       action === 'approve' ? '审核通过' : '已驳回'
     )
   } catch (error) {
@@ -173,50 +116,13 @@ export const settleOrder = async (req: Request, res: Response): Promise<void> =>
       return sendError(res, '无效的结算操作', 400)
     }
 
-    const order = await readOrder(orderId)
-    if (!order) {
-      return sendError(res, '订单不存在', 404)
-    }
+    const updatedOrder = await orderService.settleOrder(orderId, { action })
 
-    if (action === 'pending_payment') {
-      if (order.status !== 'approved') {
-        return sendError(res, '仅已通过的订单可添加到待付款', 400)
-      }
-      // 转换为 MySQL DATETIME 格式
-      const now = new Date()
-      const addedToPaymentAt = now.getFullYear() + '-' +
-        String(now.getMonth() + 1).padStart(2, '0') + '-' +
-        String(now.getDate()).padStart(2, '0') + ' ' +
-        String(now.getHours()).padStart(2, '0') + ':' +
-        String(now.getMinutes()).padStart(2, '0') + ':' +
-        String(now.getSeconds()).padStart(2, '0')
-      const updated = await updateOrderIfStatus(orderId, { status: 'pending_payment', addedToPaymentAt }, 'approved')
-      if (!updated) {
-        return sendError(res, '订单状态已变化，请刷新后重试', 400)
-      }
-      sendSuccess(res, { ...order, status: 'pending_payment', addedToPaymentAt }, '已添加到待付款')
-    } else {
-      if (order.status !== 'pending_payment') {
-        return sendError(res, '仅待付款的订单可确认结算', 400)
-      }
-      // 转换为 MySQL DATETIME 格式
-      const now = new Date()
-      const settledAt = now.getFullYear() + '-' +
-        String(now.getMonth() + 1).padStart(2, '0') + '-' +
-        String(now.getDate()).padStart(2, '0') + ' ' +
-        String(now.getHours()).padStart(2, '0') + ':' +
-        String(now.getMinutes()).padStart(2, '0') + ':' +
-        String(now.getSeconds()).padStart(2, '0')
-      const updated = await updateOrderIfStatus(orderId, { status: 'settled', settledAt }, 'pending_payment')
-      if (!updated) {
-        return sendError(res, '订单状态已变化，请刷新后重试', 400)
-      }
-      const commission = await readCommissionByOrderId(orderId)
-      if (commission) {
-        await updateCommission(commission.id, { status: CommissionStatus.PAID, paidAt: settledAt })
-      }
-      sendSuccess(res, { ...order, status: 'settled', settledAt }, '已确认结算')
-    }
+    sendSuccess(
+      res,
+      updatedOrder,
+      action === 'pending_payment' ? '已添加到待付款' : '已确认结算'
+    )
   } catch (error) {
     logger.error('[结算订单] 错误:', { error: getErrorMessage(error) })
     sendError(res, getErrorMessage(error, '操作失败'), 500)

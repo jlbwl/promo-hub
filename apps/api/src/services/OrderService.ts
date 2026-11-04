@@ -17,12 +17,18 @@ import {
   deleteOrder,
   getOrdersPaginated,
   readOrderUserOptions,
+  readProduct,
+  readCommissionByOrderId,
+  updateCommission,
+  applyOrderReview,
+  updateOrderIfStatus,
   type OrderUserOption,
 } from '../data/index.js'
 import type { OrderRow } from '../data-memory.js'
 import { query } from '../db.js'
 import { DatabaseService } from './DatabaseService.js'
-import { ErrorCode, throwNotFound, throwBadRequest, throwForbidden } from '@promo/shared'
+import { ErrorCode, throwNotFound, throwBadRequest, throwForbidden, CommissionStatus } from '@promo/shared'
+import { formatMySQLDateTime } from '../data/utils.js'
 
 export interface OrderListParams {
   page?: number
@@ -83,9 +89,9 @@ export interface OrderService {
 
   submitFundAccount(orderId: string, userId: string, fundAccount: string): Promise<void>
 
-  reviewOrder(orderId: string, params: OrderReviewParams): Promise<void>
+  reviewOrder(orderId: string, params: OrderReviewParams): Promise<OrderRow>
 
-  settleOrder(orderId: string, params: OrderSettleParams): Promise<void>
+  settleOrder(orderId: string, params: OrderSettleParams): Promise<OrderRow>
 
   updateOrderTeamName(orderId: string, teamName: string): Promise<void>
 }
@@ -261,7 +267,7 @@ export class OrderServiceImpl implements OrderService {
     await updateOrder(orderId, { fundAccount })
   }
 
-  async reviewOrder(orderId: string, params: OrderReviewParams) {
+  async reviewOrder(orderId: string, params: OrderReviewParams): Promise<OrderRow> {
     const { action, reason } = params
     const order = await readOrder(orderId)
     if (!order) {
@@ -269,51 +275,84 @@ export class OrderServiceImpl implements OrderService {
     }
 
     if (order.status !== 'pending') {
-      throwBadRequest('订单状态不允许审核操作')
+      throwBadRequest('该订单已审核')
     }
 
-    const now = new Date()
-    const mysqlDateTime = now.getFullYear() + '-' +
-      String(now.getMonth() + 1).padStart(2, '0') + '-' +
-      String(now.getDate()).padStart(2, '0') + ' ' +
-      String(now.getHours()).padStart(2, '0') + ':' +
-      String(now.getMinutes()).padStart(2, '0') + ':' +
-      String(now.getSeconds()).padStart(2, '0')
+    const nowMySQL = formatMySQLDateTime(new Date())!
 
+    let updated = false
     if (action === 'approve') {
-      await updateOrder(orderId, { status: 'approved', reviewedAt: mysqlDateTime })
+      // 事务：更新订单 + 创建待发放佣金记录，原子提交
+      updated = await applyOrderReview(orderId, { reviewedAt: nowMySQL }, 'pending', 'approved', {
+        id: `c_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+        orderId: order.id,
+        userId: order.userId,
+        managerId: order.managerId,
+        productName: order.productName,
+        amount: order.productPrice,
+        status: CommissionStatus.PENDING,
+      })
     } else if (action === 'reject') {
-      await updateOrder(orderId, { status: 'rejected', rejectReason: reason || '', reviewedAt: mysqlDateTime })
+      // 不限库存（stock 未设置或 -1）的产品驳回时不回补
+      const product = order.productId ? await readProduct(order.productId) : null
+      const shouldRestoreStock = !!product && product.stock !== undefined && product.stock >= 0
+      // 事务：更新订单 + 库存回补，原子提交
+      updated = await applyOrderReview(
+        orderId,
+        { reviewedAt: nowMySQL, rejectReason: reason || '推广无效' },
+        'pending',
+        'rejected',
+        undefined,
+        shouldRestoreStock ? product!.id : undefined
+      )
     } else {
       throwBadRequest('无效的审核操作')
     }
+
+    if (!updated) {
+      // 并发下订单已被审核
+      throwBadRequest('该订单已审核')
+    }
+
+    return {
+      ...order,
+      status: action === 'approve' ? 'approved' : 'rejected',
+      reviewedAt: nowMySQL,
+      ...(action === 'reject' ? { rejectReason: reason || '推广无效' } : {}),
+    }
   }
 
-  async settleOrder(orderId: string, params: OrderSettleParams) {
+  async settleOrder(orderId: string, params: OrderSettleParams): Promise<OrderRow> {
     const { action } = params
     const order = await readOrder(orderId)
     if (!order) {
       throwNotFound('订单不存在')
     }
 
-    const now = new Date()
-    const mysqlDateTime = now.getFullYear() + '-' +
-      String(now.getMonth() + 1).padStart(2, '0') + '-' +
-      String(now.getDate()).padStart(2, '0') + ' ' +
-      String(now.getHours()).padStart(2, '0') + ':' +
-      String(now.getMinutes()).padStart(2, '0') + ':' +
-      String(now.getSeconds()).padStart(2, '0')
+    const nowMySQL = formatMySQLDateTime(new Date())!
 
     if (action === 'pending_payment') {
       if (order.status !== 'approved') {
-        throwBadRequest('订单状态不允许添加到待发放')
+        throwBadRequest('仅已通过的订单可添加到待付款')
       }
-      await updateOrder(orderId, { status: 'pending_payment', settledAt: mysqlDateTime })
+      const updated = await updateOrderIfStatus(orderId, { status: 'pending_payment', addedToPaymentAt: nowMySQL }, 'approved')
+      if (!updated) {
+        throwBadRequest('订单状态已变化，请刷新后重试')
+      }
+      return { ...order, status: 'pending_payment', addedToPaymentAt: nowMySQL }
     } else if (action === 'paid') {
       if (order.status !== 'pending_payment') {
-        throwBadRequest('订单状态不允许结算')
+        throwBadRequest('仅待付款的订单可确认结算')
       }
-      await updateOrder(orderId, { status: 'settled', settledAt: mysqlDateTime })
+      const updated = await updateOrderIfStatus(orderId, { status: 'settled', settledAt: nowMySQL }, 'pending_payment')
+      if (!updated) {
+        throwBadRequest('订单状态已变化，请刷新后重试')
+      }
+      const commission = await readCommissionByOrderId(orderId)
+      if (commission) {
+        await updateCommission(commission.id, { status: CommissionStatus.PAID, paidAt: nowMySQL })
+      }
+      return { ...order, status: 'settled', settledAt: nowMySQL }
     } else {
       throwBadRequest('无效的结算操作')
     }
