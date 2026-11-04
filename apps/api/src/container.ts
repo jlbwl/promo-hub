@@ -33,10 +33,6 @@ container.registerSingleton(CacheService, CacheService)
 // 业务服务层 (Service Layer)
 // ============================================
 
-// 用户服务
-import { UserServiceImpl } from './services/UserService.js'
-container.registerSingleton('UserService', UserServiceImpl)
-
 // 产品服务
 import { ProductServiceImpl } from './services/ProductService.js'
 container.registerSingleton('ProductService', ProductServiceImpl)
@@ -44,10 +40,6 @@ container.registerSingleton('ProductService', ProductServiceImpl)
 // 订单服务
 import { OrderServiceImpl } from './services/OrderService.js'
 container.registerSingleton('OrderService', OrderServiceImpl)
-
-// 经理服务
-import { ManagerServiceImpl } from './services/ManagerService.js'
-container.registerSingleton('ManagerService', ManagerServiceImpl)
 
 // ============================================
 // 导出容器访问方法

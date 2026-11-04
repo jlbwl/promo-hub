@@ -26,13 +26,3 @@ export const loginLimiter = rateLimit({
   }
 })
 
-export const apiLimiter = rateLimit({
-  windowMs: 60 * 1000,
-  max: 100,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: {
-    code: 429,
-    message: '请求过于频繁，请稍后再试'
-  }
-})

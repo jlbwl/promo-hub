@@ -4,8 +4,8 @@
  */
 export { productService, initializeCache, closeCache, type ProductService, ProductServiceImpl } from './ProductService.js'
 export { orderService, type OrderService, OrderServiceImpl } from './OrderService.js'
-export { userService, UserServiceImpl, type UserService } from './UserService.js'
-export { managerService, type ManagerService, ManagerServiceImpl } from './ManagerService.js'
+export { userService, type UserService } from './UserService.js'
+export { managerService, type ManagerService } from './ManagerService.js'
 export { CacheService, CacheKeys, CacheTTL, getCacheService, initCacheService, closeCacheService } from './cache/index.js'
 export { ConfigService, type AppConfig } from './ConfigService.js'
 export { DatabaseService } from './DatabaseService.js'

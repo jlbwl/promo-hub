@@ -87,7 +87,15 @@ export const asyncHandler = (
     try {
       await fn(req, res, next)
     } catch (err) {
-      next(err)
+      if (err instanceof AppError) {
+        next(err)
+      } else {
+        next(new AppError(
+          (err as Error).message || '服务器内部错误',
+          ErrorCode.INTERNAL_SERVER_ERROR,
+          HttpStatus.INTERNAL_SERVER_ERROR
+        ))
+      }
     }
   }
 }
