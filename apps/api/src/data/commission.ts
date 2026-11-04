@@ -1,5 +1,6 @@
 
-import { query, queryOne } from '../db.js'
+import { queryOne } from '../db.js'
+import { buildDynamicUpdateQuery } from './utils.js'
 import type { Commission } from '@promo/shared'
 
 // 写入参数：id 必填，其余字段按代码访问模式均可缺省（写入时兜底为空值/默认状态）
@@ -51,14 +52,8 @@ export async function insertCommission(c: CommissionInput): Promise<void> {
 const COMMISSION_MUTABLE_FIELDS = new Set(['status', 'paidAt'])
 
 export async function updateCommission(id: string, fields: object): Promise<void> {
-  const sets: string[] = []
-  const values: unknown[] = []
-  for (const [key, val] of Object.entries(fields as Record<string, unknown>)) {
-    if (key === 'id' || !COMMISSION_MUTABLE_FIELDS.has(key)) continue
-    sets.push(`${key} = ?`)
-    values.push(val ?? null)
-  }
-  if (sets.length === 0) return
-  values.push(id)
-  await query(`UPDATE commissions SET ${sets.join(', ')} WHERE id = ?`, values)
+  await buildDynamicUpdateQuery('commissions', COMMISSION_MUTABLE_FIELDS, id, fields, {
+    nullInsteadOfEmpty: true,
+    skipUpdatedAt: true,
+  })
 }

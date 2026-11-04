@@ -122,3 +122,51 @@ export const userStatusMap: Record<string, { label: string; color: string }> = {
   inactive: { label: '未激活', color: '#9ca3af' },
   banned: { label: '已封禁', color: '#ef4444' },
 }
+
+/**
+ * 从 localStorage 安全地获取 JSON 数据
+ * @param key - localStorage 键名
+ * @param fallback - 解析失败时的默认值
+ */
+export function getLocalStorageItem<T = Record<string, unknown>>(
+  key: string,
+  fallback: T = {} as T
+): T {
+  try {
+    const item = localStorage.getItem(key)
+    if (!item) return fallback
+    return JSON.parse(item) as T
+  } catch (error) {
+    console.warn(`Failed to parse ${key} from localStorage`, error)
+    return fallback
+  }
+}
+
+/** 获取当前经理 ID */
+export function getManagerId(): string {
+  const info = getLocalStorageItem<{ id?: string }>('manager_info')
+  return info.id || ''
+}
+
+/** 获取当前管理员 ID */
+export function getAdminId(): string {
+  const info = getLocalStorageItem<{ id?: string }>('admin_info')
+  return info.id || ''
+}
+
+/** 获取当前用户 ID */
+export function getUserId(): string {
+  const info = getLocalStorageItem<{ id?: string }>('user_info')
+  return info.id || ''
+}
+
+/** 获取当前员工 ID */
+export function getEmployeeId(): string {
+  const info = getLocalStorageItem<{ id?: string }>('employee_info')
+  return info.id || ''
+}
+
+/** 判断是否为员工登录 */
+export function isEmployee(): boolean {
+  return localStorage.getItem('login_type') === 'employee'
+}

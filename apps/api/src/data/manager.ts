@@ -1,6 +1,6 @@
 
-import { query, queryOne } from '../db.js'
-import { columnExists } from './utils.js'
+import { queryOne } from '../db.js'
+import { columnExists, buildDynamicUpdateQuery } from './utils.js'
 import type { Manager } from '@promo/shared'
 
 // 写入参数：id 必填，其余字段可缺省；status/role 以普通字符串写入 DB
@@ -78,18 +78,10 @@ const MANAGER_MUTABLE_FIELDS = new Set(['name', 'phone', 'password', 'teamName',
 
 export async function updateManager(id: string, fields: object): Promise<void> {
   const hasRole = await columnExists('managers', 'role')
-  const sets: string[] = []
-  const values: unknown[] = []
-  for (const [key, val] of Object.entries(fields as Record<string, unknown>)) {
-    if (key === 'id' || !MANAGER_MUTABLE_FIELDS.has(key)) continue
-    if (key === 'role' && !hasRole) continue
-    sets.push(`${key} = ?`)
-    values.push(val ?? '')
-  }
-  if (sets.length === 0) return
-  sets.push('updatedAt = NOW()')
-  values.push(id)
-  await query(`UPDATE managers SET ${sets.join(', ')} WHERE id = ?`, values)
+  const filteredFields = hasRole ? fields : Object.fromEntries(
+    Object.entries(fields as Record<string, unknown>).filter(([key]) => key !== 'role')
+  )
+  await buildDynamicUpdateQuery('managers', MANAGER_MUTABLE_FIELDS, id, filteredFields)
 }
 
 export async function deleteManager(id: string): Promise<void> {
