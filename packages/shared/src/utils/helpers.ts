@@ -170,3 +170,30 @@ export function getEmployeeId(): string {
 export function isEmployee(): boolean {
   return localStorage.getItem('login_type') === 'employee'
 }
+
+/**
+ * 通知回调接口
+ * 用于解耦 composable 与 UI 框架
+ */
+export interface NotificationCallbacks {
+  onSuccess?: (message: string) => void
+  onError?: (message: string) => void
+  onWarning?: (message: string) => void
+  onConfirm?: (message: string, title?: string) => Promise<boolean>
+}
+
+/**
+ * 创建默认通知回调（使用 console）
+ * 用于测试或无 UI 环境
+ */
+export function createDefaultNotifications(): NotificationCallbacks {
+  return {
+    onSuccess: (msg) => console.log('[Success]', msg),
+    onError: (msg) => console.error('[Error]', msg),
+    onWarning: (msg) => console.warn('[Warning]', msg),
+    onConfirm: async (msg) => {
+      console.log('[Confirm]', msg)
+      return true
+    },
+  }
+}
