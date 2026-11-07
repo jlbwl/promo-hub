@@ -1,5 +1,6 @@
 
 import { query, queryOne } from '../db.js'
+import { parsePage, parsePageSize } from '../utils/pagination.js'
 import type { OperationLogRow } from '../data-memory.js'
 
 // 读取后的日志记录：createdAt 统一转为 ISO 字符串（可能为 null）
@@ -58,8 +59,8 @@ export async function readOperationLogs(params?: {
   const total = (await queryOne('SELECT COUNT(1) as count FROM operation_logs' + (conditions.length > 0 ? ' WHERE ' + conditions.join(' AND ') : ''), values)) as { count: number } | null
   const totalCount = total?.count || 0
 
-  const pageNum = parseInt(String(params?.page || 1), 10)
-  const pageSizeNum = parseInt(String(params?.pageSize || 20), 10)
+  const pageNum = parsePage(params?.page)
+  const pageSizeNum = parsePageSize(params?.pageSize, 20)
   const offset = (pageNum - 1) * pageSizeNum
   
   const rows = (await query(queryStr + ' LIMIT ? OFFSET ?', [...values, pageSizeNum, offset])) as OperationLogRow[]

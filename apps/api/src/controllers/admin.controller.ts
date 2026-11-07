@@ -2,6 +2,7 @@ import logger from '../utils/logger.js'
 import { Request, Response } from 'express'
 import { getErrorMessage } from '@promo/shared'
 import { sendSuccess, sendError } from '../utils/response.js'
+import { parsePage, parsePageSize } from '../utils/pagination.js'
 import {
   readAdminByPhone,
   updateAdmin,
@@ -293,8 +294,8 @@ export const getAdminStats = async (_req: Request, res: Response): Promise<void>
  */
 export const getOperationLogs = async (req: Request, res: Response): Promise<void> => {
   try {
-    const page = parseInt(req.query.page as string) || 1
-    const pageSize = parseInt(req.query.pageSize as string) || 10
+    const page = parsePage(req.query.page)
+    const pageSize = parsePageSize(req.query.pageSize)
     const operationType = req.query.operationType as string
     const targetType = req.query.targetType as string
     const adminId = req.query.adminId as string

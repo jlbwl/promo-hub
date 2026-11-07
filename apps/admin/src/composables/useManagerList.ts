@@ -1,9 +1,10 @@
-import { logger } from '@promo/shared/utils/logger'
 import { computed, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
-import { get, post, put, del } from '@promo/shared/utils/request'
+import { get, post, put } from '@promo/shared/utils/request'
 import { getErrorMessage } from '@promo/shared/utils/errors'
 import type { Manager } from '@promo/shared/types'
+import { useSmsConfirm } from './useSmsConfirm'
+import { useTeamNameEdit } from './useTeamNameEdit'
 
 export function useManagerList() {
   // 搜索关键词
@@ -34,21 +35,6 @@ export function useManagerList() {
     password: '',
     phone: ''
   })
-
-  // 修改渠道名称弹窗
-  const teamNameDialogVisible = ref(false)
-  const teamNameLoading = ref(false)
-  const teamNameForm = reactive({
-    teamName: ''
-  })
-  const editRow = ref<Manager | null>(null)
-
-  // 短信验证码相关
-  const deleteRow = ref<Manager | null>(null)
-  const deleteSmsDialogVisible = ref(false)
-  const smsCode = ref('')
-  const smsLoading = ref(false)
-  const smsCooldown = ref(0)
 
   const addFormRules: FormRules = {
     teamName: [
@@ -137,128 +123,34 @@ export function useManagerList() {
     }
   }
 
-  // 删除
-  const handleDelete = async (row: Manager) => {
-    try {
-      await ElMessageBox.confirm(
-        `删除后将清空该渠道「${row.teamName}」的所有档案，且数据不可找回，确定要删除吗？`,
-        '危险操作',
-        {
-          confirmButtonText: '确定删除',
-          cancelButtonText: '取消',
-          type: 'error',
-          confirmButtonClass: 'el-button--danger'
-        }
-      )
-
-      // 显示短信验证弹窗
-      deleteRow.value = row
-      deleteSmsDialogVisible.value = true
-    } catch (error) {
-      if (error !== 'cancel') {
-        ElMessage.error(getErrorMessage(error, '操作失败'))
-      }
-    }
-  }
-
-  // 发送验证码
-  const sendSmsCode = async () => {
-    if (smsCooldown.value > 0) return
-
-    // 从 localStorage 获取管理员信息
-    const adminInfo = JSON.parse(localStorage.getItem('admin_info') || '{}')
-
-    if (!adminInfo.phone) {
-      ElMessage.error('未获取到管理员手机号，请重新登录')
-      return
-    }
-
-    smsLoading.value = true
-    try {
-      logger.debug('[调试] 开始调用短信接口:', '/admin/sms/send')
-      const res = await post('/admin/sms/send', { phone: adminInfo.phone })
-      logger.debug('[调试] 短信接口响应:', res)
-      if (res.code === 0) {
-        ElMessage.success('验证码已发送')
-        smsCooldown.value = 60
-        const timer = setInterval(() => {
-          smsCooldown.value--
-          if (smsCooldown.value <= 0) {
-            clearInterval(timer)
-          }
-        }, 1000)
-      } else {
-        logger.error('[调试] 短信接口返回错误:', res.message)
-        ElMessage.error(res.message || '发送失败')
-      }
-    } catch (error) {
-      logger.error('[调试] 短信接口调用异常:', error)
-      ElMessage.error(getErrorMessage(error, '发送失败'))
-    } finally {
-      smsLoading.value = false
-    }
-  }
-
-  // 确认删除
-  const confirmDelete = async () => {
-    if (!smsCode.value.trim() || !deleteRow.value) {
-      ElMessage.warning('请输入验证码')
-      return
-    }
-
-    smsLoading.value = true
-    try {
-      const res = await del(`/managers/${deleteRow.value.id}?smsCode=${smsCode.value}`)
-      if (res.code === 0) {
-        ElMessage.success('删除成功')
-        deleteSmsDialogVisible.value = false
-        smsCode.value = ''
-        deleteRow.value = null
-        loadData()
-      } else {
-        ElMessage.error(res.message || '删除失败')
-      }
-    } catch (error) {
-      ElMessage.error(getErrorMessage(error, '删除失败'))
-    } finally {
-      smsLoading.value = false
-    }
-  }
-
   // 修改渠道名称
-  const handleEditTeamName = (row: Manager) => {
-    editRow.value = row
-    teamNameForm.teamName = row.teamName || ''
-    teamNameDialogVisible.value = true
-  }
+  const {
+    teamNameDialogVisible,
+    teamNameLoading,
+    teamNameForm,
+    editRow,
+    handleEditTeamName,
+    handleSaveTeamName
+  } = useTeamNameEdit<Manager>({
+    nameLabel: '渠道名称',
+    savePath: (id) => `/managers/${id}/team-name`,
+    onSaved: () => { void loadData() }
+  })
 
-  // 保存渠道名称
-  const handleSaveTeamName = async () => {
-    if (!teamNameForm.teamName.trim()) {
-      ElMessage.warning('请输入渠道名称')
-      return
-    }
-    if (!editRow.value) return
-
-    logger.debug('[调试] 开始保存渠道名称:', {
-      id: editRow.value.id,
-      newTeamName: teamNameForm.teamName.trim()
-    })
-
-    teamNameLoading.value = true
-    try {
-      await put(`/managers/${editRow.value.id}/team-name`, { teamName: teamNameForm.teamName.trim() })
-      logger.debug('[调试] 保存成功')
-      ElMessage.success('修改成功')
-      teamNameDialogVisible.value = false
-      loadData()
-    } catch (error) {
-      logger.error('[调试] 保存失败:', error)
-      ElMessage.error(getErrorMessage(error, '修改失败'))
-    } finally {
-      teamNameLoading.value = false
-    }
-  }
+  // 删除渠道（短信二次确认）
+  const {
+    deleteSmsDialogVisible,
+    smsCode,
+    smsLoading,
+    smsCooldown,
+    handleDelete,
+    sendSmsCode,
+    confirmDelete
+  } = useSmsConfirm({
+    entityLabel: '渠道',
+    deletePath: (id, code) => `/managers/${id}?smsCode=${code}`,
+    onDeleted: () => { void loadData() }
+  })
 
   return {
     searchKeyword,

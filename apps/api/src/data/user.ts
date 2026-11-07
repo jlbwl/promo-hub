@@ -1,6 +1,7 @@
 
 import logger from '../utils/logger.js'
 import { query, queryOne } from '../db.js'
+import { parsePage, parsePageSize } from '../utils/pagination.js'
 import { serialize, deserialize, columnExists } from './utils.js'
 
 // users 表原始行结构：昵称列为 nickname（与 shared User 的 name 不同名），
@@ -75,8 +76,8 @@ export async function readUsersPaged(params?: {
   const totalResult = (await queryOne(countQuery, [...values])) as { count: number } | null
   const totalCount = totalResult?.count || 0
 
-  const pageNum = parseInt(String(params?.page || 1), 10)
-  const pageSizeNum = parseInt(String(params?.pageSize || 10), 10)
+  const pageNum = parsePage(params?.page)
+  const pageSizeNum = parsePageSize(params?.pageSize)
   const offset = (pageNum - 1) * pageSizeNum
 
   const rows = (await query(queryStr + ' LIMIT ? OFFSET ?', [...values, pageSizeNum, offset])) as UserRow[]

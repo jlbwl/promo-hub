@@ -65,6 +65,7 @@
               v-if="isMobile"
               icon="Menu"
               class="menu-btn"
+              aria-label="切换侧边栏"
               @click="sidebarVisible = !sidebarVisible"
             />
             <span class="page-title">{{ pageTitle }}</span>

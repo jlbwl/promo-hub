@@ -81,89 +81,91 @@
     </el-card>
 
     <el-card>
-      <el-table
-        v-loading="loading"
-        :data="tableData"
-        border
-        size="small"
-        max-height="500"
-      >
-        <el-table-column
-          prop="createdAt"
-          label="操作时间"
-          width="180"
+      <div class="table-scroll">
+        <el-table
+          v-loading="loading"
+          :data="tableData"
+          border
+          size="small"
+          max-height="500"
         >
-          <template #default="{ row }">
-            {{ formatTime(row.createdAt) }}
-          </template>
-        </el-table-column>
-        <el-table-column
-          prop="adminName"
-          label="操作人"
-          width="120"
-        />
-        <el-table-column
-          prop="adminPhone"
-          label="操作人手机号"
-          width="140"
-        />
-        <el-table-column
-          prop="operationType"
-          label="操作类型"
-          width="100"
-        >
-          <template #default="{ row }">
-            <el-tag
-              v-if="row.operationType === 'delete'"
-              type="danger"
-            >
-              删除
-            </el-tag>
-            <el-tag
-              v-else-if="row.operationType === 'offline'"
-              type="warning"
-            >
-              下架
-            </el-tag>
-            <span v-else>{{ operationTypeLabels[row.operationType] || row.operationType }}</span>
-          </template>
-        </el-table-column>
-        <el-table-column
-          prop="targetType"
-          label="目标类型"
-          width="100"
-        >
-          <template #default="{ row }">
-            <span>{{ targetTypeLabels[row.targetType] || row.targetType }}</span>
-          </template>
-        </el-table-column>
-        <el-table-column
-          prop="targetName"
-          label="目标名称"
-          width="200"
-        />
-        <el-table-column
-          prop="reason"
-          label="操作原因"
-          width="200"
-          show-overflow-tooltip
-        />
-        <el-table-column
-          prop="detail"
-          label="详细信息"
-          width="200"
-        >
-          <template #default="{ row }">
-            <el-button
-              link
-              type="primary"
-              @click="showDetail(row)"
-            >
-              查看详情
-            </el-button>
-          </template>
-        </el-table-column>
-      </el-table>
+          <el-table-column
+            prop="createdAt"
+            label="操作时间"
+            width="180"
+          >
+            <template #default="{ row }">
+              {{ formatTime(row.createdAt) }}
+            </template>
+          </el-table-column>
+          <el-table-column
+            prop="adminName"
+            label="操作人"
+            width="120"
+          />
+          <el-table-column
+            prop="adminPhone"
+            label="操作人手机号"
+            width="140"
+          />
+          <el-table-column
+            prop="operationType"
+            label="操作类型"
+            width="100"
+          >
+            <template #default="{ row }">
+              <el-tag
+                v-if="row.operationType === 'delete'"
+                type="danger"
+              >
+                删除
+              </el-tag>
+              <el-tag
+                v-else-if="row.operationType === 'offline'"
+                type="warning"
+              >
+                下架
+              </el-tag>
+              <span v-else>{{ operationTypeLabels[row.operationType] || row.operationType }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column
+            prop="targetType"
+            label="目标类型"
+            width="100"
+          >
+            <template #default="{ row }">
+              <span>{{ targetTypeLabels[row.targetType] || row.targetType }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column
+            prop="targetName"
+            label="目标名称"
+            width="200"
+          />
+          <el-table-column
+            prop="reason"
+            label="操作原因"
+            width="200"
+            show-overflow-tooltip
+          />
+          <el-table-column
+            prop="detail"
+            label="详细信息"
+            width="200"
+          >
+            <template #default="{ row }">
+              <el-button
+                link
+                type="primary"
+                @click="showDetail(row)"
+              >
+                查看详情
+              </el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+      </div>
 
       <div class="pagination-container">
         <el-pagination

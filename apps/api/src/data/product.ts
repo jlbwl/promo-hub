@@ -3,6 +3,7 @@ import logger from '../utils/logger.js'
 import { getErrorMessage } from '@promo/shared'
 import type { Product, ProductOption } from '@promo/shared'
 import { query, queryOne } from '../db.js'
+import { parsePage, parsePageSize } from '../utils/pagination.js'
 import { deserialize, serialize, formatDateTime, columnExists } from './utils.js'
 
 // products 表原始行结构：价格/库存列可能返回字符串，requireName/requirePhone 以 0/1 存储，
@@ -266,8 +267,8 @@ export async function getProductsPaginated(params: {
     const countResult = (await queryOne(`SELECT COUNT(1) as total FROM products ${whereClause}`, values)) as { total?: number | string } | null
     const total = Number(countResult?.total) || 0
 
-    const page = parseInt(String(params.page || 1), 10)
-    const pageSize = parseInt(String(params.pageSize || 10), 10)
+    const page = parsePage(params.page)
+    const pageSize = parsePageSize(params.pageSize)
     const offset = (page - 1) * pageSize
 
     const sql = `SELECT * FROM products ${whereClause} ORDER BY COALESCE(publishedAt, createdAt) DESC LIMIT ? OFFSET ?`
@@ -333,8 +334,8 @@ export async function getProductsPaginated(params: {
       })
 
       const total = products.length
-      const page = params.page || 1
-      const pageSize = parseInt(String(params.pageSize || 10), 10)
+      const page = parsePage(params.page)
+      const pageSize = parsePageSize(params.pageSize)
       const offset = (page - 1) * pageSize
       products = products.slice(offset, offset + pageSize)
 

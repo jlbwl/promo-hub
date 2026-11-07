@@ -2,6 +2,7 @@ import logger from '../utils/logger.js'
 import { Request, Response } from 'express'
 import { getErrorMessage } from '@promo/shared'
 import { sendSuccess, sendError, sendPagination } from '../utils/response.js'
+import { MAX_PAGE_SIZE } from '../utils/pagination.js'
 import { orderService } from '../services/index.js'
 import { insertOperationLog } from '../data/index.js'
 import type { OrderRow } from '../data-memory.js'
@@ -105,6 +106,8 @@ export const getOrders = async (req: Request, res: Response): Promise<void> => {
     if (isNaN(pageSizeNum) || pageSizeNum < 1) {
       return sendError(res, 'pageSize参数无效', 400)
     }
+    // 单页条数收敛到上限，避免导出/列表类请求放大内存
+    const clampedPageSize = Math.min(pageSizeNum, MAX_PAGE_SIZE)
 
     // P1-7: 根据登录角色强制覆盖查询参数，防止越权访问他人订单
     const currentUser = req.user
@@ -154,7 +157,7 @@ export const getOrders = async (req: Request, res: Response): Promise<void> => {
         keyword: keyword as string,
         managedBy: managedBy as string,
         page: pageNum,
-        pageSize: pageSizeNum,
+        pageSize: clampedPageSize,
       })
     } catch (dbError) {
       logger.warn('[获取订单] 数据库查询失败，尝试降级到内存:', { error: getErrorMessage(dbError) })
@@ -169,11 +172,11 @@ export const getOrders = async (req: Request, res: Response): Promise<void> => {
         keyword: keyword as string,
         managedBy: managedBy as string,
         page: pageNum,
-        pageSize: pageSizeNum,
+        pageSize: clampedPageSize,
       })
     }
 
-    sendPagination(res, result.list, result.total, pageNum, pageSizeNum)
+    sendPagination(res, result.list, result.total, pageNum, clampedPageSize)
   } catch (error) {
     logger.error('[获取订单] 错误:', { error: getErrorMessage(error) })
     sendError(res, getErrorMessage(error, '获取失败'), 500)

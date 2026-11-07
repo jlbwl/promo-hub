@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express'
 import type { Manager } from '@promo/shared'
 import { sendSuccess, AppError, ErrorCode, HttpStatus, asyncHandler } from '../utils/response.js'
 import logger from '../utils/logger.js'
+import { parsePage, parsePageSize } from '../utils/pagination.js'
 import {
   readUsers,
   readUsersPaged,
@@ -24,8 +25,8 @@ import { logAdminOperation } from '../utils/auditLog.js'
 export const getUsers = asyncHandler(
   async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
     const { page = '1', pageSize = '10', role, status, keyword, teamName } = req.query
-    const pageNum = parseInt(page as string, 10)
-    const pageSizeNum = parseInt(pageSize as string, 10)
+    const pageNum = parsePage(page)
+    const pageSizeNum = parsePageSize(pageSize)
 
     const result = await readUsersPaged({
       role: role as string,

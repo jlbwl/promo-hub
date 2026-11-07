@@ -27,8 +27,9 @@
           label="删除原因"
           required
         >
-          <el-textarea
+          <el-input
             v-model="reason"
+            type="textarea"
             placeholder="请输入删除原因（选填）"
             :rows="3"
             maxlength="500"

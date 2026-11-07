@@ -1,6 +1,7 @@
 import { Request, Response } from 'express'
 import { getErrorMessage } from '@promo/shared'
 import { sendSuccess, sendError, sendPagination } from '../utils/response.js'
+import { parsePage, parsePageSize } from '../utils/pagination.js'
 import { sanitizeRichText } from '../utils/sanitize.js'
 import { productService } from '../services/index.js'
 import logger from '../utils/logger.js'
@@ -16,7 +17,9 @@ export const getProducts = async (req: Request, res: Response): Promise<void> =>
   try {
     const user = req.user
     const { page = '1', pageSize = '10', category, status, keyword, adminMode } = req.query
-    
+    const pageNum = parsePage(page)
+    const pageSizeNum = parsePageSize(pageSize)
+
     // 根据用户角色自动设置managerId
     let managerId = req.query.managerId as string
     if (user && user.role === 'manager') {
@@ -34,8 +37,8 @@ export const getProducts = async (req: Request, res: Response): Promise<void> =>
     })
 
     const { list, total } = await productService.getProducts({
-      page: parseInt(page as string, 10),
-      pageSize: parseInt(pageSize as string, 10),
+      page: pageNum,
+      pageSize: pageSizeNum,
       category: category as string,
       status: status as string,
       managerId,
@@ -44,7 +47,7 @@ export const getProducts = async (req: Request, res: Response): Promise<void> =>
       adminMode: user?.role === 'admin' && String(adminMode).toLowerCase() === 'true',
     })
 
-    sendPagination(res, list, total, parseInt(page as string, 10), parseInt(pageSize as string, 10))
+    sendPagination(res, list, total, pageNum, pageSizeNum)
   } catch (error) {
     logger.error('[ProductController] 获取产品列表失败', {
       error: getErrorMessage(error),

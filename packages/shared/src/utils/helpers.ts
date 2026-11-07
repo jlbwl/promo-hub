@@ -93,11 +93,13 @@ export const commissionStatusMap: Record<string, { label: string; color: string 
 }
 
 /** 订单状态标签类型（适用于 Element Plus / Vant） */
-export const orderStatusTagType = (status: string): string => {
-  const map: Record<string, string> = {
+export type OrderStatusTagType = 'primary' | 'success' | 'warning' | 'info' | 'danger'
+
+export const orderStatusTagType = (status: string): OrderStatusTagType => {
+  const map: Record<string, OrderStatusTagType> = {
     pending: 'warning',
     approved: 'success',
-    pending_payment: '',
+    pending_payment: 'info',
     settled: 'success',
     rejected: 'danger',
   }

@@ -48,82 +48,84 @@
       shadow="never"
       style="margin-top: 16px;"
     >
-      <el-table
-        v-loading="loading"
-        :data="filteredData"
-        stripe
-        border
-        style="width: 100%"
-      >
-        <el-table-column
-          prop="teamName"
-          label="渠道名称"
-          width="140"
-          show-overflow-tooltip
-        />
-        <el-table-column
-          prop="phone"
-          label="手机号"
-          width="140"
-        />
-        <el-table-column
-          prop="status"
-          label="状态"
-          width="200"
-          align="center"
+      <div class="table-scroll">
+        <el-table
+          v-loading="loading"
+          :data="filteredData"
+          stripe
+          border
+          style="width: 100%"
         >
-          <template #default="{ row }">
-            <el-button-group>
+          <el-table-column
+            prop="teamName"
+            label="渠道名称"
+            width="140"
+            show-overflow-tooltip
+          />
+          <el-table-column
+            prop="phone"
+            label="手机号"
+            width="140"
+          />
+          <el-table-column
+            prop="status"
+            label="状态"
+            width="200"
+            align="center"
+          >
+            <template #default="{ row }">
+              <el-button-group>
+                <el-button
+                  :type="row.status === 'active' ? 'success' : ''"
+                  size="small"
+                  @click="handleToggleManagerStatus(row, 'active')"
+                >
+                  启用
+                </el-button>
+                <el-button
+                  :type="row.status === 'inactive' ? 'danger' : ''"
+                  size="small"
+                  @click="handleToggleManagerStatus(row, 'inactive')"
+                >
+                  禁用
+                </el-button>
+              </el-button-group>
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="创建时间"
+            width="180"
+          >
+            <template #default="{ row }">
+              {{ formatTime(row.createdAt) }}
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="操作"
+            min-width="180"
+            fixed="right"
+          >
+            <template #default="{ row }">
               <el-button
-                :type="row.status === 'active' ? 'success' : ''"
+                type="warning"
+                text
                 size="small"
-                @click="handleToggleManagerStatus(row, 'active')"
+                @click="handleEditTeamName(row)"
               >
-                启用
+                修改渠道名称
               </el-button>
               <el-button
-                :type="row.status === 'inactive' ? 'danger' : ''"
+                type="danger"
+                text
                 size="small"
-                @click="handleToggleManagerStatus(row, 'inactive')"
+                @click="handleDelete(row)"
               >
-                禁用
+                删除
               </el-button>
-            </el-button-group>
-          </template>
-        </el-table-column>
-        <el-table-column
-          label="创建时间"
-          width="180"
-        >
-          <template #default="{ row }">
-            {{ formatTime(row.createdAt) }}
-          </template>
-        </el-table-column>
-        <el-table-column
-          label="操作"
-          min-width="180"
-          fixed="right"
-        >
-          <template #default="{ row }">
-            <el-button
-              type="warning"
-              text
-              size="small"
-              @click="handleEditTeamName(row)"
-            >
-              修改渠道名称
-            </el-button>
-            <el-button
-              type="danger"
-              text
-              size="small"
-              @click="handleDelete(row)"
-            >
-              删除
-            </el-button>
-          </template>
-        </el-table-column>
-      </el-table>
+            </template>
+          </el-table-column>
+        </el-table>
+      </div>
     </el-card>
 
     <!-- 添加经理弹窗 -->

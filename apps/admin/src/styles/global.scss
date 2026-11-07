@@ -13,6 +13,12 @@ html, body, #app {
   background-color: $bg-color;
 }
 
+/* 表格横向滚动容器：窄屏时表格内部滚动，避免整页横向滚动 */
+.table-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
 @media (max-width: 768px) {
   html {
     font-size: 14px;
@@ -20,7 +26,6 @@ html, body, #app {
 
   .el-table {
     font-size: 12px;
-    overflow-x: auto;
   }
 
   .el-form-item__label {

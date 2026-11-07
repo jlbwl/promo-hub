@@ -78,7 +78,12 @@
         style="overflow: hidden;"
       >
         <div class="payment-summary">
-          <span>当前上架 <strong>{{ publishedProducts.length }}</strong> 个产品</span>
+          <span>
+            当前上架 <strong>{{ stats.publishedProductCount }}</strong> 个产品
+            <template v-if="stats.publishedProductCount > publishedProducts.length">
+              （列表仅展示前 {{ publishedProducts.length }} 个）
+            </template>
+          </span>
         </div>
 
         <el-table
@@ -341,8 +346,9 @@ const openProductDialog = async () => {
   try {
     // 同时获取产品列表和经理列表
     // adminMode=true 让管理员能看到所有上架产品，不受活跃经理限制
+    // 后端单页上限 100，超出部分仅用于统计总数
     const [productsRes, managersRes] = await Promise.all([
-      get<PaginatedResponse<Product>>('/products', { status: 'published', pageSize: 999, adminMode: true }),
+      get<PaginatedResponse<Product>>('/products', { status: 'published', pageSize: 100, adminMode: true }),
       get<Manager[]>('/managers')
     ])
     publishedProducts.value = productsRes.data?.list || []
@@ -376,7 +382,7 @@ const handleOffline = async (row: Product) => {
     ElMessage.success('已下架')
     // 刷新列表和统计
     publishedProducts.value = publishedProducts.value.filter((p: Product) => p.id !== row.id)
-    stats.publishedProductCount = publishedProducts.value.length
+    stats.publishedProductCount = Math.max(0, stats.publishedProductCount - 1)
     // 显示整改建议
     offlineProduct.value = { ...row, offlineReason: reason }
     offlineResultVisible.value = true

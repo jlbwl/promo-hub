@@ -66,6 +66,8 @@
           {{ row.teamName }}
           <el-icon
             class="edit-icon"
+            role="button"
+            aria-label="编辑团队名称"
             @click="emit('edit-team', row)"
           >
             <Edit />

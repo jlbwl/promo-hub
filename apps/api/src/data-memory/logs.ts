@@ -1,4 +1,5 @@
 import { readFileData, writeFileData } from './_shared.js'
+import { parsePage, parsePageSize } from '../utils/pagination.js'
 import type { OperationLogRow } from './types.js'
 
 // ============ Operation Logs (操作日志) ============
@@ -45,8 +46,8 @@ export async function readOperationLogs(params?: {
   logs.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
 
   const total = logs.length
-  const pageNum = params?.page || 1
-  const pageSizeNum = params?.pageSize || 20
+  const pageNum = parsePage(params?.page)
+  const pageSizeNum = parsePageSize(params?.pageSize, 20)
   const start = (pageNum - 1) * pageSizeNum
   const list = logs.slice(start, start + pageSizeNum)
 
