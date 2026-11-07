@@ -9,7 +9,6 @@ import {
   readProducts,
   readCommissions,
 } from '../data/index.js'
-import { orderService } from '../services/index.js'
 
 /**
  * 获取订单统计
@@ -71,61 +70,6 @@ export const getStats = async (req: Request, res: Response): Promise<void> => {
   } catch (error) {
     logger.error('[订单统计] 最终错误:', { error: getErrorMessage(error) })
     sendSuccess(res, { total: 0, pending: 0, approved: 0, pendingPayment: 0, settled: 0, rejected: 0 })
-  }
-}
-
-/**
- * 经理审核订单（通过/驳回）
- * 验证订单状态，更新订单状态，记录审核时间
- * 审核通过时创建佣金记录，审核驳回时恢复库存
- * @param req - HTTP请求对象，包含订单ID、审核动作（approve/reject）和驳回原因
- * @param res - HTTP响应对象
- * @returns 审核结果
- */
-export const reviewOrder = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const orderId = req.params.id as string
-    const { action, reason } = req.body
-
-    if (!action || !['approve', 'reject'].includes(action)) {
-      return sendError(res, '无效的审核操作', 400)
-    }
-
-    const updatedOrder = await orderService.reviewOrder(orderId, { action, reason })
-
-    sendSuccess(
-      res,
-      updatedOrder,
-      action === 'approve' ? '审核通过' : '已驳回'
-    )
-  } catch (error) {
-    logger.error('[审核订单] 错误:', { error: getErrorMessage(error) })
-    sendError(res, getErrorMessage(error, '操作失败'), 500)
-  }
-}
-
-/**
- * 经理结算操作（添加到待付款 / 确认已付款）
- */
-export const settleOrder = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const orderId = req.params.id as string
-    const { action } = req.body
-
-    if (!action || !['pending_payment', 'paid'].includes(action)) {
-      return sendError(res, '无效的结算操作', 400)
-    }
-
-    const updatedOrder = await orderService.settleOrder(orderId, { action })
-
-    sendSuccess(
-      res,
-      updatedOrder,
-      action === 'pending_payment' ? '已添加到待付款' : '已确认结算'
-    )
-  } catch (error) {
-    logger.error('[结算订单] 错误:', { error: getErrorMessage(error) })
-    sendError(res, getErrorMessage(error, '操作失败'), 500)
   }
 }
 
