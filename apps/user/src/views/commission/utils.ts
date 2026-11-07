@@ -2,7 +2,7 @@
  * 佣金页共享纯函数：身份读取、脱敏、时间格式化、状态映射
  */
 import type { TagType } from 'vant'
-import { orderStatusTagType, orderStatusText } from '@promo/shared/utils/helpers'
+import { orderStatusText } from '@promo/shared/utils/helpers'
 
 // 获取当前用户 ID
 export const getUserId = () => {

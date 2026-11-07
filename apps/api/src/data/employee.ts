@@ -1,5 +1,5 @@
 
-import { queryOne } from '../db.js'
+import { query, queryOne } from '../db.js'
 import { verifyPassword, buildDynamicUpdateQuery } from './utils.js'
 import type { Employee } from '@promo/shared'
 

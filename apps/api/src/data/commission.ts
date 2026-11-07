@@ -1,5 +1,5 @@
 
-import { queryOne } from '../db.js'
+import { query, queryOne } from '../db.js'
 import { buildDynamicUpdateQuery } from './utils.js'
 import type { Commission } from '@promo/shared'
 

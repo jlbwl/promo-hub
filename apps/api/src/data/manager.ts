@@ -1,5 +1,5 @@
 
-import { queryOne } from '../db.js'
+import { query, queryOne } from '../db.js'
 import { columnExists, buildDynamicUpdateQuery } from './utils.js'
 import type { Manager } from '@promo/shared'
 
