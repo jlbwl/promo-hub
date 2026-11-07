@@ -186,7 +186,12 @@ export const employeeLogin = async (req: Request, res: Response): Promise<void> 
       return sendError(res, '手机号、密码错误或账户已过期', 1)
     }
     
+    // 员工依赖主账户存在且启用：主账户被删除/禁用后不得继续登录
     const user = await readUser(employee.userId)
+    if (!user || (user.status || 'active') !== 'active') {
+      return sendError(res, '手机号、密码错误或账户已过期', 1)
+    }
+
     const authUser = { 
       id: employee.id, 
       phone: employee.phone, 
@@ -201,7 +206,7 @@ export const employeeLogin = async (req: Request, res: Response): Promise<void> 
       token: tokens.token,
       refreshToken: tokens.refreshToken,
       employee: { ...employee, password: '******' },
-      user: user ? { id: user.id, phone: user.phone, nickname: user.nickname } : null
+      user: { id: user.id, phone: user.phone, nickname: user.nickname }
     }, '登录成功')
   } catch (err) {
     sendError(res, getErrorMessage(err, '登录失败'), 1)

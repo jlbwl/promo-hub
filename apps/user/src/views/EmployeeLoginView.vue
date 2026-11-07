@@ -101,6 +101,9 @@ const handleSubmit = async () => {
     })
 
     if (res.code === 0) {
+      // 员工登录与普通登录互斥：清除普通用户 token，避免请求层优先读取旧用户态
+      localStorage.removeItem('user_token')
+      localStorage.removeItem('user_refresh_token')
       // 保存员工信息到 localStorage
       localStorage.setItem('employee_info', JSON.stringify(res.data.employee))
       localStorage.setItem('user_info', JSON.stringify(res.data.user))

@@ -132,7 +132,7 @@ export const deleteUser = asyncHandler(
       targetId: userId,
       targetName: targetUser.nickname || targetUser.phone || userId,
       reason: '管理员删除用户',
-      detail: '已级联清理该用户的订单、佣金与购物车数据',
+      detail: '已级联清理该用户的员工账号、订单、佣金与购物车数据',
     })
 
     logger.info('User deleted', { userId, deletedBy: adminInfo.phone })
@@ -146,6 +146,8 @@ async function deleteUserById(userId: string): Promise<void> {
     await conn.execute('DELETE FROM commissions WHERE userId = ?', [userId])
     await conn.execute('DELETE FROM orders WHERE userId = ?', [userId])
     await conn.execute('DELETE FROM cart WHERE userId = ?', [userId])
+    // 员工账号挂在用户下，必须一并删除，避免孤儿员工仍可登录
+    await conn.execute('DELETE FROM employees WHERE userId = ?', [userId])
     await conn.execute('DELETE FROM users WHERE id = ?', [userId])
   })
 }

@@ -280,6 +280,11 @@ interface EmployeeLoginResult {
 
 // 通用登录成功处理
 const onLoginSuccess = (data: UserLoginResult) => {
+  // 普通登录与员工登录互斥：清除员工态，避免请求层继续携带旧员工 token
+  localStorage.removeItem('employee_token')
+  localStorage.removeItem('employee_refresh_token')
+  localStorage.removeItem('employee_info')
+  localStorage.removeItem('login_type')
   localStorage.setItem('user_token', data.token)
   localStorage.setItem('user_info', JSON.stringify(data.user))
   if (data.refreshToken) {
@@ -306,6 +311,9 @@ const handlePasswordLogin = async () => {
       const employeeRes = await post<EmployeeLoginResult>('/employees/login', { phone: pwdForm.phone, password: pwdForm.password })
       
       // 保存员工信息到 localStorage
+      // 该入口使用 user_token 承载员工身份，需清掉员工专属 token 避免优先级串号
+      localStorage.removeItem('employee_token')
+      localStorage.removeItem('employee_refresh_token')
       localStorage.setItem('employee_info', JSON.stringify(employeeRes.data.employee))
       localStorage.setItem('user_info', JSON.stringify(employeeRes.data.user))
       localStorage.setItem('user_token', `employee_${employeeRes.data.employee.id}`)
