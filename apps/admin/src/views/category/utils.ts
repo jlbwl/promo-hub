@@ -135,7 +135,7 @@ export const createDispatchWorkbook = (products: Product[], categories: ProductC
   })
 
   // 「更新备注」列在产品数据模型中没有来源（Product 无备注字段），已移除
-  const headers = ['产品分类', '产品名称', '推广费(元/单)', '产品描述']
+  const headers = ['产品分类', '产品名称', '推广费', '产品描述']
 
   const declaration = '声明：填写人需承诺所填信息已获授权，不侵犯他人合法权益；您提交的个人信息仅用于本次收集审核，我们承诺会严格保护您的隐私，不得将信息用于审核以外的任何用途，审核完毕也会定时删除清理。提交数据即表示您已充分理解并同意本条款，请自觉履行公民隐私保护义务，共同维护良好网络生态。'
   const declarationRow = worksheet.addRow([declaration])
@@ -157,8 +157,8 @@ export const createDispatchWorkbook = (products: Product[], categories: ProductC
   const nextDay = new Date()
   nextDay.setDate(nextDay.getDate() + 1)
   const nextDayStr = `${nextDay.getFullYear()}-${String(nextDay.getMonth() + 1).padStart(2, '0')}-${String(nextDay.getDate()).padStart(2, '0')}`
-  // 标题明确写出「生效日期」，避免与文件名的导出日期混淆
-  const titleRow = worksheet.addRow([`金卢比网络派单表（${nextDayStr} 生效）`])
+  // 标题只保留日期，与渠道方确认的版式一致
+  const titleRow = worksheet.addRow([`金卢比网络派单表（${nextDayStr}）`])
   worksheet.mergeCells('A2:D2')
   titleRow.eachCell((cell) => {
     cell.font = {
@@ -207,6 +207,9 @@ export const createDispatchWorkbook = (products: Product[], categories: ProductC
   applyHeaderStyle(headerRow)
   headerRow.height = 24
 
+  // 记录真正的数据行，列宽只按这些行统计（声明/标题等合并行的文本不应参与）
+  const dataRows: ExcelJS.Row[] = []
+
   Object.keys(groupedProducts).forEach((categoryName) => {
     const groupProducts = groupedProducts[categoryName]
     const firstRowNumber = worksheet.rowCount + 1
@@ -218,6 +221,9 @@ export const createDispatchWorkbook = (products: Product[], categories: ProductC
         product.price,
         product.description
       ])
+      // 数据行固定行高 25 磅，配合不换行的单行文本，避免行高随内容跳动
+      dataRow.height = 25
+      dataRows.push(dataRow)
       dataRow.eachCell({ includeEmpty: true }, (cell, colNumber) => {
         cell.font = {
           name: FONT_NAME,
@@ -225,8 +231,9 @@ export const createDispatchWorkbook = (products: Product[], categories: ProductC
         }
         cell.alignment = {
           vertical: 'middle',
-          horizontal: colNumber === 3 ? 'right' : colNumber === 1 ? 'center' : 'left',
-          wrapText: colNumber === 2 || colNumber === 4
+          horizontal: colNumber === 3 ? 'center' : colNumber === 1 ? 'center' : 'left',
+          // 固定行高下内容不换行，列宽由下方自适应逻辑保证能完整容纳
+          wrapText: false
         }
         cell.border = {
           top: { style: 'thin' },
@@ -246,27 +253,30 @@ export const createDispatchWorkbook = (products: Product[], categories: ProductC
     }
   })
 
-  // 列宽按显示宽度计算（中文按 2 个单位），不再按字符数 + 硬封顶 50
-  const displayWidth = (value: string): number =>
-    Array.from(value).reduce((width, ch) => width + (ch.charCodeAt(0) > 127 ? 2 : 1), 0)
+  // 列宽按 12pt Microsoft YaHei 的实际显示像素估算：中文 16px、半角 7.5px；
+  // Excel 列宽单位约等于 7px（默认字体 Calibri 11），换算后留 2 个单位余量，保证不换行也不截断
+  const textPxWidth = (value: string): number =>
+    Array.from(value).reduce((px, ch) => px + (ch.charCodeAt(0) > 127 ? 16 : 7.5), 0)
 
-  const maxWidths: number[] = [0, 0, 0, 0]
-  worksheet.eachRow((row) => {
+  const maxTextPx: number[] = [0, 0, 0, 0]
+  dataRows.forEach((row) => {
     row.eachCell({ includeEmpty: false }, (cell, colNumber) => {
       if (colNumber > headers.length) return
       const text = cell.value == null ? '' : String(cell.value)
-      maxWidths[colNumber - 1] = Math.max(maxWidths[colNumber - 1], displayWidth(text))
+      maxTextPx[colNumber - 1] = Math.max(maxTextPx[colNumber - 1], textPxWidth(text))
     })
   })
 
   headers.forEach((header, index) => {
-    maxWidths[index] = Math.max(maxWidths[index], displayWidth(header))
+    maxTextPx[index] = Math.max(maxTextPx[index], textPxWidth(header))
   })
 
-  const columnLimits: Array<[number, number]> = [[8, 12], [24, 34], [10, 14], [40, 60]]
+  // 只保留下限，不设上限：描述列要完整容纳最长内容（不换行、不截断）
+  const columnMinWidths: number[] = [8, 24, 10, 40]
   worksheet.columns.forEach((col, index) => {
-    const [min, max] = columnLimits[index] || [20, 40]
-    col.width = Math.min(Math.max(maxWidths[index] + 2, min), max)
+    const min = columnMinWidths[index] || 20
+    const contentWidth = maxTextPx[index] / 7 + 2
+    col.width = Math.round(Math.max(contentWidth, min) * 10) / 10
   })
 
   return workbook
