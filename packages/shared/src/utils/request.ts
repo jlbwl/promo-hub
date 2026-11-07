@@ -221,7 +221,7 @@ function createRequest(): AxiosInstance {
       }
 
       // 文件下载（如 CSV 导出）响应体不是 ApiResponse，直接放行
-      if (response.config.responseType === 'blob') {
+      if (response.config?.responseType === 'blob') {
         return response
       }
       const { code, message } = response.data

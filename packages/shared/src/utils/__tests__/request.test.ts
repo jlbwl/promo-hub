@@ -168,6 +168,18 @@ describe('request module', () => {
       expect(result).toEqual(mockResponse)
     })
 
+    it('should return blob response without parsing ApiResponse', async () => {
+      // 文件下载（CSV 导出）：响应体不是 ApiResponse，必须先于 code 判定放行
+      const blob = new Blob(['\uFEFF"操作时间"'], { type: 'text/csv' })
+      const mockResponse = {
+        data: blob,
+        config: { responseType: 'blob' },
+      }
+
+      const result = await responseSuccessInterceptor(mockResponse)
+      expect(result).toEqual(mockResponse)
+    })
+
     it('should reject when code is not 0', async () => {
       const mockResponse = {
         data: {
