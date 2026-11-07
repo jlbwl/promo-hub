@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import { loginLimiter } from '../middleware/rateLimit.js'
+import { requireUser, requireAuth } from '../middleware/auth.js'
 import {
   createEmployee,
   getEmployees,
@@ -12,15 +13,15 @@ import {
 
 const router: Router = Router()
 
-// 员工子账户管理
-router.post('/employees', createEmployee)
-router.get('/employees', getEmployees)
-router.get('/employees/:id', getEmployeeById)
-router.put('/employees/:id', updateEmployeeById)
-router.delete('/employees/:id', deleteEmployeeById)
+// 员工子账户管理：仅主账户（user）或管理员可操作
+router.post('/employees', requireUser, createEmployee)
+router.get('/employees', requireUser, getEmployees)
+router.get('/employees/:id', requireUser, getEmployeeById)
+router.put('/employees/:id', requireUser, updateEmployeeById)
+router.delete('/employees/:id', requireUser, deleteEmployeeById)
 
 // 员工登录验证
 router.post('/employees/login', loginLimiter, employeeLogin)
-router.post('/employees/validate', validateEmployee)
+router.post('/employees/validate', requireAuth, validateEmployee)
 
 export default router

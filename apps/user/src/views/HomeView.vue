@@ -242,6 +242,8 @@ const addToCart = async (product: HomeProduct) => {
     if (res.code === 0) {
       showToast('已收藏')
       product.inCart = true
+      // 通知 Tabbar 刷新收藏徽标计数
+      window.dispatchEvent(new CustomEvent('cart-changed'))
     } else {
       showToast(res.message || '加入失败')
     }

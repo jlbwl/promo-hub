@@ -12,10 +12,14 @@ import {
 } from '../data/index.js'
 
 /**
- * 购物车身份解析：user 角色强制使用会话身份（防传他人 userId 越权读写他人购物车），
- * employee 保持传入 userId（员工代主账户操作）
+ * 购物车身份解析：
+ * - user 角色：强制使用会话身份（防传他人 userId 越权）
+ * - employee 角色：仅允许访问其主账户（req.user.userId）的购物车，忽略请求传入值
  */
 function resolveCartUserId(req: Request, requested: unknown): string {
+  if (req.user?.role === 'employee') {
+    return req.user.userId || ''
+  }
   if (req.user?.role === 'user') return req.user.id
   return requested as string
 }

@@ -8,6 +8,19 @@ import { insertOperationLog } from '../data/index.js'
 import type { OrderRow } from '../data-memory.js'
 
 /**
+ * 解析订单归属的用户ID（用于用户端订单操作）：
+ * - user/manager/admin：归属当前登录人（req.user.id）
+ * - employee：归属其关联的主账户（req.user.userId）
+ * 一律以会话身份为准，忽略请求体/查询中的 userId，防止越权操作他人订单。
+ */
+function resolveOrderUserId(req: Request): string | undefined {
+  const u = req.user
+  if (!u || !u.id) return undefined
+  if (u.role === 'employee') return u.userId
+  return u.id
+}
+
+/**
  * 做单（创建订单）—— 代客下单模式
  * 验证产品存在性和状态，检查库存，扣减库存，创建订单记录
  *
@@ -239,10 +252,12 @@ export const adminDeleteOrder = async (req: Request, res: Response): Promise<voi
 export const deleteUserOrder = async (req: Request, res: Response): Promise<void> => {
   try {
     const id = req.params.id as string
-    // 身份以登录态为准，忽略 body 传入的 userId，防止伪造他人身份操作他人订单
-    const userId = req.user?.id || (req.body?.userId as string | undefined)
+    const userId = resolveOrderUserId(req)
+    if (!userId) {
+      return sendError(res, '未登录或会话已过期', 401)
+    }
 
-    await orderService.deleteUserOrder(id, userId as string)
+    await orderService.deleteUserOrder(id, userId)
 
     sendSuccess(res, null, '已移至回收站')
   } catch (error) {
@@ -252,15 +267,15 @@ export const deleteUserOrder = async (req: Request, res: Response): Promise<void
 
 /**
  * 获取用户已删除的订单（回收站）
- * 查询指定用户的回收站订单列表
- * @param req - HTTP请求对象，包含用户ID（req.query.userId）
- * @param res - HTTP响应对象
- * @returns 回收站订单列表
+ * 仅返回当前登录用户（或员工所属主账户）的回收站订单
  */
 export const getDeletedOrders = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { userId } = req.query
-    const orders = await orderService.getDeletedOrders(userId as string)
+    const userId = resolveOrderUserId(req)
+    if (!userId) {
+      return sendError(res, '未登录或会话已过期', 401)
+    }
+    const orders = await orderService.getDeletedOrders(userId)
     sendSuccess(res, orders)
   } catch (error) {
     sendError(res, getErrorMessage(error, '获取失败'), (error as { code?: number }).code || 500)
@@ -269,18 +284,16 @@ export const getDeletedOrders = async (req: Request, res: Response): Promise<voi
 
 /**
  * 恢复订单（从回收站找回）
- * 验证订单归属权限，将订单从回收站恢复到正常状态
- * @param req - HTTP请求对象，包含订单ID（req.params.id）和用户ID（req.body.userId）
- * @param res - HTTP响应对象
- * @returns 恢复操作结果
  */
 export const restoreUserOrder = async (req: Request, res: Response): Promise<void> => {
   try {
     const id = req.params.id as string
-    // 身份以登录态为准，忽略 body 传入的 userId，防止伪造他人身份操作他人订单
-    const userId = req.user?.id || (req.body?.userId as string | undefined)
+    const userId = resolveOrderUserId(req)
+    if (!userId) {
+      return sendError(res, '未登录或会话已过期', 401)
+    }
 
-    await orderService.restoreOrder(id, userId as string)
+    await orderService.restoreOrder(id, userId)
 
     sendSuccess(res, null, '恢复成功')
   } catch (error) {
@@ -291,14 +304,11 @@ export const restoreUserOrder = async (req: Request, res: Response): Promise<voi
 /**
  * 永久删除订单（物理删除，不可恢复）
  * 仅允许订单归属人删除其回收站中的订单，身份以登录态为准
- * @param req - HTTP请求对象，包含订单ID（req.params.id）
- * @param res - HTTP响应对象
- * @returns 删除操作结果
  */
 export const purgeUserOrder = async (req: Request, res: Response): Promise<void> => {
   try {
     const id = req.params.id as string
-    const userId = req.user?.id
+    const userId = resolveOrderUserId(req)
     if (!userId) {
       return sendError(res, '未登录或会话已过期', 401)
     }
@@ -313,14 +323,12 @@ export const purgeUserOrder = async (req: Request, res: Response): Promise<void>
 
 /**
  * 提交资金号
- * 用户为订单提交资金账户信息，用于资金追踪
- * @param req - HTTP请求对象，包含用户ID、订单ID和资金号
- * @param res - HTTP响应对象
- * @returns 提交结果
+ * 用户为订单提交资金账户信息，用于资金追踪。userId 以登录态为准。
  */
 export const submitFundAccount = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { userId, orderId, fundAccount } = req.body
+    const userId = resolveOrderUserId(req)
+    const { orderId, fundAccount } = req.body
 
     if (!userId || !orderId || !fundAccount) {
       return sendError(res, '缺少必要参数', 400)

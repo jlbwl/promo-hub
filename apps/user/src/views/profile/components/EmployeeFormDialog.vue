@@ -167,7 +167,8 @@ const open = (emp?: Employee) => {
   employeeForm.phone = emp?.phone || ''
   employeeForm.password = ''
   employeeForm.nickname = emp?.nickname || ''
-  employeeForm.expiresHours = '24'
+  // 编辑模式有效期留空表示「不修改」，避免改昵称时把有效期重置为 24 小时
+  employeeForm.expiresHours = emp ? '' : '24'
   visible.value = true
 }
 
@@ -198,7 +199,12 @@ const handleCreateEmployee = async () => {
     return showToast('密码至少6位')
   }
 
-  if (!employeeForm.expiresHours || parseInt(employeeForm.expiresHours) < 1) {
+  // 创建时有效期必填；编辑时非空才校验
+  const expiresHoursNum = employeeForm.expiresHours ? parseInt(employeeForm.expiresHours) : 0
+  if (!editingEmployee.value && (!employeeForm.expiresHours || expiresHoursNum < 1)) {
+    return showToast('有效期至少1小时')
+  }
+  if (editingEmployee.value && employeeForm.expiresHours && expiresHoursNum < 1) {
     return showToast('有效期至少1小时')
   }
 
@@ -206,12 +212,15 @@ const handleCreateEmployee = async () => {
     let res: ApiResponse<unknown>
 
     if (editingEmployee.value) {
-      // 编辑模式：调用PUT更新，不包含手机号
-      res = await put(`/employees/${editingEmployee.value.id}`, {
+      // 编辑模式：调用PUT更新，不包含手机号；有效期留空则不修改
+      const payload: Record<string, unknown> = {
         password: employeeForm.password,
         nickname: employeeForm.nickname,
-        expiresHours: parseInt(employeeForm.expiresHours)
-      })
+      }
+      if (employeeForm.expiresHours) {
+        payload.expiresHours = expiresHoursNum
+      }
+      res = await put(`/employees/${editingEmployee.value.id}`, payload)
     } else {
       // 创建模式：调用POST
       res = await post('/employees', {
@@ -219,7 +228,7 @@ const handleCreateEmployee = async () => {
         phone: employeeForm.phone,
         password: employeeForm.password,
         nickname: employeeForm.nickname,
-        expiresHours: parseInt(employeeForm.expiresHours)
+        expiresHours: expiresHoursNum
       })
     }
 

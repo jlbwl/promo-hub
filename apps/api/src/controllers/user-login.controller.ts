@@ -9,7 +9,7 @@ import {
   type UserRecord,
   touchUserLastLogin,
 } from '../data/index.js'
-import { login as sessionLogin, logout as sessionLogout, generateTokens, type AuthUser } from '../middleware/auth.js'
+import { login as sessionLogin, logout as sessionLogout, generateTokens, revokeRefreshToken, type AuthUser } from '../middleware/auth.js'
 import { verifySmsCode } from '../utils/sms.js'
 import { hashPassword, verifyPassword } from '../utils/password.js'
 import { userService } from '../services/index.js'
@@ -149,11 +149,17 @@ export const setUserPassword = asyncHandler(
 
 /**
  * 用户登出
- * 清除 Session 和 Token
+ * 清除 Session，并吊销请求携带的 Refresh Token（X-Refresh-Token 头）
  */
 export const userLogout = asyncHandler(
   async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
     logger.info('User logout', { userId: req.session?.user?.id || req.user?.id })
+
+    // 吊销 Refresh Token（请求层统一通过 X-Refresh-Token 头携带）
+    const refreshToken = req.headers?.['x-refresh-token'] as string | undefined
+    if (refreshToken) {
+      await revokeRefreshToken(refreshToken)
+    }
 
     // 清除 Session
     sessionLogout(req)

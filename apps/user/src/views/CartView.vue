@@ -73,7 +73,7 @@ const router = useRouter()
 /**
  * 用户信息 composable
  */
-const { getUserId, getManagerId, isEmployee: checkIsEmployee } = useUser()
+const { getUserId, isEmployee: checkIsEmployee } = useUser()
 
 /**
  * 购物车数据
@@ -87,32 +87,20 @@ const isEmployee = computed(() => checkIsEmployee())
 
 /**
  * 加载购物车数据
+ * 主账户读取自己的购物车；员工读取其主账户的购物车（user_info.id 即主账户 id）。
+ * 统一走 /cart 接口，与 Tabbar 收藏徽标计数口径保持一致。
  */
 const loadCart = async () => {
   try {
-    let items: CartItemEntity[] = []
-    if (isEmployee.value) {
-      // 员工账户：获取其所属经理负责的主账户的购物车
-      const managerId = getManagerId()
-      if (managerId) {
-        const res = await get<CartItemEntity[]>('/manager/cart', { managerId })
-        if (res.code === 0) {
-          items = res.data || []
-        }
-      }
-    } else {
-      // 主账户：获取自己的购物车（未登录时 userId 为空，不发请求，直接显示空状态）
-      const userId = getUserId()
-      if (!userId) {
-        cartItems.value = []
-        return
-      }
-      const res = await get<CartItemEntity[]>('/cart', { userId })
-      if (res.code === 0) {
-        items = res.data || []
-      }
+    const userId = getUserId()
+    if (!userId) {
+      cartItems.value = []
+      return
     }
-    cartItems.value = items
+    const res = await get<CartItemEntity[]>('/cart', { userId })
+    if (res.code === 0) {
+      cartItems.value = res.data || []
+    }
   } catch (error) {
     logger.error('[CartView] 获取购物车失败:', error)
   }
@@ -138,6 +126,8 @@ const handleRemove = async (item: CartItemEntity) => {
       if (index > -1) {
         cartItems.value.splice(index, 1)
       }
+      // 通知 Tabbar 刷新收藏徽标计数
+      window.dispatchEvent(new CustomEvent('cart-changed'))
     } else {
       showToast(res.message || '移除失败')
     }

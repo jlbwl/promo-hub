@@ -147,7 +147,8 @@ const handleDeleteEmployee = async (emp: Employee) => {
       showToast(res.message || '删除失败')
     }
   } catch (e) {
-    if ((e as { message?: unknown })?.message !== 'cancel') {
+    // Vant showDialog 取消时以字符串 'cancel' reject，不属于错误
+    if (e !== 'cancel') {
       showToast(getErrorMessage(e, '删除失败'))
     }
   }

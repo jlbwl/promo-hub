@@ -55,7 +55,7 @@
 
 <script setup lang="ts">
 import { logger } from '@promo/shared/utils/logger'
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute } from 'vue-router'
 import { showConfirmDialog } from 'vant'
 import { get } from '@promo/shared/utils/request'
@@ -100,6 +100,11 @@ const fetchCartCount = async () => {
 
 onMounted(() => {
   fetchCartCount()
+  window.addEventListener('cart-changed', fetchCartCount)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('cart-changed', fetchCartCount)
 })
 
 // 获取当前路由

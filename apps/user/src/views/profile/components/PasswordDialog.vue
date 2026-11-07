@@ -77,7 +77,7 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref } from 'vue'
+import { reactive, ref, onBeforeUnmount } from 'vue'
 import { showToast } from 'vant'
 import { post } from '@promo/shared/utils/request'
 import { getErrorMessage } from '@promo/shared/utils/errors'
@@ -147,6 +147,14 @@ const handleSetPassword = async () => {
 }
 
 defineExpose({ open })
+
+// 卸载时清理倒计时定时器，避免内存泄漏
+onBeforeUnmount(() => {
+  if (smsTimer) {
+    clearInterval(smsTimer)
+    smsTimer = null
+  }
+})
 </script>
 
 <style scoped lang="scss">

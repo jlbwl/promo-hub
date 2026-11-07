@@ -339,11 +339,11 @@ describe('order.controller', () => {
   })
 
   describe('deleteUserOrder / restoreUserOrder 回收站', () => {
-    it('软删除透传订单ID与用户ID', async () => {
+    it('软删除透传订单ID与用户ID（用户ID取自会话）', async () => {
       const res = makeRes()
 
       await deleteUserOrder(
-        makeReq({ params: { id: 'o_1' }, body: { userId: 'u_1' } }),
+        makeReq({ params: { id: 'o_1' }, user: { id: 'u_1', role: 'user' } }),
         res
       )
 
@@ -351,11 +351,11 @@ describe('order.controller', () => {
       expect(jsonPayload(res).message).toBe('已移至回收站')
     })
 
-    it('恢复透传订单ID与用户ID', async () => {
+    it('恢复透传订单ID与用户ID（用户ID取自会话）', async () => {
       const res = makeRes()
 
       await restoreUserOrder(
-        makeReq({ params: { id: 'o_1' }, body: { userId: 'u_1' } }),
+        makeReq({ params: { id: 'o_1' }, user: { id: 'u_1', role: 'user' } }),
         res
       )
 
@@ -369,18 +369,18 @@ describe('order.controller', () => {
       const res = makeRes()
 
       await submitFundAccount(
-        makeReq({ body: { userId: 'u_1', orderId: 'o_1' } }),
+        makeReq({ body: { orderId: 'o_1' }, user: { id: 'u_1', role: 'user' } }),
         res
       )
 
       expect(res.status).toHaveBeenCalledWith(400)
     })
 
-    it('成功透传到 service', async () => {
+    it('成功透传到 service（userId 取自会话）', async () => {
       const res = makeRes()
 
       await submitFundAccount(
-        makeReq({ body: { userId: 'u_1', orderId: 'o_1', fundAccount: 'FA123' } }),
+        makeReq({ body: { orderId: 'o_1', fundAccount: 'FA123' }, user: { id: 'u_1', role: 'user' } }),
         res
       )
 

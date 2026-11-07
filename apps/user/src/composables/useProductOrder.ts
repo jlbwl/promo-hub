@@ -104,13 +104,11 @@ export const jumpToUrl = (url: string) => {
       logger.debug('[做单] 微信环境检测')
       window.location.href = url
     } else {
-      try {
-        const newWindow = window.open(url, '_blank')
-        if (!newWindow || newWindow.closed === false) {
-          throw new Error('window.open 可能被拦截')
-        }
-      } catch (err) {
-        logger.debug('[做单] window.open 失败，使用 location.href', err)
+      // window.open 成功时返回的窗口对象 closed === false；
+      // 被拦截时返回 null 或一个已关闭（closed === true）的对象
+      const newWindow = window.open(url, '_blank')
+      if (!newWindow || newWindow.closed) {
+        logger.debug('[做单] window.open 被拦截，降级为当前页跳转')
         window.location.href = url
       }
     }

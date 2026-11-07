@@ -84,7 +84,7 @@ import { reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { showToast } from 'vant'
 import { formatTime, maskPhone } from '@promo/shared/utils/helpers'
-import { clearAuthStorage } from '@promo/shared/utils/request'
+import { clearAuthStorage, post } from '@promo/shared/utils/request'
 
 const router = useRouter()
 
@@ -137,11 +137,18 @@ onMounted(() => {
 })
 
 // 执行退出登录
-const doLogout = () => {
-  // 统一清理用户端全部登录态（含 employee_token/refresh_token）
-  clearAuthStorage()
-  showToast('已退出登录')
-  router.replace('/login')
+const doLogout = async () => {
+  try {
+    // 调用后端登出：销毁 session、吊销 refresh token（员工也走 /users/logout）
+    await post('/users/logout')
+  } catch (e) {
+    // 后端失败也继续清理本地
+  } finally {
+    // 统一清理用户端全部登录态（含 employee_token/refresh_token）
+    clearAuthStorage()
+    showToast('已退出登录')
+    router.replace('/login')
+  }
 }
 </script>
 

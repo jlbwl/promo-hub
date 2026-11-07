@@ -25,8 +25,9 @@
         class="deleted-list"
       >
         <van-swipe-cell
-          v-for="order in orders"
+          v-for="(order, idx) in orders"
           :key="order.id"
+          :ref="el => setSwipeRef(el, idx)"
           right-width="200"
         >
           <div class="deleted-item">
@@ -84,6 +85,7 @@
                 type="danger"
                 square
                 text="取消"
+                @click="closeSwipe(idx)"
               />
             </div>
           </template>
@@ -107,6 +109,17 @@ const emit = defineEmits<{
   restore: [order: Order]
   purge: [order: Order]
 }>()
+
+// 记录每个 swipe-cell 实例，供「取消」按钮收起滑出的操作栏
+const swipeRefs: unknown[] = []
+
+const setSwipeRef = (el: unknown, idx: number) => {
+  swipeRefs[idx] = el
+}
+
+const closeSwipe = (idx: number) => {
+  ;(swipeRefs[idx] as { close?: () => void } | null)?.close?.()
+}
 </script>
 
 <style scoped lang="scss">

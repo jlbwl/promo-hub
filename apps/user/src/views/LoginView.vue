@@ -309,15 +309,18 @@ const handlePasswordLogin = async () => {
     // 普通登录失败，尝试员工登录
     try {
       const employeeRes = await post<EmployeeLoginResult>('/employees/login', { phone: pwdForm.phone, password: pwdForm.password })
-      
-      // 保存员工信息到 localStorage
-      // 该入口使用 user_token 承载员工身份，需清掉员工专属 token 避免优先级串号
-      localStorage.removeItem('employee_token')
-      localStorage.removeItem('employee_refresh_token')
+
+      // 员工登录与普通登录互斥：清除普通用户 token，使用 employee_token 承载员工身份
+      // （request 层 user 作用域优先读 employee_token）
+      localStorage.removeItem('user_token')
+      localStorage.removeItem('user_refresh_token')
       localStorage.setItem('employee_info', JSON.stringify(employeeRes.data.employee))
       localStorage.setItem('user_info', JSON.stringify(employeeRes.data.user))
-      localStorage.setItem('user_token', `employee_${employeeRes.data.employee.id}`)
+      localStorage.setItem('employee_token', employeeRes.data.token)
       localStorage.setItem('login_type', 'employee')
+      if (employeeRes.data.refreshToken) {
+        localStorage.setItem('employee_refresh_token', employeeRes.data.refreshToken)
+      }
 
       showToast('员工登录成功')
       setTimeout(() => {

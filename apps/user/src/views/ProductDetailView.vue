@@ -98,11 +98,6 @@
     <van-action-bar>
       <van-action-bar-icon
         v-if="!isShareMode"
-        icon="chat-o"
-        text="客服"
-      />
-      <van-action-bar-icon
-        v-if="!isShareMode"
         icon="share-o"
         text="转发分享"
         @click="handleShare"
@@ -276,11 +271,8 @@ const handleGoOrder = async () => {
     return
   }
 
-  // 检查库存
-  if (product.stock > 0 && product.stock < 1) {
-    showToast('库存不足')
-    return
-  }
+  // 库存校验由后端乐观锁保证（stock > 0 为有限库存，否则无限库存），
+  // 前端不再做恒假的本地判断，避免误拦
 
   // 做单必须填写客户姓名和手机号（与后端校验规则一致）
   infoForm.name = ''

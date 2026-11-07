@@ -104,7 +104,7 @@ import { logger } from '@promo/shared/utils/logger'
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { showDialog, showToast } from 'vant'
-import { post } from '@promo/shared/utils/request'
+import { post, clearAuthStorage } from '@promo/shared/utils/request'
 import UserHeader from './profile/components/UserHeader.vue'
 import StatsCard from './profile/components/StatsCard.vue'
 import EmployeeFormDialog from './profile/components/EmployeeFormDialog.vue'
@@ -184,16 +184,14 @@ const logoutDialogVisible = ref(false)
 // 执行退出登录
 const doLogout = async () => {
   try {
-    // 调用后端登出接口
+    // 调用后端登出接口（销毁 session、吊销 refresh token）
     await post('/users/logout')
   } catch (e) {
     // 即使后端调用失败，也继续清除本地数据
     logger.warn('后端登出失败:', e)
   } finally {
-    // 清除本地存储的认证信息
-    localStorage.removeItem('user_token')
-    localStorage.removeItem('user_info')
-    localStorage.removeItem('refresh_token')
+    // 统一清除所有角色的本地认证信息（含 user/employee 的 token、refresh token、login_type）
+    clearAuthStorage()
     showToast('已退出登录')
     router.replace('/login')
   }
