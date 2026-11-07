@@ -47,3 +47,6 @@ playwright-report
 # Upload scripts
 upload-cert.exp
 upload-cert.py
+
+# 本地导出验证产物（派单表样例等临时文件）
+exports/

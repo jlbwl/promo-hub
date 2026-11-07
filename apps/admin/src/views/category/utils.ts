@@ -115,18 +115,36 @@ export const createDispatchWorkbook = (products: Product[], categories: ProductC
     return acc
   }, {} as Record<string, typeof mappedProducts>)
 
+  // 版式基线：A4 纵向、一页宽；正文 12pt，避免 22pt 导致整表超出可打印宽度
+  const FONT_NAME = 'Microsoft YaHei'
+  const BODY_SIZE = 12
+  const HEADER_SIZE = 13
+  const TITLE_SIZE = 18
+  const DECLARATION_SIZE = 10
+
   const workbook = new ExcelJS.Workbook()
-  const worksheet = workbook.addWorksheet('派单表')
+  const worksheet = workbook.addWorksheet('派单表', {
+    pageSetup: {
+      paperSize: 9, // A4
+      orientation: 'portrait',
+      fitToPage: true,
+      fitToWidth: 1,
+      fitToHeight: 0,
+      margins: { left: 0.4, right: 0.4, top: 0.5, bottom: 0.5, header: 0.2, footer: 0.2 }
+    }
+  })
 
-  const headers = ['产品分类', '产品名称', '更新备注', '推广费', '产品描述']
+  // 「更新备注」列在产品数据模型中没有来源（Product 无备注字段），已移除
+  const headers = ['产品分类', '产品名称', '推广费(元/单)', '产品描述']
 
-  const declaration = '声明：填写人需承诺所填信息已获授权，不侵犯他人合法权益，您提交的个人信息仅用于本次收集审核，我们承诺会严格保护您的隐私，不得将信息用于审核以外的任何用途,审核完毕也会定时删除清理。提交数据即表示您已充分理解并同意本条款，请自觉履行公民隐私保护义务，共同维护良好网络生态。'
+  const declaration = '声明：填写人需承诺所填信息已获授权，不侵犯他人合法权益；您提交的个人信息仅用于本次收集审核，我们承诺会严格保护您的隐私，不得将信息用于审核以外的任何用途，审核完毕也会定时删除清理。提交数据即表示您已充分理解并同意本条款，请自觉履行公民隐私保护义务，共同维护良好网络生态。'
   const declarationRow = worksheet.addRow([declaration])
-  worksheet.mergeCells(`A1:E1`)
+  worksheet.mergeCells('A1:D1')
   declarationRow.eachCell((cell) => {
     cell.font = {
+      name: FONT_NAME,
       color: { argb: 'FFFF0000' },
-      size: 22
+      size: DECLARATION_SIZE
     }
     cell.alignment = {
       horizontal: 'left',
@@ -134,24 +152,28 @@ export const createDispatchWorkbook = (products: Product[], categories: ProductC
       wrapText: true
     }
   })
-  declarationRow.height = 120
+  declarationRow.height = 46
 
   const nextDay = new Date()
   nextDay.setDate(nextDay.getDate() + 1)
   const nextDayStr = `${nextDay.getFullYear()}-${String(nextDay.getMonth() + 1).padStart(2, '0')}-${String(nextDay.getDate()).padStart(2, '0')}`
-  const titleRow = worksheet.addRow([`金卢比网络 ${nextDayStr} 派单表`])
-  worksheet.mergeCells(`A2:E2`)
+  // 标题明确写出「生效日期」，避免与文件名的导出日期混淆
+  const titleRow = worksheet.addRow([`金卢比网络派单表（${nextDayStr} 生效）`])
+  worksheet.mergeCells('A2:D2')
   titleRow.eachCell((cell) => {
     cell.font = {
+      name: FONT_NAME,
       bold: true,
-      size: 28
+      size: TITLE_SIZE
     }
     cell.alignment = {
       horizontal: 'center',
       vertical: 'middle'
     }
   })
-  titleRow.height = 60
+  titleRow.height = 30
+
+  worksheet.headerFooter.oddFooter = `&L导出时间：${formatTime(new Date().toISOString())}&C第 &P 页 / 共 &N 页&R金卢比网络`
 
   const applyHeaderStyle = (row: ExcelJS.Row) => {
     row.eachCell((cell) => {
@@ -161,13 +183,15 @@ export const createDispatchWorkbook = (products: Product[], categories: ProductC
         fgColor: { argb: 'FFD700' }
       }
       cell.font = {
+        name: FONT_NAME,
         bold: true,
         color: { argb: 'FF000000' },
-        size: 22
+        size: HEADER_SIZE
       }
       cell.alignment = {
         horizontal: 'center',
-        vertical: 'middle'
+        vertical: 'middle',
+        wrapText: true
       }
       cell.border = {
         top: { style: 'thin' },
@@ -178,33 +202,31 @@ export const createDispatchWorkbook = (products: Product[], categories: ProductC
     })
   }
 
-  const rowHeight = 36
+  // 整表只保留一行表头，避免每个分类重复一次（打印时用 printTitlesRow 重复前 3 行）
+  const headerRow = worksheet.addRow(headers)
+  applyHeaderStyle(headerRow)
+  headerRow.height = 24
 
   Object.keys(groupedProducts).forEach((categoryName) => {
-    const categoryHeaderRow = worksheet.addRow(headers)
-    applyHeaderStyle(categoryHeaderRow)
-    categoryHeaderRow.height = rowHeight
+    const groupProducts = groupedProducts[categoryName]
+    const firstRowNumber = worksheet.rowCount + 1
 
-    const productRows: ExcelJS.Row[] = []
-    groupedProducts[categoryName].forEach(product => {
-      const dataRow = worksheet.addRow(['', product.title, '', product.price, product.description])
-      dataRow.height = rowHeight
-      productRows.push(dataRow)
-    })
-
-    if (productRows.length > 0) {
-      productRows[0].getCell(1).value = categoryName
-      worksheet.mergeCells(`A${productRows[0].number}:A${productRows[productRows.length - 1].number}`)
-    }
-
-    productRows.forEach(dataRow => {
-      dataRow.eachCell((cell, colNumber) => {
+    groupProducts.forEach((product, index) => {
+      const dataRow = worksheet.addRow([
+        index === 0 ? categoryName : null,
+        product.title,
+        product.price,
+        product.description
+      ])
+      dataRow.eachCell({ includeEmpty: true }, (cell, colNumber) => {
         cell.font = {
-          size: 22
+          name: FONT_NAME,
+          size: BODY_SIZE
         }
         cell.alignment = {
           vertical: 'middle',
-          horizontal: (colNumber === 1 || colNumber === 4) ? 'center' : 'left'
+          horizontal: colNumber === 3 ? 'right' : colNumber === 1 ? 'center' : 'left',
+          wrapText: colNumber === 2 || colNumber === 4
         }
         cell.border = {
           top: { style: 'thin' },
@@ -212,58 +234,63 @@ export const createDispatchWorkbook = (products: Product[], categories: ProductC
           bottom: { style: 'thin' },
           right: { style: 'thin' }
         }
+        if (colNumber === 3) {
+          cell.numFmt = '¥#,##0'
+        }
       })
     })
+
+    // 仅当分组内多于一条产品时才合并分类列，避免 A10:A10 这类单格合并
+    if (groupProducts.length > 1) {
+      worksheet.mergeCells(`A${firstRowNumber}:A${worksheet.rowCount}`)
+    }
   })
 
-  const maxLengths: number[] = [0, 0, 0, 0, 0]
+  // 列宽按显示宽度计算（中文按 2 个单位），不再按字符数 + 硬封顶 50
+  const displayWidth = (value: string): number =>
+    Array.from(value).reduce((width, ch) => width + (ch.charCodeAt(0) > 127 ? 2 : 1), 0)
+
+  const maxWidths: number[] = [0, 0, 0, 0]
   worksheet.eachRow((row) => {
-    row.eachCell((cell, colNumber) => {
-      const value = cell.value?.toString() || ''
-      const length = value.length
-      if (length > maxLengths[colNumber - 1]) {
-        maxLengths[colNumber - 1] = length
-      }
+    row.eachCell({ includeEmpty: false }, (cell, colNumber) => {
+      if (colNumber > headers.length) return
+      const text = cell.value == null ? '' : String(cell.value)
+      maxWidths[colNumber - 1] = Math.max(maxWidths[colNumber - 1], displayWidth(text))
     })
   })
 
   headers.forEach((header, index) => {
-    const headerLength = header.length
-    if (headerLength > maxLengths[index]) {
-      maxLengths[index] = headerLength
-    }
+    maxWidths[index] = Math.max(maxWidths[index], displayWidth(header))
   })
 
-  const columnWidths = maxLengths.map(len => Math.min(len * 1.5 + 2, 50))
+  const columnLimits: Array<[number, number]> = [[8, 12], [24, 34], [10, 14], [40, 60]]
   worksheet.columns.forEach((col, index) => {
-    if (index === 0 || index === 2 || index === 3) {
-      col.width = 20
-    } else {
-      col.width = columnWidths[index] + 5
-    }
+    const [min, max] = columnLimits[index] || [20, 40]
+    col.width = Math.min(Math.max(maxWidths[index] + 2, min), max)
   })
 
   return workbook
 }
 
-// 将二维码图片追加到派单表末尾：最后一行合并 A-D 列，图片在合并单元格内居中
+// 将二维码追加到派单表末尾：最后一行合并 A-D 列，图片在合并单元格内水平/垂直居中
 // （插入失败仅警告，不中断导出）
 export const appendQrCodeToWorkbook = (workbook: ExcelJS.Workbook, qrCodeDataUrl: string) => {
   const worksheet = workbook.getWorksheet('派单表')
   if (!worksheet || !qrCodeDataUrl) return
 
-  worksheet.addRow(['', '', '', '', ''])
+  const qrCodeRow = worksheet.addRow([null, null, null, null])
 
-  const qrCodeRow = worksheet.addRow([''])
-  qrCodeRow.height = 200
-
-  // 最后一行第 1~4 列合并为独立单元格，专用于展示二维码
-  worksheet.mergeCells(`A${qrCodeRow.number}:D${qrCodeRow.number}`)
-
-  qrCodeRow.eachCell((cell) => {
+  // 先给整行加样式和边框，再合并，保证合并区域四周都有与表体一致的细边框
+  qrCodeRow.eachCell({ includeEmpty: true }, (cell) => {
     cell.alignment = {
       horizontal: 'center',
       vertical: 'middle'
+    }
+    cell.border = {
+      top: { style: 'thin' },
+      left: { style: 'thin' },
+      bottom: { style: 'thin' },
+      right: { style: 'thin' }
     }
   })
 
@@ -286,36 +313,60 @@ export const appendQrCodeToWorkbook = (workbook: ExcelJS.Workbook, qrCodeDataUrl
       naturalHeight = 0
     }
 
-    // 目标宽度 200px，按原始比例换算高度（读不到尺寸时按正方形处理）
-    const imgWidthPx = 200
+    // 目标宽度 240px（原 200px 在打印缩放后偏小），按原始比例换算高度
+    const imgWidthPx = 240
     const imgHeightPx = naturalWidth > 0 && naturalHeight > 0
       ? Math.round(imgWidthPx * naturalHeight / naturalWidth)
       : imgWidthPx
+    const paddingPx = 12
+
+    // 行高 = 图片高 + 上下留白（磅 = 像素 * 0.75），保证图片完整落在最后一行内
+    qrCodeRow.height = (imgHeightPx + paddingPx * 2) * 0.75
+    worksheet.mergeCells(`A${qrCodeRow.number}:D${qrCodeRow.number}`)
 
     // 估算 A-D 合并区域的像素宽度，计算图片居中所需的偏移
-    const colWidthToPx = (width?: number) => (width ? width * 7 + 5 : 64)
+    const colWidthToPx = (width?: number) => (width ? Math.round(width * 7 + 5) : 64)
     const mergedWidthPx = [1, 2, 3, 4].reduce(
       (sum, col) => sum + colWidthToPx(worksheet.getColumn(col).width),
       0
     )
     const offsetXPx = Math.max((mergedWidthPx - imgWidthPx) / 2, 0)
-    const rowHeightPx = 200 * 4 / 3 // 行高单位是磅，换算为像素
-    const offsetYPx = Math.max((rowHeightPx - imgHeightPx) / 2, 0)
     const pxToEmu = (px: number) => Math.round(px * 9525)
 
+    // 注意：ExcelJS 只认 nativeColOff/nativeRowOff，tl.colOff/rowOff 会被静默归零
     worksheet.addImage(qrCodeImage, {
       tl: {
-        col: 0,
-        row: qrCodeRow.number - 1,
-        colOff: pxToEmu(offsetXPx),
-        rowOff: pxToEmu(offsetYPx)
+        nativeCol: 0,
+        nativeRow: qrCodeRow.number - 1,
+        nativeColOff: pxToEmu(offsetXPx),
+        nativeRowOff: pxToEmu(paddingPx)
       },
       ext: { width: imgWidthPx, height: imgHeightPx }
-    } as Parameters<ExcelJS.Worksheet['addImage']>[1])
+    } as unknown as Parameters<ExcelJS.Worksheet['addImage']>[1]) // 类型声明未覆盖 native 偏移，运行时支持
   } catch (error) {
     logger.error('Failed to add QR code to Excel:', error)
     ElMessage.warning('二维码插入失败')
   }
+
+  // 二维码说明行（含用途与导出时间），避免渠道方拿到图后不知道用途/版本
+  const captionRow = worksheet.addRow([`扫码开户 · 导出时间：${formatTime(new Date().toISOString())}`])
+  captionRow.height = 18
+  worksheet.mergeCells(`A${captionRow.number}:D${captionRow.number}`)
+  captionRow.eachCell((cell) => {
+    cell.font = {
+      name: 'Microsoft YaHei',
+      size: 9,
+      color: { argb: 'FF808080' }
+    }
+    cell.alignment = {
+      horizontal: 'center',
+      vertical: 'middle'
+    }
+  })
+
+  // 打印区域覆盖到最后的说明行；第 2-3 行（标题/表头）作为重复表头，不重复声明行
+  worksheet.pageSetup.printArea = `A1:D${captionRow.number}`
+  worksheet.pageSetup.printTitlesRow = '2:3'
 }
 
 // 生成 xlsx 并触发浏览器下载
