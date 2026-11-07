@@ -17,8 +17,20 @@
                 value=""
               />
               <el-option
+                label="创建"
+                value="create"
+              />
+              <el-option
+                label="更新"
+                value="update"
+              />
+              <el-option
                 label="删除"
                 value="delete"
+              />
+              <el-option
+                label="下架"
+                value="offline"
               />
             </el-select>
           </el-form-item>
@@ -34,6 +46,22 @@
               <el-option
                 label="订单"
                 value="order"
+              />
+              <el-option
+                label="产品"
+                value="product"
+              />
+              <el-option
+                label="用户"
+                value="user"
+              />
+              <el-option
+                label="渠道经理"
+                value="manager"
+              />
+              <el-option
+                label="分类"
+                value="category"
               />
             </el-select>
           </el-form-item>
@@ -91,8 +119,13 @@
             >
               删除
             </el-tag>
-            <span v-else-if="row.operationType === 'offline'">下架</span>
-            <span v-else>{{ row.operationType }}</span>
+            <el-tag
+              v-else-if="row.operationType === 'offline'"
+              type="warning"
+            >
+              下架
+            </el-tag>
+            <span v-else>{{ operationTypeLabels[row.operationType] || row.operationType }}</span>
           </template>
         </el-table-column>
         <el-table-column
@@ -101,9 +134,7 @@
           width="100"
         >
           <template #default="{ row }">
-            <span v-if="row.targetType === 'order'">订单</span>
-            <span v-else-if="row.targetType === 'product'">产品</span>
-            <span v-else>{{ row.targetType }}</span>
+            <span>{{ targetTypeLabels[row.targetType] || row.targetType }}</span>
           </template>
         </el-table-column>
         <el-table-column
@@ -168,11 +199,11 @@
         </div>
         <div class="detail-row">
           <span class="detail-label">操作类型：</span>
-          <span class="detail-value">{{ currentLog.operationType === 'delete' ? '删除' : currentLog.operationType === 'offline' ? '下架' : currentLog.operationType }}</span>
+          <span class="detail-value">{{ operationTypeLabels[currentLog.operationType] || currentLog.operationType }}</span>
         </div>
         <div class="detail-row">
           <span class="detail-label">目标类型：</span>
-          <span class="detail-value">{{ currentLog.targetType === 'order' ? '订单' : currentLog.targetType === 'product' ? '产品' : currentLog.targetType }}</span>
+          <span class="detail-value">{{ targetTypeLabels[currentLog.targetType] || currentLog.targetType }}</span>
         </div>
         <div class="detail-row">
           <span class="detail-label">目标ID：</span>
@@ -187,7 +218,7 @@
           <span class="detail-value">{{ currentLog.reason || '-' }}</span>
         </div>
         <div class="detail-row">
-          <span class="detail-label">删除数据详情：</span>
+          <span class="detail-label">详细信息：</span>
           <pre class="detail-json">{{ formatDetail(currentLog.detail) }}</pre>
         </div>
       </div>
@@ -221,6 +252,21 @@ interface OperationLogRow {
   targetName: string
   reason?: string
   detail?: string
+}
+
+// 操作类型与目标类型展示文案
+const operationTypeLabels: Record<string, string> = {
+  create: '创建',
+  update: '更新',
+  delete: '删除',
+  offline: '下架',
+}
+const targetTypeLabels: Record<string, string> = {
+  order: '订单',
+  product: '产品',
+  user: '用户',
+  manager: '渠道经理',
+  category: '分类',
 }
 
 const fetchLogs = async () => {

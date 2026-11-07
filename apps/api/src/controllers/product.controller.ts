@@ -40,7 +40,8 @@ export const getProducts = async (req: Request, res: Response): Promise<void> =>
       status: status as string,
       managerId,
       keyword: keyword as string,
-      adminMode: String(adminMode).toLowerCase() === 'true',
+      // 仅管理员可开启管理视图，避免普通用户/经理通过 query 参数绕过可见性限制
+      adminMode: user?.role === 'admin' && String(adminMode).toLowerCase() === 'true',
     })
 
     sendPagination(res, list, total, parseInt(page as string, 10), parseInt(pageSize as string, 10))

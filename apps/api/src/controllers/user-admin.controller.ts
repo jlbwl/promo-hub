@@ -8,11 +8,11 @@ import {
   updateUser,
   readManagers,
   updateManager,
-  query,
   withTransaction,
   type UserRecord,
 } from '../data/index.js'
 import { verifySmsCode } from '../utils/sms.js'
+import { logAdminOperation } from '../utils/auditLog.js'
 
 // ============================================
 // 管理后台用户管理
@@ -118,13 +118,21 @@ export const deleteUser = asyncHandler(
     // 检查用户是否存在
     const userId = req.params.id as string
     const users = await readUsers()
-    const exists = users.some((u: UserRecord) => u.id === userId)
-    if (!exists) {
+    const targetUser = users.find((u: UserRecord) => u.id === userId)
+    if (!targetUser) {
       throw new AppError('用户不存在', ErrorCode.USER_NOT_FOUND, HttpStatus.NOT_FOUND)
     }
 
     // 执行删除
     await deleteUserById(userId)
+    await logAdminOperation(req, {
+      operationType: 'delete',
+      targetType: 'user',
+      targetId: userId,
+      targetName: targetUser.nickname || targetUser.phone || userId,
+      reason: '管理员删除用户',
+      detail: '已级联清理该用户的订单、佣金与购物车数据',
+    })
 
     logger.info('User deleted', { userId, deletedBy: adminInfo.phone })
     sendSuccess(res, null, '删除成功')
@@ -132,8 +140,13 @@ export const deleteUser = asyncHandler(
 )
 
 async function deleteUserById(userId: string): Promise<void> {
-  // 直接从数据库删除用户
-  await query('DELETE FROM users WHERE id = ?', [userId])
+  // 事务内级联清理，避免删除用户后留下孤儿订单/佣金/购物车数据
+  await withTransaction(async (conn) => {
+    await conn.execute('DELETE FROM commissions WHERE userId = ?', [userId])
+    await conn.execute('DELETE FROM orders WHERE userId = ?', [userId])
+    await conn.execute('DELETE FROM cart WHERE userId = ?', [userId])
+    await conn.execute('DELETE FROM users WHERE id = ?', [userId])
+  })
 }
 
 /**
@@ -164,6 +177,13 @@ export const updateUserStatus = asyncHandler(
         await updateManager(userId, { status: 'active' })
       }
       logger.info('Manager status updated', { managerId: userId, status })
+      await logAdminOperation(req, {
+        operationType: 'update',
+        targetType: 'manager',
+        targetId: userId,
+        targetName: managers[mgrIdx].name || managers[mgrIdx].teamName || userId,
+        detail: `状态更新为${status ? '启用' : '禁用'}${!status ? '，并下架其已上架产品' : ''}`,
+      })
       return sendSuccess(res, null, '更新成功')
     }
 
@@ -173,6 +193,13 @@ export const updateUserStatus = asyncHandler(
       // 定点更新，避免全量读改写
       await updateUser(userId, { status: status ? 'active' : 'disabled' })
       logger.info('User status updated', { userId, status })
+      await logAdminOperation(req, {
+        operationType: 'update',
+        targetType: 'user',
+        targetId: userId,
+        targetName: users[usrIdx].nickname || users[usrIdx].phone || userId,
+        detail: `状态更新为${status ? '启用' : '禁用'}`,
+      })
       return sendSuccess(res, null, '更新成功')
     }
 
@@ -199,6 +226,13 @@ export const updateUserRole = asyncHandler(
     if (mgrIdx !== -1) {
       await updateManager(userId, { role })
       logger.info('Manager role updated', { managerId: userId, role })
+      await logAdminOperation(req, {
+        operationType: 'update',
+        targetType: 'manager',
+        targetId: userId,
+        targetName: managers[mgrIdx].name || managers[mgrIdx].teamName || userId,
+        detail: `角色更新为 ${role}`,
+      })
       return sendSuccess(res, null, '更新成功')
     }
 
@@ -208,6 +242,13 @@ export const updateUserRole = asyncHandler(
       // 定点更新，避免全量读改写
       await updateUser(userId, { role })
       logger.info('User role updated', { userId, role })
+      await logAdminOperation(req, {
+        operationType: 'update',
+        targetType: 'user',
+        targetId: userId,
+        targetName: users[usrIdx].nickname || users[usrIdx].phone || userId,
+        detail: `角色更新为 ${role}`,
+      })
       return sendSuccess(res, null, '更新成功')
     }
 
@@ -236,6 +277,13 @@ export const updateUserTeamName = asyncHandler(
     if (usrIdx === -1 && mgrIdx === -1) {
       throw new AppError('用户不存在', ErrorCode.USER_NOT_FOUND, HttpStatus.NOT_FOUND)
     }
+
+    const oldTeamName = usrIdx !== -1
+      ? users[usrIdx].teamName || ''
+      : managers[mgrIdx].teamName || ''
+    const targetName = usrIdx !== -1
+      ? users[usrIdx].nickname || users[usrIdx].phone
+      : managers[mgrIdx].name || managers[mgrIdx].teamName
 
     // 检查团队名称是否重复
     const isDuplicate =
@@ -268,6 +316,13 @@ export const updateUserTeamName = asyncHandler(
     })
 
     logger.info('User team name updated', { userId, teamName })
+    await logAdminOperation(req, {
+      operationType: 'update',
+      targetType: usrIdx !== -1 ? 'user' : 'manager',
+      targetId: userId,
+      targetName: targetName || userId,
+      detail: `团队名称：${oldTeamName || '-'} → ${teamName}`,
+    })
     sendSuccess(res, null, '更新成功')
   }
 )

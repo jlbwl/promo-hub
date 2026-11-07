@@ -283,12 +283,8 @@ export const getAdminStats = async (_req: Request, res: Response): Promise<void>
     })
   } catch (error) {
     logger.error('[管理员统计] 错误:', { error: getErrorMessage(error) })
-    sendSuccess(res, {
-      managerCount: 0,
-      userCount: 0,
-      publishedProductCount: 0,
-      totalCommission: 0,
-    })
+    // 统计失败必须显式返回错误，避免前端把 0 误认为真实业务数据
+    sendError(res, '获取统计数据失败，请稍后重试', 500)
   }
 }
 

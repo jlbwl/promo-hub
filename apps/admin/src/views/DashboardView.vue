@@ -326,6 +326,7 @@ const fetchStats = async () => {
     }
   } catch (error) {
     logger.error('获取统计数据失败:', error)
+    ElMessage.error(getErrorMessage(error, '获取统计数据失败，请稍后重试'))
   }
 }
 

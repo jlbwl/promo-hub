@@ -2,6 +2,7 @@ import { Request, Response } from 'express'
 import { CategoryService, type Category } from '../services/CategoryService.js'
 import { sendSuccess, sendError } from '../utils/response.js'
 import * as dataMemory from '../data-memory.js'
+import { logAdminOperation } from '../utils/auditLog.js'
 import logger from '../utils/logger.js'
 
 const categoryService = new CategoryService()
@@ -97,6 +98,14 @@ export async function updateCategory(req: Request, res: Response) {
 export async function archiveCategory(req: Request, res: Response) {
   const id = req.params.id as string
   let successResult = false
+  let categoryName = ''
+
+  try {
+    const category = await categoryService.getCategoryById(id)
+    categoryName = category?.name || ''
+  } catch {
+    // 读取分类名失败不影响归档流程
+  }
 
   try {
     successResult = await categoryService.archiveCategory(id)
@@ -115,6 +124,15 @@ export async function archiveCategory(req: Request, res: Response) {
   if (!successResult) {
     return sendError(res, '分类不存在', 404, 404)
   }
+
+  await logAdminOperation(req, {
+    operationType: 'delete',
+    targetType: 'category',
+    targetId: id,
+    targetName: categoryName || id,
+    reason: '管理员归档分类',
+    detail: '分类已归档（软删除）'
+  })
 
   sendSuccess(res, null, '归档成功')
 }

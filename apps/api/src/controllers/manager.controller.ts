@@ -17,6 +17,7 @@ import {
 import { login as sessionLogin, generateTokens } from '../middleware/auth.js'
 import { sendSmsCode } from '../utils/sms.js'
 import { generateSmsCode, saveSmsCode, verifySmsCode, deleteSmsCode } from '../utils/sms.js'
+import { logAdminOperation } from '../utils/auditLog.js'
 import logger from '../utils/logger.js'
 import { hashPassword, verifyPassword } from '../utils/password.js'
 
@@ -163,6 +164,15 @@ export const deleteManagerWithCascade = async (req: Request, res: Response): Pro
     return { offlineCount, transferredOrders }
   })
   
+  await logAdminOperation(req, {
+    operationType: 'delete',
+    targetType: 'manager',
+    targetId: managerId,
+    targetName: managerName || managerId,
+    reason: '管理员删除渠道经理',
+    detail: '已删除经理账号、下架其产品并转移相关订单'
+  })
+
   sendSuccess(res, null, `删除成功，已下架 ${(manager as { productCount?: number }).productCount || 0} 个产品，转移订单至管理后台`)
 }
 
@@ -208,6 +218,13 @@ export const updateManagerById = async (req: Request, res: Response): Promise<vo
   }
 
   const { password: _, ...safeManager } = updatedManager
+  await logAdminOperation(req, {
+    operationType: 'update',
+    targetType: 'manager',
+    targetId: updatedManager.id,
+    targetName: updatedManager.name || updatedManager.teamName || updatedManager.id,
+    detail: `状态更新为${newStatus === 'active' ? '启用' : '禁用'}`
+  })
   sendSuccess(res, safeManager, '更新成功')
 }
 
@@ -262,6 +279,13 @@ export const updateManagerTeamName = async (req: Request, res: Response): Promis
     // 返回更新后的经理信息
     const { password: _, ...safeManager } = managers[managerIndex]
     logger.info('[updateManagerTeamName] Update successful', { managerId, finalTeamName, updatedUsers: usersToUpdate.length })
+    await logAdminOperation(req, {
+      operationType: 'update',
+      targetType: 'manager',
+      targetId: managerId,
+      targetName: safeManager.name || finalTeamName,
+      detail: `团队名称：${oldTeamName || '-'} → ${finalTeamName}`
+    })
     sendSuccess(res, safeManager, '更新成功')
   } catch (error) {
     logger.error('[updateManagerTeamName] Failed to update team name', { error: getErrorMessage(error) })
