@@ -17,7 +17,8 @@ const router: Router = Router()
 // 管理员登录接口
 router.post('/admin/login', loginLimiter, adminLogin)
 router.post('/admin/sms/send', smsLimiter, sendAdminSmsCode)
-router.post('/admin/sms/login', adminSmsLogin)
+// 短信登录同样需要限流，防止 6 位验证码被暴力尝试
+router.post('/admin/sms/login', loginLimiter, adminSmsLogin)
 router.post('/admin/change-password', requireAdmin, adminChangePassword)
 router.post('/admin/password/update', requireAdmin, adminPasswordUpdate)
 router.get('/admin/stats', requireAdmin, getAdminStats)

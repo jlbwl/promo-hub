@@ -6,39 +6,49 @@ import type { ApiResponse, RefreshTokenResult } from '../types/index.js'
 
 const BASE_URL = import.meta.env?.VITE_API_BASE_URL || '/api'
 
-// 按角色优先级读取 refresh token（与登录时各端存储的 key 对应）
+// 当前应用作用域：三端同域部署（/admin、/manager、/user）
+// 必须只读取本端登录态，否则管理端的 admin_token 会被用户端/经理端复用造成越权
+function getAuthScope(): 'admin' | 'manager' | 'user' {
+  if (typeof window === 'undefined') return 'user'
+  const path = window.location.pathname
+  if (path.startsWith('/admin')) return 'admin'
+  if (path.startsWith('/manager')) return 'manager'
+  return 'user'
+}
+
+// 按应用作用域读取 refresh token（根路径视为用户端）
 function readRefreshToken(): string | null {
-  return (
-    localStorage.getItem('admin_refresh_token') ||
-    localStorage.getItem('manager_refresh_token') ||
-    localStorage.getItem('user_refresh_token') ||
-    localStorage.getItem('employee_refresh_token') ||
-    localStorage.getItem('refresh_token')
-  )
+  const scope = getAuthScope()
+  if (scope === 'admin') return localStorage.getItem('admin_refresh_token')
+  if (scope === 'manager') return localStorage.getItem('manager_refresh_token')
+  return localStorage.getItem('employee_refresh_token') || localStorage.getItem('user_refresh_token')
 }
 
-// 按角色优先级确定 token 存储 key
+// 按应用作用域确定 token 存储 key
 function readTokenKey(): string {
-  return (
-    localStorage.getItem('admin_token') ? 'admin_token' :
-    localStorage.getItem('manager_token') ? 'manager_token' :
-    localStorage.getItem('user_token') ? 'user_token' :
-    localStorage.getItem('employee_token') ? 'employee_token' : 'token'
-  )
+  const scope = getAuthScope()
+  if (scope === 'admin') return 'admin_token'
+  if (scope === 'manager') return 'manager_token'
+  return localStorage.getItem('employee_token') ? 'employee_token' : 'user_token'
 }
 
-// 所有角色的 token / refresh token / 身份信息 / 登录类型 存储 key
-// 必须与 token 一起原子化清除：否则登出后 user_info 残留，
-// getUserId() 仍返回非空 id，页面会带着已失效身份反复请求并触发 401 重载循环
-const AUTH_STORAGE_KEYS = [
-  'token', 'manager_token', 'admin_token', 'user_token', 'employee_token',
-  'refresh_token', 'admin_refresh_token', 'manager_refresh_token',
-  'user_refresh_token', 'employee_refresh_token',
-  'user_info', 'manager_info', 'admin_info', 'employee_info', 'login_type',
-]
+// 各端登录态 key：只清理当前应用，避免一端 401/登出误清其他端会话
+// 同时清理历史遗留的通用 key（token/refresh_token）
+const SCOPE_STORAGE_KEYS: Record<'admin' | 'manager' | 'user', string[]> = {
+  admin: ['admin_token', 'admin_refresh_token', 'admin_info', 'token', 'refresh_token'],
+  manager: ['manager_token', 'manager_refresh_token', 'manager_info', 'token', 'refresh_token'],
+  user: [
+    'user_token', 'user_refresh_token', 'user_info',
+    'employee_token', 'employee_refresh_token', 'employee_info',
+    'login_type', 'token', 'refresh_token',
+  ],
+}
 
-function clearAllTokens(): void {
-  AUTH_STORAGE_KEYS.forEach((key) => localStorage.removeItem(key))
+/**
+ * 清除当前应用的登录态（不误伤同域其他端）
+ */
+export function clearAuthStorage(): void {
+  SCOPE_STORAGE_KEYS[getAuthScope()].forEach((key) => localStorage.removeItem(key))
 }
 
 /**
@@ -113,7 +123,7 @@ function createRequest(): AxiosInstance {
     const canRefresh = !!readRefreshToken() && !isAuthEndpoint(config?.url) && !(config as { _retryAuth?: boolean })?._retryAuth
 
     if (!canRefresh) {
-      clearAllTokens()
+      clearAuthStorage()
       window.location.reload()
       return Promise.reject(new Error('未登录或会话已过期'))
     }
@@ -127,7 +137,7 @@ function createRequest(): AxiosInstance {
         ;(config as AxiosRequestConfig & { _retryAuth?: boolean })._retryAuth = true
         return instance(config)
       }).catch((error: Error) => {
-        clearAllTokens()
+        clearAuthStorage()
         window.location.reload()
         return Promise.reject(error)
       })
@@ -142,7 +152,7 @@ function createRequest(): AxiosInstance {
       return instance(config)
     }).catch((error: Error) => {
       processQueue('', error)
-      clearAllTokens()
+      clearAuthStorage()
       window.location.reload()
       return Promise.reject(error)
     }).finally(() => {

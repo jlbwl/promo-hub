@@ -182,12 +182,6 @@ export function useUserList() {
 
     // 从 localStorage 获取管理员信息
     const adminInfo = JSON.parse(localStorage.getItem('admin_info') || '{}')
-    const token = localStorage.getItem('token')
-    logger.debug('[调试] 准备发送短信验证码:', {
-      adminInfo,
-      token: token ? '已获取' : '未获取',
-      phone: adminInfo.phone
-    })
 
     if (!adminInfo.phone) {
       ElMessage.error('未获取到管理员手机号，请重新登录')

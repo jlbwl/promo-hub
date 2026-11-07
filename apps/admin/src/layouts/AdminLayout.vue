@@ -98,6 +98,7 @@ import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Odometer, User, UserFilled, Setting, Wallet, Files, Grid } from '@element-plus/icons-vue'
 import { ElMessageBox } from 'element-plus'
+import { post, clearAuthStorage } from '@promo/shared/utils/request'
 import IcpFooter from '../components/IcpFooter.vue'
 
 const route = useRoute()
@@ -136,11 +137,20 @@ const handleLogout = async () => {
       cancelButtonText: '取消',
       type: 'warning'
     })
-    localStorage.removeItem('admin_token')
-    router.push('/login')
   } catch {
     // 用户取消退出
+    return
   }
+
+  // 先吊销服务端 refresh token，再清理本端登录态
+  const refreshToken = localStorage.getItem('admin_refresh_token')
+  try {
+    await post('/auth/logout', refreshToken ? { refreshToken } : {})
+  } catch {
+    // 服务端吊销失败不阻塞本地退出
+  }
+  clearAuthStorage()
+  router.push('/login')
 }
 
 onMounted(() => {

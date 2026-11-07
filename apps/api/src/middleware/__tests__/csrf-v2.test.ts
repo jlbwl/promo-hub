@@ -90,6 +90,23 @@ describe('CSRF v2 Middleware', () => {
       })
     })
 
+    it('should bypass login paths without /api prefix (nginx strips it)', () => {
+      const bypassPaths = [
+        '/admin/login',
+        '/admin/sms/login',
+        '/managers/sms/login',
+        '/users/login',
+        '/auth/refresh',
+      ]
+
+      bypassPaths.forEach(path => {
+        req.path = path
+        next.mockClear()
+        csrfVerify(req as Request, res as Response, next)
+        expect(next).toHaveBeenCalled()
+      })
+    })
+
     it('should return 403 when request token is missing', () => {
       req.body = {}
       req.headers = {}

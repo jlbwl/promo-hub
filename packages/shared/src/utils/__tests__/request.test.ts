@@ -200,16 +200,19 @@ describe('request module', () => {
         config: { headers: {}, url: '/orders' },
       }
 
-      // 无 refresh token 可用：清除登录态并刷新页面
+      // 无 refresh token 可用：清除当前应用登录态并刷新页面
       await expect(responseSuccessInterceptor(mockResponse)).rejects.toThrow('未登录或会话已过期')
       expect(localStorage.removeItem).toHaveBeenCalledWith('token')
-      expect(localStorage.removeItem).toHaveBeenCalledWith('manager_token')
-      expect(localStorage.removeItem).toHaveBeenCalledWith('admin_token')
+      expect(localStorage.removeItem).toHaveBeenCalledWith('refresh_token')
+      // 登录态按应用隔离：只清理当前应用（测试环境按用户端处理），
+      // 不得误清 admin/manager 端，否则同域多端会被一端 401 连带登出
+      expect(localStorage.removeItem).toHaveBeenCalledWith('user_token')
+      expect(localStorage.removeItem).toHaveBeenCalledWith('user_refresh_token')
+      expect(localStorage.removeItem).not.toHaveBeenCalledWith('manager_token')
+      expect(localStorage.removeItem).not.toHaveBeenCalledWith('admin_token')
       // 登出必须原子化：身份信息与登录类型随 token 一起清除，
       // 否则 user_info 残留导致 getUserId() 非空，页面带失效身份反复请求触发 401 重载循环
       expect(localStorage.removeItem).toHaveBeenCalledWith('user_info')
-      expect(localStorage.removeItem).toHaveBeenCalledWith('manager_info')
-      expect(localStorage.removeItem).toHaveBeenCalledWith('admin_info')
       expect(localStorage.removeItem).toHaveBeenCalledWith('employee_info')
       expect(localStorage.removeItem).toHaveBeenCalledWith('login_type')
       expect(window.location.reload).toHaveBeenCalled()
@@ -230,7 +233,7 @@ describe('request module', () => {
 
     it('should refresh token and replay request when refresh token exists on 401', async () => {
       vi.mocked(localStorage.getItem).mockImplementation((key: string) =>
-        key === 'refresh_token' ? 'valid-refresh' : key === 'token' ? 'old-token' : null
+        key === 'user_refresh_token' ? 'valid-refresh' : key === 'user_token' ? 'old-token' : null
       )
       // refreshTokens 内部使用裸 axios.post 调用刷新端点
       axiosPostMock.mockResolvedValue({
@@ -263,7 +266,7 @@ describe('request module', () => {
 
     it('should refresh and replay when HTTP 401 with refresh token', async () => {
       vi.mocked(localStorage.getItem).mockImplementation((key: string) =>
-        key === 'refresh_token' ? 'valid-refresh' : 'old-token'
+        key === 'user_refresh_token' ? 'valid-refresh' : 'old-token'
       )
       axiosPostMock.mockResolvedValue({
         data: { code: 0, data: { token: 'new-token', refreshToken: 'new-refresh' } },
@@ -289,7 +292,7 @@ describe('request module', () => {
 
     it('should clear tokens when replayed request fails after refresh', async () => {
       vi.mocked(localStorage.getItem).mockImplementation((key: string) =>
-        key === 'refresh_token' ? 'valid-refresh' : 'old-token'
+        key === 'user_refresh_token' ? 'valid-refresh' : 'old-token'
       )
       axiosPostMock.mockResolvedValue({
         data: { code: 0, data: { token: 'new-token' } },

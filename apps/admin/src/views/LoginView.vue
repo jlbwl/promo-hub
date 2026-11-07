@@ -175,7 +175,7 @@ const handlePasswordLogin = async () => {
       })
 
       if (res.data && res.data.token) {
-        localStorage.setItem('token', res.data.token)
+        // 仅写入管理端专属 key，避免同域其他端复用 admin token
         localStorage.setItem('admin_token', res.data.token)
         localStorage.setItem('admin_info', JSON.stringify(res.data.admin))
         if (res.data.refreshToken) {
@@ -227,7 +227,7 @@ const handleSmsLogin = async () => {
       })
 
       if (res.data && res.data.token) {
-        localStorage.setItem('token', res.data.token)
+        // 仅写入管理端专属 key，避免同域其他端复用 admin token
         localStorage.setItem('admin_token', res.data.token)
         localStorage.setItem('admin_info', JSON.stringify(res.data.admin))
         if (res.data.refreshToken) {

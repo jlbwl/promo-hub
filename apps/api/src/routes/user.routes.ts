@@ -58,8 +58,8 @@ router.post('/users/refresh', async (req, res) => {
   }
 })
 
-// 管理后台用户管理
-router.get('/users', requireAuth, getUsers)
+// 管理后台用户管理（全量用户列表含手机号，仅管理员可访问）
+router.get('/users', requireAdmin, getUsers)
 
 // 获取单个用户 - 使用资源级权限验证
 router.get(

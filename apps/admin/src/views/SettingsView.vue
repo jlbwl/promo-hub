@@ -87,10 +87,12 @@
 
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage, type FormInstance, type FormItemRule, type FormRules } from 'element-plus'
-import { post } from '@promo/shared/utils/request'
+import { post, clearAuthStorage } from '@promo/shared/utils/request'
 import { getErrorMessage } from '@promo/shared/utils/errors'
 
+const router = useRouter()
 const securityFormRef = ref<FormInstance>()
 const securitySaving = ref(false)
 
@@ -171,10 +173,16 @@ const handleSecuritySave = async () => {
       })
       ElMessage.success('密码修改成功，请重新登录')
       handleSecurityReset()
+      const refreshToken = localStorage.getItem('admin_refresh_token')
+      try {
+        await post('/auth/logout', refreshToken ? { refreshToken } : {})
+      } catch {
+        // 吊销失败不阻塞退出
+      }
+      clearAuthStorage()
       setTimeout(() => {
-        localStorage.removeItem('admin_token')
-        localStorage.removeItem('admin_info')
-        window.location.href = '/login'
+        // 路由 base 为 /admin/，必须走 router 跳转，不能硬编码 /login
+        router.push('/login')
       }, 1500)
     } catch (error) {
       ElMessage.error(getErrorMessage(error, '修改失败'))

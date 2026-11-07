@@ -57,48 +57,53 @@ export function csrfVerify(req: Request, res: Response, next: NextFunction) {
 
   // 允许绕过 CSRF 的关键接口（仅精确匹配）
   // 仅包含：未登录态可访问的接口 + token 刷新/登出接口（登录态可能已过期）
+  // 注意：nginx/vite 代理会剥掉 /api 前缀，req.path 实际为 /admin/login 等，
+  // 因此列表不写 /api 前缀，匹配前统一归一化
   const bypassPaths = [
     // 管理员登录和短信验证码
-    '/api/admin/login',
-    '/api/admin/sms/send',
-    '/api/admin/sms/login',
+    '/admin/login',
+    '/admin/sms/send',
+    '/admin/sms/login',
 
     // 经理登录和短信验证码
-    '/api/manager/login',
-    '/api/manager/sms/send',
-    '/api/manager/sms/login',
-    '/api/managers/login',
-    '/api/managers/sms/send',
-    '/api/managers/sms/login',
+    '/manager/login',
+    '/manager/sms/send',
+    '/manager/sms/login',
+    '/managers/login',
+    '/managers/sms/send',
+    '/managers/sms/login',
 
     // 用户注册、登录和短信验证码
-    '/api/user/login',
-    '/api/user/sms/send',
-    '/api/user/sms/login',
-    '/api/user/register',
-    '/api/users/login',
-    '/api/users/sms/send',
-    '/api/users/sms/login',
-    '/api/users/register',
+    '/user/login',
+    '/user/sms/send',
+    '/user/sms/login',
+    '/user/register',
+    '/users/login',
+    '/users/sms/send',
+    '/users/sms/login',
+    '/users/register',
 
     // 员工登录
-    '/api/employees/login',
+    '/employees/login',
 
     // Token 刷新和登出（登录态可能已过期，无法通过 CSRF 验证）
-    '/api/auth/refresh',
-    '/api/auth/logout',
-    '/api/users/refresh',
-    '/api/users/logout',
+    '/auth/refresh',
+    '/auth/logout',
+    '/users/refresh',
+    '/users/logout',
 
     // 密码重置（通过短信验证码，无需登录态）
-    '/api/managers/password/set',
-    '/api/users/password/set',
+    '/managers/password/set',
+    '/users/password/set',
 
     // CSRF token 接口本身
-    '/api/csrf-token'
+    '/csrf-token'
   ]
 
-  if (bypassPaths.some(path => req.path === path)) {
+  // 兼容带 /api 前缀与不带前缀两种请求形态
+  const normalizedPath = req.path.replace(/^\/api(?=\/)/, '')
+
+  if (bypassPaths.some(path => normalizedPath === path)) {
     logger.info('[CSRF] Bypassing CSRF for safe path', {
       path: req.path,
       method: req.method

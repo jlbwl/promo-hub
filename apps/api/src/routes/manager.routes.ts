@@ -20,7 +20,17 @@ const router: Router = Router()
 
 // 经理信息管理
 router.get('/managers', requireAdmin, getManagers)
-router.get('/managers/:id', getManagerById)
+// 经理详情：仅本人或管理员可查看（原公开接口会泄露手机号等敏感信息）
+router.get(
+  '/managers/:id',
+  requireAuth,
+  resourcePermission({
+    resourceType: 'manager',
+    action: 'read',
+    adminOverride: true
+  }),
+  getManagerById
+)
 router.post('/managers', requireAdmin, createManager)
 router.delete('/managers/:id', requireAdmin, deleteManagerWithCascade)
 router.put('/managers/:id', requireAdmin, updateManagerById)
