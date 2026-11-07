@@ -144,9 +144,8 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { ElMessage } from 'element-plus'
-import { get } from '@promo/shared/utils/request'
-import { maskPhone, formatTime, statusTagType, statusText, getManagerId } from '../utils'
-import type { Order, PaginatedResponse } from '@promo/shared/types'
+import { maskPhone, formatTime, statusTagType, statusText, getManagerId, fetchAllOrders } from '../utils'
+import type { Order } from '@promo/shared/types'
 
 const statDialogVisible = ref(false)
 const statDialogTitle = ref('')
@@ -162,18 +161,11 @@ const open = async (status: string, title: string) => {
   statDialogVisible.value = true
 
   try {
-    const params: {
-      managerId?: string
-      pageSize: number
-      status?: string
-    } = {
+    // 分页拉取全部订单，避免后端单页上限导致明细与合计失真
+    statDialogOrders.value = await fetchAllOrders({
       managerId: getManagerId() || undefined,
-      pageSize: 999,
-    }
-    if (status !== 'all') params.status = status
-
-    const res = await get<PaginatedResponse<Order>>('/orders', params)
-    statDialogOrders.value = res.data?.list || []
+      ...(status !== 'all' ? { status } : {}),
+    })
   } catch (error) {
     ElMessage.error('获取数据失败')
     statDialogVisible.value = false

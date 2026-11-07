@@ -205,9 +205,9 @@ import { getErrorMessage } from '@promo/shared/utils/errors'
 import { ref, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { SuccessFilled } from '@element-plus/icons-vue'
-import { get, put } from '@promo/shared/utils/request'
-import { maskPhone, formatTime, getManagerId } from '../utils'
-import type { Order, PaginatedResponse } from '@promo/shared/types'
+import { put } from '@promo/shared/utils/request'
+import { maskPhone, formatTime, getManagerId, fetchAllOrders } from '../utils'
+import type { Order } from '@promo/shared/types'
 
 const emit = defineEmits<{
   success: []
@@ -239,14 +239,12 @@ const open = async () => {
   selectedPaymentMethod.value = ''
   paymentDialogVisible.value = true
 
-  // 加载待付款订单
+  // 加载全部待付款订单（分页拉取，避免后端单页上限导致漏结算）
   try {
-    const res = await get<PaginatedResponse<Order>>('/orders', {
+    paymentOrders.value = await fetchAllOrders({
       managerId: getManagerId() || undefined,
       status: 'pending_payment',
-      pageSize: 999,
     })
-    paymentOrders.value = res.data?.list || []
   } catch (error) {
     ElMessage.error('获取待付款列表失败')
     paymentDialogVisible.value = false

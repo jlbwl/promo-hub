@@ -1,11 +1,19 @@
 /**
  * commission/utils 单元测试：订单状态映射、脱敏与时间格式化（shared 再导出）、经理身份读取
  */
-import { beforeEach, describe, expect, it } from 'vitest'
-import { formatTime, getManagerId, maskName, maskPhone, statusTagType, statusText } from '../utils'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import type { Order } from '@promo/shared/types'
+
+vi.mock('@promo/shared/utils/request', () => ({
+  get: vi.fn(),
+}))
+
+import { get } from '@promo/shared/utils/request'
+import { fetchAllOrders, formatTime, getManagerId, maskName, maskPhone, statusTagType, statusText } from '../utils'
 
 beforeEach(() => {
   localStorage.clear()
+  vi.resetAllMocks()
 })
 
 describe('statusTagType / statusText', () => {
@@ -59,5 +67,46 @@ describe('getManagerId', () => {
     expect(getManagerId()).toBe('')
     localStorage.setItem('manager_info', JSON.stringify({ name: '经理' }))
     expect(getManagerId()).toBe('')
+  })
+})
+
+describe('fetchAllOrders', () => {
+  it('按后端单页上限翻页拉取全部订单', async () => {
+    const firstPage = Array.from({ length: 100 }, (_, i) => ({ id: `o${i}` }) as Order)
+    const secondPage = Array.from({ length: 50 }, (_, i) => ({ id: `o${100 + i}` }) as Order)
+
+    vi.mocked(get)
+      .mockResolvedValueOnce({
+        code: 0,
+        message: 'success',
+        data: { list: firstPage, total: 150, page: 1, pageSize: 100 },
+      })
+      .mockResolvedValueOnce({
+        code: 0,
+        message: 'success',
+        data: { list: secondPage, total: 150, page: 2, pageSize: 100 },
+      })
+
+    const result = await fetchAllOrders({ status: 'pending_payment' })
+
+    expect(result).toHaveLength(150)
+    expect(get).toHaveBeenCalledTimes(2)
+    expect(vi.mocked(get).mock.calls[0][1]).toMatchObject({
+      status: 'pending_payment',
+      page: 1,
+      pageSize: 100,
+    })
+    expect(vi.mocked(get).mock.calls[1][1]).toMatchObject({ page: 2, pageSize: 100 })
+  })
+
+  it('首屏为空时只请求一次', async () => {
+    vi.mocked(get).mockResolvedValueOnce({
+      code: 0,
+      message: 'success',
+      data: { list: [], total: 0, page: 1, pageSize: 100 },
+    })
+
+    expect(await fetchAllOrders({})).toEqual([])
+    expect(get).toHaveBeenCalledTimes(1)
   })
 })

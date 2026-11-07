@@ -61,13 +61,21 @@ export interface AdminDeleteInfo {
   adminName?: string
 }
 
+/** 审核/结算操作者范围：经理只能操作本团队订单，管理员不受限 */
+export interface OrderOperator {
+  id: string
+  role: 'admin' | 'manager' | 'user' | 'employee'
+}
+
 export interface OrderReviewParams {
   action: 'approve' | 'reject'
   reason?: string
+  operator?: OrderOperator
 }
 
 export interface OrderSettleParams {
   action: 'pending_payment' | 'paid'
+  operator?: OrderOperator
 }
 
 export interface OrderService {
@@ -94,6 +102,16 @@ export interface OrderService {
   settleOrder(orderId: string, params: OrderSettleParams): Promise<OrderRow>
 
   updateOrderTeamName(orderId: string, teamName: string): Promise<void>
+}
+
+/**
+ * 校验订单操作权限：经理只能审核/结算归属本团队的订单，管理员不受限
+ * 防止经理通过订单 ID 越权操作其他团队的订单
+ */
+function assertOperatorCanHandle(order: OrderRow, operator?: OrderOperator): void {
+  if (operator?.role === 'manager' && order.managerId !== operator.id) {
+    throwForbidden('无权操作该订单')
+  }
 }
 
 @injectable()
@@ -268,11 +286,13 @@ export class OrderServiceImpl implements OrderService {
   }
 
   async reviewOrder(orderId: string, params: OrderReviewParams): Promise<OrderRow> {
-    const { action, reason } = params
+    const { action, reason, operator } = params
     const order = await readOrder(orderId)
     if (!order) {
       throwNotFound('订单不存在')
     }
+
+    assertOperatorCanHandle(order, operator)
 
     if (order.status !== 'pending') {
       throwBadRequest('该订单已审核')
@@ -323,11 +343,13 @@ export class OrderServiceImpl implements OrderService {
   }
 
   async settleOrder(orderId: string, params: OrderSettleParams): Promise<OrderRow> {
-    const { action } = params
+    const { action, operator } = params
     const order = await readOrder(orderId)
     if (!order) {
       throwNotFound('订单不存在')
     }
+
+    assertOperatorCanHandle(order, operator)
 
     const nowMySQL = formatMySQLDateTime(new Date())!
 

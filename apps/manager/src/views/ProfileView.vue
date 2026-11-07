@@ -127,7 +127,7 @@ import { logger } from '@promo/shared/utils/logger'
 import { getErrorMessage } from '@promo/shared/utils/errors'
 import { ref, reactive, onMounted, onUnmounted } from 'vue'
 import { ElMessage, type FormInstance, type FormItemRule, type FormRules } from 'element-plus'
-import { get, post } from '@promo/shared/utils/request'
+import { get, post, clearAuthStorage } from '@promo/shared/utils/request'
 import { formatDate } from '@promo/shared/utils/helpers'
 import type { Manager } from '@promo/shared/types'
 
@@ -265,11 +265,16 @@ const handleChangePassword = async () => {
 
     ElMessage.success('密码修改成功，请重新登录')
 
-    // 清除登录凭证，跳转到登录页
-    localStorage.removeItem('manager_token')
-    localStorage.removeItem('manager_info')
+    // 吊销服务端 refresh token，清除本端全部登录态
+    const refreshToken = localStorage.getItem('manager_refresh_token')
+    try {
+      await post('/auth/logout', refreshToken ? { refreshToken } : {})
+    } catch {
+      // 网络异常不阻塞本地登出
+    }
+    clearAuthStorage()
     setTimeout(() => {
-      window.location.href = '/login'
+      window.location.href = '/manager/login'
     }, 1500)
   } catch (error) {
     ElMessage.error(getErrorMessage(error, '密码修改失败'))

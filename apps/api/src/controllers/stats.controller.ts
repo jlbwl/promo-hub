@@ -134,7 +134,11 @@ export const settleOrder = async (req: Request, res: Response): Promise<void> =>
  */
 export const getDashboardStats = async (req: Request, res: Response): Promise<void> => {
   try {
-    const managerId = req.query.managerId as string
+    // P1-7: 经理只能查看本人数据，忽略客户端传入的 managerId；管理员可筛选指定经理
+    let managerId = req.query.managerId as string | undefined
+    if (req.user?.role === 'manager') {
+      managerId = req.user.id
+    }
     const products = await readProducts()
     const commissions = await readCommissions()
 

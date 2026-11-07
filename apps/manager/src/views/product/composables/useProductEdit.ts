@@ -3,7 +3,7 @@ import { getErrorMessage } from '@promo/shared/utils/errors'
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, type FormInstance, type FormRules, type UploadFile } from 'element-plus'
-import { get, post, put } from '@promo/shared/utils/request'
+import { get, post, put, clearAuthStorage } from '@promo/shared/utils/request'
 import { optimizeRichText, readManagerInfo } from '../utils'
 import type { Product, ProductCategory } from '@promo/shared/types'
 
@@ -231,8 +231,7 @@ export function useProductEdit() {
       // 如果是登录信息问题，跳转到登录页
       const errorMessage = getErrorMessage(error, '保存失败')
       if (errorMessage.includes('登录信息已过期') || errorMessage.includes('未找到经理登录信息')) {
-        localStorage.removeItem('manager_token')
-        localStorage.removeItem('manager_info')
+        clearAuthStorage()
         ElMessage.warning(errorMessage || '请重新登录')
         await router.push('/login')
       } else {

@@ -350,7 +350,12 @@ export const reviewOrder = async (req: Request, res: Response): Promise<void> =>
       return sendError(res, '无效的审核操作', 400)
     }
 
-    await orderService.reviewOrder(orderId, { action, reason })
+    // 归属校验：经理只能操作本团队订单（service 层依据 operator 判定）
+    await orderService.reviewOrder(orderId, {
+      action,
+      reason,
+      ...(req.user ? { operator: { id: req.user.id, role: req.user.role } } : {}),
+    })
 
     const message = action === 'approve' ? '审核通过' : '已驳回'
     sendSuccess(res, null, message)
@@ -375,7 +380,11 @@ export const settleOrder = async (req: Request, res: Response): Promise<void> =>
       return sendError(res, '无效的结算操作', 400)
     }
 
-    await orderService.settleOrder(orderId, { action })
+    // 归属校验：经理只能操作本团队订单（service 层依据 operator 判定）
+    await orderService.settleOrder(orderId, {
+      action,
+      ...(req.user ? { operator: { id: req.user.id, role: req.user.role } } : {}),
+    })
 
     const message = action === 'pending_payment' ? '已添加到待发放' : '已结算'
     sendSuccess(res, null, message)

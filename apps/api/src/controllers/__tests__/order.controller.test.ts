@@ -417,6 +417,25 @@ describe('order.controller', () => {
       expect(jsonPayload(res).message).toBe('审核通过')
     })
 
+    it('经理审核时透传操作者用于归属校验', async () => {
+      const res = makeRes()
+
+      await reviewOrder(
+        makeReq({
+          params: { id: 'o_1' },
+          body: { action: 'approve' },
+          user: { id: 'm_1', role: 'manager' },
+        }),
+        res
+      )
+
+      expect(orderService.reviewOrder).toHaveBeenCalledWith('o_1', {
+        action: 'approve',
+        reason: undefined,
+        operator: { id: 'm_1', role: 'manager' },
+      })
+    })
+
     it('无效结算操作应返回 400', async () => {
       const res = makeRes()
 

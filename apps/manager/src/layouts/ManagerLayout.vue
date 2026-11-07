@@ -91,6 +91,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessageBox, ElMessage } from 'element-plus'
+import { post, clearAuthStorage } from '@promo/shared/utils/request'
 import {
   Odometer,
   Goods,
@@ -140,9 +141,14 @@ const handleLogout = async () => {
       cancelButtonText: '取消',
       type: 'warning'
     })
-    // 清除登录凭证
-    localStorage.removeItem('manager_token')
-    localStorage.removeItem('manager_info')
+    // 服务端吊销 refresh token，并清除本端全部登录态
+    const refreshToken = localStorage.getItem('manager_refresh_token')
+    try {
+      await post('/auth/logout', refreshToken ? { refreshToken } : {})
+    } catch {
+      // 网络异常不阻塞本地登出
+    }
+    clearAuthStorage()
     ElMessage.success('已退出登录')
     router.push('/login')
   } catch {

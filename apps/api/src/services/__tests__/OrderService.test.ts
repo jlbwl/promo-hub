@@ -15,7 +15,12 @@ vi.mock('../../data/index.js', () => ({
   readUser: vi.fn().mockResolvedValue({ teamName: '测试团队' }),
   insertOrder: vi.fn(),
   readDeletedOrders: vi.fn(),
-  purgeOrder: vi.fn()
+  purgeOrder: vi.fn(),
+  readProduct: vi.fn(),
+  readCommissionByOrderId: vi.fn(),
+  updateCommission: vi.fn(),
+  applyOrderReview: vi.fn(),
+  updateOrderIfStatus: vi.fn()
 }))
 
 // Mock 数据库连接（订单创建的库存扣减 SQL）
@@ -31,7 +36,9 @@ import {
   readUser,
   insertOrder,
   readDeletedOrders,
-  purgeOrder
+  purgeOrder,
+  applyOrderReview,
+  updateOrderIfStatus
 } from '../../data/index.js'
 import { query } from '../../db.js'
 
@@ -140,6 +147,38 @@ describe('OrderService', () => {
       vi.mocked(readDeletedOrders).mockResolvedValue([])
       await expect(orderService.purgeOrder('oX', 'u1')).rejects.toThrow('订单不存在或不在回收站')
       expect(purgeOrder).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('reviewOrder / settleOrder 订单归属校验', () => {
+    it('经理不能审核其他团队的订单', async () => {
+      vi.mocked(readOrder).mockResolvedValue({ id: 'o1', managerId: 'm2', status: 'pending' } as never)
+
+      await expect(
+        orderService.reviewOrder('o1', { action: 'approve', operator: { id: 'm1', role: 'manager' } })
+      ).rejects.toMatchObject({ code: 403 })
+      expect(applyOrderReview).not.toHaveBeenCalled()
+    })
+
+    it('经理不能结算其他团队的订单', async () => {
+      vi.mocked(readOrder).mockResolvedValue({ id: 'o1', managerId: 'm2', status: 'approved' } as never)
+
+      await expect(
+        orderService.settleOrder('o1', { action: 'pending_payment', operator: { id: 'm1', role: 'manager' } })
+      ).rejects.toMatchObject({ code: 403 })
+      expect(updateOrderIfStatus).not.toHaveBeenCalled()
+    })
+
+    it('经理可审核本团队订单，管理员不受归属限制', async () => {
+      vi.mocked(applyOrderReview).mockResolvedValue(true)
+
+      vi.mocked(readOrder).mockResolvedValueOnce({ id: 'o1', managerId: 'm1', status: 'pending' } as never)
+      await orderService.reviewOrder('o1', { action: 'approve', operator: { id: 'm1', role: 'manager' } })
+
+      vi.mocked(readOrder).mockResolvedValueOnce({ id: 'o2', managerId: 'm2', status: 'pending' } as never)
+      await orderService.reviewOrder('o2', { action: 'approve', operator: { id: 'a1', role: 'admin' } })
+
+      expect(applyOrderReview).toHaveBeenCalledTimes(2)
     })
   })
 })
