@@ -18,8 +18,12 @@ import { login as sessionLogin, generateTokens } from '../middleware/auth.js'
 import { sendSmsCode } from '../utils/sms.js'
 import { generateSmsCode, saveSmsCode, verifySmsCode, deleteSmsCode } from '../utils/sms.js'
 import { logAdminOperation } from '../utils/auditLog.js'
+import { buildAuditDetail, maskPhone } from '../utils/auditDetail.js'
 import logger from '../utils/logger.js'
 import { hashPassword, verifyPassword } from '../utils/password.js'
+
+/** 经理状态展示文案 */
+const managerStatusLabel = (status?: string): string => (status === 'active' ? '启用' : status ? '禁用' : '-')
 
 // ============================================
 // 经理信息操作
@@ -115,6 +119,24 @@ export const createManager = async (req: Request, res: Response): Promise<void> 
     await insertManager(manager)
     logger.info('[createManager] Manager inserted successfully', { managerId: manager.id })
 
+    // 创建经理与删除经理保持对称审计；不记录密码或哈希
+    await logAdminOperation(req, {
+      operationType: 'create',
+      targetType: 'manager',
+      targetId: manager.id,
+      targetName: teamName,
+      detail: buildAuditDetail({
+        summary: `创建渠道经理「${teamName}」`,
+        meta: {
+          经理ID: manager.id,
+          渠道名称: teamName,
+          手机号: maskPhone(manager.phone),
+          初始角色: '渠道经理',
+          初始状态: '启用',
+        },
+      }),
+    })
+
     const { password: _, ...safeManager } = manager
     sendSuccess(res, safeManager, '添加成功')
   } catch (error) {
@@ -192,6 +214,7 @@ export const updateManagerById = async (req: Request, res: Response): Promise<vo
   if (newStatus !== 'active' && newStatus !== 'inactive') {
     return sendError(res, '无效的状态值', 400)
   }
+  const oldStatus = managers[index].status
   const updatedManager = {
     ...managers[index],
     status: newStatus,
@@ -218,12 +241,19 @@ export const updateManagerById = async (req: Request, res: Response): Promise<vo
   }
 
   const { password: _, ...safeManager } = updatedManager
+  const oldStatusLabel = managerStatusLabel(oldStatus)
+  const newStatusLabel = managerStatusLabel(newStatus)
   await logAdminOperation(req, {
     operationType: 'update',
     targetType: 'manager',
     targetId: updatedManager.id,
     targetName: updatedManager.name || updatedManager.teamName || updatedManager.id,
-    detail: `状态更新为${newStatus === 'active' ? '启用' : '禁用'}`
+    detail: buildAuditDetail({
+      summary: `状态更新：${oldStatusLabel} → ${newStatusLabel}${newStatus === 'inactive' ? '（并下架其已上架产品）' : ''}`,
+      changes: [
+        { field: 'status', label: '状态', from: oldStatusLabel, to: newStatusLabel },
+      ],
+    }),
   })
   sendSuccess(res, safeManager, '更新成功')
 }
@@ -284,7 +314,12 @@ export const updateManagerTeamName = async (req: Request, res: Response): Promis
       targetType: 'manager',
       targetId: managerId,
       targetName: safeManager.name || finalTeamName,
-      detail: `团队名称：${oldTeamName || '-'} → ${finalTeamName}`
+      detail: buildAuditDetail({
+        summary: `团队名称：${oldTeamName || '-'} → ${finalTeamName}`,
+        changes: [
+          { field: 'teamName', label: '团队名称', from: oldTeamName, to: finalTeamName },
+        ],
+      }),
     })
     sendSuccess(res, safeManager, '更新成功')
   } catch (error) {

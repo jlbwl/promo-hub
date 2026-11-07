@@ -5,7 +5,7 @@ import logger from './logger.js'
 
 export interface AdminOperationInfo {
   operationType: 'create' | 'update' | 'delete' | 'offline'
-  targetType: 'user' | 'manager' | 'product' | 'order' | 'category'
+  targetType: 'user' | 'manager' | 'product' | 'order' | 'category' | 'qrcode' | 'admin'
   targetId: string
   targetName: string
   reason?: string

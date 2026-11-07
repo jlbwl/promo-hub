@@ -294,31 +294,58 @@ describe('order.controller', () => {
   })
 
   describe('adminDeleteOrder 管理端删除', () => {
-    it('成功删除并记录操作日志', async () => {
+    it('成功删除并按会话身份记录可定位的操作日志', async () => {
+      vi.mocked(orderService.adminDeleteOrder).mockResolvedValue({
+        id: 'o_1',
+        userName: '张三',
+        userPhone: '13800000000',
+        productName: '平安证券开户',
+        productPrice: 199,
+        status: 'pending',
+        teamName: '一队',
+      } as unknown as OrderRow)
       const res = makeRes()
 
       await adminDeleteOrder(
         makeReq({
           params: { id: 'o_1' },
-          body: { reason: '测试', adminId: 'a_1', adminPhone: '13700000000', adminName: '管理员' },
+          body: { reason: '测试', adminId: 'forged', adminPhone: '13700000000', adminName: '伪造管理员' },
+          user: { id: 'a_1', phone: '13600000000', nickname: '超级管理员' },
         }),
         res
       )
 
-      expect(orderService.adminDeleteOrder).toHaveBeenCalledWith('o_1', {
-        reason: '测试',
-        adminId: 'a_1',
-        adminPhone: '13700000000',
-        adminName: '管理员',
-      })
+      expect(orderService.adminDeleteOrder).toHaveBeenCalledWith('o_1')
       expect(insertOperationLog).toHaveBeenCalledWith(
         expect.objectContaining({
+          // 身份取自会话，忽略请求体中的伪造值
           adminId: 'a_1',
+          adminPhone: '13600000000',
+          adminName: '超级管理员',
           operationType: 'delete',
           targetType: 'order',
           targetId: 'o_1',
         })
       )
+
+      const logArg = vi.mocked(insertOperationLog).mock.calls[0][0] as {
+        targetName: string
+        detail: string
+      }
+      expect(logArg.targetName).not.toBe('订单')
+      expect(logArg.targetName).toContain('张三')
+      expect(logArg.targetName).toContain('¥199.00')
+
+      const detail = JSON.parse(logArg.detail) as {
+        summary: string
+        meta: Record<string, string>
+      }
+      expect(detail.summary).toContain('o_1')
+      expect(detail.meta['订单号']).toBe('o_1')
+      expect(detail.meta['客户']).toBe('张三')
+      // 手机号落库即脱敏，完整号码不得进入日志
+      expect(detail.meta['客户手机号']).toBe('138****0000')
+      expect(logArg.detail).not.toContain('13800000000')
       expect(jsonPayload(res).code).toBe(0)
     })
 

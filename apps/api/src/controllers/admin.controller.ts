@@ -7,8 +7,8 @@ import {
   readAdminByPhone,
   updateAdmin,
   readOperationLogs,
+  readOperationLogAdmins,
   updateProduct,
-  insertOperationLog,
 } from '../data/index.js'
 import { queryOne } from '../db.js'
 import { getCacheService, CacheKeys } from '../services/cache/index.js'
@@ -16,6 +16,17 @@ import { login as sessionLogin, generateTokens } from '../middleware/auth.js'
 import { generateSmsCode, saveSmsCode, verifySmsCode, deleteSmsCode } from '../utils/sms.js'
 import { sendSmsCode } from '../utils/sms.js'
 import { hashPassword, verifyPassword } from '../utils/password.js'
+import { logAdminOperation } from '../utils/auditLog.js'
+import { buildAuditDetail, maskPhone } from '../utils/auditDetail.js'
+import { parseOperationLogFilters } from '../utils/operationLogQuery.js'
+
+/** 产品状态展示文案 */
+const productStatusLabel = (status?: string): string => {
+  if (status === 'published') return '已上架'
+  if (status === 'offline') return '已下线'
+  if (status === 'admin_offline') return '已被管理员下架'
+  return status || '-'
+}
 
 /**
  * 管理员短信验证码发送
@@ -136,6 +147,22 @@ export const adminChangePassword = async (req: Request, res: Response): Promise<
   const hashedPassword = await hashPassword(newPassword)
   await updateAdmin(admin.id, { password: hashedPassword })
 
+  // 只记录改密事件本身，不记录旧密码、新密码、口令片段或哈希
+  await logAdminOperation(req, {
+    operationType: 'update',
+    targetType: 'admin',
+    targetId: admin.id,
+    targetName: admin.name || admin.phone,
+    detail: buildAuditDetail({
+      summary: '管理员修改了密码（旧密码校验）',
+      meta: {
+        管理员ID: admin.id,
+        手机号: maskPhone(admin.phone),
+        校验方式: '旧密码校验',
+      },
+    }),
+  })
+
   sendSuccess(res, null, '密码修改成功')
 }
 
@@ -192,6 +219,22 @@ export const adminPasswordUpdate = async (req: Request, res: Response): Promise<
   const hashedPassword = await hashPassword(newPassword)
   await updateAdmin(admin.id, { password: hashedPassword })
 
+  // 只记录改密事件本身，不记录任何密码内容或哈希
+  await logAdminOperation(req, {
+    operationType: 'update',
+    targetType: 'admin',
+    targetId: admin.id,
+    targetName: admin.name || admin.phone,
+    detail: buildAuditDetail({
+      summary: `管理员修改了密码（${code ? '短信验证码' : '旧密码'}校验）`,
+      meta: {
+        管理员ID: admin.id,
+        手机号: maskPhone(admin.phone),
+        校验方式: code ? '短信验证码' : '旧密码校验',
+      },
+    }),
+  })
+
   sendSuccess(res, null, '密码修改成功，请重新登录')
 }
 
@@ -233,18 +276,24 @@ export const adminOfflineProduct = async (req: Request, res: Response): Promise<
       logger.warn('[管理员下架产品] 缓存清理失败:', { error: getErrorMessage(cacheError) })
     }
 
-    // 记录操作日志
-    const user = req.session?.user || req.user
-    await insertOperationLog({
-      adminId: user?.id || '',
-      adminPhone: user?.phone || '',
-      adminName: user?.nickname || '未知管理员',
+    // 记录操作日志（写入失败由 logAdminOperation 兜底，不影响已成功的下架操作）
+    const beforeStatusLabel = productStatusLabel(product.status)
+    await logAdminOperation(req, {
       operationType: 'offline',
       targetType: 'product',
       targetId: id,
       targetName: product.title,
       reason,
-      detail: '',
+      detail: buildAuditDetail({
+        summary: `产品「${product.title}」下架：${beforeStatusLabel} → 已被管理员下架`,
+        meta: {
+          产品ID: id,
+          下架理由: reason,
+        },
+        changes: [
+          { field: 'status', label: '状态', from: beforeStatusLabel, to: '已被管理员下架' },
+        ],
+      }),
     })
 
     sendSuccess(res, null, '已下架')
@@ -296,14 +345,11 @@ export const getOperationLogs = async (req: Request, res: Response): Promise<voi
   try {
     const page = parsePage(req.query.page)
     const pageSize = parsePageSize(req.query.pageSize)
-    const operationType = req.query.operationType as string
-    const targetType = req.query.targetType as string
-    const adminId = req.query.adminId as string
+    // 列表与导出共用同一套筛选解析，保证导出结果与页面一致
+    const filters = parseOperationLogFilters(req.query)
 
     const result = await readOperationLogs({
-      adminId,
-      operationType,
-      targetType,
+      ...filters,
       page,
       pageSize,
     })
@@ -311,6 +357,20 @@ export const getOperationLogs = async (req: Request, res: Response): Promise<voi
     sendSuccess(res, result)
   } catch (error) {
     logger.error('[获取操作日志] 错误:', { error: getErrorMessage(error) })
+    sendError(res, getErrorMessage(error, '获取失败'), 500)
+  }
+}
+
+/**
+ * 获取操作日志的操作人筛选项
+ * 只返回日志中实际出现过的管理员，不作为管理员名单泄露入口
+ */
+export const getOperationLogAdmins = async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const admins = await readOperationLogAdmins()
+    sendSuccess(res, admins)
+  } catch (error) {
+    logger.error('[获取操作人选项] 错误:', { error: getErrorMessage(error) })
     sendError(res, getErrorMessage(error, '获取失败'), 500)
   }
 }

@@ -30,6 +30,9 @@ export async function readOperationLogs(params?: {
   adminId?: string
   operationType?: string
   targetType?: string
+  startTime?: string
+  endTime?: string
+  keyword?: string
   page?: number
   pageSize?: number
 }): Promise<{ list: OperationLogRecord[]; total: number }> {
@@ -48,6 +51,19 @@ export async function readOperationLogs(params?: {
   if (params?.targetType) {
     conditions.push('targetType = ?')
     values.push(params.targetType)
+  }
+  // 时间范围按自然日闭区间：开始日 00:00:00 起，结束日次日 00:00:00 止
+  if (params?.startTime) {
+    conditions.push('createdAt >= ?')
+    values.push(`${params.startTime} 00:00:00`)
+  }
+  if (params?.endTime) {
+    conditions.push('createdAt < DATE_ADD(?, INTERVAL 1 DAY)')
+    values.push(`${params.endTime} 00:00:00`)
+  }
+  if (params?.keyword) {
+    conditions.push('(targetName LIKE ? OR targetId LIKE ?)')
+    values.push(`%${params.keyword}%`, `%${params.keyword}%`)
   }
 
   if (conditions.length > 0) {
@@ -72,4 +88,30 @@ export async function readOperationLogs(params?: {
     })),
     total: totalCount,
   }
+}
+
+export interface OperationLogAdminOption {
+  id: string
+  name: string
+  phone: string
+}
+
+/** 操作人筛选选项：只取日志里实际出现过的管理员，避免暴露完整管理员名单 */
+export async function readOperationLogAdmins(): Promise<OperationLogAdminOption[]> {
+  const rows = (await query(
+    `SELECT adminId, adminName, adminPhone FROM operation_logs WHERE adminId <> '' GROUP BY adminId, adminName, adminPhone`
+  )) as Array<{ adminId: string; adminName: string; adminPhone: string }>
+
+  const seen = new Set<string>()
+  const result: OperationLogAdminOption[] = []
+  for (const row of rows) {
+    if (!row.adminId || seen.has(row.adminId)) continue
+    seen.add(row.adminId)
+    result.push({
+      id: row.adminId,
+      name: row.adminName || row.adminPhone || row.adminId,
+      phone: row.adminPhone || '',
+    })
+  }
+  return result
 }

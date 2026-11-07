@@ -9,8 +9,10 @@ import {
   adminPasswordUpdate,
   getAdminStats,
   getOperationLogs,
+  getOperationLogAdmins,
   adminOfflineProduct,
 } from '../controllers/admin.controller.js'
+import { exportOperationLogs } from '../controllers/operationLogExport.controller.js'
 
 const router: Router = Router()
 
@@ -23,6 +25,9 @@ router.post('/admin/change-password', requireAdmin, adminChangePassword)
 router.post('/admin/password/update', requireAdmin, adminPasswordUpdate)
 router.get('/admin/stats', requireAdmin, getAdminStats)
 router.get('/admin/operation-logs', requireAdmin, getOperationLogs)
+router.get('/admin/operation-logs/admins', requireAdmin, getOperationLogAdmins)
+// 导出必须与列表使用同一套筛选参数；requireAdmin 保证权限一致
+router.get('/admin/operation-logs/export', requireAdmin, exportOperationLogs)
 router.put('/admin/products/:id/offline', requireAdmin, adminOfflineProduct)
 
 export default router

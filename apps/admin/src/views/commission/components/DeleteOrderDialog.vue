@@ -79,15 +79,10 @@ const open = (r: Order) => {
 const confirmDelete = async () => {
   if (!row.value) return
 
-  // 获取管理员信息
-  const adminInfo = JSON.parse(localStorage.getItem('admin_info') || '{}')
-
   try {
+    // 操作人身份由后端从会话读取，前端不再传递 adminId/adminPhone/adminName
     const res = await del(`/orders/${row.value.id}`, {
       reason: reason.value.trim(),
-      adminId: adminInfo.id || '',
-      adminPhone: adminInfo.phone || '',
-      adminName: adminInfo.name || ''
     })
 
     if (res.code === 0) {

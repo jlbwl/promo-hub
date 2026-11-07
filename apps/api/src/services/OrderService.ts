@@ -54,13 +54,6 @@ export interface OrderCreateData {
   sharerId?: string
 }
 
-export interface AdminDeleteInfo {
-  reason?: string
-  adminId?: string
-  adminPhone?: string
-  adminName?: string
-}
-
 /** 审核/结算操作者范围：经理只能操作本团队订单，管理员不受限 */
 export interface OrderOperator {
   id: string
@@ -85,7 +78,7 @@ export interface OrderService {
 
   createOrder(orderData: OrderCreateData): Promise<{ order: OrderRow; remainingStock: number }>
 
-  adminDeleteOrder(orderId: string, adminInfo: AdminDeleteInfo): Promise<void>
+  adminDeleteOrder(orderId: string): Promise<OrderRow>
 
   deleteUserOrder(orderId: string, userId: string): Promise<void>
 
@@ -101,7 +94,7 @@ export interface OrderService {
 
   settleOrder(orderId: string, params: OrderSettleParams): Promise<OrderRow>
 
-  updateOrderTeamName(orderId: string, teamName: string): Promise<void>
+  updateOrderTeamName(orderId: string, teamName: string): Promise<OrderRow>
 }
 
 /**
@@ -215,13 +208,15 @@ export class OrderServiceImpl implements OrderService {
     return { order, remainingStock }
   }
 
-  async adminDeleteOrder(orderId: string, _adminInfo: AdminDeleteInfo) {
+  async adminDeleteOrder(orderId: string) {
     const order = await readOrder(orderId)
     if (!order) {
       throwNotFound('订单不存在')
     }
 
     await deleteOrder(orderId)
+    // 返回被删除订单，供调用方写入可定位的审计日志
+    return order
   }
 
   async deleteUserOrder(orderId: string, userId: string) {
@@ -380,12 +375,14 @@ export class OrderServiceImpl implements OrderService {
     }
   }
 
-  async updateOrderTeamName(orderId: string, teamName: string): Promise<void> {
+  async updateOrderTeamName(orderId: string, teamName: string): Promise<OrderRow> {
     const order = await readOrder(orderId)
     if (!order) {
       throwNotFound('订单不存在')
     }
     await updateOrder(orderId, { teamName })
+    // 返回更新前的订单快照，供调用方记录「旧值 → 新值」
+    return order
   }
 }
 

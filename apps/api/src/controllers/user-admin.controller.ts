@@ -14,6 +14,16 @@ import {
 } from '../data/index.js'
 import { verifySmsCode } from '../utils/sms.js'
 import { logAdminOperation } from '../utils/auditLog.js'
+import { buildAuditDetail } from '../utils/auditDetail.js'
+
+/** 状态与角色展示文案 */
+const statusLabel = (status?: string): string => (status === 'active' ? '启用' : status ? '禁用' : '-')
+const ROLE_LABELS: Record<string, string> = {
+  user: '普通用户',
+  vip: 'VIP用户',
+  manager: '渠道经理',
+}
+const roleLabel = (role?: string): string => ROLE_LABELS[role || ''] || role || '-'
 
 // ============================================
 // 管理后台用户管理
@@ -180,12 +190,19 @@ export const updateUserStatus = asyncHandler(
         await updateManager(userId, { status: 'active' })
       }
       logger.info('Manager status updated', { managerId: userId, status })
+      const oldStatusLabel = statusLabel(managers[mgrIdx].status)
+      const newStatusLabel = status ? '启用' : '禁用'
       await logAdminOperation(req, {
         operationType: 'update',
         targetType: 'manager',
         targetId: userId,
         targetName: managers[mgrIdx].name || managers[mgrIdx].teamName || userId,
-        detail: `状态更新为${status ? '启用' : '禁用'}${!status ? '，并下架其已上架产品' : ''}`,
+        detail: buildAuditDetail({
+          summary: `状态更新：${oldStatusLabel} → ${newStatusLabel}${!status ? '（并下架其已上架产品）' : ''}`,
+          changes: [
+            { field: 'status', label: '状态', from: oldStatusLabel, to: newStatusLabel },
+          ],
+        }),
       })
       return sendSuccess(res, null, '更新成功')
     }
@@ -196,12 +213,19 @@ export const updateUserStatus = asyncHandler(
       // 定点更新，避免全量读改写
       await updateUser(userId, { status: status ? 'active' : 'disabled' })
       logger.info('User status updated', { userId, status })
+      const oldStatusLabel = statusLabel(users[usrIdx].status)
+      const newStatusLabel = status ? '启用' : '禁用'
       await logAdminOperation(req, {
         operationType: 'update',
         targetType: 'user',
         targetId: userId,
         targetName: users[usrIdx].nickname || users[usrIdx].phone || userId,
-        detail: `状态更新为${status ? '启用' : '禁用'}`,
+        detail: buildAuditDetail({
+          summary: `状态更新：${oldStatusLabel} → ${newStatusLabel}`,
+          changes: [
+            { field: 'status', label: '状态', from: oldStatusLabel, to: newStatusLabel },
+          ],
+        }),
       })
       return sendSuccess(res, null, '更新成功')
     }
@@ -234,7 +258,12 @@ export const updateUserRole = asyncHandler(
         targetType: 'manager',
         targetId: userId,
         targetName: managers[mgrIdx].name || managers[mgrIdx].teamName || userId,
-        detail: `角色更新为 ${role}`,
+        detail: buildAuditDetail({
+          summary: `角色更新：${roleLabel(managers[mgrIdx].role)} → ${roleLabel(role)}`,
+          changes: [
+            { field: 'role', label: '角色', from: roleLabel(managers[mgrIdx].role), to: roleLabel(role) },
+          ],
+        }),
       })
       return sendSuccess(res, null, '更新成功')
     }
@@ -250,7 +279,12 @@ export const updateUserRole = asyncHandler(
         targetType: 'user',
         targetId: userId,
         targetName: users[usrIdx].nickname || users[usrIdx].phone || userId,
-        detail: `角色更新为 ${role}`,
+        detail: buildAuditDetail({
+          summary: `角色更新：${roleLabel(users[usrIdx].role)} → ${roleLabel(role)}`,
+          changes: [
+            { field: 'role', label: '角色', from: roleLabel(users[usrIdx].role), to: roleLabel(role) },
+          ],
+        }),
       })
       return sendSuccess(res, null, '更新成功')
     }
@@ -324,7 +358,12 @@ export const updateUserTeamName = asyncHandler(
       targetType: usrIdx !== -1 ? 'user' : 'manager',
       targetId: userId,
       targetName: targetName || userId,
-      detail: `团队名称：${oldTeamName || '-'} → ${teamName}`,
+      detail: buildAuditDetail({
+        summary: `团队名称：${oldTeamName || '-'} → ${teamName}`,
+        changes: [
+          { field: 'teamName', label: '团队名称', from: oldTeamName, to: teamName },
+        ],
+      }),
     })
     sendSuccess(res, null, '更新成功')
   }

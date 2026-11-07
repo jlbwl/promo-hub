@@ -4,7 +4,8 @@ import { getErrorMessage } from '@promo/shared'
 import { sendSuccess, sendError, sendPagination } from '../utils/response.js'
 import { MAX_PAGE_SIZE } from '../utils/pagination.js'
 import { orderService } from '../services/index.js'
-import { insertOperationLog } from '../data/index.js'
+import { logAdminOperation } from '../utils/auditLog.js'
+import { buildAuditDetail, maskPhone } from '../utils/auditDetail.js'
 import type { OrderRow } from '../data-memory.js'
 
 /**
@@ -209,6 +210,15 @@ export const getOrderUserOptions = async (_req: Request, res: Response): Promise
   }
 }
 
+/** 订单状态文案，用于审计日志中的可读展示 */
+const ORDER_STATUS_LABELS: Record<string, string> = {
+  pending: '待审核',
+  approved: '已通过',
+  pending_payment: '待发放',
+  settled: '已发放',
+  rejected: '已驳回',
+}
+
 /**
  * 管理后台删除订单
  * 管理员可删除任意订单，记录操作日志
@@ -219,21 +229,38 @@ export const getOrderUserOptions = async (_req: Request, res: Response): Promise
 export const adminDeleteOrder = async (req: Request, res: Response): Promise<void> => {
   try {
     const orderId = req.params.id as string
-    const { reason, adminId, adminPhone, adminName } = req.body
+    // 操作人身份只取服务端会话，禁止信任请求体里的 adminId/adminPhone/adminName
+    const { reason } = req.body
 
-    await orderService.adminDeleteOrder(orderId, { reason, adminId, adminPhone, adminName })
+    const order = await orderService.adminDeleteOrder(orderId)
 
-    // 记录操作日志
-    await insertOperationLog({
-      adminId: adminId || '',
-      adminPhone: adminPhone || '',
-      adminName: adminName || '未知管理员',
+    // 日志需可定位到具体订单：写入客户、产品与金额，而不是固定字符串「订单」
+    // 客户手机号落库即脱敏，避免审计日志暴露完整号码
+    const customer = order.userName || (order.userPhone ? maskPhone(order.userPhone) : '') || '未知客户'
+    const amount = `¥${Number(order.productPrice || 0).toFixed(2)}`
+    const targetName = `${customer} · ${order.productName || '未命名产品'} · ${amount}`
+
+    // detail 统一存结构化 JSON，前端按 summary/meta 渲染，兼容后续扩展 changes
+    const detail = buildAuditDetail({
+      summary: `删除订单 ${order.id}（客户：${customer}，产品：${order.productName || '-'}，金额：${amount}）`,
+      meta: {
+        订单号: order.id,
+        客户: customer,
+        客户手机号: maskPhone(order.userPhone),
+        产品: order.productName || '-',
+        金额: amount,
+        原状态: ORDER_STATUS_LABELS[order.status] || order.status,
+        所属团队: order.teamName || '-',
+      },
+    })
+
+    await logAdminOperation(req, {
       operationType: 'delete',
       targetType: 'order',
-      targetId: orderId,
-      targetName: '订单',
+      targetId: order.id,
+      targetName,
       reason: reason || '',
-      detail: '',
+      detail,
     })
 
     sendSuccess(res, null, '删除成功')
@@ -413,7 +440,27 @@ export const updateOrderTeamName = async (req: Request, res: Response): Promise<
     const orderId = req.params.id as string
     const { teamName } = req.body
 
-    await orderService.updateOrderTeamName(orderId, teamName)
+    const order = await orderService.updateOrderTeamName(orderId, teamName)
+
+    // 记录团队名称变更：旧值来自更新前的订单快照
+    const customer = order.userName || (order.userPhone ? maskPhone(order.userPhone) : '') || '未知客户'
+    await logAdminOperation(req, {
+      operationType: 'update',
+      targetType: 'order',
+      targetId: order.id,
+      targetName: `${customer} · ${order.productName || '未命名产品'}`,
+      detail: buildAuditDetail({
+        summary: `订单团队名称：${order.teamName || '-'} → ${teamName || '-'}`,
+        meta: {
+          订单号: order.id,
+          客户: customer,
+          产品: order.productName || '-',
+        },
+        changes: [
+          { field: 'teamName', label: '团队名称', from: order.teamName, to: teamName },
+        ],
+      }),
+    })
 
     sendSuccess(res, null, '团队名称更新成功')
   } catch (error) {

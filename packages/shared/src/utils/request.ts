@@ -220,6 +220,10 @@ function createRequest(): AxiosInstance {
         }
       }
 
+      // 文件下载（如 CSV 导出）响应体不是 ApiResponse，直接放行
+      if (response.config.responseType === 'blob') {
+        return response
+      }
       const { code, message } = response.data
       if (code === 0) {
         return response
@@ -237,7 +241,21 @@ function createRequest(): AxiosInstance {
           return handleUnauthorized(config)
         }
       }
-      const msg = error.response?.data?.message || error.message || '网络错误'
+      const responseData = error.response?.data
+      // 下载类请求失败时响应体是 Blob，尝试解析其中的 JSON 错误信息
+      if (responseData instanceof Blob) {
+        return responseData.text().then((text) => {
+          let message = error.message || '网络错误'
+          try {
+            const payload = JSON.parse(text) as { message?: string }
+            if (payload?.message) message = payload.message
+          } catch {
+            // 非 JSON 响应保持原始错误信息
+          }
+          return Promise.reject(new Error(message))
+        })
+      }
+      const msg = responseData?.message || error.message || '网络错误'
       return Promise.reject(new Error(msg))
     },
   )
@@ -254,6 +272,19 @@ export async function get<T>(url: string, params?: object, config?: AxiosRequest
   const res = await request.get<ApiResponse<T>>(url, { 
     ...config,
     params: params as Record<string, unknown> 
+  })
+  return res.data
+}
+
+/**
+ * 下载文件（Blob 响应，如 CSV 导出）
+ * 响应拦截器已对 responseType === 'blob' 放行，不按 ApiResponse 解析
+ */
+export async function getBlob(url: string, params?: object, config?: AxiosRequestConfig): Promise<Blob> {
+  const res = await request.get<Blob>(url, {
+    ...config,
+    params: params as Record<string, unknown>,
+    responseType: 'blob',
   })
   return res.data
 }
