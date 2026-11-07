@@ -2,10 +2,18 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import type { Request, Response, NextFunction } from 'express'
 import { resourcePermission, ResourcePermissionChecker } from '../resourcePermission.js'
 import { queryOne } from '../../data/index.js'
+import type { AuthUser } from '../auth.js'
 
 vi.mock('../../data/index.js', () => ({
   queryOne: vi.fn(),
 }))
+
+// 构造最小可用的鉴权用户，避免测试中散落 any
+const authUser = (
+  id: string,
+  role: AuthUser['role'],
+  extra: Partial<Omit<AuthUser, 'id' | 'role'>> = {}
+): AuthUser => ({ id, role, phone: '', ...extra })
 
 vi.mock('../../utils/logger.js', () => ({
   default: {
@@ -56,7 +64,7 @@ describe('resourcePermission middleware', () => {
 
   describe('admin override', () => {
     it('should skip permission check for admin when adminOverride is true', async () => {
-      req.user = { id: 'admin1', role: 'admin' } as any
+      req.user = authUser('admin1', 'admin')
       const middleware = resourcePermission({
         resourceType: 'product',
         action: 'read',
@@ -70,10 +78,10 @@ describe('resourcePermission middleware', () => {
     })
 
     it('should still check permissions for admin when adminOverride is false', async () => {
-      req.user = { id: 'admin1', role: 'admin' } as any
+      req.user = authUser('admin1', 'admin')
       req.params = { id: 'product1' }
       
-      vi.mocked(queryOne).mockResolvedValue({ id: 'product1', managerId: 'manager1', status: 'draft' } as any)
+      vi.mocked(queryOne).mockResolvedValue({ id: 'product1', managerId: 'manager1', status: 'draft' })
 
       const middleware = resourcePermission({
         resourceType: 'product',
@@ -90,7 +98,7 @@ describe('resourcePermission middleware', () => {
 
   describe('list action', () => {
     it('should skip permission check for list action', async () => {
-      req.user = { id: 'user1', role: 'user' } as any
+      req.user = authUser('user1', 'user')
       const middleware = resourcePermission({
         resourceType: 'product',
         action: 'list',
@@ -105,7 +113,7 @@ describe('resourcePermission middleware', () => {
 
   describe('missing resource ID', () => {
     it('should return 400 when resource ID is missing for non-list action', async () => {
-      req.user = { id: 'user1', role: 'user' } as any
+      req.user = authUser('user1', 'user')
       req.params = {}
       
       const middleware = resourcePermission({
@@ -125,10 +133,10 @@ describe('resourcePermission middleware', () => {
     })
 
     it('should use custom resourceIdParam when specified', async () => {
-      req.user = { id: 'user1', role: 'user' } as any
+      req.user = authUser('user1', 'user')
       req.params = { productId: 'product1' }
       
-      vi.mocked(queryOne).mockResolvedValue({ id: 'product1', managerId: 'user1', status: 'published' } as any)
+      vi.mocked(queryOne).mockResolvedValue({ id: 'product1', managerId: 'user1', status: 'published' })
 
       const middleware = resourcePermission({
         resourceType: 'product',
@@ -144,14 +152,14 @@ describe('resourcePermission middleware', () => {
 
   describe('product permissions', () => {
     it('should allow manager to read own product', async () => {
-      req.user = { id: 'manager1', role: 'manager' } as any
+      req.user = authUser('manager1', 'manager')
       req.params = { id: 'product1' }
       
       vi.mocked(queryOne).mockResolvedValue({ 
         id: 'product1', 
         managerId: 'manager1', 
         status: 'draft' 
-      } as any)
+      })
 
       const middleware = resourcePermission({
         resourceType: 'product',
@@ -165,14 +173,14 @@ describe('resourcePermission middleware', () => {
     })
 
     it('should deny manager to read other manager product', async () => {
-      req.user = { id: 'manager1', role: 'manager' } as any
+      req.user = authUser('manager1', 'manager')
       req.params = { id: 'product1' }
       
       vi.mocked(queryOne).mockResolvedValue({ 
         id: 'product1', 
         managerId: 'manager2', 
         status: 'draft' 
-      } as any)
+      })
 
       const middleware = resourcePermission({
         resourceType: 'product',
@@ -186,14 +194,14 @@ describe('resourcePermission middleware', () => {
     })
 
     it('should allow user to read published product', async () => {
-      req.user = { id: 'user1', role: 'user' } as any
+      req.user = authUser('user1', 'user')
       req.params = { id: 'product1' }
       
       vi.mocked(queryOne).mockResolvedValue({ 
         id: 'product1', 
         managerId: 'manager1', 
         status: 'published' 
-      } as any)
+      })
 
       const middleware = resourcePermission({
         resourceType: 'product',
@@ -206,14 +214,14 @@ describe('resourcePermission middleware', () => {
     })
 
     it('should deny user to read draft product', async () => {
-      req.user = { id: 'user1', role: 'user' } as any
+      req.user = authUser('user1', 'user')
       req.params = { id: 'product1' }
       
       vi.mocked(queryOne).mockResolvedValue({ 
         id: 'product1', 
         managerId: 'manager1', 
         status: 'draft' 
-      } as any)
+      })
 
       const middleware = resourcePermission({
         resourceType: 'product',
@@ -226,14 +234,14 @@ describe('resourcePermission middleware', () => {
     })
 
     it('should allow employee to read published product', async () => {
-      req.user = { id: 'emp1', role: 'employee' } as any
+      req.user = authUser('emp1', 'employee')
       req.params = { id: 'product1' }
       
       vi.mocked(queryOne).mockResolvedValue({ 
         id: 'product1', 
         managerId: 'manager1', 
         status: 'published' 
-      } as any)
+      })
 
       const middleware = resourcePermission({
         resourceType: 'product',
@@ -246,14 +254,14 @@ describe('resourcePermission middleware', () => {
     })
 
     it('should allow manager to write own product', async () => {
-      req.user = { id: 'manager1', role: 'manager' } as any
+      req.user = authUser('manager1', 'manager')
       req.params = { id: 'product1' }
       
       vi.mocked(queryOne).mockResolvedValue({ 
         id: 'product1', 
         managerId: 'manager1', 
         status: 'draft' 
-      } as any)
+      })
 
       const middleware = resourcePermission({
         resourceType: 'product',
@@ -266,7 +274,7 @@ describe('resourcePermission middleware', () => {
     })
 
     it('should return 404 for non-existent product', async () => {
-      req.user = { id: 'user1', role: 'user' } as any
+      req.user = authUser('user1', 'user')
       req.params = { id: 'product1' }
       
       vi.mocked(queryOne).mockResolvedValue(null)
@@ -289,7 +297,7 @@ describe('resourcePermission middleware', () => {
 
   describe('manager permissions', () => {
     it('should allow manager to access own resource', async () => {
-      req.user = { id: 'manager1', role: 'manager' } as any
+      req.user = authUser('manager1', 'manager')
       req.params = { id: 'manager1' }
 
       const middleware = resourcePermission({
@@ -304,7 +312,7 @@ describe('resourcePermission middleware', () => {
     })
 
     it('should deny manager to access other manager resource', async () => {
-      req.user = { id: 'manager1', role: 'manager' } as any
+      req.user = authUser('manager1', 'manager')
       req.params = { id: 'manager2' }
 
       const middleware = resourcePermission({
@@ -320,7 +328,7 @@ describe('resourcePermission middleware', () => {
 
   describe('user permissions', () => {
     it('should allow user to access own resource', async () => {
-      req.user = { id: 'user1', role: 'user' } as any
+      req.user = authUser('user1', 'user')
       req.params = { id: 'user1' }
 
       const middleware = resourcePermission({
@@ -335,7 +343,7 @@ describe('resourcePermission middleware', () => {
     })
 
     it('should deny user to access other user resource', async () => {
-      req.user = { id: 'user1', role: 'user' } as any
+      req.user = authUser('user1', 'user')
       req.params = { id: 'user2' }
 
       const middleware = resourcePermission({
@@ -349,13 +357,13 @@ describe('resourcePermission middleware', () => {
     })
 
     it('should allow manager to access team user', async () => {
-      req.user = { id: 'manager1', role: 'manager', teamName: 'team1' } as any
+      req.user = authUser('manager1', 'manager', { teamName: 'team1' })
       req.params = { id: 'user1' }
 
       vi.mocked(queryOne).mockResolvedValue({ 
         id: 'user1', 
         teamName: 'team1' 
-      } as any)
+      })
 
       const middleware = resourcePermission({
         resourceType: 'user',
@@ -368,13 +376,13 @@ describe('resourcePermission middleware', () => {
     })
 
     it('should deny manager to access non-team user', async () => {
-      req.user = { id: 'manager1', role: 'manager', teamName: 'team1' } as any
+      req.user = authUser('manager1', 'manager', { teamName: 'team1' })
       req.params = { id: 'user1' }
 
       vi.mocked(queryOne).mockResolvedValue({ 
         id: 'user1', 
         teamName: 'team2' 
-      } as any)
+      })
 
       const middleware = resourcePermission({
         resourceType: 'user',
@@ -389,14 +397,14 @@ describe('resourcePermission middleware', () => {
 
   describe('order permissions', () => {
     it('should allow user to access own order', async () => {
-      req.user = { id: 'user1', role: 'user' } as any
+      req.user = authUser('user1', 'user')
       req.params = { id: 'order1' }
 
       vi.mocked(queryOne).mockResolvedValueOnce({ 
         id: 'order1', 
         userId: 'user1', 
         productId: 'product1' 
-      } as any)
+      })
 
       const middleware = resourcePermission({
         resourceType: 'order',
@@ -410,14 +418,14 @@ describe('resourcePermission middleware', () => {
     })
 
     it('should deny user to access other user order', async () => {
-      req.user = { id: 'user1', role: 'user' } as any
+      req.user = authUser('user1', 'user')
       req.params = { id: 'order1' }
 
       vi.mocked(queryOne).mockResolvedValueOnce({ 
         id: 'order1', 
         userId: 'user2', 
         productId: 'product1' 
-      } as any)
+      })
 
       const middleware = resourcePermission({
         resourceType: 'order',
@@ -430,7 +438,7 @@ describe('resourcePermission middleware', () => {
     })
 
     it('should allow manager to access team order', async () => {
-      req.user = { id: 'manager1', role: 'manager' } as any
+      req.user = authUser('manager1', 'manager')
       req.params = { id: 'order1' }
 
       vi.mocked(queryOne)
@@ -438,10 +446,10 @@ describe('resourcePermission middleware', () => {
           id: 'order1', 
           userId: 'user1', 
           productId: 'product1' 
-        } as any)
+        })
         .mockResolvedValueOnce({ 
           managerId: 'manager1' 
-        } as any)
+        })
 
       const middleware = resourcePermission({
         resourceType: 'order',
@@ -454,7 +462,7 @@ describe('resourcePermission middleware', () => {
     })
 
     it('should deny manager to access non-team order', async () => {
-      req.user = { id: 'manager1', role: 'manager' } as any
+      req.user = authUser('manager1', 'manager')
       req.params = { id: 'order1' }
 
       vi.mocked(queryOne)
@@ -462,10 +470,10 @@ describe('resourcePermission middleware', () => {
           id: 'order1', 
           userId: 'user1', 
           productId: 'product1' 
-        } as any)
+        })
         .mockResolvedValueOnce({ 
           managerId: 'manager2' 
-        } as any)
+        })
 
       const middleware = resourcePermission({
         resourceType: 'order',
@@ -480,7 +488,7 @@ describe('resourcePermission middleware', () => {
 
   describe('category permissions', () => {
     it('should allow anyone to read category', async () => {
-      req.user = { id: 'user1', role: 'user' } as any
+      req.user = authUser('user1', 'user')
       req.params = { id: 'category1' }
 
       const middleware = resourcePermission({
@@ -494,7 +502,7 @@ describe('resourcePermission middleware', () => {
     })
 
     it('should allow anyone to list categories', async () => {
-      req.user = { id: 'user1', role: 'user' } as any
+      req.user = authUser('user1', 'user')
 
       const middleware = resourcePermission({
         resourceType: 'category',
@@ -507,7 +515,7 @@ describe('resourcePermission middleware', () => {
     })
 
     it('should deny non-admin to create category', async () => {
-      req.user = { id: 'user1', role: 'user' } as any
+      req.user = authUser('user1', 'user')
       req.params = { id: 'category1' }
 
       const middleware = resourcePermission({
@@ -521,7 +529,7 @@ describe('resourcePermission middleware', () => {
     })
 
     it('should allow admin to create category', async () => {
-      req.user = { id: 'admin1', role: 'admin' } as any
+      req.user = authUser('admin1', 'admin')
       req.params = { id: 'category1' }
 
       const middleware = resourcePermission({
@@ -537,7 +545,7 @@ describe('resourcePermission middleware', () => {
 
   describe('error handling', () => {
     it('should return 500 when database error occurs', async () => {
-      req.user = { id: 'user1', role: 'user' } as any
+      req.user = authUser('user1', 'user')
       req.params = { id: 'product1' }
 
       vi.mocked(queryOne).mockRejectedValue(new Error('Database error'))
@@ -595,7 +603,7 @@ describe('ResourcePermissionChecker', () => {
         id: 'product1',
         managerId: 'manager1',
         status: 'draft',
-      } as any)
+      })
 
       const result = await ResourcePermissionChecker.checkProduct(
         'manager1',
@@ -613,7 +621,7 @@ describe('ResourcePermissionChecker', () => {
         id: 'product1',
         managerId: 'manager1',
         status: 'published',
-      } as any)
+      })
 
       const result = await ResourcePermissionChecker.checkProduct(
         'user1',
@@ -630,7 +638,7 @@ describe('ResourcePermissionChecker', () => {
         id: 'product1',
         managerId: 'manager1',
         status: 'draft',
-      } as any)
+      })
 
       const result = await ResourcePermissionChecker.checkProduct(
         'user1',
@@ -647,7 +655,7 @@ describe('ResourcePermissionChecker', () => {
         id: 'product1',
         managerId: 'manager1',
         status: 'draft',
-      } as any)
+      })
 
       const result = await ResourcePermissionChecker.checkProduct(
         'manager1',
@@ -664,7 +672,7 @@ describe('ResourcePermissionChecker', () => {
         id: 'product1',
         managerId: 'manager2',
         status: 'draft',
-      } as any)
+      })
 
       const result = await ResourcePermissionChecker.checkProduct(
         'manager1',
@@ -693,7 +701,7 @@ describe('ResourcePermissionChecker', () => {
       vi.mocked(queryOne).mockResolvedValue({
         id: 'user1',
         teamName: 'team1',
-      } as any)
+      })
 
       const result = await ResourcePermissionChecker.checkUser(
         'user1',
@@ -722,10 +730,10 @@ describe('ResourcePermissionChecker', () => {
         .mockResolvedValueOnce({
           id: 'user1',
           teamName: 'team1',
-        } as any)
+        })
         .mockResolvedValueOnce({
           teamName: 'team1',
-        } as any)
+        })
 
       const result = await ResourcePermissionChecker.checkUser(
         'manager1',
@@ -742,10 +750,10 @@ describe('ResourcePermissionChecker', () => {
         .mockResolvedValueOnce({
           id: 'user1',
           teamName: 'team2',
-        } as any)
+        })
         .mockResolvedValueOnce({
           teamName: 'team1',
-        } as any)
+        })
 
       const result = await ResourcePermissionChecker.checkUser(
         'manager1',
