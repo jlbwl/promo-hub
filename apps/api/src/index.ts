@@ -10,7 +10,7 @@ import multer from 'multer'
 import { getErrorMessage } from '@promo/shared'
 import logger from './utils/logger.js'
 import cookieParser from 'cookie-parser'
-import { sessionMiddleware, attachUser, requireManager, requireAdmin } from './middleware/auth.js'
+import { attachUser, requireManager, requireAdmin } from './middleware/auth.js'
 import { csrfGenerate, csrfVerify, getCsrfToken } from './middleware/csrf-v2.js'
 import routes from './routes/index.js'
 import { errorHandler } from './utils/response.js'
@@ -52,7 +52,6 @@ const corsOptions: cors.CorsOptions = {
 app.use(cors(corsOptions))
 app.use(express.json())
 app.use(cookieParser())
-app.use(sessionMiddleware)
 
 // 动态接口禁用缓存：微信 X5/XWeb 等 WebView 对无 Cache-Control 的 GET 响应走启发式缓存，
 // 会把偶发的错误/过期响应持久缓存导致个别用户持续复现「获取产品详情失败」等问题
@@ -70,7 +69,7 @@ app.get('/api/csrf-token', getCsrfToken)
 // CSRF 验证中间件（验证非 GET 请求的 CSRF token）
 app.use(csrfVerify)
 
-// 可选鉴权：全局解析请求身份（Session/Bearer/Refresh），失败不阻断
+// 可选鉴权：全局解析请求身份（Bearer JWT / Refresh Token），失败不阻断
 // 公开路由（如 POST /orders）借此识别已登录用户，避免订单误归因为访客
 app.use(attachUser)
 
@@ -80,7 +79,7 @@ app.use((req, _res, next) => {
     req.method,
     req.originalUrl,
     req.ip,
-    req.session?.user?.id
+    req.user?.id
   )
   next()
 })

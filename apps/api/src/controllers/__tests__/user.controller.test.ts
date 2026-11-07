@@ -62,6 +62,8 @@ vi.mock('../../middleware/auth.js', () => ({
   logout: vi.fn(),
   generateTokens: vi.fn(),
   refreshAuthToken: vi.fn(),
+  revokeRefreshToken: vi.fn(),
+  blacklistAccessToken: vi.fn(),
 }))
 
 vi.mock('../../utils/sms.js', () => ({

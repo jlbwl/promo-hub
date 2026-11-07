@@ -62,6 +62,33 @@ const ADMIN_ACTIVE_TOKEN_PREFIX = 'admin_active_token:'
 // Admin refresh token 滑动过期时间（365天，每次刷新自动续期）
 const ADMIN_REFRESH_TOKEN_TTL = 365 * 24 * 60 * 60
 
+// Plan C: Access Token 黑名单（登出后使未过期的 Access Token 立即失效）
+// 与 Access Token 有效期一致（1 小时），到期自动清理
+const ACCESS_TOKEN_BLACKLIST_PREFIX = 'access_token_blacklist:'
+const ACCESS_TOKEN_TTL = 60 * 60
+
+/**
+ * 将 Access Token 加入黑名单（登出时调用）
+ * 使未过期的 Access Token 立即失效，防止登出后仍可访问受保护接口
+ */
+export async function blacklistAccessToken(token: string): Promise<void> {
+  const cacheService = getTokenStore()
+  if (cacheService) {
+    await cacheService.set(ACCESS_TOKEN_BLACKLIST_PREFIX + token, '1', ACCESS_TOKEN_TTL)
+  }
+}
+
+/**
+ * 检查 Access Token 是否已被吊销（登出黑名单）
+ */
+export async function isAccessTokenBlacklisted(token: string): Promise<boolean> {
+  const cacheService = getTokenStore()
+  if (cacheService) {
+    return !!(await cacheService.get(ACCESS_TOKEN_BLACKLIST_PREFIX + token))
+  }
+  return false
+}
+
 // 获取缓存服务（使用 Redis）
 function getTokenStore() {
   try {
@@ -168,45 +195,31 @@ export const authMiddleware = (allowedRoles?: Array<'admin' | 'manager' | 'user'
       const bearerToken = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null
       const refreshToken = req.headers['x-refresh-token'] as string | undefined
 
-      // 1. 优先检查 Session
-      if (req.session && req.session.isAuthenticated && req.session.user) {
-        if (allowedRoles && allowedRoles.length > 0) {
-          const userRole = req.session.user.role
-          if (!allowedRoles.includes(userRole)) {
-            res.status(403).json({
-              code: 403,
-              message: '您没有权限执行此操作',
-              data: null
-            })
-            return
-          }
-        }
-        req.user = req.session.user
-        next()
-        return
-      }
-
-      // 2. 检查 Bearer Token（JWT）
+      // 1. 检查 Bearer Token（JWT）
       if (bearerToken) {
         const user = verifyAuthToken(bearerToken)
         if (user) {
-          if (allowedRoles && allowedRoles.length > 0) {
-            if (!allowedRoles.includes(user.role)) {
-              res.status(403).json({
-                code: 403,
-                message: '您没有权限执行此操作',
-                data: null
-              })
-              return
+          // 检查 Access Token 是否已被吊销（登出黑名单）
+          const blacklisted = await isAccessTokenBlacklisted(bearerToken)
+          if (!blacklisted) {
+            if (allowedRoles && allowedRoles.length > 0) {
+              if (!allowedRoles.includes(user.role)) {
+                res.status(403).json({
+                  code: 403,
+                  message: '您没有权限执行此操作',
+                  data: null
+                })
+                return
+              }
             }
+            req.user = user
+            next()
+            return
           }
-          req.user = user
-          next()
-          return
         }
       }
 
-      // 3. 尝试使用 Refresh Token 刷新 Access Token
+      // 2. 尝试使用 Refresh Token 刷新 Access Token
       if (refreshToken) {
         const newTokens = await refreshAuthToken(refreshToken)
         if (newTokens) {
@@ -253,23 +266,28 @@ export const authMiddleware = (allowedRoles?: Array<'admin' | 'manager' | 'user'
   }
 }
 
-export const login = (req: Request, user: AuthUser): Promise<void> => {
-  return new Promise((resolve, reject) => {
-    try {
-      req.session.user = user
-      req.session.isAuthenticated = true
-      req.session.save((err) => {
-        if (err) {
-          logger.error('[Session] 保存会话失败:', { error: getErrorMessage(err) })
-          reject(err)
-        } else {
-          logger.debug(`[Session] 用户 ${user.id} (${user.role}) 登录成功`)
+// Plan C: 登录态完全由 JWT 承载，不再写入服务端 Session
+// 保留此函数仅为兼容调用方（控制器中 login() 的调用），实际为 no-op
+export const login = (req: Request, _user: AuthUser): Promise<void> => {
+  return new Promise((resolve) => {
+    if (req.session) {
+      try {
+        req.session.user = _user
+        req.session.isAuthenticated = true
+        req.session.save((err) => {
+          if (err) {
+            logger.error('[Session] 保存会话失败:', { error: getErrorMessage(err) })
+          } else {
+            logger.debug(`[Session] 用户 ${_user.id} (${_user.role}) 登录成功`)
+          }
           resolve()
-        }
-      })
-    } catch (error) {
-      logger.error('[Session] 设置会话失败', { error: getErrorMessage(error) })
-      reject(error)
+        })
+      } catch (error) {
+        logger.error('[Session] 设置会话失败', { error: getErrorMessage(error) })
+        resolve()
+      }
+    } else {
+      resolve()
     }
   })
 }
@@ -282,14 +300,18 @@ export const loginSync = (req: Request, user: AuthUser) => {
 }
 
 export const logout = (req: Request) => {
-  const userId = req.session?.user?.id
-  req.session.destroy((err) => {
-    if (err) {
-      logger.error('[Session] 销毁会话失败:', { error: getErrorMessage(err) })
-    } else {
-      logger.debug(`[Session] 用户 ${userId} 已登出`)
-    }
-  })
+  const userId = req.session?.user?.id || req.user?.id
+  if (req.session) {
+    req.session.destroy((err) => {
+      if (err) {
+        logger.error('[Session] 销毁会话失败:', { error: getErrorMessage(err) })
+      } else {
+        logger.debug(`[Session] 用户 ${userId} 已登出`)
+      }
+    })
+  } else {
+    logger.debug(`[Auth] 用户 ${userId} 已登出（无 Session）`)
+  }
 }
 
 // 刷新 Token
@@ -419,35 +441,31 @@ export async function revokeRefreshToken(refreshToken: string): Promise<boolean>
 
 /**
  * 可选鉴权：尽力解析请求身份，解析失败不阻断请求（不返回 401）
- * 解析顺序与 authMiddleware 一致：Session → Bearer JWT → X-Refresh-Token 兜底刷新
+ * 解析顺序：Bearer JWT → X-Refresh-Token 兜底刷新（Plan C 已移除 Session）
  *
  * 用于公开路由（如 POST /orders 允许访客下单）：
- * 前端已登录用户的身份主要携带在 Bearer Token 中，而 session 因服务重启（内存存储）
- * 等原因可能丢失；若公开路由不解析 Bearer，请求会被误判为访客，
- * 导致订单归属错误（userId = sharerId/guest），用户端"我的订单"看不到自己的订单。
+ * 前端已登录用户的身份携带在 Bearer Token 中；若公开路由不解析 Bearer，
+ * 请求会被误判为访客，导致订单归属错误（userId = sharerId/guest），
+ * 用户端"我的订单"看不到自己的订单。
  */
 export const attachUser: RequestHandler = async (req, res, next) => {
   try {
-    // 1. Session
-    if (req.session?.isAuthenticated && req.session.user) {
-      req.user = req.session.user
-      next()
-      return
-    }
-
-    // 2. Bearer Token（JWT）
+    // 1. Bearer Token（JWT）
     const authHeader = req.headers.authorization
     const bearerToken = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null
     if (bearerToken) {
       const user = verifyAuthToken(bearerToken)
       if (user) {
-        req.user = user
-        next()
-        return
+        const blacklisted = await isAccessTokenBlacklisted(bearerToken)
+        if (!blacklisted) {
+          req.user = user
+          next()
+          return
+        }
       }
     }
 
-    // 3. X-Refresh-Token 兜底刷新（Access Token 过期且 Session 失效时）
+    // 2. X-Refresh-Token 兜底刷新（Access Token 过期时）
     // 依赖 refreshAuthToken 的 60 秒宽限期机制保证并发请求安全
     const refreshToken = req.headers['x-refresh-token'] as string | undefined
     if (refreshToken) {

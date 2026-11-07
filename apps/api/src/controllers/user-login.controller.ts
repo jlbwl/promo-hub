@@ -9,7 +9,7 @@ import {
   type UserRecord,
   touchUserLastLogin,
 } from '../data/index.js'
-import { login as sessionLogin, logout as sessionLogout, generateTokens, revokeRefreshToken, type AuthUser } from '../middleware/auth.js'
+import { login as sessionLogin, logout as sessionLogout, generateTokens, revokeRefreshToken, blacklistAccessToken, type AuthUser } from '../middleware/auth.js'
 import { verifySmsCode } from '../utils/sms.js'
 import { hashPassword, verifyPassword } from '../utils/password.js'
 import { userService } from '../services/index.js'
@@ -153,7 +153,7 @@ export const setUserPassword = asyncHandler(
  */
 export const userLogout = asyncHandler(
   async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
-    logger.info('User logout', { userId: req.session?.user?.id || req.user?.id })
+    logger.info('User logout', { userId: req.user?.id })
 
     // 吊销 Refresh Token（请求层统一通过 X-Refresh-Token 头携带）
     const refreshToken = req.headers?.['x-refresh-token'] as string | undefined
@@ -161,7 +161,14 @@ export const userLogout = asyncHandler(
       await revokeRefreshToken(refreshToken)
     }
 
-    // 清除 Session
+    // Plan C: 将当前 Access Token 加入黑名单，使其立即失效
+    const authHeader = req.headers?.authorization
+    const bearerToken = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null
+    if (bearerToken) {
+      await blacklistAccessToken(bearerToken)
+    }
+
+    // 清除 Session（已 no-op，保留兼容）
     sessionLogout(req)
 
     // 返回成功响应

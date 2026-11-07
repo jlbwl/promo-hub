@@ -115,7 +115,7 @@ export const errorHandler = (
     req.method,
     req.originalUrl,
     req.ip,
-    req.session?.user?.id
+    req.user?.id
   )
 
   // 应用错误
