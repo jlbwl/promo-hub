@@ -253,10 +253,9 @@ export const createDispatchWorkbook = (products: Product[], categories: ProductC
     }
   })
 
-  // 列宽按 12pt Microsoft YaHei 的实际显示像素估算：中文 16px、半角 7.5px；
-  // Excel 列宽单位约等于 7px（默认字体 Calibri 11），换算后留 2 个单位余量，保证不换行也不截断
+  // 12pt Microsoft YaHei 的实际显示宽度（96dpi）：中文全角 16px、半角字母/数字 9px
   const textPxWidth = (value: string): number =>
-    Array.from(value).reduce((px, ch) => px + (ch.charCodeAt(0) > 127 ? 16 : 7.5), 0)
+    Array.from(value).reduce((px, ch) => px + (ch.charCodeAt(0) > 127 ? 16 : 9), 0)
 
   const maxTextPx: number[] = [0, 0, 0, 0]
   dataRows.forEach((row) => {
@@ -271,12 +270,14 @@ export const createDispatchWorkbook = (products: Product[], categories: ProductC
     maxTextPx[index] = Math.max(maxTextPx[index], textPxWidth(header))
   })
 
-  // 只保留下限，不设上限：描述列要完整容纳最长内容（不换行、不截断）
+  // 列宽单位换算差异是「内容显示不全」的根因：Excel 按默认字体 Calibri 11 记 7px/单位，
+  // WPS 实测约 6.5px/单位（同一 width 值渲染更窄）。按更保守的 6.5 反算并多留 1 个单位，
+  // 保证两个阅读器都不裁剪；Excel 下会略宽一点。
+  const WPS_PX_PER_UNIT = 6.5
   const columnMinWidths: number[] = [8, 24, 10, 40]
   worksheet.columns.forEach((col, index) => {
     const min = columnMinWidths[index] || 20
-    const contentWidth = maxTextPx[index] / 7 + 2
-    col.width = Math.round(Math.max(contentWidth, min) * 10) / 10
+    col.width = Math.max(Math.ceil(maxTextPx[index] / WPS_PX_PER_UNIT) + 1, min)
   })
 
   return workbook
@@ -334,8 +335,8 @@ export const appendQrCodeToWorkbook = (workbook: ExcelJS.Workbook, qrCodeDataUrl
     qrCodeRow.height = (imgHeightPx + paddingPx * 2) * 0.75
     worksheet.mergeCells(`A${qrCodeRow.number}:D${qrCodeRow.number}`)
 
-    // 估算 A-D 合并区域的像素宽度，计算图片居中所需的偏移
-    const colWidthToPx = (width?: number) => (width ? Math.round(width * 7 + 5) : 64)
+    // 估算 A-D 合并区域的像素宽度（Excel 列宽单位 ≈ 7px，与默认字体 Calibri 11 一致）
+    const colWidthToPx = (width?: number) => (width ? Math.round(width * 7) + 5 : 64)
     const mergedWidthPx = [1, 2, 3, 4].reduce(
       (sum, col) => sum + colWidthToPx(worksheet.getColumn(col).width),
       0
@@ -343,12 +344,24 @@ export const appendQrCodeToWorkbook = (workbook: ExcelJS.Workbook, qrCodeDataUrl
     const offsetXPx = Math.max((mergedWidthPx - imgWidthPx) / 2, 0)
     const pxToEmu = (px: number) => Math.round(px * 9525)
 
+    // 关键修正：oneCellAnchor 的 colOff 必须落在起始列自身宽度内。
+    // 线上文件写的是 col=0 + 397px，远超 A 列宽度，WPS 保存后把图片位置归一到 A 列右边缘（约 77px），
+    // 二维码因此贴左、不是整表居中。这里把偏移拆成「列 + 列内剩余偏移」，保证 colOff 永远小于该列宽度。
+    let anchorCol = 1
+    let anchorColOffPx = offsetXPx
+    while (anchorCol < 4) {
+      const colPx = colWidthToPx(worksheet.getColumn(anchorCol).width)
+      if (anchorColOffPx < colPx) break
+      anchorColOffPx -= colPx
+      anchorCol += 1
+    }
+
     // 注意：ExcelJS 只认 nativeColOff/nativeRowOff，tl.colOff/rowOff 会被静默归零
     worksheet.addImage(qrCodeImage, {
       tl: {
-        nativeCol: 0,
+        nativeCol: anchorCol - 1,
         nativeRow: qrCodeRow.number - 1,
-        nativeColOff: pxToEmu(offsetXPx),
+        nativeColOff: pxToEmu(anchorColOffPx),
         nativeRowOff: pxToEmu(paddingPx)
       },
       ext: { width: imgWidthPx, height: imgHeightPx }
