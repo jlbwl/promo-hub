@@ -3,6 +3,7 @@
   <el-table
     v-loading="loading"
     :data="data"
+    :empty-text="onlyDuplicate ? '当前筛选条件下没有重单' : '暂无数据'"
     border
     stripe
     style="width: 100%;"
@@ -185,6 +186,7 @@ defineProps<{
   total: number
   page: number
   pageSize: number
+  onlyDuplicate: boolean
 }>()
 
 const emit = defineEmits<{

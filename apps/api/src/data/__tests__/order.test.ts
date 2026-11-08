@@ -16,6 +16,7 @@ import {
   restoreOrder,
   purgeOrder,
   getOrderStats,
+  getOrdersPaginated,
 } from '../order.js'
 
 const mockQuery = vi.mocked(query)
@@ -254,6 +255,86 @@ describe('data/order.ts', () => {
       const sql = String(mockQueryOne.mock.calls[0][0])
       expect(sql).toContain('managerId = ?')
       expect(mockQueryOne.mock.calls[0][1]).toEqual(['m_1'])
+    })
+  })
+
+  describe('getOrdersPaginated 重单判定与筛选', () => {
+    const order = (overrides: Record<string, unknown> = {}) => ({
+      id: 'o_1',
+      userId: '',
+      productId: 'p_1',
+      userPhone: '13800000000',
+      productName: '产品',
+      productPrice: 10,
+      status: 'pending',
+      teamName: '',
+      userName: '客户',
+      createdAt: '2026-01-01 00:00:00',
+      ...overrides,
+    }) as never
+
+    it('两笔待审核同客户同产品订单均被标记为重单', async () => {
+      mockQueryOne.mockResolvedValue({ total: 2 })
+      mockQuery.mockResolvedValueOnce([order({ id: 'o_1' }), order({ id: 'o_2' })])
+      mockQuery.mockResolvedValueOnce([
+        { userPhone: '13800000000', productId: 'p_1', cnt: 2 },
+      ])
+
+      const result = await getOrdersPaginated({ onlyDuplicate: true, pageSize: 10 })
+
+      expect(result.list.map(o => o.duplicate)).toEqual([true, true])
+    })
+
+    it('单笔订单不命中重单', async () => {
+      mockQueryOne.mockResolvedValue({ total: 1 })
+      mockQuery.mockResolvedValueOnce([order({ id: 'o_1' })])
+      mockQuery.mockResolvedValueOnce([])
+
+      const result = await getOrdersPaginated({ pageSize: 10 })
+
+      expect(result.list[0].duplicate).toBe(false)
+    })
+
+    it('已驳回订单不标记重单，标记 COUNT 排除 rejected 与已删除', async () => {
+      mockQueryOne.mockResolvedValue({ total: 1 })
+      mockQuery.mockResolvedValueOnce([order({ id: 'o_r', status: 'rejected' })])
+      mockQuery.mockResolvedValueOnce([
+        { userPhone: '13800000000', productId: 'p_1', cnt: 2 },
+      ])
+
+      const result = await getOrdersPaginated({ pageSize: 10 })
+      const countSql = String(mockQuery.mock.calls[1][0])
+
+      expect(result.list[0].duplicate).toBe(false)
+      expect(countSql).toContain(`status <> 'rejected'`)
+      expect(countSql).toContain('deleted = 0')
+    })
+
+    it('onlyDuplicate 使用非 rejected 兄弟单条件，不再要求资金流程状态', async () => {
+      mockQueryOne.mockResolvedValue({ total: 0 })
+
+      await getOrdersPaginated({ onlyDuplicate: true })
+
+      const sql = String(mockQueryOne.mock.calls[0][0])
+      expect(sql).toContain('EXISTS')
+      expect(sql).toContain(`dup.status <> 'rejected'`)
+      expect(sql).toContain('dup.deleted = 0')
+      expect(sql).toContain(`status <> 'rejected'`)
+      expect(sql).not.toContain(`status IN ('approved','pending_payment','settled')`)
+    })
+
+    it('onlyDuplicate 与状态、关键词条件 AND 叠加', async () => {
+      mockQueryOne.mockResolvedValue({ total: 0 })
+
+      await getOrdersPaginated({ onlyDuplicate: true, status: 'pending', keyword: '张三' })
+
+      const sql = String(mockQueryOne.mock.calls[0][0])
+      const params = (mockQueryOne.mock.calls[0][1] || []) as unknown[]
+
+      expect(sql).toContain('status = ?')
+      expect(sql).toContain('productName LIKE ?')
+      expect(params).toContain('pending')
+      expect(params).toContain('%张三%')
     })
   })
 })

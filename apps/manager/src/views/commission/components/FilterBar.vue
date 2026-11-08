@@ -53,6 +53,7 @@
     >
       只看重单
     </el-checkbox>
+    <span class="duplicate-hint">同客户同产品 ≥2 笔有效订单（已驳回/已删除不计）</span>
     <el-button
       icon="Refresh"
       @click="emit('reset')"
@@ -78,3 +79,11 @@ const emit = defineEmits<{
   reset: []
 }>()
 </script>
+
+<style lang="scss" scoped>
+.duplicate-hint {
+  margin-left: 6px;
+  color: var(--el-text-color-secondary);
+  font-size: 12px;
+}
+</style>

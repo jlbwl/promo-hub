@@ -95,7 +95,7 @@ export async function findDuplicateOrder(
 }
 
 /**
- * M1：批量标记列表中的重单（同客户手机号 + 同产品，且存在资金流程订单）
+ * M1：批量标记列表中的重单（同客户手机号 + 同产品，有效订单 ≥2 笔）
  */
 async function markDuplicateOrders(orders: OrderRow[]): Promise<OrderRow[]> {
   const keys: [string, string][] = []
@@ -109,7 +109,7 @@ async function markDuplicateOrders(orders: OrderRow[]): Promise<OrderRow[]> {
   const placeholders = keys.map(() => '(?, ?)').join(', ')
   const rows = (await query(
     `SELECT userPhone, productId, COUNT(*) AS cnt FROM orders
-     WHERE deleted = 0 AND status IN ('approved','pending_payment','settled')
+     WHERE deleted = 0 AND status <> 'rejected'
        AND (userPhone, productId) IN (${placeholders})
      GROUP BY userPhone, productId`,
     keys.flat()
@@ -120,11 +120,9 @@ async function markDuplicateOrders(orders: OrderRow[]): Promise<OrderRow[]> {
 
   return orders.map((order) => {
     const key = order.userPhone && order.productId ? `${order.userPhone}::${order.productId}` : ''
-    const inFlow = key ? (counts.get(key) || 0) : 0
-    // 待审核订单命中任一在流程订单即视为重单（审核会触发二次确认）；
-    // 已进入流程的订单需存在另一笔在流程订单才算重单
-    const isFundingStatus = order.status === 'approved' || order.status === 'pending_payment' || order.status === 'settled'
-    const duplicate = order.status === 'pending' ? inFlow >= 1 : isFundingStatus ? inFlow >= 2 : false
+    const validCount = key ? (counts.get(key) || 0) : 0
+    // 同客户同产品有效订单 ≥2 笔即视为重单（已驳回/已删除不计，仅提示不阻断）
+    const duplicate = order.status !== 'rejected' && validCount >= 2
     return { ...order, duplicate }
   })
 }
@@ -400,15 +398,15 @@ export async function getOrdersPaginated(params: {
     values.push(`%${params.keyword}%`, `%${params.keyword}%`, `%${params.keyword}%`)
   }
   if (params.onlyDuplicate) {
-    // 只看重单：同客户同产品存在另一笔在流程订单（待审核单与在流程单重复、或在流程单之间重复）
-    // 用 EXISTS 一次筛选，分页与 COUNT 共用同一条件；内层表用别名，外层 orders.* 走相关子查询
-    whereConditions.push(`status IN ('pending','approved','pending_payment','settled')
+    // 只看重单：同客户同产品在有效订单（未删除、未驳回）中出现 ≥2 笔
+    // 与状态、关键词、经理归属等条件保持 AND 叠加；分页与 COUNT 共用同一条件
+    whereConditions.push(`status <> 'rejected'
       AND userPhone <> '' AND productId <> ''
       AND EXISTS (
         SELECT 1 FROM orders dup
         WHERE dup.deleted = 0 AND dup.id <> orders.id
           AND dup.userPhone = orders.userPhone AND dup.productId = orders.productId
-          AND dup.status IN ('approved','pending_payment','settled')
+          AND dup.status <> 'rejected'
       )`)
   }
 

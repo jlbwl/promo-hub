@@ -23,6 +23,7 @@
       :loading="loading"
       :data="tableData"
       :total="pagination.total"
+      :only-duplicate="filterOnlyDuplicate"
       @page-change="fetchData"
       @approve="handleApprove"
       @reject="handleReject"
