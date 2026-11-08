@@ -2,7 +2,7 @@ import logger from '../utils/logger.js'
 import { Request, Response } from 'express'
 import { getErrorMessage } from '@promo/shared'
 import { sendSuccess, sendError, sendPagination } from '../utils/response.js'
-import { MAX_PAGE_SIZE } from '../utils/pagination.js'
+import { MAX_PAGE, MAX_PAGE_SIZE } from '../utils/pagination.js'
 import { orderService } from '../services/index.js'
 import { logAdminOperation } from '../utils/auditLog.js'
 import { buildAuditDetail, maskPhone } from '../utils/auditDetail.js'
@@ -139,7 +139,9 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
  */
 export const getOrders = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { status, page = '1', pageSize = '20', keyword, managedBy } = req.query
+    const { status, page = '1', pageSize = '20', keyword, managedBy, onlyDuplicate } = req.query
+    // 「只看重单」：服务端筛选，兼容 true/1 两种传值
+    const onlyDuplicateFilter = onlyDuplicate === 'true' || onlyDuplicate === '1'
 
     const pageNum = parseInt(page as string, 10)
     const pageSizeNum = parseInt(pageSize as string, 10)
@@ -152,6 +154,8 @@ export const getOrders = async (req: Request, res: Response): Promise<void> => {
     }
     // 单页条数收敛到上限，避免导出/列表类请求放大内存
     const clampedPageSize = Math.min(pageSizeNum, MAX_PAGE_SIZE)
+    // O7：页码收敛到上限，避免深分页 OFFSET 过大
+    const clampedPage = Math.min(pageNum, MAX_PAGE)
 
     // P1-7: 根据登录角色强制覆盖查询参数，防止越权访问他人订单
     const currentUser = req.user
@@ -200,7 +204,8 @@ export const getOrders = async (req: Request, res: Response): Promise<void> => {
         teamName: queryTeamName,
         keyword: keyword as string,
         managedBy: managedBy as string,
-        page: pageNum,
+        onlyDuplicate: onlyDuplicateFilter,
+        page: clampedPage,
         pageSize: clampedPageSize,
       })
     } catch (dbError) {
@@ -215,12 +220,13 @@ export const getOrders = async (req: Request, res: Response): Promise<void> => {
         teamName: queryTeamName,
         keyword: keyword as string,
         managedBy: managedBy as string,
-        page: pageNum,
+        onlyDuplicate: onlyDuplicateFilter || undefined,
+        page: clampedPage,
         pageSize: clampedPageSize,
       })
     }
 
-    sendPagination(res, result.list, result.total, pageNum, clampedPageSize)
+    sendPagination(res, result.list, result.total, clampedPage, clampedPageSize)
   } catch (error) {
     logger.error('[获取订单] 错误:', { error: getErrorMessage(error) })
     sendError(res, getErrorMessage(error, '获取失败'), 500)

@@ -1,6 +1,6 @@
 import type { Request, Response } from 'express'
 import { formatDate, getErrorMessage } from '@promo/shared'
-import { readOperationLogs } from '../data/index.js'
+import { countOperationLogs, readOperationLogsKeyset } from '../data/index.js'
 import logger from '../utils/logger.js'
 import { sendError } from '../utils/response.js'
 import { parseOperationLogFilters } from '../utils/operationLogQuery.js'
@@ -43,6 +43,7 @@ const TARGET_TYPE_LABELS: Record<string, string> = {
 }
 
 interface ExportLogRow {
+  id: string
   createdAt?: string | null
   adminName?: string
   adminPhone?: string
@@ -85,15 +86,19 @@ function buildOperationLogCsvRow(row: ExportLogRow): string[] {
 
 /**
  * 按当前筛选条件流式导出操作日志 CSV。
- * 分页读取（每页 100 条）后逐行写出，不把全表读入内存。
+ * O7：keyset（id 游标）分页读取，每页 100 条后逐行写出，不做 OFFSET、不重复统计总数，
+ * 避免深分页扫描与总数 COUNT 的重复开销，也不把全表读入内存。
  * 导出为只读查询，不写入操作日志：避免高频导出产生噪音，且不改变任何业务数据。
  */
 export const exportOperationLogs = async (req: Request, res: Response): Promise<void> => {
   const filters = parseOperationLogFilters(req.query)
 
-  let firstPage: Awaited<ReturnType<typeof readOperationLogs>>
+  let rows: Awaited<ReturnType<typeof readOperationLogsKeyset>>
+  let total = 0
   try {
-    firstPage = await readOperationLogs({ ...filters, page: 1, pageSize: EXPORT_PAGE_SIZE })
+    // 只统计一次总数，后续 keyset 翻页不再 COUNT
+    total = await countOperationLogs(filters)
+    rows = await readOperationLogsKeyset(filters, undefined, EXPORT_PAGE_SIZE)
   } catch (error) {
     // 尚未发送响应头，可安全返回 JSON 错误
     logger.error('[导出操作日志] 读取失败:', { error: getErrorMessage(error) })
@@ -109,7 +114,7 @@ export const exportOperationLogs = async (req: Request, res: Response): Promise<
   res.write(UTF8_BOM)
   res.write(toCsvLine(CSV_HEADER))
 
-  let rows = firstPage.list
+  let lastId: string | undefined
   let page = 1
   let written = 0
 
@@ -119,14 +124,14 @@ export const exportOperationLogs = async (req: Request, res: Response): Promise<
         if (written >= MAX_EXPORT_ROWS) break
         res.write(toCsvLine(buildOperationLogCsvRow(row)))
         written += 1
+        lastId = row.id
       }
       if (rows.length < EXPORT_PAGE_SIZE || written >= MAX_EXPORT_ROWS) break
       page += 1
-      const next = await readOperationLogs({ ...filters, page, pageSize: EXPORT_PAGE_SIZE })
-      rows = next.list
+      rows = await readOperationLogsKeyset(filters, lastId, EXPORT_PAGE_SIZE)
     }
     if (written >= MAX_EXPORT_ROWS) {
-      logger.warn('[导出操作日志] 达到单次导出上限:', { limit: MAX_EXPORT_ROWS, filters })
+      logger.warn('[导出操作日志] 达到单次导出上限:', { limit: MAX_EXPORT_ROWS, total, filters })
     }
   } catch (error) {
     // 响应头已发出，无法再改写为 JSON 错误；保留已导出的部分并记录日志

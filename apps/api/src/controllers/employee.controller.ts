@@ -268,7 +268,18 @@ export const validateEmployee = async (req: Request, res: Response): Promise<voi
     if (!employee || employee.status !== 'active') {
       return sendError(res, '账户不存在或已被禁用', 1)
     }
-    
+
+    // O12：仅允许本人、其所属账号或管理员查看，避免按 ID 枚举员工有效期
+    const current = req.user
+    const canView = !!current && (
+      current.role === 'admin' ||
+      current.id === employee.id ||
+      current.id === employee.userId
+    )
+    if (!canView) {
+      return sendError(res, '无权查看该员工', 1)
+    }
+
     const now = new Date()
     const expiresAt = new Date(employee.expiresAt as string)
     

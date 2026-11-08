@@ -94,6 +94,7 @@ export async function getOrdersPaginated(params: {
   userPhone?: string
   teamName?: string
   keyword?: string
+  onlyDuplicate?: boolean
   page?: number
   pageSize?: number
 }): Promise<{ list: OrderRow[]; total: number }> {
@@ -127,6 +128,18 @@ export async function getOrdersPaginated(params: {
       (o.userName?.toLowerCase()?.includes(keyword)) ||
       (o.userPhone?.includes(keyword))
     )
+  }
+
+  if (params.onlyDuplicate) {
+    const fundingStatuses = new Set(['approved', 'pending_payment', 'settled'])
+    const inFlow = orders.filter((o) => fundingStatuses.has(o.status) && o.userPhone && o.productId)
+    orders = orders
+      .filter((o) => {
+        if (!['pending', 'approved', 'pending_payment', 'settled'].includes(o.status)) return false
+        if (!o.userPhone || !o.productId) return false
+        return inFlow.some((f) => f.id !== o.id && f.userPhone === o.userPhone && f.productId === o.productId)
+      })
+      .map((o) => ({ ...o, duplicate: true }))
   }
 
   orders.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())

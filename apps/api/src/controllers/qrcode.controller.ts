@@ -1,4 +1,5 @@
 import { Request, Response } from 'express'
+import { randomUUID } from 'node:crypto'
 import { getErrorMessage } from '@promo/shared'
 import { readQrCodes, readQrCodeById, insertQrCode, updateQrCode, deleteQrCode, setDefaultQrCode, readDefaultQrCode } from '../data/index.js'
 import { sendSuccess, sendError } from '../utils/response.js'
@@ -60,7 +61,8 @@ export const createQrCode = async (req: Request, res: Response): Promise<void> =
       return sendError(res, '缺少必要参数', 400)
     }
 
-    const id = `qrcode_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`
+    // O13：随机段改用 crypto.randomUUID，降低碰撞与可预测性
+    const id = `qrcode_${Date.now()}_${randomUUID().replace(/-/g, '').slice(0, 10)}`
 
     if (isDefault) {
       await setDefaultQrCode(id)

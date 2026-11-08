@@ -44,6 +44,15 @@
         value="rejected"
       />
     </el-select>
+    <!-- 只看重单：服务端筛选，与状态/关键词叠加 -->
+    <el-checkbox
+      :model-value="onlyDuplicate"
+      style="margin-left: 4px;"
+      @update:model-value="(v: boolean | string | number) => emit('update:onlyDuplicate', Boolean(v))"
+      @change="emit('change')"
+    >
+      只看重单
+    </el-checkbox>
     <el-button
       icon="Refresh"
       @click="emit('reset')"
@@ -58,11 +67,13 @@
 defineProps<{
   keyword: string
   status: string
+  onlyDuplicate: boolean
 }>()
 
 const emit = defineEmits<{
   'update:keyword': [value: string]
   'update:status': [value: string]
+  'update:onlyDuplicate': [value: boolean]
   change: []
   reset: []
 }>()

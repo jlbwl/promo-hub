@@ -44,8 +44,19 @@ export function useCommission() {
   const showRecycleBin = ref(false)
   const deletedOrders = ref<Order[]>([])
 
-  // 加载统计数据
-  const loadStats = async (): Promise<boolean> => {
+  // O9：统计结果短时缓存，避免 keep-alive 激活/刷新时与订单列表重复请求
+  const STATS_CACHE_TTL_MS = 10_000
+  let statsCache: { key: string; at: number; data: OrderStats } | null = null
+
+  const getStatsScopeKey = () => (isEmployee() ? `e:${getEmployeeId()}` : `u:${getUserId()}`)
+
+  // 加载统计数据；force=true 时跳过短时缓存（下拉刷新/数据变更后）
+  const loadStats = async (force = false): Promise<boolean> => {
+    const scopeKey = getStatsScopeKey()
+    if (!force && statsCache && statsCache.key === scopeKey && Date.now() - statsCache.at < STATS_CACHE_TTL_MS) {
+      applyStats(statsCache.data)
+      return true
+    }
     try {
       const params: {
         employeeId?: string
@@ -58,18 +69,23 @@ export function useCommission() {
       }
       const res = await get<OrderStats>('/orders/stats', params)
       if (res.data) {
-        overview.total = res.data.total || 0
-        overview.pending = res.data.pending || 0
-        overview.approved = res.data.approved || 0
-        overview.pendingPayment = res.data.pendingPayment || 0
-        overview.settled = res.data.settled || 0
-        overview.rejected = res.data.rejected || 0
+        applyStats(res.data)
+        statsCache = { key: scopeKey, at: Date.now(), data: res.data }
       }
       return true
     } catch (error) {
       logger.error('获取统计失败:', error)
       return false
     }
+  }
+
+  const applyStats = (data: OrderStats) => {
+    overview.total = data.total || 0
+    overview.pending = data.pending || 0
+    overview.approved = data.approved || 0
+    overview.pendingPayment = data.pendingPayment || 0
+    overview.settled = data.settled || 0
+    overview.rejected = data.rejected || 0
   }
 
   // 加载订单记录
@@ -159,7 +175,8 @@ export function useCommission() {
         if (index > -1) {
           deletedOrders.value.splice(index, 1)
         }
-        // 刷新订单列表
+        // 刷新订单列表（数据已变更，统计缓存一并失效）
+        statsCache = null
         initData()
       } else {
         showToast(res.message || '恢复失败')
@@ -235,7 +252,7 @@ export function useCommission() {
     const prevFinished = finished.value
     page.value = 1
     finished.value = false
-    const [statsOk, recordsOk] = await Promise.all([loadStats(), loadRecords()])
+    const [statsOk, recordsOk] = await Promise.all([loadStats(true), loadRecords()])
     if (!statsOk || !recordsOk) {
       // 订单请求失败时恢复分页状态，避免列表被误判为「没有更多了」
       if (!recordsOk) {

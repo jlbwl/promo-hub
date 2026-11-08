@@ -272,6 +272,20 @@ describe('order.controller', () => {
       )
     })
 
+    it('onlyDuplicate=true 透传服务端重单筛选', async () => {
+      vi.mocked(orderService.getOrders).mockResolvedValue(pageResult)
+      const req = makeReq({
+        query: { onlyDuplicate: 'true' },
+        user: { id: 'm_1', role: 'manager' },
+      })
+
+      await getOrders(req, makeRes())
+
+      expect(orderService.getOrders).toHaveBeenCalledWith(
+        expect.objectContaining({ onlyDuplicate: true })
+      )
+    })
+
     it('page 参数无效应返回 400', async () => {
       const res = makeRes()
 

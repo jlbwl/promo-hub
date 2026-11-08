@@ -360,6 +360,7 @@ export async function getOrdersPaginated(params: {
   userPhone?: string
   teamName?: string
   keyword?: string
+  onlyDuplicate?: boolean
   page?: number
   pageSize?: number
 }): Promise<{ list: OrderRow[]; total: number }> {
@@ -397,6 +398,18 @@ export async function getOrdersPaginated(params: {
   if (params.keyword) {
     whereConditions.push('(productName LIKE ? OR userName LIKE ? OR userPhone LIKE ?)')
     values.push(`%${params.keyword}%`, `%${params.keyword}%`, `%${params.keyword}%`)
+  }
+  if (params.onlyDuplicate) {
+    // 只看重单：同客户同产品存在另一笔在流程订单（待审核单与在流程单重复、或在流程单之间重复）
+    // 用 EXISTS 一次筛选，分页与 COUNT 共用同一条件；内层表用别名，外层 orders.* 走相关子查询
+    whereConditions.push(`status IN ('pending','approved','pending_payment','settled')
+      AND userPhone <> '' AND productId <> ''
+      AND EXISTS (
+        SELECT 1 FROM orders dup
+        WHERE dup.deleted = 0 AND dup.id <> orders.id
+          AND dup.userPhone = orders.userPhone AND dup.productId = orders.productId
+          AND dup.status IN ('approved','pending_payment','settled')
+      )`)
   }
 
   const whereClause = whereConditions.join(' AND ')

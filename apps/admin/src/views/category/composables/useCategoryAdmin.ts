@@ -67,7 +67,7 @@ export function useCategoryAdmin() {
 
       const categories = await get<{ list: ProductCategory[] }>('/categories')
 
-      const workbook = createDispatchWorkbook(products, categories.data?.list || [])
+      const workbook = await createDispatchWorkbook(products, categories.data?.list || [])
 
       let currentQrCodeDataUrl = fallbackQrDataUrl
       try {

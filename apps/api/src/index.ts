@@ -63,8 +63,8 @@ app.use((_req, res, next) => {
 // CSRF token 中间件（生成 + 验证）
 app.use(csrfGenerate)
 
-// 提供 CSRF token 获取接口
-app.get('/api/csrf-token', getCsrfToken)
+// 提供 CSRF token 获取接口（O14：Nginx 会剥掉 /api 前缀，不能再写 /api）
+app.get('/csrf-token', getCsrfToken)
 
 // CSRF 验证中间件（验证非 GET 请求的 CSRF token）
 app.use(csrfVerify)
@@ -232,6 +232,11 @@ app.post(
 )
 
 // 静态文件服务
+// O4：上传图片文件名唯一且内容不变，覆盖全局 no-store，允许长期缓存（与 Nginx 30 天缓存对齐）
+app.use('/uploads', (_req, res, next) => {
+  res.setHeader('Cache-Control', 'public, max-age=2592000, immutable')
+  next()
+})
 // H13：上传目录不允许提供可执行/可渲染的文档类文件，防止被当作 HTML 执行
 app.use('/uploads', (req, res, next) => {
   if (/\.(?:html?|js|mjs|svg)$/i.test(req.path)) {
@@ -257,11 +262,10 @@ function healthCheckHandler(_req: Request, res: Response) {
   })
 }
 
-app.get('/api/health', healthCheckHandler)
 app.get('/health', healthCheckHandler)
 
-// 缓存清理接口（仅管理员）
-app.post('/api/cache/clear', requireAdmin, async (_req, res) => {
+// 缓存清理接口（仅管理员；O14：路径不写 /api 前缀，Nginx 转发前已剥离）
+app.post('/cache/clear', requireAdmin, async (_req, res) => {
   try {
     const cacheService = getCacheService()
     await cacheService.flush()

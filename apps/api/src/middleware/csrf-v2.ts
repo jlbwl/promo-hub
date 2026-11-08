@@ -23,16 +23,19 @@ function generateCsrfToken(): string {
 // CSRF 中间件 - 生成 token 并设置到 cookie
 export function csrfGenerate(req: Request, res: Response, next: NextFunction) {
   try {
-    // 生成 CSRF token（随机生成，无需 sessionId 参与）
-    const token = generateCsrfToken()
+    // O1：已有 cookie 时复用原 token，避免并发请求/静态资源导致 token 频繁轮换
+    const existing = req.cookies?.csrfToken
+    const token = typeof existing === 'string' && existing ? existing : generateCsrfToken()
 
-    // 将 token 存储在 cookie 中（httpOnly: false, 安全）
-    res.cookie('csrfToken', token, {
-      httpOnly: false, // 前端 JS 需要读取这个 token
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: 24 * 60 * 60 * 1000 // 24小时
-    })
+    if (!existing) {
+      // 仅在首次无 token 时下发 cookie
+      res.cookie('csrfToken', token, {
+        httpOnly: false, // 前端 JS 需要读取这个 token
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        maxAge: 24 * 60 * 60 * 1000 // 24小时
+      })
+    }
 
     // 同时设置到响应本地变量，供视图使用
     res.locals.csrfToken = token
@@ -86,11 +89,9 @@ export function csrfVerify(req: Request, res: Response, next: NextFunction) {
     // 员工登录
     '/employees/login',
 
-    // Token 刷新和登出（登录态可能已过期，无法通过 CSRF 验证）
+    // Token 刷新（access token 可能已过期）；登出仍需校验 CSRF，前端会带 X-CSRF-Token
     '/auth/refresh',
-    '/auth/logout',
     '/users/refresh',
-    '/users/logout',
 
     // 密码重置（通过短信验证码，无需登录态）
     '/managers/password/set',
@@ -160,16 +161,19 @@ export function csrfVerify(req: Request, res: Response, next: NextFunction) {
 }
 
 // 获取 CSRF token 的接口
-export function getCsrfToken(_req: Request, res: Response) {
-  const token = generateCsrfToken()
+export function getCsrfToken(req: Request, res: Response) {
+  // O1：复用已有 cookie token，避免每次获取都轮换导致并发请求 403
+  const existing = req.cookies?.csrfToken
+  const token = typeof existing === 'string' && existing ? existing : generateCsrfToken()
 
-  // 设置到 cookie
-  res.cookie('csrfToken', token, {
-    httpOnly: false,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
-    maxAge: 24 * 60 * 60 * 1000
-  })
+  if (!existing) {
+    res.cookie('csrfToken', token, {
+      httpOnly: false,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 24 * 60 * 60 * 1000
+    })
+  }
 
   res.json({
     code: 0,

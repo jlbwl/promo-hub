@@ -1,4 +1,5 @@
 import { readFileData, writeFileData } from './_shared.js'
+import { randomUUID } from 'node:crypto'
 import { parsePage, parsePageSize } from '../utils/pagination.js'
 import type { OperationLogRow } from './types.js'
 
@@ -17,7 +18,7 @@ export async function insertOperationLog(log: {
 }): Promise<void> {
   const logs = await readFileData<OperationLogRow>('operation_logs')
   logs.push({
-    id: `log_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+    id: `log_${Date.now()}_${randomUUID().replace(/-/g, '').slice(0, 8)}`,
     ...log,
     createdAt: new Date().toISOString(),
   })

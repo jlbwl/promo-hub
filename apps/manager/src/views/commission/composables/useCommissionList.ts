@@ -16,6 +16,8 @@ export function useCommissionList() {
   // 筛选状态
   const filterStatus = ref('')
   const filterKeyword = ref('')
+  // 只看重单（服务端筛选）
+  const filterOnlyDuplicate = ref(false)
 
   // 分页数据
   const pagination = reactive({
@@ -66,6 +68,7 @@ export function useCommissionList() {
         managerId: getManagerId() || undefined,
         status: filterStatus.value || undefined,
         keyword: filterKeyword.value || undefined,
+        onlyDuplicate: filterOnlyDuplicate.value || undefined,
       })
       if (res.data) {
         const { list, total } = res.data
@@ -79,10 +82,17 @@ export function useCommissionList() {
     }
   }
 
+  // 筛选条件变化后从第一页重新请求（避免停留在旧页码导致空页）
+  const handleFilterChange = () => {
+    pagination.page = 1
+    fetchData()
+  }
+
   // 重置筛选
   const handleReset = () => {
     filterStatus.value = ''
     filterKeyword.value = ''
+    filterOnlyDuplicate.value = false
     pagination.page = 1
     fetchData()
   }
@@ -197,11 +207,13 @@ export function useCommissionList() {
     loading,
     filterStatus,
     filterKeyword,
+    filterOnlyDuplicate,
     pagination,
     stats,
     tableData,
     fetchStats,
     fetchData,
+    handleFilterChange,
     handleReset,
     handleApprove,
     handleReject,

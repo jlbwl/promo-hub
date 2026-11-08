@@ -13,9 +13,11 @@ vi.mock('../../utils/logger.js', () => ({
 
 vi.mock('../../data/index.js', () => ({
   readOperationLogs: vi.fn(),
+  readOperationLogsKeyset: vi.fn(),
+  countOperationLogs: vi.fn(),
 }))
 
-import { readOperationLogs } from '../../data/index.js'
+import { countOperationLogs, readOperationLogsKeyset } from '../../data/index.js'
 import { exportOperationLogs } from '../operationLogExport.controller.js'
 
 const makeReq = (query: Record<string, string> = {}): Request => ({ query }) as unknown as Request
@@ -43,10 +45,10 @@ describe('exportOperationLogs', () => {
   })
 
   it('按筛选条件流式导出 CSV：兼容结构化 JSON 与历史文本，并做公式注入转义', async () => {
-    vi.mocked(readOperationLogs).mockResolvedValue({
-      total: 2,
-      list: [
+    vi.mocked(countOperationLogs).mockResolvedValue(3)
+    vi.mocked(readOperationLogsKeyset).mockResolvedValue([
         {
+          id: 'log_1',
           createdAt: '2026-11-06T02:00:00.000Z',
           adminName: '管理员A',
           adminPhone: '13800000000',
@@ -61,6 +63,7 @@ describe('exportOperationLogs', () => {
           }),
         },
         {
+          id: 'log_2',
           createdAt: '2026-11-05T02:00:00.000Z',
           adminName: '管理员B',
           adminPhone: '13900000000',
@@ -72,6 +75,7 @@ describe('exportOperationLogs', () => {
           detail: '历史自由文本详情',
         },
         {
+          id: 'log_3',
           createdAt: '2026-11-04T02:00:00.000Z',
           adminName: '管理员C',
           adminPhone: '13700000000',
@@ -82,18 +86,20 @@ describe('exportOperationLogs', () => {
           reason: '',
           detail: '历史详情：联系人 13612345678',
         },
-      ],
-    })
+      ])
 
     const { res, chunks, headers, json, end } = makeRes()
     await exportOperationLogs(makeReq({ targetType: 'user', startTime: '2026-11-01' }), res)
 
-    expect(vi.mocked(readOperationLogs).mock.calls[0][0]).toMatchObject({
-      page: 1,
-      pageSize: 100,
+    expect(vi.mocked(countOperationLogs).mock.calls[0][0]).toMatchObject({
       targetType: 'user',
       startTime: '2026-11-01',
     })
+    expect(vi.mocked(readOperationLogsKeyset).mock.calls[0][0]).toMatchObject({
+      targetType: 'user',
+      startTime: '2026-11-01',
+    })
+    expect(vi.mocked(readOperationLogsKeyset).mock.calls[0][1]).toBeUndefined()
 
     expect(headers['Content-Type']).toBe('text/csv; charset=utf-8')
     expect(headers['Content-Disposition']).toContain('attachment; filename="operation-logs-')
@@ -124,7 +130,8 @@ describe('exportOperationLogs', () => {
   })
 
   it('无数据时仍返回带 BOM 的表头，不报错', async () => {
-    vi.mocked(readOperationLogs).mockResolvedValue({ total: 0, list: [] })
+    vi.mocked(countOperationLogs).mockResolvedValue(0)
+    vi.mocked(readOperationLogsKeyset).mockResolvedValue([])
 
     const { res, chunks, json, end } = makeRes()
     await exportOperationLogs(makeReq(), res)

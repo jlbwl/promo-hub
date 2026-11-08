@@ -1,4 +1,5 @@
 
+import { randomUUID } from 'node:crypto'
 import { query, queryOne } from '../db.js'
 import { parsePage, parsePageSize } from '../utils/pagination.js'
 import type { OperationLogRow } from '../data-memory.js'
@@ -19,24 +20,25 @@ export async function insertOperationLog(log: {
   reason?: string
   detail?: string
 }): Promise<void> {
-  const id = `log_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+  // O13：保留时间前缀以维持 keyset 时间序，随机段改用 crypto.randomUUID
+  const id = `log_${Date.now()}_${randomUUID().replace(/-/g, '').slice(0, 8)}`
   await query(
     `INSERT INTO operation_logs (id, adminId, adminPhone, adminName, operationType, targetType, targetId, targetName, reason, detail, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
     [id, log.adminId, log.adminPhone, log.adminName, log.operationType, log.targetType, log.targetId, log.targetName, log.reason || '', log.detail || '']
   )
 }
 
-export async function readOperationLogs(params?: {
+type OperationLogFilters = {
   adminId?: string
   operationType?: string
   targetType?: string
   startTime?: string
   endTime?: string
   keyword?: string
-  page?: number
-  pageSize?: number
-}): Promise<{ list: OperationLogRecord[]; total: number }> {
-  let queryStr = 'SELECT * FROM operation_logs'
+}
+
+/** 复用筛选条件构造，避免列表与导出逻辑分叉 */
+function buildOperationLogFilters(params?: OperationLogFilters): { conditions: string[]; values: unknown[] } {
   const values: unknown[] = []
   const conditions: string[] = []
 
@@ -66,11 +68,26 @@ export async function readOperationLogs(params?: {
     values.push(`%${params.keyword}%`, `%${params.keyword}%`)
   }
 
+  return { conditions, values }
+}
+
+function mapOperationLogRows(rows: OperationLogRow[]): OperationLogRecord[] {
+  return rows.map(row => ({
+    ...row,
+    createdAt: row.createdAt ? new Date(row.createdAt).toISOString() : null,
+  }))
+}
+
+export async function readOperationLogs(params?: OperationLogFilters & {
+  page?: number
+  pageSize?: number
+}): Promise<{ list: OperationLogRecord[]; total: number }> {
+  const { conditions, values } = buildOperationLogFilters(params)
+  let queryStr = 'SELECT * FROM operation_logs'
   if (conditions.length > 0) {
     queryStr += ' WHERE ' + conditions.join(' AND ')
   }
-
-  queryStr += ' ORDER BY createdAt DESC'
+  queryStr += ' ORDER BY createdAt DESC, id DESC'
 
   const total = (await queryOne('SELECT COUNT(1) as count FROM operation_logs' + (conditions.length > 0 ? ' WHERE ' + conditions.join(' AND ') : ''), values)) as { count: number } | null
   const totalCount = total?.count || 0
@@ -78,16 +95,48 @@ export async function readOperationLogs(params?: {
   const pageNum = parsePage(params?.page)
   const pageSizeNum = parsePageSize(params?.pageSize, 20)
   const offset = (pageNum - 1) * pageSizeNum
-  
+
   const rows = (await query(queryStr + ' LIMIT ? OFFSET ?', [...values, pageSizeNum, offset])) as OperationLogRow[]
-  
+
   return {
-    list: rows.map(row => ({
-      ...row,
-      createdAt: row.createdAt ? new Date(row.createdAt).toISOString() : null,
-    })),
+    list: mapOperationLogRows(rows),
     total: totalCount,
   }
+}
+
+/** 导出前只统计一次总数（避免分页循环内重复 COUNT） */
+export async function countOperationLogs(params?: OperationLogFilters): Promise<number> {
+  const { conditions, values } = buildOperationLogFilters(params)
+  const sql = 'SELECT COUNT(1) as count FROM operation_logs' + (conditions.length > 0 ? ' WHERE ' + conditions.join(' AND ') : '')
+  const result = (await queryOne(sql, values)) as { count?: number | string } | null
+  return Number(result?.count) || 0
+}
+
+/**
+ * O7：导出用 keyset 分页，按 id 倒序游标推进，不做 OFFSET 也不重复统计总数。
+ * id 形如 log_<毫秒时间戳>_<随机串>，倒序即近似时间倒序。
+ */
+export async function readOperationLogsKeyset(
+  params?: OperationLogFilters,
+  beforeId?: string,
+  limit = 500,
+): Promise<OperationLogRecord[]> {
+  const { conditions, values } = buildOperationLogFilters(params)
+  const allConditions = [...conditions]
+  const allValues = [...values]
+  if (beforeId) {
+    allConditions.push('id < ?')
+    allValues.push(beforeId)
+  }
+
+  let queryStr = 'SELECT * FROM operation_logs'
+  if (allConditions.length > 0) {
+    queryStr += ' WHERE ' + allConditions.join(' AND ')
+  }
+  queryStr += ' ORDER BY id DESC LIMIT ?'
+
+  const rows = (await query(queryStr, [...allValues, limit])) as OperationLogRow[]
+  return mapOperationLogRows(rows)
 }
 
 export interface OperationLogAdminOption {

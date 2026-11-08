@@ -1,7 +1,8 @@
 /**
  * 分类管理页共享纯函数：时间格式化、二维码图片处理、派单表构建与下载
  */
-import ExcelJS from 'exceljs'
+// O10：ExcelJS 改为导出时动态 import，避免约 973KB 库进入分类管理首屏包
+import type ExcelJS from 'exceljs'
 import { logger } from '@promo/shared/utils/logger'
 import { formatDate } from '@promo/shared/utils/helpers'
 import { ElMessage } from 'element-plus'
@@ -95,7 +96,8 @@ export const addTextToQrCode = async (qrCodeDataUrl: string, topText: string, ce
 }
 
 // 构建派单表工作簿：声明行、标题行、按分类分组的表头与数据行、列宽
-export const createDispatchWorkbook = (products: Product[], categories: ProductCategory[]): ExcelJS.Workbook => {
+export const createDispatchWorkbook = async (products: Product[], categories: ProductCategory[]): Promise<ExcelJS.Workbook> => {
+  const exceljsModule = await import('exceljs')
   const categoryMap = new Map(categories.map(c => [c.value, c.name]))
 
   const mappedProducts = products.map((product: Product) => ({
@@ -122,7 +124,7 @@ export const createDispatchWorkbook = (products: Product[], categories: ProductC
   const TITLE_SIZE = 18
   const DECLARATION_SIZE = 10
 
-  const workbook = new ExcelJS.Workbook()
+  const workbook = new exceljsModule.Workbook()
   const worksheet = workbook.addWorksheet('派单表', {
     pageSetup: {
       paperSize: 9, // A4

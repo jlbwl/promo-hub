@@ -2,7 +2,10 @@
  * OrderService - 订单业务逻辑层
  * 负责处理订单相关的所有业务逻辑，包括创建订单、审核、删除、恢复等
  */
+import { randomUUID } from 'node:crypto'
 import { injectable, inject } from 'tsyringe'
+import { CacheKeys, getCacheService as getGlobalCacheService } from './cache/index.js'
+import logger from '../utils/logger.js'
 import {
   readProducts,
   readOrders,
@@ -42,6 +45,7 @@ export interface OrderListParams {
   teamName?: string
   keyword?: string
   managedBy?: string
+  onlyDuplicate?: boolean
 }
 
 export interface OrderCreateData {
@@ -120,8 +124,12 @@ export class OrderServiceImpl implements OrderService {
   ) {}
 
   async getOrders(params: OrderListParams) {
-    const { page = 1, pageSize = 20, userId, managerId, employeeId, status, userPhone, teamName, keyword, managedBy } = params
-    return await getOrdersPaginated({ page, pageSize, userId, managerId, employeeId, status, userPhone, teamName, keyword, managedBy })
+    const { page = 1, pageSize = 20, userId, managerId, employeeId, status, userPhone, teamName, keyword, managedBy, onlyDuplicate } = params
+    return await getOrdersPaginated({
+      page, pageSize, userId, managerId, employeeId, status, userPhone, teamName, keyword, managedBy,
+      // 仅在开启筛选时传参，保持既有调用方断言对象不变
+      ...(onlyDuplicate ? { onlyDuplicate: true } : {}),
+    })
   }
 
   async getOrderUserOptions() {
@@ -195,7 +203,8 @@ export class OrderServiceImpl implements OrderService {
     const cleanRedirectUrl = (redirectUrl || '').replace(/`/g, '')
 
     const order: OrderRow = {
-      id: `o_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+      // O13：随机段改用 crypto.randomUUID，保留时间前缀便于人工识别
+      id: `o_${Date.now()}_${randomUUID().replace(/-/g, '').slice(0, 8)}`,
       productId,
       userId: finalUserId,
       managerId: product.managerId as string,
@@ -219,6 +228,15 @@ export class OrderServiceImpl implements OrderService {
         await query('UPDATE products SET stock = stock + 1, updatedAt = NOW() WHERE id = ?', [product.id])
       }
       throw error
+    }
+
+    // O11：下单会改变库存与销量，立即失效产品详情/列表缓存，避免 5 分钟内数据不一致
+    try {
+      const cacheService = getGlobalCacheService()
+      await cacheService.delete(CacheKeys.PRODUCT_DETAIL(productId))
+      await cacheService.deletePattern('product:list:*')
+    } catch (cacheError) {
+      logger.warn('[做单] 产品缓存失效失败:', { error: (cacheError as Error).message })
     }
 
     return { order, remainingStock }
@@ -354,7 +372,7 @@ export class OrderServiceImpl implements OrderService {
     if (action === 'approve') {
       // 事务：更新订单 + 创建待发放佣金记录，原子提交
       updated = await applyOrderReview(orderId, { reviewedAt: nowMySQL }, 'pending', 'approved', {
-        id: `c_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+        id: `c_${Date.now()}_${randomUUID().replace(/-/g, '').slice(0, 8)}`,
         orderId: order.id,
         userId: order.userId,
         managerId: order.managerId,

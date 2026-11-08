@@ -79,7 +79,6 @@ describe('CSRF v2 Middleware', () => {
         '/api/users/login',
         '/api/employees/login',
         '/api/auth/refresh',
-        '/api/auth/logout',
       ]
 
       bypassPaths.forEach(path => {
@@ -104,6 +103,21 @@ describe('CSRF v2 Middleware', () => {
         next.mockClear()
         csrfVerify(req as Request, res as Response, next)
         expect(next).toHaveBeenCalled()
+      })
+    })
+
+    it('should require CSRF token for logout paths', () => {
+      const logoutPaths = ['/api/auth/logout', '/api/users/logout', '/auth/logout', '/users/logout']
+
+      logoutPaths.forEach(path => {
+        req.path = path
+        req.body = {}
+        req.headers = {}
+        req.cookies = { csrfToken: 'some-token' }
+        res.status = vi.fn().mockReturnThis()
+        csrfVerify(req as Request, res as Response, next)
+        expect(next).not.toHaveBeenCalled()
+        expect(res.status).toHaveBeenCalledWith(403)
       })
     })
 

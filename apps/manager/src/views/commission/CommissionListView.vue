@@ -11,7 +11,8 @@
     <FilterBar
       v-model:keyword="filterKeyword"
       v-model:status="filterStatus"
-      @change="fetchData"
+      v-model:only-duplicate="filterOnlyDuplicate"
+      @change="handleFilterChange"
       @reset="handleReset"
     />
 
@@ -51,11 +52,13 @@ const {
   loading,
   filterStatus,
   filterKeyword,
+  filterOnlyDuplicate,
   pagination,
   stats,
   tableData,
   fetchStats,
   fetchData,
+  handleFilterChange,
   handleReset,
   handleApprove,
   handleReject,

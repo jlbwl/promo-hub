@@ -8,7 +8,7 @@ import type { Knex } from 'knex'
  * - users(phone)：手机号登录与注册查重（同时作为唯一约束）
  * - operation_logs(createdAt)：仅按时间范围的列表/导出
  *
- * 仅新增索引，不改变表结构与数据；本文件只入库，不在本次部署中执行。
+ * 仅新增索引，不改变表结构与数据；该迁移已于生产执行（batch 4）。
  */
 export async function up(knex: Knex): Promise<void> {
   await knex.schema.alterTable('commissions', (table) => {

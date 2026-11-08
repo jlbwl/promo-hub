@@ -28,6 +28,8 @@ export interface CacheConfig {
  */
 const DEFAULT_CACHE_TTL = 300 // 5分钟
 const DEFAULT_PREFIX = 'promo:'
+/** O5：内存缓存定时清扫间隔（5 分钟） */
+const MEMORY_CLEANUP_INTERVAL_MS = 5 * 60 * 1000
 
 /**
  * Redis缓存服务类
@@ -40,6 +42,8 @@ export class CacheService {
   private maxReconnectAttempts = 3
   private config: RedisConfig
   private cacheConfig: CacheConfig
+  /** O5：内存缓存定时清扫器，避免过期键与登出黑名单常驻 */
+  private cleanupTimer: ReturnType<typeof setInterval> | null = null
 
   constructor(redisConfig?: RedisConfig, cacheConfig?: Partial<CacheConfig>) {
     this.config = redisConfig || {
@@ -53,6 +57,35 @@ export class CacheService {
       ttl: cacheConfig?.ttl || DEFAULT_CACHE_TTL,
       prefix: cacheConfig?.prefix || DEFAULT_PREFIX
     }
+
+    this.startCleanupTimer()
+  }
+
+  /**
+   * O5：每 5 分钟清理一次过期键；unref 避免测试/脚本因定时器无法退出
+   */
+  private startCleanupTimer(): void {
+    if (this.cleanupTimer) return
+    this.cleanupTimer = setInterval(() => {
+      const removed = this.pruneMemoryCache()
+      if (removed > 0) {
+        logger.info('[Cache] 已清理过期内存缓存', { removed })
+      }
+    }, MEMORY_CLEANUP_INTERVAL_MS)
+    this.cleanupTimer.unref?.()
+  }
+
+  /** 清理所有已过期的内存缓存键，返回清理数量 */
+  pruneMemoryCache(): number {
+    const now = Date.now()
+    let removed = 0
+    for (const [key, entry] of this.memoryCache) {
+      if (entry.expiry <= now) {
+        this.memoryCache.delete(key)
+        removed += 1
+      }
+    }
+    return removed
   }
 
   async connect(): Promise<void> {
@@ -97,6 +130,10 @@ export class CacheService {
    * 断开Redis连接
    */
   async disconnect(): Promise<void> {
+    if (this.cleanupTimer) {
+      clearInterval(this.cleanupTimer)
+      this.cleanupTimer = null
+    }
     if (this.client) {
       await this.client.quit()
       this.client = null
@@ -141,12 +178,20 @@ export class CacheService {
     const expiryTime = ttl || this.cacheConfig.ttl
     const serialized = JSON.stringify(value)
 
+    let storedInRedis = false
     if (this.isRedisConnected && this.client) {
       try {
         await this.client.setEx(fullKey, expiryTime, serialized)
+        storedInRedis = true
       } catch (error) {
         logger.warn('Redis set failed, using memory only', { key: fullKey, error: (error as Error).message })
       }
+    }
+
+    // O5：Redis 正常时不再镜像写内存，避免同一份数据双份常驻
+    if (storedInRedis) {
+      this.memoryCache.delete(fullKey)
+      return
     }
 
     this.memoryCache.set(fullKey, {
@@ -183,12 +228,17 @@ export class CacheService {
 
     if (this.isRedisConnected && this.client) {
       try {
-        const keys = await this.client.keys(fullPattern)
-        if (keys.length > 0) {
-          await this.client.del(keys)
-        }
+        // O6：用 SCAN 游标遍历替代 KEYS，避免大键空间阻塞 Redis 主线程
+        let cursor = '0'
+        do {
+          const reply = await this.client.scan(cursor, { MATCH: fullPattern, COUNT: 100 })
+          cursor = reply.cursor
+          if (reply.keys.length > 0) {
+            await this.client.del(reply.keys)
+          }
+        } while (cursor !== '0')
       } catch (error) {
-        logger.warn('Redis keys/delete failed', { pattern: fullPattern, error: (error as Error).message })
+        logger.warn('Redis scan/delete failed', { pattern: fullPattern, error: (error as Error).message })
       }
     }
 

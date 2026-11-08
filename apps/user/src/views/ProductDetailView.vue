@@ -183,6 +183,8 @@
               type="primary"
               native-type="submit"
               block
+              :loading="submitting"
+              :disabled="submitting"
             >
               确认提交并做单
             </van-button>
@@ -226,6 +228,8 @@ const {
 
 // 信息填写弹窗（做单流程）
 const infoFormVisible = ref(false)
+// O2：做单请求进行中禁用提交，避免双击产生重复订单
+const submitting = ref(false)
 const infoForm = reactive({
   name: '',
   phone: ''
@@ -282,6 +286,7 @@ const handleGoOrder = async () => {
 
 // 提交信息表单
 const submitInfoForm = () => {
+  if (submitting.value) return
   const userName = infoForm.name
   const userPhone = infoForm.phone
   infoFormVisible.value = false
@@ -307,6 +312,7 @@ const submitGoOrder = (userName: string, userPhone: string) => {
     return
   }
 
+  submitting.value = true
   // 先提交订单，成功后再跳转
   post('/orders', payload).then((res) => {
     logger.debug('[做单] 成功, 响应:', JSON.stringify(res))
@@ -323,6 +329,8 @@ const submitGoOrder = (userName: string, userPhone: string) => {
   }).catch((error: unknown) => {
     logger.error('[做单] 失败:', error)
     showToast(getErrorMessage(error, '做单失败'))
+  }).finally(() => {
+    submitting.value = false
   })
 }
 </script>
