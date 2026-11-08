@@ -5,6 +5,7 @@ import router from './router'
 // 函数式组件（showToast/showConfirmDialog）的样式不会被 VantResolver 自动按需引入，需在入口显式引入
 import 'vant/es/toast/style'
 import 'vant/es/dialog/style'
+import 'vant/es/image-preview/style'
 // 图片懒加载指令：van-image 的 lazy-load 依赖全局注册的 v-lazy，VantResolver 不会自动注册指令
 import Lazyload from 'vant/es/lazyload'
 import './styles/theme.scss'

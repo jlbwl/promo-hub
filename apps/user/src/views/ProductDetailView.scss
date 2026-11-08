@@ -147,6 +147,18 @@
   line-height: 1.8;
   color: var(--ink-2);
 
+  // 描述图片：占满容器宽度并按原比例缩放，不裁切、不横向溢出
+  :deep(img) {
+    display: block;
+    box-sizing: border-box;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    margin: 10px 0;
+    border-radius: var(--r-sm);
+    cursor: zoom-in;
+  }
+
   :deep(ul) {
     padding-left: 20px;
     margin: 8px 0;

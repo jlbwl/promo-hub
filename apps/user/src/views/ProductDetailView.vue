@@ -48,7 +48,9 @@
           产品描述
         </h3>
         <div
+          ref="descContentRef"
           class="desc-content"
+          @click="handleDescContentClick"
           v-html="product.description"
         />
       </div>
@@ -242,7 +244,7 @@
 import { logger } from '@promo/shared/utils/logger'
 import { reactive, ref, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { showToast, showDialog } from 'vant'
+import { showToast, showDialog, showImagePreview } from 'vant'
 import { post } from '@promo/shared/utils/request'
 import { getErrorMessage } from '@promo/shared/utils/errors'
 import {
@@ -268,6 +270,25 @@ const {
   initDetail,
   handleShare,
 } = useProductDetail(route)
+
+// 描述图片：容器内自适应展示，点击后全屏预览（多图左右切换）
+const descContentRef = ref<HTMLDivElement>()
+const handleDescContentClick = (event: MouseEvent) => {
+  const target = event.target as HTMLElement | null
+  if (!target || target.tagName !== 'IMG') return
+
+  const images = Array.from(descContentRef.value?.querySelectorAll('img') || [])
+  const srcList = images
+    .map((image) => (image as HTMLImageElement).src)
+    .filter((src) => !!src)
+  if (!srcList.length) return
+
+  showImagePreview({
+    images: srcList,
+    startPosition: Math.max(0, images.indexOf(target as HTMLImageElement)),
+    closeable: true
+  })
+}
 
 // 信息填写弹窗（做单流程）
 const infoFormVisible = ref(false)
