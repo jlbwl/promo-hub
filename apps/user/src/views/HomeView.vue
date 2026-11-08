@@ -116,9 +116,14 @@ const finished = ref(false)
 const refreshing = ref(false)
 
 /**
- * 是否有请求正在进行，避免分页加载与下拉刷新请求叠加
+ * 请求序号：切换分类/搜索/下拉刷新时自增，用于丢弃过期响应
  */
-let requestInFlight = false
+let querySeq = 0
+
+/**
+ * 进行中的请求数量：分页追加时若有请求未完成则忽略，避免重复请求叠加
+ */
+let inFlightCount = 0
 
 /**
  * 分页
@@ -128,14 +133,19 @@ const pageSize = 10
 
 /**
  * 加载产品列表
- * @param replace 为 true 时用于下拉刷新：用第一页数据整体替换当前列表
- * @returns 请求是否成功（已有请求进行中时直接跳过，不重复请求）
+ * @param replace 为 true 时整体替换列表（下拉刷新、切换分类/搜索）
+ * @returns 请求是否成功（分页追加时若有请求进行中则跳过，避免重复请求）
  */
 const loadProducts = async (replace = false): Promise<boolean> => {
-  if (requestInFlight) {
+  // 分页追加请求：已有请求未完成时忽略；首屏/刷新/切换查询需要覆盖旧结果，允许并发发起
+  if (!replace && inFlightCount > 0) {
     return true
   }
-  requestInFlight = true
+  if (replace) {
+    querySeq += 1
+  }
+  const seq = querySeq
+  inFlightCount += 1
   try {
     const categoryValue = displayCategories.value.find(c => c.id === activeCategory.value)?.value
     const res = await get<{ list: HomeProduct[]; total: number }>('/products', {
@@ -144,6 +154,10 @@ const loadProducts = async (replace = false): Promise<boolean> => {
       category: categoryValue || undefined,
       keyword: searchKeyword.value || undefined,
     })
+    // 请求期间切换了分类/搜索或再次刷新，丢弃过期响应
+    if (seq !== querySeq) {
+      return true
+    }
     const { list, total } = res.data
     // 检查产品在购物车中的状态
     const newProducts = list.map((p) => ({
@@ -176,14 +190,20 @@ const loadProducts = async (replace = false): Promise<boolean> => {
     }
     return true
   } catch (error) {
+    // 过期请求的失败不打扰用户
+    if (seq !== querySeq) {
+      return true
+    }
     logger.error('[HomeView] 加载产品失败:', error)
     if (!replace) {
       finished.value = true
     }
     return false
   } finally {
-    requestInFlight = false
-    loading.value = false
+    inFlightCount -= 1
+    if (inFlightCount === 0) {
+      loading.value = false
+    }
   }
 }
 
@@ -210,22 +230,34 @@ const checkCartStatus = async () => {
 }
 
 /**
+ * 重置分页并重新加载第一页（切换分类/搜索后使用）
+ */
+const reloadProducts = async () => {
+  products.value = []
+  page.value = 1
+  finished.value = false
+  const success = await loadProducts(true)
+  if (!success) {
+    showToast('加载失败，请稍后重试')
+  }
+}
+
+/**
  * 选择分类
  */
 const selectCategory = (categoryId: string) => {
+  if (categoryId === activeCategory.value) {
+    return
+  }
   activeCategory.value = categoryId
-  products.value = []
-  finished.value = false
-  page.value = 1
+  reloadProducts()
 }
 
 /**
  * 搜索产品
  */
 const handleSearch = () => {
-  products.value = []
-  finished.value = false
-  page.value = 1
+  reloadProducts()
 }
 
 /**

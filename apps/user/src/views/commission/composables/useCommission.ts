@@ -37,8 +37,11 @@ export function useCommission() {
   // 订单记录
   const records = ref<Order[]>([])
 
-  // 防止重复加载
-  let isLoading = false
+  // 请求序号：切换 Tab/下拉刷新/重新初始化时自增，用于丢弃过期响应
+  let querySeq = 0
+
+  // 进行中的订单请求数量：分页追加时若有请求未完成则忽略，避免重复请求叠加
+  let inFlightCount = 0
 
   // 回收站相关
   const showRecycleBin = ref(false)
@@ -89,12 +92,17 @@ export function useCommission() {
   }
 
   // 加载订单记录
-  const loadRecords = async (): Promise<boolean> => {
-    if (isLoading) {
-      loading.value = false
-      return false
+  // reset=true 用于切换 Tab/下拉刷新/重新初始化：作为一次新查询，不因已有请求而跳过
+  const loadRecords = async (reset = false): Promise<boolean> => {
+    // 分页追加请求：已有请求未完成时忽略，避免重复请求叠加
+    if (!reset && inFlightCount > 0) {
+      return true
     }
-    isLoading = true
+    if (reset) {
+      querySeq += 1
+    }
+    const seq = querySeq
+    inFlightCount += 1
     try {
       const params: {
         page: number
@@ -118,6 +126,10 @@ export function useCommission() {
       }
 
       const res = await get<{ list: Order[]; total: number }>('/orders', params)
+      // 请求期间切换了 Tab/刷新，丢弃过期响应，避免旧 Tab 数据写入新列表
+      if (seq !== querySeq) {
+        return true
+      }
       if (res.data) {
         const { list, total } = res.data
         if (page.value === 1) {
@@ -132,12 +144,18 @@ export function useCommission() {
       }
       return true
     } catch (error) {
+      // 过期请求的失败不打扰用户
+      if (seq !== querySeq) {
+        return true
+      }
       logger.error('获取订单失败:', error)
       finished.value = true
       return false
     } finally {
-      loading.value = false
-      isLoading = false
+      inFlightCount -= 1
+      if (inFlightCount === 0) {
+        loading.value = false
+      }
     }
   }
 
@@ -222,13 +240,13 @@ export function useCommission() {
     }
   }
 
-  // Tab 切换
+  // Tab 切换：重置分页并强制发起新查询，不因上一条请求未完成而跳过
   const onTabChange = () => {
     page.value = 1
     records.value = []
     finished.value = false
     loading.value = true
-    loadRecords()
+    loadRecords(true)
   }
 
   // 初始化加载
@@ -236,15 +254,13 @@ export function useCommission() {
     page.value = 1
     records.value = []
     finished.value = false
-    loading.value = false
-    isLoading = false
     loadStats()
-    loadRecords()
+    loadRecords(true)
   }
 
   // 下拉刷新：重新请求统计数据与第一页订单，失败时保留已展示的数据
   const refreshData = async () => {
-    if (isLoading) {
+    if (inFlightCount > 0) {
       refreshing.value = false
       return
     }
@@ -252,7 +268,7 @@ export function useCommission() {
     const prevFinished = finished.value
     page.value = 1
     finished.value = false
-    const [statsOk, recordsOk] = await Promise.all([loadStats(true), loadRecords()])
+    const [statsOk, recordsOk] = await Promise.all([loadStats(true), loadRecords(true)])
     if (!statsOk || !recordsOk) {
       // 订单请求失败时恢复分页状态，避免列表被误判为「没有更多了」
       if (!recordsOk) {
