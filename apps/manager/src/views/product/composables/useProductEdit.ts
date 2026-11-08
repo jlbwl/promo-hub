@@ -171,8 +171,9 @@ export function useProductEdit() {
   }
 
   /**
-   * 自动封面：新建时无封面则生成；编辑时仅重绘「系统生成」的封面，人工上传的永不覆盖
-   * - 老产品封面为空时不做任何自动补齐
+   * 自动封面：新建无封面时生成，编辑时补齐空封面或重绘「系统生成」的封面
+   * - 编辑态封面为空（老产品）时保存会补一张自动封面
+   * - 人工上传的封面永不覆盖
    * - 自动封面带 ?gen=<标题+分类签名>，文案变化时才重新生成（避免无意义重复上传）
    */
   const ensureAutoCover = async () => {
@@ -181,8 +182,10 @@ export function useProductEdit() {
     const signature = coverSignature((form.title || '').trim(), form.category)
 
     if (isEdit.value) {
-      if (!currentCover || !isAutoCover(currentCover)) return
-      if (getAutoCoverSignature(currentCover) === signature) return
+      // 人工上传的封面保持原样
+      if (currentCover && !isAutoCover(currentCover)) return
+      // 已有自动封面且文案未变时无需重复上传
+      if (currentCover && getAutoCoverSignature(currentCover) === signature) return
     } else if (currentCover) {
       // 新建时运营已手动上传封面，保持人工优先
       return
