@@ -34,7 +34,7 @@ export function useUserInfo() {
       }
 
       userInfo.id = info.id
-      userInfo.nickname = info.nickname || info.phone || '用户'
+      userInfo.nickname = info.nickname || '用户'
       userInfo.avatar = info.avatar || ''
       userInfo.phone = info.phone || ''
       userInfo.teamName = info.teamName || ''

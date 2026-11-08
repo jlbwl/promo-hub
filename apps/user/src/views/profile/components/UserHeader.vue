@@ -4,7 +4,8 @@
     <div class="user-info">
       <UserAvatar
         :src="userInfo.avatar"
-        :name="userInfo.nickname || userInfo.teamName"
+        :name="userInfo.nickname"
+        :fallback="userInfo.teamName"
       />
       <div class="user-detail">
         <h3 class="user-name">

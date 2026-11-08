@@ -109,7 +109,7 @@ onMounted(() => {
   try {
     const info = JSON.parse(localStorage.getItem('employee_info') || '{}')
     employeeInfo.id = info.id || ''
-    employeeInfo.nickname = info.nickname || info.phone || '员工'
+    employeeInfo.nickname = info.nickname || '员工'
     employeeInfo.avatar = info.avatar || ''
     employeeInfo.phone = info.phone || ''
     employeeInfo.expiresAt = info.expiresAt || ''

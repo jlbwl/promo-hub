@@ -24,10 +24,12 @@ import { computed, ref, watch } from 'vue'
 const props = withDefaults(defineProps<{
   src?: string
   name?: string
+  fallback?: string
   size?: number
 }>(), {
   src: '',
   name: '',
+  fallback: '',
   size: 52,
 })
 
@@ -40,7 +42,23 @@ watch(() => props.src, () => {
 
 const showImage = computed(() => !!props.src && !failed.value)
 
-const initial = computed(() => (props.name || '').trim().charAt(0) || '用')
+/**
+ * 是否为不可用的展示名：
+ * - 空值、加载中占位
+ * - 系统按手机号后四位生成的昵称（用户3503 / 员工8324）
+ * - 纯数字（手机号），避免头像变成手机号首位
+ */
+const isUnusableName = (value: string) =>
+  !value || value === '加载中...' || /^(用户|员工)\d{4}$/.test(value) || /^\d+$/.test(value)
+
+const displayName = computed(() => {
+  const name = (props.name || '').trim()
+  if (!isUnusableName(name)) return name
+  const fallback = (props.fallback || '').trim()
+  return isUnusableName(fallback) ? name : fallback
+})
+
+const initial = computed(() => displayName.value.charAt(0) || '用')
 
 const rootStyle = computed(() => {
   const size = props.size
