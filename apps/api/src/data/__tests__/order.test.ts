@@ -231,6 +231,7 @@ describe('data/order.ts', () => {
         approved: '2',
         pendingPayment: null,
         settled: null,
+        settledAmount: '125.5',
         rejected: '1',
       })
 
@@ -242,6 +243,7 @@ describe('data/order.ts', () => {
         approved: 2,
         pendingPayment: 0,
         settled: 0,
+        settledAmount: 125.5,
         rejected: 1,
       })
     })

@@ -2,9 +2,43 @@
  * 产品分类管理
  */
 import { logger } from '@promo/shared/utils/logger'
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { get } from '@promo/shared/utils/request'
 import type { ProductCategory } from '@promo/shared/types'
+
+/** 用户端展示的归并分类键 */
+export type CategoryGroupKey = 'all' | 'comprehensive' | 'personal' | 'limit3' | 'unlimit3' | 'third'
+
+/** 归并分类组 */
+export interface CategoryGroup {
+  key: CategoryGroupKey
+  name: string
+  /** 该组包含的二级分类值，全部为空 */
+  values: string[]
+}
+
+/** 归并分类组定义，顺序即展示顺序 */
+const categoryGroupDefs: { key: CategoryGroupKey; name: string }[] = [
+  { key: 'all', name: '全部' },
+  { key: 'comprehensive', name: '综合' },
+  { key: 'personal', name: '个养加挂' },
+  { key: 'limit3', name: '限三' },
+  { key: 'unlimit3', name: '不限三' },
+  { key: 'third', name: '三方' },
+]
+
+/**
+ * 按二级分类名称归入展示分组
+ * 无法识别的分类统一归入「综合」
+ */
+export function resolveCategoryGroupKey(name: string): Exclude<CategoryGroupKey, 'all'> {
+  const normalized = (name || '').trim()
+  if (normalized.includes('不限三')) return 'unlimit3'
+  if (normalized.includes('限三')) return 'limit3'
+  if (normalized.includes('三方')) return 'third'
+  if (normalized.includes('个养')) return 'personal'
+  return 'comprehensive'
+}
 
 // 默认分类，作为降级方案
 const defaultCategories = [
@@ -24,6 +58,31 @@ const defaultCategories = [
 const categories = ref<ProductCategory[]>(defaultCategories)
 // 加载状态
 const loading = ref(false)
+
+/**
+ * 归并分类组：由接口返回的二级分类动态聚合，「全部」为前端固定项
+ */
+const categoryGroups = computed<CategoryGroup[]>(() => {
+  const valuesByKey = new Map<CategoryGroupKey, string[]>([
+    ['all', []],
+    ['comprehensive', []],
+    ['personal', []],
+    ['limit3', []],
+    ['unlimit3', []],
+    ['third', []],
+  ])
+
+  categories.value.forEach((category) => {
+    const key = resolveCategoryGroupKey(category.name)
+    valuesByKey.get(key)?.push(category.value)
+  })
+
+  return categoryGroupDefs.map(({ key, name }) => ({
+    key,
+    name,
+    values: valuesByKey.get(key) || [],
+  }))
+})
 
 /**
  * 从 API 获取分类列表
@@ -66,10 +125,11 @@ export function useProductCategories() {
 
   return {
     categories,
+    categoryGroups,
     loading,
     getCategoryName,
     fetchCategories
   }
 }
 
-export { categories, defaultCategories }
+export { categories, categoryGroups, defaultCategories }

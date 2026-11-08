@@ -5,14 +5,27 @@
       title="收藏"
       fixed
       placeholder
-    />
+    >
+      <template #right>
+        <span
+          v-if="canManage"
+          class="manage-toggle"
+          @click="toggleManage"
+        >
+          {{ manageMode ? '完成' : '管理' }}
+        </span>
+      </template>
+    </van-nav-bar>
 
     <!-- 购物车列表 -->
     <van-pull-refresh
       v-model="refreshing"
       @refresh="onRefresh"
     >
-      <div class="cart-content">
+      <div
+        class="cart-content"
+        :class="{ 'has-batch-bar': manageMode }"
+      >
         <div
           v-if="cartItems.length > 0"
           class="cart-list"
@@ -22,8 +35,12 @@
             :key="item.id"
             :item="item"
             :is-employee="isEmployee"
+            :selectable="manageMode"
+            :selected="isSelected(item.id)"
             @click="goToProduct"
             @remove="handleRemove"
+            @order="handleOrder"
+            @toggle="toggleItem"
           />
         </div>
 
@@ -48,6 +65,31 @@
       </div>
     </van-pull-refresh>
 
+    <!-- 底部批量操作条（仅主账户） -->
+    <div
+      v-if="manageMode"
+      class="batch-bar"
+    >
+      <van-checkbox
+        :model-value="allSelected"
+        icon-size="18px"
+        class="batch-all"
+        @click="toggleAll"
+      >
+        全选
+      </van-checkbox>
+      <van-button
+        type="danger"
+        size="small"
+        round
+        :disabled="selectedIds.length === 0"
+        :loading="removing"
+        @click="handleBatchRemove"
+      >
+        移除所选{{ selectedIds.length > 0 ? `（${selectedIds.length}）` : '' }}
+      </van-button>
+    </div>
+
     <!-- 底部提示（子账户） -->
     <div
       v-if="isEmployee"
@@ -66,7 +108,7 @@ import { useRouter } from 'vue-router'
 import { get, del } from '@promo/shared/utils/request'
 import { getErrorMessage } from '@promo/shared/utils/errors'
 import type { CartItem as CartItemEntity } from '@promo/shared/types'
-import { showToast } from 'vant'
+import { showToast, showConfirmDialog } from 'vant'
 import CartItem from '../components/CartItem.vue'
 import { useUser } from '../composables/useLocalStorage'
 
@@ -91,9 +133,52 @@ const cartItems = ref<CartItemEntity[]>([])
 const refreshing = ref(false)
 
 /**
- * 是否为员工账户
+ * 是否为员工账户（只读角色，不能做单或移除收藏）
  */
 const isEmployee = computed(() => checkIsEmployee())
+
+/**
+ * 管理模式与批量选择（仅主账户可用）
+ */
+const manageMode = ref(false)
+const selectedIds = ref<string[]>([])
+const removing = ref(false)
+
+const canManage = computed(() => !isEmployee.value && cartItems.value.length > 0)
+const allSelected = computed(
+  () => cartItems.value.length > 0 && selectedIds.value.length === cartItems.value.length
+)
+
+const isSelected = (id: string): boolean => selectedIds.value.includes(id)
+
+/**
+ * 切换管理模式
+ */
+const toggleManage = () => {
+  if (!canManage.value) return
+  manageMode.value = !manageMode.value
+  selectedIds.value = []
+}
+
+/**
+ * 切换单项勾选
+ */
+const toggleItem = (item: CartItemEntity) => {
+  if (!manageMode.value) return
+  const index = selectedIds.value.indexOf(item.id)
+  if (index > -1) {
+    selectedIds.value.splice(index, 1)
+  } else {
+    selectedIds.value.push(item.id)
+  }
+}
+
+/**
+ * 全选/取消全选
+ */
+const toggleAll = () => {
+  selectedIds.value = allSelected.value ? [] : cartItems.value.map((item) => item.id)
+}
 
 /**
  * 加载购物车数据
@@ -139,9 +224,24 @@ const goToProduct = (item: CartItemEntity) => {
 }
 
 /**
- * 移除购物车项
+ * 直接做单：跳转详情页并自动打开做单表单，带上收藏时保存的选项
+ */
+const handleOrder = (item: CartItemEntity) => {
+  if (isEmployee.value) return
+  router.push({
+    path: `/product/${item.productId}`,
+    query: {
+      order: '1',
+      ...(item.optionLabel ? { option: item.optionLabel } : {}),
+    },
+  })
+}
+
+/**
+ * 移除单项收藏（员工只读，不可操作）
  */
 const handleRemove = async (item: CartItemEntity) => {
+  if (isEmployee.value) return
   try {
     const res = await del(`/cart/${item.id}`)
     if (res.code === 0) {
@@ -163,6 +263,44 @@ const handleRemove = async (item: CartItemEntity) => {
 }
 
 /**
+ * 批量移除所选收藏（员工只读，不可操作）
+ */
+const handleBatchRemove = async () => {
+  if (isEmployee.value || selectedIds.value.length === 0) return
+  const ids = [...selectedIds.value]
+  try {
+    await showConfirmDialog({
+      title: '批量移除',
+      message: `确定移除选中的 ${ids.length} 个收藏？`,
+    })
+  } catch {
+    return
+  }
+
+  removing.value = true
+  try {
+    const res = await del('/cart/batch', { ids })
+    if (res.code === 0) {
+      cartItems.value = cartItems.value.filter((item) => !ids.includes(item.id))
+      selectedIds.value = []
+      showToast('已移除')
+      // 通知 Tabbar 刷新收藏徽标计数
+      window.dispatchEvent(new CustomEvent('cart-changed'))
+      if (cartItems.value.length === 0) {
+        manageMode.value = false
+      }
+    } else {
+      showToast(res.message || '移除失败')
+    }
+  } catch (error) {
+    logger.error('[CartView] 批量移除失败:', error)
+    showToast(getErrorMessage(error, '移除失败'))
+  } finally {
+    removing.value = false
+  }
+}
+
+/**
  * 组件挂载时加载数据
  */
 onMounted(() => {
@@ -173,32 +311,68 @@ onMounted(() => {
 <style scoped lang="scss">
 .cart-page {
   min-height: 100%;
-  background-color: #f7f8fa;
+  background-color: var(--paper);
 }
 
 .cart-content {
-  padding: 12px 16px;
+  padding: 12px 14px calc(12px + env(safe-area-inset-bottom));
+
+  &.has-batch-bar {
+    padding-bottom: calc(76px + env(safe-area-inset-bottom));
+  }
 }
 
 .cart-list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 9px;
+}
+
+.manage-toggle {
+  padding-left: 6px;
+  font-size: 13px;
+  color: #e2c48e;
+}
+
+.batch-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: calc(var(--van-tabbar-height) + env(safe-area-inset-bottom));
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: var(--surface);
+  border-top: 1px solid var(--line);
+  box-shadow: 0 -8px 20px -14px rgba(31, 24, 17, 0.4);
+
+  .batch-all {
+    font-size: 13px;
+    color: var(--ink);
+  }
+
+  :deep(.van-button--danger) {
+    height: 32px;
+    padding: 0 16px;
+    font-size: 12px;
+  }
 }
 
 .employee-tip {
   position: fixed;
-  bottom: 60px;
-  left: 16px;
-  right: 16px;
-  background: rgba(255, 193, 7, 0.1);
-  border: 1px solid #ffc107;
-  border-radius: 8px;
+  bottom: calc(66px + env(safe-area-inset-bottom));
+  left: 14px;
+  right: 14px;
+  background: rgba(234, 214, 176, 0.35);
+  border: 1px solid var(--gold-soft);
+  border-radius: 10px;
   padding: 10px 12px;
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 12px;
-  color: #856404;
+  font-size: 11px;
+  color: var(--brand-deep);
 }
 </style>

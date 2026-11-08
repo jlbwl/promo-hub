@@ -220,6 +220,7 @@ export async function incrementProductStock(id: string, delta: number): Promise<
 export async function getProductsPaginated(params: {
   managerId?: string
   category?: string
+  categories?: string[]
   status?: string
   page?: number
   pageSize?: number
@@ -240,7 +241,14 @@ export async function getProductsPaginated(params: {
       whereConditions.push('(managerId IS NOT NULL AND managerId != "")')
     }
 
-    if (params.category && params.category !== '0') {
+    if (params.categories && params.categories.length > 0) {
+      const placeholders = params.categories.map(() => '?').join(',')
+      whereConditions.push(`category IN (${placeholders})`)
+      values.push(...params.categories)
+    } else if (params.categories && params.categories.length === 0) {
+      // 归并分类组暂无对应二级分类时，返回空结果而非全量
+      whereConditions.push('0 = 1')
+    } else if (params.category && params.category !== '0') {
       if (params.category === 'uncategorized') {
         whereConditions.push('(category IS NULL OR category = "" OR categoryId IS NULL OR categoryId = "")')
       } else {
@@ -310,7 +318,11 @@ export async function getProductsPaginated(params: {
       const { readProducts, readOrders } = await import('../data-memory.js')
       let products = await readProducts()
       
-      if (params.category && params.category !== '0') {
+      if (params.categories && params.categories.length > 0) {
+        products = products.filter(p => params.categories!.includes(p.category))
+      } else if (params.categories && params.categories.length === 0) {
+        products = []
+      } else if (params.category && params.category !== '0') {
         products = products.filter(p => p.category === params.category)
       }
       if (params.status) {

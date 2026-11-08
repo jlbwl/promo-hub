@@ -16,9 +16,14 @@ import { ResourcePermissionChecker } from '../middleware/resourcePermission.js'
 export const getProducts = async (req: Request, res: Response): Promise<void> => {
   try {
     const user = req.user
-    const { page = '1', pageSize = '10', category, status, keyword, adminMode } = req.query
+    const { page = '1', pageSize = '10', category, categories, status, keyword, adminMode } = req.query
     const pageNum = parsePage(page)
     const pageSizeNum = parsePageSize(pageSize)
+
+    // 用户端归并分类组：多个二级分类值以逗号分隔；显式传空表示该组暂无分类
+    const categoryValues = typeof categories === 'string'
+      ? categories.split(',').map(v => v.trim()).filter(Boolean)
+      : undefined
 
     // 根据用户角色自动设置managerId
     let managerId = req.query.managerId as string
@@ -44,6 +49,7 @@ export const getProducts = async (req: Request, res: Response): Promise<void> =>
       page: pageNum,
       pageSize: pageSizeNum,
       category: category as string,
+      categories: categoryValues,
       status: effectiveStatus,
       managerId,
       keyword: keyword as string,

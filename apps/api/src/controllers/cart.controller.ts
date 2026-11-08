@@ -10,6 +10,7 @@ import {
   readManager,
   addToCart,
   removeFromCart,
+  removeCartItems,
   isInCart,
 } from '../data/index.js'
 
@@ -153,6 +154,11 @@ export const addItemToCart = async (req: Request, res: Response): Promise<void> 
  */
 export const removeItemFromCart = async (req: Request, res: Response): Promise<void> => {
   try {
+    // 子账户为只读角色，不允许移除收藏
+    if (req.user?.role === 'employee') {
+      return sendError(res, '子账户为只读角色，不能移除收藏', 403, 403)
+    }
+
     const id = req.params.id as string
 
     // user 角色仅可移除自己名下的收藏条目
@@ -173,6 +179,44 @@ export const removeItemFromCart = async (req: Request, res: Response): Promise<v
     sendSuccess(res, null, '移除成功')
   } catch (error) {
     logger.error('[移除购物车] 最终错误:', { error: getErrorMessage(error) })
+    sendError(res, getErrorMessage(error, '移除失败'), 500)
+  }
+}
+
+/**
+ * 批量移除收藏
+ * 仅主账户可用；子账户为只读角色，直接拒绝
+ */
+export const removeItemsFromCart = async (req: Request, res: Response): Promise<void> => {
+  try {
+    if (req.user?.role === 'employee') {
+      return sendError(res, '子账户为只读角色，不能移除收藏', 403, 403)
+    }
+
+    const rawIds = (req.body as { ids?: unknown })?.ids
+    if (!Array.isArray(rawIds) || rawIds.length === 0) {
+      return sendError(res, '缺少必要参数', 400)
+    }
+    const ids = Array.from(new Set(rawIds.filter((id): id is string => typeof id === 'string' && id.length > 0)))
+
+    const userId = req.user?.role === 'user'
+      ? req.user.id
+      : (req.body as { userId?: string })?.userId
+    if (!userId || ids.length === 0) {
+      return sendError(res, '缺少必要参数', 400)
+    }
+
+    try {
+      await removeCartItems(userId, ids)
+    } catch (dbError) {
+      if (!allowMemoryFallback) throw dbError
+      logger.warn('[批量移除购物车] 数据库失败，尝试降级到内存:', { error: getErrorMessage(dbError) })
+      const { removeCartItems: memRemoveCartItems } = await import('../data-memory.js')
+      await memRemoveCartItems(userId, ids)
+    }
+    sendSuccess(res, { removed: ids.length }, '移除成功')
+  } catch (error) {
+    logger.error('[批量移除购物车] 最终错误:', { error: getErrorMessage(error) })
     sendError(res, getErrorMessage(error, '移除失败'), 500)
   }
 }

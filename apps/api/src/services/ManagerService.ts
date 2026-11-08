@@ -288,6 +288,9 @@ export const managerService: ManagerService = {
       approved: managerOrders.filter((o) => o.status === 'approved').length,
       pendingPayment: managerOrders.filter((o) => o.status === 'pending_payment').length,
       settled: managerOrders.filter((o) => o.status === 'settled').length,
+      settledAmount: managerOrders
+        .filter((o) => o.status === 'settled')
+        .reduce((sum, o) => sum + (Number(o.productPrice) || 0), 0),
       rejected: managerOrders.filter((o) => o.status === 'rejected').length,
     }
   },

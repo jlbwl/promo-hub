@@ -37,6 +37,14 @@ export async function removeFromCart(id: string): Promise<void> {
   await writeFileData('cart', filtered)
 }
 
+export async function removeCartItems(userId: string, ids: string[]): Promise<void> {
+  if (ids.length === 0) return
+  const cart = await readFileData<CartItem>('cart')
+  const idSet = new Set(ids)
+  const filtered = cart.filter((item) => !(item.userId === userId && idSet.has(item.id)))
+  await writeFileData('cart', filtered)
+}
+
 export async function removeFromCartByProductId(userId: string, productId: string): Promise<void> {
   const cart = await readFileData<CartItem>('cart')
   const filtered = cart.filter((item) => !(item.userId === userId && item.productId === productId))

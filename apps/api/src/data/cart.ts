@@ -32,6 +32,12 @@ export async function removeFromCart(id: string): Promise<void> {
   await query('DELETE FROM cart WHERE id = ?', [id])
 }
 
+export async function removeCartItems(userId: string, ids: string[]): Promise<void> {
+  if (ids.length === 0) return
+  const placeholders = ids.map(() => '?').join(',')
+  await query(`DELETE FROM cart WHERE userId = ? AND id IN (${placeholders})`, [userId, ...ids])
+}
+
 export async function removeFromCartByProductId(userId: string, productId: string): Promise<void> {
   await query('DELETE FROM cart WHERE userId = ? AND productId = ?', [userId, productId])
 }

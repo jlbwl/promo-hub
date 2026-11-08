@@ -29,6 +29,8 @@ export interface ProductListParams {
   page?: number
   pageSize?: number
   category?: string
+  /** 多个分类值（用户端归并后的分类组使用），与 category 互斥 */
+  categories?: string[]
   status?: string
   managerId?: string
   keyword?: string
@@ -137,12 +139,13 @@ export class ProductServiceImpl implements ProductService {
   }
 
   async getProducts(params: ProductListParams) {
-    const { page = 1, pageSize = 10, category, status, managerId, keyword, adminMode } = params
+    const { page = 1, pageSize = 10, category, categories, status, managerId, keyword, adminMode } = params
 
     const result = await getProductsPaginated({
       page,
       pageSize,
       category,
+      categories,
       status,
       managerId,
       keyword,

@@ -54,6 +54,7 @@ export async function getOrderStats(managerId?: string): Promise<OrderStats> {
     SUM(CASE WHEN status = 'approved' THEN 1 ELSE 0 END) as approved,
     SUM(CASE WHEN status = 'pending_payment' THEN 1 ELSE 0 END) as pendingPayment,
     SUM(CASE WHEN status = 'settled' THEN 1 ELSE 0 END) as settled,
+    SUM(CASE WHEN status = 'settled' THEN productPrice ELSE 0 END) as settledAmount,
     SUM(CASE WHEN status = 'rejected' THEN 1 ELSE 0 END) as rejected
   FROM orders WHERE ${whereClause}`
 
@@ -63,6 +64,7 @@ export async function getOrderStats(managerId?: string): Promise<OrderStats> {
     approved?: number | string
     pendingPayment?: number | string
     settled?: number | string
+    settledAmount?: number | string
     rejected?: number | string
   } | null
 
@@ -72,6 +74,7 @@ export async function getOrderStats(managerId?: string): Promise<OrderStats> {
     approved: Number(result?.approved) || 0,
     pendingPayment: Number(result?.pendingPayment) || 0,
     settled: Number(result?.settled) || 0,
+    settledAmount: Number(result?.settledAmount) || 0,
     rejected: Number(result?.rejected) || 0,
   }
 }
@@ -139,6 +142,7 @@ export async function getUserOrderStats(userId: string, employeeId?: string): Pr
     SUM(CASE WHEN status = 'approved' THEN 1 ELSE 0 END) as approved,
     SUM(CASE WHEN status = 'pending_payment' THEN 1 ELSE 0 END) as pendingPayment,
     SUM(CASE WHEN status = 'settled' THEN 1 ELSE 0 END) as settled,
+    SUM(CASE WHEN status = 'settled' THEN productPrice ELSE 0 END) as settledAmount,
     SUM(CASE WHEN status = 'rejected' THEN 1 ELSE 0 END) as rejected
   FROM orders WHERE deleted = 0 AND ${where}`
 
@@ -148,6 +152,7 @@ export async function getUserOrderStats(userId: string, employeeId?: string): Pr
     approved?: number | string
     pendingPayment?: number | string
     settled?: number | string
+    settledAmount?: number | string
     rejected?: number | string
   } | null
 
@@ -157,6 +162,7 @@ export async function getUserOrderStats(userId: string, employeeId?: string): Pr
     approved: Number(result?.approved) || 0,
     pendingPayment: Number(result?.pendingPayment) || 0,
     settled: Number(result?.settled) || 0,
+    settledAmount: Number(result?.settledAmount) || 0,
     rejected: Number(result?.rejected) || 0,
   }
 }

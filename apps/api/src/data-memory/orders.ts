@@ -31,6 +31,9 @@ export async function getOrderStats(managerId?: string): Promise<OrderStats> {
     approved: filtered.filter((o) => o.status === 'approved').length,
     pendingPayment: filtered.filter((o) => o.status === 'pending_payment').length,
     settled: filtered.filter((o) => o.status === 'settled').length,
+    settledAmount: filtered
+      .filter((o) => o.status === 'settled')
+      .reduce((sum, o) => sum + (Number(o.productPrice) || 0), 0),
     rejected: filtered.filter((o) => o.status === 'rejected').length,
   }
 }

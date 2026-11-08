@@ -78,6 +78,14 @@ export const useProductDetail = (route: RouteLocationNormalizedLoaded) => {
         logger.debug('[产品详情] options:', JSON.stringify(product.options))
         if (product.options.length > 0) {
           selectedOption.value = 0
+          // 从收藏页「直接做单」进入时，按收藏时保存的选项文案回填
+          const optionLabel = route.query.option
+          if (typeof optionLabel === 'string') {
+            const matched = product.options.findIndex((opt) => opt.label === optionLabel)
+            if (matched > -1) {
+              selectedOption.value = matched
+            }
+          }
         } else {
           selectedOption.value = -1
         }
@@ -90,9 +98,10 @@ export const useProductDetail = (route: RouteLocationNormalizedLoaded) => {
   }
 
   // 初始化：分享模式判定 + 首次加载（视图 onMounted 中调用）
+  // 返回加载 Promise，便于详情加载完成后再处理 order=1 的自动做单
   const initDetail = () => {
     isShareMode.value = route.query.share === 'true'
-    fetchProductDetail()
+    return fetchProductDetail()
   }
 
   // 转发分享
@@ -109,8 +118,9 @@ export const useProductDetail = (route: RouteLocationNormalizedLoaded) => {
     }
 
     try {
+      // 300px 源图：弹窗内按 200px 展示更清晰，海报内按 300px 原尺寸绘制
       shareQrCode.value = await QRCode.toDataURL(shareUrl, {
-        width: 200,
+        width: 300,
         margin: 2
       })
     } catch (error) {

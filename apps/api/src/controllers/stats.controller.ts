@@ -63,6 +63,9 @@ export const getStats = async (req: Request, res: Response): Promise<void> => {
           approved: filtered.filter((o) => o.status === 'approved').length,
           pendingPayment: filtered.filter((o) => o.status === 'pending_payment').length,
           settled: filtered.filter((o) => o.status === 'settled').length,
+          settledAmount: filtered
+            .filter((o) => o.status === 'settled')
+            .reduce((sum, o) => sum + (Number(o.productPrice) || 0), 0),
           rejected: filtered.filter((o) => o.status === 'rejected').length,
         }
       }
@@ -76,7 +79,7 @@ export const getStats = async (req: Request, res: Response): Promise<void> => {
       sendError(res, '获取统计失败', 500, 500)
       return
     }
-    sendSuccess(res, { total: 0, pending: 0, approved: 0, pendingPayment: 0, settled: 0, rejected: 0 })
+    sendSuccess(res, { total: 0, pending: 0, approved: 0, pendingPayment: 0, settled: 0, settledAmount: 0, rejected: 0 })
   }
 }
 

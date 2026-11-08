@@ -12,86 +12,90 @@
     <!-- 产品轮播图已隐藏 -->
 
     <!-- 产品基本信息 -->
-    <div class="product-info">
-      <div
-        v-if="!isShareMode"
-        class="price-row"
-      >
-        <span class="price">{{ product.price }}</span>
-        <span
-          v-if="product.stock > 0"
-          class="stock-badge"
+    <div class="detail-mast">
+      <div class="product-info">
+        <div
+          v-if="!isShareMode"
+          class="price-row"
         >
-          库存 {{ product.stock }} 件
-        </span>
-        <span
-          v-else
-          class="stock-badge unlimited"
-        >
-          库存充足
-        </span>
-      </div>
-      <h2 class="title">
-        {{ product.title }}
-      </h2>
-      <div class="meta-row">
-        <span class="rate">好评率 {{ product.rate || '100%' }}</span>
-      </div>
-    </div>
-
-    <!-- 产品描述 -->
-    <div class="product-desc">
-      <h3 class="section-title">
-        产品描述
-      </h3>
-      <div
-        class="desc-content"
-        v-html="product.description"
-      />
-    </div>
-
-    <!-- 单选框组（渠道经理设置的选项） -->
-    <div
-      v-if="product.options && product.options.length > 0"
-      class="option-section"
-    >
-      <h3 class="section-title">
-        产品选项
-      </h3>
-      <van-radio-group
-        v-model="selectedOption"
-        class="option-radio-group"
-      >
-        <van-cell-group inset>
-          <van-cell
-            v-for="(opt, idx) in product.options"
-            :key="idx"
-            :title="opt.label"
-            clickable
-            @click="selectedOption = idx"
+          <span class="price">{{ product.price }}</span>
+          <span
+            v-if="product.stock > 0"
+            class="stock-badge"
           >
-            <template #right-icon>
-              <van-radio :name="idx" />
-            </template>
-            <template #label>
-              <div class="option-meta">
-                <span
-                  v-if="opt.limit"
-                  class="option-limit"
-                >
-                  限量 {{ opt.limit }} 单
-                </span>
-                <span
-                  v-if="opt.redirectUrl"
-                  class="option-redirect"
-                >
-                  做单后跳转
-                </span>
-              </div>
-            </template>
-          </van-cell>
-        </van-cell-group>
-      </van-radio-group>
+            库存 {{ product.stock }} 件
+          </span>
+          <span
+            v-else
+            class="stock-badge unlimited"
+          >
+            库存充足
+          </span>
+        </div>
+        <h2 class="title">
+          {{ product.title }}
+        </h2>
+        <div class="meta-row">
+          <span class="rate">好评率 {{ product.rate || '100%' }}</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="detail-body">
+      <!-- 产品描述 -->
+      <div class="product-desc">
+        <h3 class="section-title">
+          产品描述
+        </h3>
+        <div
+          class="desc-content"
+          v-html="product.description"
+        />
+      </div>
+
+      <!-- 单选框组（渠道经理设置的选项） -->
+      <div
+        v-if="product.options && product.options.length > 0"
+        class="option-section"
+      >
+        <h3 class="section-title">
+          产品选项
+        </h3>
+        <van-radio-group
+          v-model="selectedOption"
+          class="option-radio-group"
+        >
+          <van-cell-group inset>
+            <van-cell
+              v-for="(opt, idx) in product.options"
+              :key="idx"
+              :title="opt.label"
+              clickable
+              @click="selectedOption = idx"
+            >
+              <template #right-icon>
+                <van-radio :name="idx" />
+              </template>
+              <template #label>
+                <div class="option-meta">
+                  <span
+                    v-if="opt.limit"
+                    class="option-limit"
+                  >
+                    限量 {{ opt.limit }} 单
+                  </span>
+                  <span
+                    v-if="opt.redirectUrl"
+                    class="option-redirect"
+                  >
+                    做单后跳转
+                  </span>
+                </div>
+              </template>
+            </van-cell>
+          </van-cell-group>
+        </van-radio-group>
+      </div>
     </div>
 
     <!-- 底部操作栏 -->
@@ -113,6 +117,7 @@
     <van-popup
       v-model:show="shareVisible"
       position="center"
+      round
       :style="{ width: '300px' }"
     >
       <div class="share-container">
@@ -140,6 +145,43 @@
         <div class="share-tip">
           扫码即可做单
         </div>
+        <van-button
+          class="save-poster-btn"
+          size="small"
+          round
+          block
+          :loading="posterLoading"
+          @click="handleSavePoster"
+        >
+          保存海报
+        </van-button>
+      </div>
+    </van-popup>
+
+    <!-- 海报预览弹窗 -->
+    <van-popup
+      v-model:show="posterVisible"
+      position="center"
+      round
+      :style="{ width: '300px' }"
+    >
+      <div class="poster-container">
+        <div class="poster-header">
+          <span class="poster-title">推广海报</span>
+          <van-icon
+            name="cross"
+            @click="posterVisible = false"
+          />
+        </div>
+        <img
+          v-if="posterImage"
+          :src="posterImage"
+          alt="推广海报"
+          class="poster-image"
+        >
+        <div class="poster-tip">
+          长按图片保存到相册
+        </div>
       </div>
     </van-popup>
 
@@ -147,6 +189,7 @@
     <van-popup
       v-model:show="infoFormVisible"
       position="bottom"
+      round
       :style="{ height: 'auto' }"
     >
       <div class="info-form-container">
@@ -235,8 +278,12 @@ const infoForm = reactive({
   phone: ''
 })
 
-onMounted(() => {
-  initDetail()
+onMounted(async () => {
+  await initDetail()
+  // 收藏页「直接做单」：详情加载完成后自动打开做单表单
+  if (route.query.order === '1' && !isShareMode.value) {
+    handleGoOrder()
+  }
 })
 
 // 检查是否已登录（支持员工账户）
@@ -332,6 +379,179 @@ const submitGoOrder = (userName: string, userPhone: string) => {
   }).finally(() => {
     submitting.value = false
   })
+}
+
+// ============ 保存海报 ============
+const posterVisible = ref(false)
+const posterImage = ref('')
+const posterLoading = ref(false)
+
+const POSTER_FONT = '"PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif'
+
+/**
+ * 圆角矩形路径（不依赖较新的 CanvasRenderingContext2D.roundRect）
+ */
+const traceRoundedRect = (
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  r: number
+) => {
+  ctx.beginPath()
+  ctx.moveTo(x + r, y)
+  ctx.lineTo(x + w - r, y)
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r)
+  ctx.lineTo(x + w, y + h - r)
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h)
+  ctx.lineTo(x + r, y + h)
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r)
+  ctx.lineTo(x, y + r)
+  ctx.quadraticCurveTo(x, y, x + r, y)
+  ctx.closePath()
+}
+
+/**
+ * 按宽度换行，超出最大行数时截断并补省略号
+ */
+const wrapPosterText = (
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  maxWidth: number,
+  maxLines: number
+): string[] => {
+  const chars = Array.from(text)
+  const lines: string[] = []
+  let current = ''
+  let index = 0
+
+  while (index < chars.length) {
+    if (current && ctx.measureText(current + chars[index]).width > maxWidth) {
+      lines.push(current)
+      current = ''
+      if (lines.length === maxLines - 1) {
+        let rest = chars.slice(index).join('')
+        while (rest && ctx.measureText(`${rest}…`).width > maxWidth) {
+          rest = rest.slice(0, -1)
+        }
+        lines.push(rest ? `${rest}…` : '…')
+        return lines
+      }
+    } else {
+      current += chars[index]
+      index += 1
+    }
+  }
+  if (current) {
+    lines.push(current)
+  }
+  return lines
+}
+
+/**
+ * 用 Canvas 绘制墨金风格推广海报（750×1100），返回 PNG dataURL
+ */
+const buildPosterImage = async (): Promise<string> => {
+  const W = 750
+  const H = 1100
+  const canvas = document.createElement('canvas')
+  canvas.width = W
+  canvas.height = H
+  const ctx = canvas.getContext('2d')
+  if (!ctx) throw new Error('当前环境不支持海报绘制')
+
+  // 背景渐变与页面主视觉保持一致
+  const bg = ctx.createLinearGradient(0, 0, W, H)
+  bg.addColorStop(0, '#241a12')
+  bg.addColorStop(0.55, '#3b2918')
+  bg.addColorStop(1, '#4e3520')
+  ctx.fillStyle = bg
+  ctx.fillRect(0, 0, W, H)
+
+  // 斜向细纹
+  ctx.strokeStyle = 'rgba(255, 235, 205, 0.05)'
+  ctx.lineWidth = 2
+  for (let x = -160; x < W; x += 14) {
+    ctx.beginPath()
+    ctx.moveTo(x, 0)
+    ctx.lineTo(x + 140, H)
+    ctx.stroke()
+  }
+
+  ctx.textAlign = 'left'
+  ctx.textBaseline = 'top'
+
+  // 顶部标签与短线
+  ctx.fillStyle = 'rgba(247, 235, 216, 0.62)'
+  ctx.font = `500 24px ${POSTER_FONT}`
+  ctx.fillText('好物推荐', 60, 76)
+  ctx.fillStyle = '#c89a58'
+  ctx.fillRect(60, 116, 76, 4)
+
+  // 标题（最多 3 行）
+  ctx.fillStyle = '#f7ebd8'
+  ctx.font = `650 50px ${POSTER_FONT}`
+  const titleLines = wrapPosterText(ctx, product.title || '优选产品', W - 120, 3)
+  titleLines.forEach((line, idx) => {
+    ctx.fillText(line, 60, 164 + idx * 68)
+  })
+
+  // 价格
+  const priceY = 164 + titleLines.length * 68 + 34
+  ctx.fillStyle = '#e9c58c'
+  ctx.font = `600 30px ${POSTER_FONT}`
+  ctx.fillText('¥', 60, priceY + 14)
+  ctx.font = `750 68px ${POSTER_FONT}`
+  ctx.fillText(String(product.price || '0'), 92, priceY)
+
+  // 二维码卡片
+  const cardY = H - 520
+  traceRoundedRect(ctx, (W - 340) / 2, cardY, 340, 340, 24)
+  ctx.fillStyle = '#fffcf5'
+  ctx.fill()
+  ctx.lineWidth = 2
+  ctx.strokeStyle = 'rgba(216, 176, 122, 0.6)'
+  traceRoundedRect(ctx, (W - 340) / 2, cardY, 340, 340, 24)
+  ctx.stroke()
+
+  const qrImage = new Image()
+  await new Promise<void>((resolve, reject) => {
+    qrImage.onload = () => resolve()
+    qrImage.onerror = () => reject(new Error('海报二维码加载失败'))
+    qrImage.src = shareQrCode.value
+  })
+  ctx.drawImage(qrImage, (W - 300) / 2, cardY + 20, 300, 300)
+
+  // 底部提示
+  ctx.textAlign = 'center'
+  ctx.fillStyle = 'rgba(247, 235, 216, 0.72)'
+  ctx.font = `400 24px ${POSTER_FONT}`
+  ctx.fillText('微信扫码 · 立即做单', W / 2, H - 128)
+
+  return canvas.toDataURL('image/png')
+}
+
+/**
+ * 生成并预览海报（由分享弹窗进入，海报弹窗支持长按保存）
+ */
+const handleSavePoster = async () => {
+  if (!shareQrCode.value) {
+    showToast('二维码生成中，请稍候')
+    return
+  }
+  if (posterLoading.value) return
+  posterLoading.value = true
+  try {
+    posterImage.value = await buildPosterImage()
+    shareVisible.value = false
+    posterVisible.value = true
+  } catch (error) {
+    logger.error('[海报] 生成失败:', error)
+    showToast('海报生成失败，请稍后重试')
+  } finally {
+    posterLoading.value = false
+  }
 }
 </script>
 

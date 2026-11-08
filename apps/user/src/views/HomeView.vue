@@ -4,22 +4,38 @@
       v-model="refreshing"
       @refresh="onRefresh"
     >
-      <!-- 顶部搜索栏 -->
-      <div class="search-bar">
-        <van-search
-          v-model="searchKeyword"
-          shape="round"
-          placeholder="搜索产品"
-          @search="handleSearch"
-        />
-      </div>
+      <!-- 深色主视觉：品牌位 / 页面标题 / 搜索 / 分类 -->
+      <div class="home-mast">
+        <div class="mast-inner">
+          <div class="brand-row">
+            <span class="brand">PRODUCT HALL</span>
+            <span class="spacer" />
+            <span class="mast-note">严选产品</span>
+          </div>
+          <div class="title-row">
+            <h1>产品大厅</h1>
+            <span class="cnt">
+              共 <b>{{ totalCount }}</b> 款
+            </span>
+          </div>
 
-      <!-- 产品分类横向滚动 -->
-      <CategoryList
-        :categories="displayCategories"
-        :active-category="activeCategory"
-        @select="selectCategory"
-      />
+          <!-- 顶部搜索栏 -->
+          <van-search
+            v-model="searchKeyword"
+            class="mast-search"
+            shape="round"
+            placeholder="搜索产品"
+            @search="handleSearch"
+          />
+
+          <!-- 产品分类横向滚动 -->
+          <CategoryList
+            :categories="displayCategories"
+            :active-category="activeCategory"
+            @select="selectCategory"
+          />
+        </div>
+      </div>
 
       <!-- 产品列表 -->
       <div class="product-list">
@@ -71,15 +87,18 @@ const { getUserId } = useUser()
 /**
  * 产品分类 composable
  */
-const { categories, getCategoryName, fetchCategories } = useProductCategories()
+const { categoryGroups, getCategoryName, fetchCategories } = useProductCategories()
 
 /**
- * 显示的分类，添加全部选项
+ * 显示的分类：接口二级分类动态归并为六组，「全部」固定在前
  */
-const displayCategories = computed(() => [
-  { id: 'all', name: '全部', value: '' },
-  ...categories.value
-])
+const displayCategories = computed(() =>
+  categoryGroups.value.map(group => ({
+    id: group.key,
+    name: group.name,
+    value: group.key,
+  }))
+)
 
 /**
  * 搜索关键词
@@ -103,6 +122,11 @@ type HomeProduct = Product & {
  * 产品列表数据
  */
 const products = ref<HomeProduct[]>([])
+
+/**
+ * 产品总数（展示用，来自 /products 的 total）
+ */
+const totalCount = ref(0)
 
 /**
  * 加载状态
@@ -147,11 +171,11 @@ const loadProducts = async (replace = false): Promise<boolean> => {
   const seq = querySeq
   inFlightCount += 1
   try {
-    const categoryValue = displayCategories.value.find(c => c.id === activeCategory.value)?.value
+    const activeGroup = categoryGroups.value.find(group => group.key === activeCategory.value)
     const res = await get<{ list: HomeProduct[]; total: number }>('/products', {
       page: page.value,
       pageSize,
-      category: categoryValue || undefined,
+      categories: activeGroup && activeGroup.key !== 'all' ? activeGroup.values.join(',') : undefined,
       keyword: searchKeyword.value || undefined,
     })
     // 请求期间切换了分类/搜索或再次刷新，丢弃过期响应
@@ -159,6 +183,7 @@ const loadProducts = async (replace = false): Promise<boolean> => {
       return true
     }
     const { list, total } = res.data
+    totalCount.value = total
     // 检查产品在购物车中的状态
     const newProducts = list.map((p) => ({
       ...p,
@@ -345,27 +370,117 @@ const onRefresh = async () => {
 <style scoped lang="scss">
 .home-page {
   min-height: 100%;
-  background-color: #f7f8fa;
+  background-color: var(--paper);
 }
 
-.search-bar {
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  background-color: #ffffff;
+// 深色主视觉
+.home-mast {
+  position: relative;
+  overflow: hidden;
+  padding: 10px 14px 14px;
+  background: var(--mast);
+  color: var(--on-dark);
 
-  :deep(.van-search) {
-    padding: 8px 12px;
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: repeating-linear-gradient(
+      96deg,
+      rgba(255, 235, 205, 0.045) 0 1px,
+      transparent 1px 7px
+    );
+  }
+}
+
+.mast-inner {
+  position: relative;
+  z-index: 1;
+}
+
+.brand-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 28px;
+
+  .brand {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.22em;
+    color: #d8b07a;
+  }
+
+  .spacer {
+    flex: 1;
+  }
+
+  .mast-note {
+    font-size: 10px;
+    color: var(--on-dark-muted);
+    letter-spacing: 0.08em;
+  }
+}
+
+.title-row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  margin-top: 8px;
+
+  h1 {
+    font-size: var(--fs-display);
+    font-weight: 650;
+    letter-spacing: 0.01em;
+    color: var(--on-dark);
+  }
+
+  .cnt {
+    padding-bottom: 3px;
+    font-size: var(--fs-micro);
+    color: var(--on-dark-muted);
+
+    b {
+      font-size: 11px;
+      color: var(--tabbar-active);
+    }
+  }
+}
+
+.mast-search {
+  padding: 10px 0 0 !important;
+  background: transparent;
+
+  :deep(.van-search__content) {
+    height: 38px;
+    align-items: center;
+    background: rgba(255, 248, 236, 0.07);
+    border: 1px solid var(--on-dark-line);
+    border-radius: 10px;
+  }
+
+  :deep(.van-field__control) {
+    font-size: 11.5px;
+    color: var(--on-dark);
+  }
+
+  :deep(.van-field__control::placeholder) {
+    color: rgba(247, 235, 216, 0.55);
+  }
+
+  :deep(.van-icon) {
+    color: #c6ad8c;
   }
 }
 
 .product-list {
-  padding: 12px;
+  padding: 12px 14px;
 }
 
 .product-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 10px;
+  gap: 9px;
 }
 </style>

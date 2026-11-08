@@ -31,6 +31,7 @@ export function useCommission() {
     approved: 0,
     pendingPayment: 0,
     settled: 0,
+    settledAmount: 0,
     rejected: 0
   })
 
@@ -88,6 +89,7 @@ export function useCommission() {
     overview.approved = data.approved || 0
     overview.pendingPayment = data.pendingPayment || 0
     overview.settled = data.settled || 0
+    overview.settledAmount = data.settledAmount || 0
     overview.rejected = data.rejected || 0
   }
 

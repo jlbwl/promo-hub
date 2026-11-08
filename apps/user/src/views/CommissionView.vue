@@ -20,6 +20,7 @@
       <van-tabs
         v-model:active="activeTab"
         sticky
+        offset-top="46"
         @change="onTabChange"
       >
         <van-tab
@@ -116,6 +117,23 @@ const handleFundSubmitted = (record: Order, fundAccount: string) => {
 <style scoped lang="scss">
 .commission-page {
   min-height: 100%;
-  background-color: #f7f8fa;
+  background-color: var(--paper);
+}
+
+.commission-page :deep(.van-tabs__wrap) {
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.commission-page :deep(.van-tabs__nav) {
+  padding: 0 6px;
+}
+
+.commission-page :deep(.van-tab) {
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.commission-page :deep(.van-tab--active) {
+  font-weight: 650;
 }
 </style>

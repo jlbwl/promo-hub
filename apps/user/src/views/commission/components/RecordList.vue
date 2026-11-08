@@ -313,17 +313,18 @@ const handleDelete = async (record: Order) => {
 <style scoped lang="scss">
 // 记录列表
 .record-list {
-  padding: 0 12px;
+  padding: 8px 14px 0;
 }
 
 .record-card {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background-color: #ffffff;
-  border-radius: 8px;
-  padding: 14px 16px;
-  margin-bottom: 8px;
+  background-color: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  padding: 12px 14px;
+  margin-bottom: 9px;
 }
 
 .record-left {
@@ -332,30 +333,30 @@ const handleDelete = async (record: Order) => {
 }
 
 .record-title {
-  font-size: 14px;
-  font-weight: 500;
-  color: #323233;
-  margin-bottom: 6px;
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--ink);
+  margin-bottom: 5px;
   line-height: 1.5;
   word-break: break-all;
 }
 
 .record-user-info {
-  font-size: 12px;
-  color: #646566;
+  font-size: 11px;
+  color: var(--muted);
   margin-bottom: 4px;
 }
 
 .record-time {
-  font-size: 12px;
-  color: #969799;
+  font-size: 10.5px;
+  color: var(--faint);
   display: block;
   margin-bottom: 2px;
 }
 
 .reject-reason {
-  font-size: 12px;
-  color: #ee0a24;
+  font-size: 11px;
+  color: var(--danger);
   display: block;
   margin-top: 4px;
 }
@@ -370,9 +371,10 @@ const handleDelete = async (record: Order) => {
 }
 
 .record-price {
-  font-size: 16px;
-  font-weight: 600;
-  color: #323233;
+  font-size: 15px;
+  font-weight: 750;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
 }
 
 // 侧拉菜单样式（微信风格）
@@ -397,22 +399,22 @@ const handleDelete = async (record: Order) => {
     align-items: center;
     justify-content: center;
     border: none;
-    font-size: 14px;
+    font-size: 12px;
     font-weight: 500;
 
     &.van-button--danger {
-      background-color: #ee0a24;
-      color: #ffffff;
+      background-color: var(--danger);
+      color: var(--surface);
     }
 
     &.van-button--warning {
-      background-color: #ff976a;
-      color: #ffffff;
+      background-color: var(--warn);
+      color: var(--surface);
     }
 
     &.van-button--primary {
-      background-color: #1989fa;
-      color: #ffffff;
+      background-color: var(--brand);
+      color: var(--surface);
     }
   }
 }
@@ -424,7 +426,7 @@ const handleDelete = async (record: Order) => {
   align-items: center;
   justify-content: center;
   padding: 0 8px;
-  background-color: #1989fa;
+  background-color: var(--brand);
 }
 
 .fund-input {
@@ -434,12 +436,12 @@ const handleDelete = async (record: Order) => {
   border: none;
   border-radius: 4px;
   font-size: 13px;
-  background-color: #ffffff;
-  color: #323233;
+  background-color: var(--surface);
+  color: var(--ink);
   outline: none;
 }
 
 .fund-input::placeholder {
-  color: #969799;
+  color: var(--faint);
 }
 </style>

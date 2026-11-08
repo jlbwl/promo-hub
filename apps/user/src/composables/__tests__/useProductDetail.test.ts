@@ -168,7 +168,7 @@ describe('handleShare 分享二维码', () => {
 
     expect(detail.shareVisible.value).toBe(true)
     const expectedUrl = `${window.location.origin}/api/share/product/p_1?sharerId=u_1`
-    expect(toDataURL).toHaveBeenCalledWith(expectedUrl, { width: 200, margin: 2 })
+    expect(toDataURL).toHaveBeenCalledWith(expectedUrl, { width: 300, margin: 2 })
     expect(detail.shareQrCode.value).toBe('data:image/png;base64,QR')
   })
 

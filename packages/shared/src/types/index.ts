@@ -210,4 +210,6 @@ export interface OrderStats {
   pendingPayment: number
   settled: number
   rejected: number
+  /** 已发放佣金（已结算订单按结算金额聚合，服务端计算） */
+  settledAmount: number
 }

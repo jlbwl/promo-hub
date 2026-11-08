@@ -134,36 +134,36 @@ const closeSwipe = (idx: number) => {
 
   p {
     margin-top: 12px;
-    font-size: 14px;
-    color: #969799;
+    font-size: 12px;
+    color: var(--muted);
   }
 }
 
 .deleted-list {
-  padding: 0 8px;
+  padding: 0 10px;
 }
 
 .deleted-item {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 14px 16px;
-  margin-bottom: 8px;
-  background-color: #f5f5f5;
-  border-radius: 8px;
-  border: 2px solid transparent;
+  padding: 12px 14px;
+  margin-bottom: 9px;
+  background-color: var(--surface-2);
+  border-radius: var(--r-md);
+  border: 1px solid var(--line);
   transition: all 0.2s ease;
 
   &:active {
-    background-color: #ebebeb;
+    background-color: #efe4d0;
   }
 
   &.active {
-    background-color: #e8f4fd;
-    border-color: #1989fa;
+    background-color: rgba(234, 214, 176, 0.4);
+    border-color: var(--gold-soft);
 
     .deleted-title {
-      color: #1989fa;
+      color: var(--brand-deep);
     }
   }
 }
@@ -182,16 +182,16 @@ const closeSwipe = (idx: number) => {
 }
 
 .deleted-title {
-  font-size: 15px;
-  font-weight: 500;
-  color: #323233;
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--ink);
   line-height: 1.5;
   word-break: break-all;
 }
 
 .deleted-user-info {
-  font-size: 13px;
-  color: #646566;
+  font-size: 11px;
+  color: var(--muted);
   margin-bottom: 6px;
 
   .phone-span {
@@ -206,14 +206,15 @@ const closeSwipe = (idx: number) => {
 }
 
 .deleted-price {
-  font-size: 16px;
-  font-weight: 600;
-  color: #323233;
+  font-size: 15px;
+  font-weight: 750;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
 }
 
 .deleted-time {
-  font-size: 12px;
-  color: #969799;
+  font-size: 10px;
+  color: var(--faint);
 }
 
 // 回收站侧拉菜单样式
@@ -223,12 +224,12 @@ const closeSwipe = (idx: number) => {
   height: 100%;
   width: 100%;
 
-  // 永久删除按钮：橙色警示，区别于恢复（蓝）与取消（红）；
+  // 永久删除按钮：橙色警示，区别于恢复（金棕）与取消（红）；
   // 文字较长，分配更大宽度并禁止换行，保证三个按钮完整显示
   .purge-btn {
     flex: 1.4;
-    background-color: #ff976a;
-    color: #ffffff;
+    background-color: var(--warn);
+    color: var(--surface);
   }
 
   :deep(.van-button) {
@@ -240,18 +241,18 @@ const closeSwipe = (idx: number) => {
     align-items: center;
     justify-content: center;
     border: none;
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 500;
     white-space: nowrap;
 
     &.van-button--danger {
-      background-color: #ee0a24;
-      color: #ffffff;
+      background-color: var(--danger);
+      color: var(--surface);
     }
 
     &.van-button--primary {
-      background-color: #1989fa;
-      color: #ffffff;
+      background-color: var(--brand);
+      color: var(--surface);
     }
   }
 }
