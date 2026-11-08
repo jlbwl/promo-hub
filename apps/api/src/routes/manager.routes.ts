@@ -50,12 +50,12 @@ router.put(
 // 经理登录相关
 router.post('/managers/login', loginLimiter, managerLogin)
 router.post('/managers/sms/send', smsLimiter, sendManagerSmsCode)
-router.post('/managers/sms/login', managerSmsLogin)
+router.post('/managers/sms/login', loginLimiter, managerSmsLogin)
 
 // 经理验证（仅登录用户可校验账号状态，防止匿名枚举）
 router.get('/managers/:id/verify', requireAuth, verifyManagerById)
 
 // 经理密码设置
-router.post('/managers/password/set', setManagerPassword)
+router.post('/managers/password/set', loginLimiter, setManagerPassword)
 
 export default router

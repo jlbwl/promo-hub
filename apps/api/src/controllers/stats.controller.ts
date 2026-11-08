@@ -10,6 +10,9 @@ import {
   readCommissions,
 } from '../data/index.js'
 
+// H15：生产环境禁止把数据库失败静默降级为内存数据
+const allowMemoryFallback = process.env.NODE_ENV !== 'production'
+
 /**
  * 获取订单统计
  * 统计订单总数、各状态数量（待审核、已通过、待发放、已发放、已驳回）
@@ -36,6 +39,7 @@ export const getStats = async (req: Request, res: Response): Promise<void> => {
     try {
       stats = await getOrderStats(managerId as string)
     } catch (dbError) {
+      if (!allowMemoryFallback) throw dbError
       logger.warn('[订单统计] 数据库查询失败，尝试降级到内存:', { error: getErrorMessage(dbError) })
       const { getOrderStats: memGetOrderStats } = await import('../data-memory.js')
       stats = await memGetOrderStats(managerId as string)
@@ -46,6 +50,7 @@ export const getStats = async (req: Request, res: Response): Promise<void> => {
       try {
         orders = await readOrders()
       } catch (dbError2) {
+        if (!allowMemoryFallback) throw dbError2
         logger.warn('[订单统计] readOrders 失败，尝试降级:', { error: getErrorMessage(dbError2) })
         const { readOrders: memReadOrders } = await import('../data-memory.js')
         orders = await memReadOrders()
@@ -69,6 +74,11 @@ export const getStats = async (req: Request, res: Response): Promise<void> => {
     }
   } catch (error) {
     logger.error('[订单统计] 最终错误:', { error: getErrorMessage(error) })
+    // H15：生产环境禁止用全 0 伪装统计成功
+    if (!allowMemoryFallback) {
+      sendError(res, '获取统计失败', 500, 500)
+      return
+    }
     sendSuccess(res, { total: 0, pending: 0, approved: 0, pendingPayment: 0, settled: 0, rejected: 0 })
   }
 }
@@ -93,18 +103,18 @@ export const getDashboardStats = async (req: Request, res: Response): Promise<vo
     const totalProducts = myProducts.length
     const publishedProducts = myProducts.filter((p: Product) => p.status === 'published').length
 
-    const myProductIds = new Set(myProducts.map((p: Product) => p.id))
+    // H5：commissions 表无 productId 列，按 managerId 过滤；DECIMAL 返回字符串需转 Number
     const myCommissions = managerId
-      ? commissions.filter((c: Commission) => myProductIds.has(c.productId as string))
+      ? commissions.filter((c: Commission) => c.managerId === managerId)
       : commissions
 
     const pendingCommissions = myCommissions
       .filter((c: Commission) => c.status === 'pending')
-      .reduce((sum: number, c: Commission) => sum + (c.amount || 0), 0)
+      .reduce((sum: number, c: Commission) => sum + (Number(c.amount) || 0), 0)
 
     const totalCommissions = myCommissions
       .filter((c: Commission) => c.status === 'paid')
-      .reduce((sum: number, c: Commission) => sum + (c.amount || 0), 0)
+      .reduce((sum: number, c: Commission) => sum + (Number(c.amount) || 0), 0)
 
     sendSuccess(res, {
       totalProducts,

@@ -74,7 +74,7 @@ export async function insertManager(m: ManagerInput): Promise<void> {
 /**
  * managers 表允许动态 UPDATE 的字段白名单（防止任意 key 拼接进 SQL）。
  */
-const MANAGER_MUTABLE_FIELDS = new Set(['name', 'phone', 'password', 'teamName', 'role', 'status'])
+const MANAGER_MUTABLE_FIELDS = new Set(['username', 'name', 'phone', 'password', 'teamName', 'role', 'status'])
 
 export async function updateManager(id: string, fields: object): Promise<void> {
   const hasRole = await columnExists('managers', 'role')

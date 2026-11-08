@@ -61,9 +61,14 @@ export const sendError = (
 ): void => {
   const httpStatus =
     statusCode ?? (code >= 400 && code <= 599 ? code : HttpStatus.BAD_REQUEST)
+  // H7：生产环境 5xx 不回显原始异常/数据库信息，仅保留业务 4xx 的明确提示
+  const finalMessage =
+    process.env.NODE_ENV === 'production' && httpStatus >= 500
+      ? '服务器内部错误'
+      : message
   const response: ApiResponse<null> = {
     code,
-    message,
+    message: finalMessage,
     data: null,
     timestamp: Date.now(),
   }
@@ -91,7 +96,9 @@ export const asyncHandler = (
         next(err)
       } else {
         next(new AppError(
-          (err as Error).message || '服务器内部错误',
+          process.env.NODE_ENV === 'production'
+            ? '服务器内部错误'
+            : ((err as Error).message || '服务器内部错误'),
           ErrorCode.INTERNAL_SERVER_ERROR,
           HttpStatus.INTERNAL_SERVER_ERROR
         ))

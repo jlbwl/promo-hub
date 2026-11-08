@@ -220,9 +220,12 @@ export async function restoreOrder(id: string): Promise<void> {
   await query('UPDATE orders SET deleted = 0, deletedAt = NULL WHERE id = ?', [id])
 }
 
-/** 物理删除订单（仅回收站中已软删除的订单可被永久删除），不可恢复 */
+/** 物理删除订单（仅回收站中已软删除且未进入结算流程的订单可被永久删除），不可恢复 */
 export async function purgeOrder(id: string): Promise<void> {
-  await query('DELETE FROM orders WHERE id = ? AND deleted = 1', [id])
+  await query(
+    "DELETE FROM orders WHERE id = ? AND deleted = 1 AND status NOT IN ('approved','pending_payment','settled')",
+    [id]
+  )
 }
 
 export async function getOrdersPaginated(params: {

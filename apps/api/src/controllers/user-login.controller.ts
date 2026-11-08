@@ -4,7 +4,8 @@ import { sendSuccess, AppError, ErrorCode, HttpStatus, asyncHandler } from '../u
 import logger from '../utils/logger.js'
 import {
   readUsers,
-  writeUsers,
+  queryOne,
+  updateUser as updateUserData,
   type UserRow,
   type UserRecord,
   touchUserLastLogin,
@@ -131,18 +132,19 @@ export const setUserPassword = asyncHandler(
       throw new AppError('验证码错误或已过期', ErrorCode.CODE_EXPIRED, HttpStatus.BAD_REQUEST)
     }
 
-    let users = await readUsers()
-    const index = users.findIndex((u: UserRow) => u.phone === phone)
-    if (index === -1) {
+    // H14：按手机号单行查询 + 单行更新，避免全表回写
+    const targetUser = await queryOne<UserRow>(
+      'SELECT id FROM users WHERE phone = ? LIMIT 1',
+      [phone]
+    )
+    if (!targetUser) {
       throw new AppError('用户不存在', ErrorCode.USER_NOT_FOUND, HttpStatus.NOT_FOUND)
     }
 
     const hashedPassword = await hashPassword(password)
-    users[index].password = hashedPassword
-    users[index].updatedAt = new Date().toISOString()
-    await writeUsers(users)
+    await updateUserData(targetUser.id, { password: hashedPassword })
 
-    logger.info('User password updated', { userId: users[index].id })
+    logger.info('User password updated', { userId: targetUser.id })
     sendSuccess(res, null, '密码设置成功')
   }
 )

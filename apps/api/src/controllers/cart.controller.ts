@@ -11,6 +11,9 @@ import {
   isInCart,
 } from '../data/index.js'
 
+// H15：生产环境禁止把数据库失败静默降级为内存/本地文件
+const allowMemoryFallback = process.env.NODE_ENV !== 'production'
+
 /**
  * 购物车身份解析：
  * - user 角色：强制使用会话身份（防传他人 userId 越权）
@@ -42,6 +45,7 @@ export const getCartItems = async (req: Request, res: Response): Promise<void> =
     try {
       items = await readCartItems(userId as string)
     } catch (dbError) {
+      if (!allowMemoryFallback) throw dbError
       logger.warn('[获取购物车] 数据库查询失败，尝试降级到内存存储:', { error: getErrorMessage(dbError) })
       const { readCartItems: memReadCart } = await import('../data-memory.js')
       items = await memReadCart(userId as string)
@@ -49,6 +53,10 @@ export const getCartItems = async (req: Request, res: Response): Promise<void> =
     sendSuccess(res, items)
   } catch (error) {
     logger.error('[获取购物车] 最终错误:', { error: getErrorMessage(error) })
+    if (!allowMemoryFallback) {
+      sendError(res, '获取购物车失败', 500, 500)
+      return
+    }
     sendSuccess(res, [])
   }
 }
@@ -71,6 +79,7 @@ export const getManagerCart = async (req: Request, res: Response): Promise<void>
     try {
       items = await readCartByManagerId(managerId as string)
     } catch (dbError) {
+      if (!allowMemoryFallback) throw dbError
       logger.warn('[获取经理购物车] 数据库查询失败，尝试降级到内存存储:', { error: getErrorMessage(dbError) })
       const { readCartByManagerId: memReadCart } = await import('../data-memory.js')
       items = await memReadCart(managerId as string)
@@ -78,6 +87,10 @@ export const getManagerCart = async (req: Request, res: Response): Promise<void>
     sendSuccess(res, items)
   } catch (error) {
     logger.error('[获取经理购物车] 最终错误:', { error: getErrorMessage(error) })
+    if (!allowMemoryFallback) {
+      sendError(res, '获取购物车失败', 500, 500)
+      return
+    }
     sendSuccess(res, [])
   }
 }
@@ -104,6 +117,7 @@ export const addItemToCart = async (req: Request, res: Response): Promise<void> 
       }
       await addToCart({ userId, managerId, productId, productName, productPrice, coverImage, optionLabel, redirectUrl })
     } catch (dbError) {
+      if (!allowMemoryFallback) throw dbError
       logger.warn('[添加购物车] 数据库失败，尝试降级到内存:', { error: getErrorMessage(dbError) })
       const { isInCart: memIsInCart, addToCart: memAddToCart } = await import('../data-memory.js')
       const exists = await memIsInCart(userId, productId)

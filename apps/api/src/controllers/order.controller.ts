@@ -6,6 +6,7 @@ import { MAX_PAGE_SIZE } from '../utils/pagination.js'
 import { orderService } from '../services/index.js'
 import { logAdminOperation } from '../utils/auditLog.js'
 import { buildAuditDetail, maskPhone } from '../utils/auditDetail.js'
+import { readUser } from '../data/index.js'
 import type { OrderRow } from '../data-memory.js'
 
 /**
@@ -48,6 +49,28 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
       return sendError(res, '缺少产品ID', 400)
     }
 
+    // H12：对齐数据库列宽做长度/类型校验，避免超长字段写入失败或截断
+    if (sharerId !== undefined && sharerId !== null) {
+      if (typeof sharerId !== 'string' || sharerId.length > 100) {
+        return sendError(res, '分享人ID格式不正确', 400)
+      }
+    }
+    if (optionLabel !== undefined && optionLabel !== null) {
+      if (typeof optionLabel !== 'string' || optionLabel.length > 500) {
+        return sendError(res, '产品选项过长', 400)
+      }
+    }
+    if (redirectUrl !== undefined && redirectUrl !== null) {
+      if (typeof redirectUrl !== 'string' || redirectUrl.length > 2000) {
+        return sendError(res, '跳转链接过长', 400)
+      }
+    }
+    if (userName !== undefined && userName !== null) {
+      if (typeof userName !== 'string' || userName.length > 200) {
+        return sendError(res, '客户姓名过长', 400)
+      }
+    }
+
     // 归属裁决：userId 一律由服务端按登录态/分享归因生成，绝不取自请求体
     const currentUser = req.user
     let realUserId: string | undefined
@@ -61,14 +84,21 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
         if (!realUserId) {
           return sendError(res, '员工账户未关联用户，无法做单', 403)
         }
-      } else if (currentUser.role === 'user' || currentUser.role === 'manager' || currentUser.role === 'admin') {
+      } else if (currentUser.role === 'manager') {
+        // H10：经理账号不得做单，避免“自建产品 → 自做单 → 自审 → 自打款”闭环
+        return sendError(res, '经理账号不可直接做单，请使用推广人员账号下单', 403)
+      } else if (currentUser.role === 'user' || currentUser.role === 'admin') {
         // 推广人员做单：业绩强制归属当前登录人
         realUserId = currentUser.id
       } else {
         return sendError(res, '不支持的用户角色', 403)
       }
     } else if (sharerId) {
-      // 访客 + 分享链接：归属分享的推广人员（有归属人，允许）
+      // 访客 + 分享链接：归属分享的推广人员（H12：分享人必须真实存在且启用）
+      const sharer = await readUser(sharerId)
+      if (!sharer || sharer.status !== 'active') {
+        return sendError(res, '分享人不存在或已失效', 400)
+      }
       realUserId = sharerId
     } else {
       // 无归属人不允许下单

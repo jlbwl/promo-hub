@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import { requireAdmin, requireAuth, requireManager } from '../middleware/auth.js'
+import { orderCreateLimiter } from '../middleware/rateLimit.js'
 import {
   createOrder,
   getOrders,
@@ -18,7 +19,7 @@ import {
 const router: Router = Router()
 
 // 订单创建 - 支持登录用户和访客模式
-router.post('/orders', createOrder)
+router.post('/orders', orderCreateLimiter, createOrder)
 // 订单列表 - 所有已登录用户均可（controller 层根据 role 强制过滤）
 router.get('/orders', requireAuth, getOrders)
 // 订单中"用户+团队名称"去重组合（管理员筛选用户下拉选项）

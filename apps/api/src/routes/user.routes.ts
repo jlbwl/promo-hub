@@ -30,8 +30,8 @@ const router: Router = Router()
 router.post('/users/register', registerUser)
 router.post('/users/login', loginLimiter, userLogin)
 router.post('/users/sms/send', smsLimiter, sendUserSmsCode)
-router.post('/users/sms/login', userSmsLogin)
-router.post('/users/password/set', setUserPassword)
+router.post('/users/sms/login', loginLimiter, userSmsLogin)
+router.post('/users/password/set', loginLimiter, setUserPassword)
 router.post('/users/logout', requireAuth, userLogout)
 
 // 刷新 Token
@@ -73,15 +73,10 @@ router.get(
   getUserById
 )
 
-// 删除用户 - 使用资源级权限验证
+// 删除用户 - 仅管理员；经理/用户本人不得物理删除账号及订单佣金（H4/H6）
 router.delete(
   '/users/:id',
-  requireAuth,
-  resourcePermission({
-    resourceType: 'user',
-    action: 'delete',
-    adminOverride: true
-  }),
+  requireAdmin,
   deleteUser
 )
 

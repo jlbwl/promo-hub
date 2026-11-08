@@ -7,7 +7,7 @@ import { existsSync, mkdirSync } from 'fs'
 import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
 import multer from 'multer'
-import { getErrorMessage } from '@promo/shared'
+import { getErrorMessage, AppError, ErrorCode, HttpStatus } from '@promo/shared'
 import logger from './utils/logger.js'
 import cookieParser from 'cookie-parser'
 import { attachUser, requireManager, requireAdmin } from './middleware/auth.js'
@@ -85,17 +85,44 @@ app.use((req, _res, next) => {
 })
 
 // 封面图片临时上传存储
+// H13：临时文件扩展名只取自白名单 MIME，绝不使用 originalname，防止上传 .html 被静态目录当页面执行
+const ALLOWED_IMAGE_MIME: Record<string, string> = {
+  'image/jpeg': 'jpg',
+  'image/png': 'png',
+  'image/webp': 'webp',
+}
+
+const imageFileFilter: multer.Options['fileFilter'] = (_req, file, cb) => {
+  if (!ALLOWED_IMAGE_MIME[file.mimetype]) {
+    cb(new AppError('仅支持 JPG/PNG/WEBP 格式图片', ErrorCode.BAD_REQUEST, HttpStatus.BAD_REQUEST))
+    return
+  }
+  cb(null, true)
+}
+
 const tempCoverStorage = multer.diskStorage({
   destination: (_req, _file, cb) => cb(null, UPLOAD_DIR),
   filename: (_req, file, cb) => {
-    const ext = file.originalname.split('.').pop()
+    const ext = ALLOWED_IMAGE_MIME[file.mimetype] || 'bin'
     cb(null, `temp_cover_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`)
   },
 })
 
+// H13：无论校验失败还是处理异常，都要清理临时文件
+async function removeTempUpload(filePath?: string): Promise<void> {
+  if (!filePath) return
+  try {
+    const { promises } = await import('fs')
+    await promises.unlink(filePath)
+  } catch (err) {
+    logger.warn('[API] 删除临时上传文件失败', { path: filePath, error: getErrorMessage(err) })
+  }
+}
+
 const coverUpload = multer({
   storage: tempCoverStorage,
   limits: { fileSize: COVER_IMAGE_CONFIG.maxFileSize },
+  fileFilter: imageFileFilter,
 })
 
 // 封面图片上传接口 - 带压缩和尺寸统一（仅经理和管理员可上传）
@@ -113,6 +140,7 @@ app.post(
       // 验证文件
       const validation = validateImageFile(req.file)
       if (!validation.valid) {
+        await removeTempUpload(req.file.path)
         res.json({ code: 400, message: validation.error, data: null })
         return
       }
@@ -124,13 +152,7 @@ app.post(
       const result = await processCoverImage(req.file.path, outputFilename)
 
       // 删除临时文件
-      try {
-        const fs = await import('fs')
-        const fsPromises = fs.promises
-        await fsPromises.unlink(req.file.path)
-      } catch (err) {
-        logger.warn('[API] 删除临时封面图片失败', { path: req.file.path, error: err })
-      }
+      await removeTempUpload(req.file.path)
 
       logger.info('[API] 封面图片上传成功', { filename: outputFilename })
 
@@ -147,6 +169,7 @@ app.post(
       })
     } catch (error) {
       logger.error('[API] 封面图片上传失败', { error: getErrorMessage(error) })
+      await removeTempUpload(req.file?.path)
       res.json({ code: 500, message: getErrorMessage(error, '上传失败'), data: null })
     }
   }
@@ -156,6 +179,7 @@ app.post(
 const generalUpload = multer({
   storage: tempCoverStorage,
   limits: { fileSize: COVER_IMAGE_CONFIG.maxFileSize },
+  fileFilter: imageFileFilter,
 })
 
 app.post(
@@ -172,6 +196,7 @@ app.post(
       // 验证文件
       const validation = validateImageFile(req.file)
       if (!validation.valid) {
+        await removeTempUpload(req.file.path)
         res.json({ code: 400, message: validation.error, data: null })
         return
       }
@@ -183,13 +208,7 @@ app.post(
       const result = await processCoverImage(req.file.path, outputFilename)
 
       // 删除临时文件
-      try {
-        const fs = await import('fs')
-        const fsPromises = fs.promises
-        await fsPromises.unlink(req.file.path)
-      } catch (err) {
-        logger.warn('[API] 删除临时图片失败', { path: req.file.path, error: err })
-      }
+      await removeTempUpload(req.file.path)
 
       logger.info('[API] 通用图片上传成功', { filename: outputFilename })
 
@@ -206,12 +225,21 @@ app.post(
       })
     } catch (error) {
       logger.error('[API] 通用图片上传失败', { error: getErrorMessage(error) })
+      await removeTempUpload(req.file?.path)
       res.json({ code: 500, message: getErrorMessage(error, '上传失败'), data: null })
     }
   }
 )
 
 // 静态文件服务
+// H13：上传目录不允许提供可执行/可渲染的文档类文件，防止被当作 HTML 执行
+app.use('/uploads', (req, res, next) => {
+  if (/\.(?:html?|js|mjs|svg)$/i.test(req.path)) {
+    res.status(403).json({ code: 403, message: '禁止访问', data: null })
+    return
+  }
+  next()
+})
 app.use('/uploads', express.static(UPLOAD_DIR))
 app.use('/uploads/covers', express.static(COVER_DIR))
 

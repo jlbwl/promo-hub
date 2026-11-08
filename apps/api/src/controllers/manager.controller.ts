@@ -1,17 +1,13 @@
 import { Request, Response } from 'express'
-import { getErrorMessage, type Manager, type Product } from '@promo/shared'
+import { getErrorMessage, type Manager } from '@promo/shared'
 import { sendSuccess, sendError } from '../utils/response.js'
-import { withTransaction } from '../db.js'
+import { withTransaction, query, queryOne } from '../db.js'
 import {
   readManagers,
   readManager,
   readUsers,
   insertManager,
   updateManager,
-  readProducts,
-  writeProducts,
-  writeManagers,
-  updateUser,
   type UserRow,
 } from '../data/index.js'
 import { login as sessionLogin, generateTokens } from '../middleware/auth.js'
@@ -202,9 +198,10 @@ export const deleteManagerWithCascade = async (req: Request, res: Response): Pro
  * 更新经理（启用/禁用时联动产品状态）
  */
 export const updateManagerById = async (req: Request, res: Response): Promise<void> => {
-  const managers = await readManagers()
-  const index = managers.findIndex((m: Manager) => m.id === req.params.id)
-  if (index === -1) {
+  // H14：单行读取/更新，避免全表回写
+  const managerId = req.params.id as string
+  const existing = await readManager(managerId)
+  if (!existing) {
     return sendError(res, '经理不存在', 404)
   }
 
@@ -214,30 +211,22 @@ export const updateManagerById = async (req: Request, res: Response): Promise<vo
   if (newStatus !== 'active' && newStatus !== 'inactive') {
     return sendError(res, '无效的状态值', 400)
   }
-  const oldStatus = managers[index].status
+  const oldStatus = existing.status
   const updatedManager = {
-    ...managers[index],
+    ...existing,
     status: newStatus,
-    id: managers[index].id,
+    id: existing.id,
     updatedAt: now,
   }
 
-  await updateManager(req.params.id as string, updatedManager)
+  await updateManager(managerId, { status: newStatus })
 
   if (newStatus === 'inactive') {
-    // 禁用经理时联动下架其上架产品
-    // （原判断为 'disabled' 与前端传值 'inactive' 不一致，联动从未生效，此处修正）
-    let products = await readProducts()
-    let offlineCount = 0
-    const updatedProducts = products.map((p: Product) => {
-      if (p.managerId === req.params.id && p.status === 'published') {
-        offlineCount++
-        // DB 中产品状态实际存在 'offline' 值，不在 shared Product 联合类型内
-        return { ...p, status: 'offline', updatedAt: now } as unknown as Product
-      }
-      return p
-    })
-    await writeProducts(updatedProducts)
+    // 禁用经理时联动下架其上架产品（单条 UPDATE，避免全表回写）
+    await query(
+      "UPDATE products SET status = 'offline', updatedAt = NOW() WHERE managerId = ? AND status = 'published'",
+      [managerId]
+    )
   }
 
   const { password: _, ...safeManager } = updatedManager
@@ -274,41 +263,47 @@ export const updateManagerTeamName = async (req: Request, res: Response): Promis
       return sendError(res, '渠道名称不能为空', 400)
     }
 
-    // 获取经理列表
-    const managers = await readManagers()
-    const managerIndex = managers.findIndex((m: Manager) => m.id === managerId)
-    if (managerIndex === -1) {
+    // H14：单行读取经理 + 单行更新，避免全表回写
+    const existingManager = await readManager(managerId)
+    if (!existingManager) {
       return sendError(res, '经理不存在', 404)
     }
 
     // 检查渠道名称是否重复
-    const existingManager = managers.find((m: Manager) =>
-      m.teamName === finalTeamName && m.id !== managerId
+    const duplicate = await queryOne<{ id: string }>(
+      'SELECT id FROM managers WHERE teamName = ? AND id <> ? LIMIT 1',
+      [finalTeamName, managerId]
     )
-    if (existingManager) {
+    if (duplicate) {
       return sendError(res, '该渠道名称已存在', 409)
     }
 
-    const oldTeamName = managers[managerIndex].teamName
-    managers[managerIndex].teamName = finalTeamName
-    managers[managerIndex].name = finalTeamName
-    managers[managerIndex].username = finalTeamName
+    const oldTeamName = existingManager.teamName || ''
 
     // 更新经理信息
-    await writeManagers(managers)
+    await updateManager(managerId, {
+      teamName: finalTeamName,
+      name: finalTeamName,
+      username: finalTeamName,
+    })
 
-    // 同时更新该经理下所有用户的团队名称
-    // 只更新 teamName 字段，避免修改其他字段
-    const users = await readUsers()
-    const usersToUpdate = users.filter((u: UserRow) => u.teamName === oldTeamName)
-    
-    for (const user of usersToUpdate) {
-      await updateUser(user.id, { teamName: finalTeamName })
+    // 同时更新该经理下所有用户的团队名称（单条 UPDATE，避免全表读取/回写）
+    let updatedUsers = 0
+    if (oldTeamName) {
+      const result = await query(
+        'UPDATE users SET teamName = ?, updatedAt = NOW() WHERE teamName = ?',
+        [finalTeamName, oldTeamName]
+      ) as { affectedRows?: number }
+      updatedUsers = result.affectedRows || 0
     }
 
     // 返回更新后的经理信息
-    const { password: _, ...safeManager } = managers[managerIndex]
-    logger.info('[updateManagerTeamName] Update successful', { managerId, finalTeamName, updatedUsers: usersToUpdate.length })
+    const { password: _, ...safeManager } = {
+      ...existingManager,
+      teamName: finalTeamName,
+      name: finalTeamName,
+    }
+    logger.info('[updateManagerTeamName] Update successful', { managerId, finalTeamName, updatedUsers })
     await logAdminOperation(req, {
       operationType: 'update',
       targetType: 'manager',
@@ -443,16 +438,17 @@ export const setManagerPassword = async (req: Request, res: Response): Promise<v
     return sendError(res, '验证码错误或已过期', 400)
   }
 
-  let managers = await readManagers()
-  const index = managers.findIndex((m: Manager) => m.phone === phone)
-  if (index === -1) {
+  // H14：按手机号单行查询 + 单行更新密码
+  const existing = await queryOne<Manager>(
+    'SELECT * FROM managers WHERE phone = ? LIMIT 1',
+    [phone]
+  )
+  if (!existing) {
     return sendError(res, '经理不存在', 404)
   }
 
   const hashedPassword = await hashPassword(password)
-  managers[index].password = hashedPassword
-  managers[index].updatedAt = new Date().toISOString()
-  await writeManagers(managers)
+  await updateManager(existing.id, { password: hashedPassword })
 
   sendSuccess(res, null, '密码修改成功')
 }

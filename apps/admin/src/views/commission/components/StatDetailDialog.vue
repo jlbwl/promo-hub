@@ -366,10 +366,19 @@ const open = async (status: string, t: string) => {
   resetFilters()
   visible.value = true
   try {
-    const params: { pageSize: number; status?: string } = { pageSize: 999 }
+    // H16：后端 pageSize 上限为 100，改为循环分页拉全量，避免明细截断导致合计失真
+    const params: { status?: string } = {}
     if (status !== 'all') params.status = status
-    const res = await get<PaginatedResponse<Order>>('/orders', params)
-    orders.value = res.data?.list || []
+    const PAGE_SIZE = 100
+    const first = await get<PaginatedResponse<Order>>('/orders', { ...params, page: 1, pageSize: PAGE_SIZE })
+    const collected: Order[] = [...(first.data?.list || [])]
+    const total = first.data?.total ?? collected.length
+    const totalPages = first.data?.totalPages || Math.ceil(total / PAGE_SIZE)
+    for (let page = 2; page <= totalPages; page++) {
+      const res = await get<PaginatedResponse<Order>>('/orders', { ...params, page, pageSize: PAGE_SIZE })
+      collected.push(...(res.data?.list || []))
+    }
+    orders.value = collected
   } catch {
     ElMessage.error('获取数据失败')
     visible.value = false

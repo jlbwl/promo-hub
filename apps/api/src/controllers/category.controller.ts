@@ -8,6 +8,9 @@ import logger from '../utils/logger.js'
 
 const categoryService = new CategoryService()
 
+// H15：生产环境禁止把数据库失败静默降级为本地文件存储
+const allowMemoryFallback = process.env.NODE_ENV !== 'production'
+
 /** 分类状态展示文案 */
 const categoryStatusLabel = (status?: string): string =>
   status === 'active' ? '启用' : status === 'archived' ? '已归档' : status || '-'
@@ -46,9 +49,13 @@ export async function getCategories(req: Request, res: Response) {
     return
   } catch (dbError) {
     logger.logError(dbError as Error, 'GET', '/api/categories', req.ip, '')
+    if (!allowMemoryFallback) {
+      sendError(res, '获取分类失败', 500, 500)
+      return
+    }
   }
 
-  // 降级到文件存储
+  // 降级到文件存储（仅非生产环境）
   try {
     const categories = await dataMemory.readCategories(includeArchived)
     sendSuccess(res, { list: categories })
@@ -84,6 +91,11 @@ export async function createCategory(req: Request, res: Response) {
     return sendSuccess(res, category, '创建成功')
   }
 
+  // H15：生产环境数据库写入失败直接报错，禁止落本地文件
+  if (!allowMemoryFallback) {
+    return sendError(res, '创建分类失败', 500, 500)
+  }
+
   // 降级到文件存储
   let fallbackCategory: Category | null = null
   try {
@@ -105,6 +117,7 @@ export async function updateCategory(req: Request, res: Response) {
   const { name, sort, status } = req.body
 
   let category: Category | null = null
+  let dbFailed = false
 
   // 读取更新前的分类快照，用于记录旧值；读取失败时旧值以 '-' 呈现
   let before: Category | null = null
@@ -117,7 +130,13 @@ export async function updateCategory(req: Request, res: Response) {
   try {
     category = await categoryService.updateCategory(id, { name, sort, status })
   } catch (dbError) {
+    dbFailed = true
     logger.logError(dbError as Error, 'PUT', `/api/categories/${id}`, req.ip, '')
+  }
+
+  // H15：生产环境数据库异常返回 503，禁止回写本地文件
+  if (!category && dbFailed && !allowMemoryFallback) {
+    return sendError(res, '服务暂时不可用，请稍后重试', 503, 503)
   }
 
   if (!category) {
@@ -175,6 +194,7 @@ export async function updateCategory(req: Request, res: Response) {
 export async function archiveCategory(req: Request, res: Response) {
   const id = req.params.id as string
   let successResult = false
+  let dbFailed = false
   let categoryName = ''
 
   try {
@@ -187,7 +207,13 @@ export async function archiveCategory(req: Request, res: Response) {
   try {
     successResult = await categoryService.archiveCategory(id)
   } catch (dbError) {
+    dbFailed = true
     logger.logError(dbError as Error, 'DELETE', `/api/categories/${id}`, req.ip, '')
+  }
+
+  // H15：生产环境数据库异常返回 503，禁止降级写本地文件
+  if (!successResult && dbFailed && !allowMemoryFallback) {
+    return sendError(res, '服务暂时不可用，请稍后重试', 503, 503)
   }
 
   if (!successResult) {

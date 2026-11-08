@@ -108,7 +108,12 @@ server {
         alias ${PROJECT_ROOT}/api/data/uploads/;
         expires 7d;
         add_header Cache-Control "public";
+        add_header X-Content-Type-Options "nosniff" always;
         access_log off;
+        # H13：禁止把上传文件当 HTML/脚本/SVG 渲染执行
+        location ~* \.(html?|js|mjs|svg)$ {
+            return 403;
+        }
     }
 
     # API 反向代理

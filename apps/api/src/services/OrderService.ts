@@ -107,6 +107,9 @@ function assertOperatorCanHandle(order: OrderRow, operator?: OrderOperator): voi
   }
 }
 
+// H6：已进入资金流程的订单禁止用户自行删除/永久删除，保留财务凭证
+const FINANCIAL_ORDER_STATUSES = new Set(['approved', 'pending_payment', 'settled'])
+
 @injectable()
 export class OrderServiceImpl implements OrderService {
   constructor(
@@ -152,6 +155,7 @@ export class OrderServiceImpl implements OrderService {
     // SQL 条件: WHERE stock > 0，确保不会扣成负数
     // 注意：db.ts 的 query() 返回 rows 本身（UPDATE 为 ResultSetHeader），不可数组解构
     let remainingStock: number
+    let stockDeducted = false
     if (product.stock && product.stock > 0) {
       const updateResult = (await query(
         'UPDATE products SET stock = stock - 1, updatedAt = NOW() WHERE id = ? AND stock > 0',
@@ -161,6 +165,7 @@ export class OrderServiceImpl implements OrderService {
         // 库存已被其他请求抢光
         throwBadRequest('库存不足，商品已被抢光', ErrorCode.INSUFFICIENT_STOCK)
       }
+      stockDeducted = true
       remainingStock = (product.stock || 0) - 1
     } else {
       // 无库存限制或无限库存
@@ -203,7 +208,15 @@ export class OrderServiceImpl implements OrderService {
       status: 'pending',
       createdAt: new Date().toISOString(),
     }
-    await insertOrder(order)
+    try {
+      await insertOrder(order)
+    } catch (error) {
+      // H11：写订单失败时回补已扣减的库存，避免库存凭空丢失
+      if (stockDeducted) {
+        await query('UPDATE products SET stock = stock + 1, updatedAt = NOW() WHERE id = ?', [product.id])
+      }
+      throw error
+    }
 
     return { order, remainingStock }
   }
@@ -227,6 +240,11 @@ export class OrderServiceImpl implements OrderService {
 
     if (order.userId !== userId) {
       throwForbidden('无权操作此订单')
+    }
+
+    // H6：已通过/待发放/已结算订单不可进入回收站
+    if (FINANCIAL_ORDER_STATUSES.has(order.status)) {
+      throwBadRequest('该订单已进入结算流程，不可删除，请联系管理员')
     }
 
     await deleteOrder(orderId)
@@ -262,6 +280,11 @@ export class OrderServiceImpl implements OrderService {
 
     if (order.userId !== userId) {
       throwForbidden('无权操作此订单')
+    }
+
+    // H6：已通过/待发放/已结算订单不可物理删除
+    if (FINANCIAL_ORDER_STATUSES.has(order.status)) {
+      throwBadRequest('该订单已进入结算流程，不可永久删除')
     }
 
     await purgeOrder(orderId)
@@ -308,9 +331,9 @@ export class OrderServiceImpl implements OrderService {
         status: CommissionStatus.PENDING,
       })
     } else if (action === 'reject') {
-      // 不限库存（stock 未设置或 -1）的产品驳回时不回补
+      // H11：仅真实限量（下单后仍 > 0）的商品回补库存；不限库存不回补，避免 0 → 1 漂移
       const product = order.productId ? await readProduct(order.productId) : null
-      const shouldRestoreStock = !!product && product.stock !== undefined && product.stock >= 0
+      const shouldRestoreStock = !!product && product.stock !== undefined && product.stock > 0
       // 事务：更新订单 + 库存回补，原子提交
       updated = await applyOrderReview(
         orderId,

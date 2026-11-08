@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express'
 import { sendSuccess, AppError, ErrorCode, HttpStatus, asyncHandler } from '../utils/response.js'
 import logger from '../utils/logger.js'
-import { readUsers, writeUsers, type UserRow } from '../data/index.js'
+import { queryOne, insertUser, type UserRow } from '../data/index.js'
 import { hashPassword } from '../utils/password.js'
 
 /**
@@ -28,16 +28,21 @@ export const registerUser = asyncHandler(
       throw new AppError('密码长度不能少于6位', ErrorCode.BAD_REQUEST, HttpStatus.BAD_REQUEST)
     }
 
-    // 检查重复注册
-    const users: UserRow[] = await readUsers()
-    const existingPhone = users.find((u: UserRow) => u.phone === phone)
+    // 检查重复注册（H14：单行查询，避免全表回写）
+    const existingPhone = await queryOne<{ id: string }>(
+      'SELECT id FROM users WHERE phone = ? LIMIT 1',
+      [phone]
+    )
     if (existingPhone) {
       throw new AppError('该手机号已注册', ErrorCode.USER_ALREADY_EXISTS, HttpStatus.CONFLICT)
     }
 
     // 检查团队名称
     if (teamName) {
-      const existingTeam = users.find((u: UserRow) => u.teamName === teamName)
+      const existingTeam = await queryOne<{ id: string }>(
+        'SELECT id FROM users WHERE teamName = ? LIMIT 1',
+        [teamName]
+      )
       if (existingTeam) {
         throw new AppError('该团队名称已存在', ErrorCode.BAD_REQUEST, HttpStatus.CONFLICT)
       }
@@ -46,7 +51,7 @@ export const registerUser = asyncHandler(
     // 创建用户
     const now = new Date().toISOString()
     const hashedPassword = await hashPassword(password)
-    const user = {
+    const user: UserRow = {
       id: `u_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
       phone,
       password: hashedPassword,
@@ -57,8 +62,7 @@ export const registerUser = asyncHandler(
       createdAt: now,
       updatedAt: now,
     }
-    users.push(user)
-    await writeUsers(users)
+    await insertUser(user)
 
     logger.info('New user registered', { userId: user.id, phone: user.phone })
     const { password: _, ...safeUser } = user

@@ -26,3 +26,15 @@ export const loginLimiter = rateLimit({
   }
 })
 
+// H12：做单接口按 IP 限流，防止脚本批量刷单/耗尽库存
+export const orderCreateLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    code: 429,
+    message: '操作过于频繁，请稍后再试'
+  }
+})
+

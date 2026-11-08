@@ -2,10 +2,10 @@
  * UserService - 用户业务逻辑层
  * 负责处理用户相关的所有业务逻辑，包括注册、登录、密码管理等
  */
-import { ErrorCode, throwBadRequest, throwNotFound, throwConflict, throwUnauthorized, getErrorMessage } from '@promo/shared'
+import { ErrorCode, throwBadRequest, throwNotFound, throwConflict, throwUnauthorized, throwForbidden, getErrorMessage } from '@promo/shared'
 import { hashPassword, verifyPassword } from '../utils/password.js'
 import { verifySmsCode } from '../utils/sms.js'
-import { readUsers, writeUsers, type UserRow, queryOne, insertUser, updateUser as updateUserData, touchUserLastLogin, deserialize } from '../data/index.js'
+import { readUsers, readUser, type UserRow, queryOne, insertUser, updateUser as updateUserData, touchUserLastLogin, deserialize } from '../data/index.js'
 import logger from '../utils/logger.js'
 
 /** 对外返回的安全用户信息（不包含密码），形状与 data 层 UserRow 一致 */
@@ -80,14 +80,20 @@ export const userService: UserService = {
       throwBadRequest('密码长度不能少于6位')
     }
 
-    const users: UserRow[] = await readUsers()
-    const existingPhone = users.find((u) => u.phone === phone)
+    // H14：唯一性校验与写入均使用单行 SQL，避免全表读取/回写
+    const existingPhone = await queryOne<{ id: string }>(
+      'SELECT id FROM users WHERE phone = ? LIMIT 1',
+      [phone]
+    )
     if (existingPhone) {
       throwConflict('该手机号已注册', ErrorCode.USER_ALREADY_EXISTS)
     }
 
     if (teamName) {
-      const existingTeam = users.find((u) => u.teamName === teamName)
+      const existingTeam = await queryOne<{ id: string }>(
+        'SELECT id FROM users WHERE teamName = ? LIMIT 1',
+        [teamName]
+      )
       if (existingTeam) {
         throwConflict('该团队名称已存在')
       }
@@ -106,8 +112,7 @@ export const userService: UserService = {
       createdAt: now,
       updatedAt: now,
     }
-    users.push(user)
-    await writeUsers(users)
+    await insertUser(user)
 
     const { password: _, ...safeUser } = user
     return safeUser
@@ -144,35 +149,41 @@ export const userService: UserService = {
   },
 
   async updateUser(userId, updateData) {
-    const users = await readUsers()
-    const index = users.findIndex((u) => u.id === userId)
-
-    if (index === -1) {
+    // H14：单行读取 + 单行更新，避免全表回写
+    const existing = await readUser(userId)
+    if (!existing) {
       throwNotFound('用户不存在', ErrorCode.USER_NOT_FOUND)
     }
 
     if (updateData.phone) {
-      const existingPhone = users.find((u) => u.phone === updateData.phone && u.id !== userId)
+      const existingPhone = await queryOne<{ id: string }>(
+        'SELECT id FROM users WHERE phone = ? AND id <> ? LIMIT 1',
+        [updateData.phone, userId]
+      )
       if (existingPhone) {
         throwConflict('该手机号已被使用')
       }
     }
 
     if (updateData.teamName) {
-      const existingTeam = users.find((u) => u.teamName === updateData.teamName && u.id !== userId)
+      const existingTeam = await queryOne<{ id: string }>(
+        'SELECT id FROM users WHERE teamName = ? AND id <> ? LIMIT 1',
+        [updateData.teamName, userId]
+      )
       if (existingTeam) {
         throwConflict('该团队名称已被使用')
       }
     }
 
-    users[index] = {
-      ...users[index],
+    await updateUserData(userId, {
       ...updateData,
-      updatedAt: new Date().toISOString(),
-    }
-    await writeUsers(users)
+    })
 
-    const { password: _, ...safeUser } = users[index]
+    const updated = await readUser(userId)
+    if (!updated) {
+      throwNotFound('用户不存在', ErrorCode.USER_NOT_FOUND)
+    }
+    const { password: _, ...safeUser } = updated
     return safeUser
   },
 
@@ -212,6 +223,10 @@ export const userService: UserService = {
       await insertUser(user)
       logger.info('New user created via SMS', { userId: user.id })
     } else {
+      // H3：短信登录必须校验账号状态，避免禁用账号通过短信重新获得会话
+      if (user.status !== 'active') {
+        throwForbidden('账号已禁用', ErrorCode.FORBIDDEN)
+      }
       logger.debug('Updating existing user loginMethods', { userId: user.id })
       const loginMethods = deserialize<string>(user.loginMethods)
       const newLoginMethods = Array.isArray(loginMethods) ? loginMethods : ['sms']

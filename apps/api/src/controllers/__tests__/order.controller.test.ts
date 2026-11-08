@@ -30,6 +30,8 @@ vi.mock('../../services/index.js', () => ({
 
 vi.mock('../../data/index.js', () => ({
   insertOperationLog: vi.fn(),
+  // H12：访客分享归因需校验分享人存在且启用
+  readUser: vi.fn(async (id: string) => ({ id, status: 'active' })),
 }))
 
 vi.mock('../../data-memory.js', () => ({

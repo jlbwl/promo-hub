@@ -4,7 +4,7 @@ import { Request, Response, NextFunction, RequestHandler } from 'express'
 import session from 'express-session'
 import jwt from 'jsonwebtoken'
 import { getCacheService } from '../services/cache/index.js'
-import { readEmployeeById } from '../data/index.js'
+import { readEmployeeById, readUser, readManager, readAdminById } from '../data/index.js'
 
 // 安全验证：确保必需的密钥环境变量已设置
 if (!process.env.JWT_SECRET || !process.env.SESSION_SECRET) {
@@ -50,6 +50,8 @@ interface JwtPayload {
   phone: string
   role: AuthUser['role']
   type?: string
+  // 员工子账户关联的主账户 ID（H2：签发与解析都需保留）
+  userId?: string
 }
 
 // Refresh Token 存储键前缀
@@ -133,10 +135,50 @@ export const sessionMiddleware: RequestHandler = (() => {
   })
 })()
 
+// H8：账号状态校验（60 秒进程内缓存，避免每次请求都查库）
+const ACCOUNT_STATUS_CACHE_TTL = 60 * 1000
+const accountStatusCache = new Map<string, { active: boolean; at: number }>()
+
+async function isAccountActive(user: AuthUser): Promise<boolean> {
+  const key = `${user.role}:${user.id}`
+  const cached = accountStatusCache.get(key)
+  if (cached && Date.now() - cached.at < ACCOUNT_STATUS_CACHE_TTL) {
+    return cached.active
+  }
+
+  let active = false
+  try {
+    if (user.role === 'admin') {
+      const admin = await readAdminById(user.id)
+      active = !!admin && admin.status === 'active'
+    } else if (user.role === 'manager') {
+      const manager = await readManager(user.id)
+      active = !!manager && manager.status === 'active'
+    } else if (user.role === 'employee') {
+      const employee = await readEmployeeById(user.id)
+      active = !!employee && employee.status === 'active'
+    } else {
+      const targetUser = await readUser(user.id)
+      active = !!targetUser && targetUser.status === 'active'
+    }
+  } catch (error) {
+    // 数据库异常时不因附加校验阻断全部请求，记录告警后放行
+    logger.warn('[Auth] 账号状态校验失败，暂时放行', {
+      userId: user.id,
+      role: user.role,
+      error: getErrorMessage(error),
+    })
+    return true
+  }
+
+  accountStatusCache.set(key, { active, at: Date.now() })
+  return active
+}
+
 // 生成 JWT Token（Access Token - 短期有效）
 export function generateAuthToken(user: AuthUser): string {
   return jwt.sign(
-    { id: user.id, phone: user.phone, role: user.role, type: 'access' },
+    { id: user.id, phone: user.phone, role: user.role, type: 'access', userId: user.userId },
     JWT_SECRET,
     { expiresIn: '1h' } // Access Token 有效期 1 小时
   )
@@ -148,7 +190,7 @@ export function generateAuthToken(user: AuthUser): string {
 export async function generateRefreshToken(user: AuthUser): Promise<string> {
   const isAdmin = user.role === 'admin'
   const refreshToken = jwt.sign(
-    { id: user.id, phone: user.phone, role: user.role, type: 'refresh' },
+    { id: user.id, phone: user.phone, role: user.role, type: 'refresh', userId: user.userId },
     JWT_SECRET,
     isAdmin ? {} : { expiresIn: '7d' }
   )
@@ -177,10 +219,13 @@ export async function generateTokens(user: AuthUser): Promise<{ token: string; r
 function verifyAuthToken(token: string): AuthUser | null {
   try {
     const decoded = jwt.verify(token, JWT_SECRET) as JwtPayload
+    // H1：Refresh Token 不得作为 Access Token 使用
+    if (decoded.type !== 'access') return null
     return {
       id: decoded.id,
       phone: decoded.phone,
       role: decoded.role,
+      userId: decoded.userId,
       token
     }
   } catch {
@@ -202,6 +247,15 @@ export const authMiddleware = (allowedRoles?: Array<'admin' | 'manager' | 'user'
           // 检查 Access Token 是否已被吊销（登出黑名单）
           const blacklisted = await isAccessTokenBlacklisted(bearerToken)
           if (!blacklisted) {
+            // H8：禁用/删除账号后，已签发的 Access Token 立即失效
+            if (!(await isAccountActive(user))) {
+              res.status(401).json({
+                code: 401,
+                message: '账号已被禁用或删除，请重新登录',
+                data: null
+              })
+              return
+            }
             if (allowedRoles && allowedRoles.length > 0) {
               if (!allowedRoles.includes(user.role)) {
                 res.status(403).json({
@@ -229,6 +283,7 @@ export const authMiddleware = (allowedRoles?: Array<'admin' | 'manager' | 'user'
               id: decoded.id,
               phone: decoded.phone,
               role: decoded.role,
+              userId: decoded.userId,
               token: newTokens.token
             }
             
@@ -392,6 +447,16 @@ export async function refreshAuthToken(refreshToken: string): Promise<{ token: s
       }
     }
 
+    // H8：用户/经理/管理员刷新时同样校验账号存在且启用
+    if (authUser.role !== 'employee' && !(await isAccountActive(authUser))) {
+      if (cacheService) {
+        await cacheService.delete(REFRESH_TOKEN_PREFIX + refreshToken)
+        await cacheService.delete(REFRESH_TOKEN_GRACE_PREFIX + refreshToken)
+        await cacheService.delete(REFRESH_TOKEN_GRACE_PREFIX + refreshToken + ':tokens')
+      }
+      return null
+    }
+
     // Admin 单设备登录校验：检查该 token 是否为当前活跃 token
     if (authUser.role === 'admin' && cacheService) {
       const activeToken = await cacheService.get(ADMIN_ACTIVE_TOKEN_PREFIX + authUser.id)
@@ -458,6 +523,11 @@ export const attachUser: RequestHandler = async (req, res, next) => {
       if (user) {
         const blacklisted = await isAccessTokenBlacklisted(bearerToken)
         if (!blacklisted) {
+          // H8：禁用/删除账号不赋予请求身份
+          if (!(await isAccountActive(user))) {
+            next()
+            return
+          }
           req.user = user
           next()
           return
@@ -477,6 +547,7 @@ export const attachUser: RequestHandler = async (req, res, next) => {
             id: decoded.id,
             phone: decoded.phone,
             role: decoded.role,
+            userId: decoded.userId,
             token: newTokens.token,
           }
           res.setHeader('X-New-Token', newTokens.token)

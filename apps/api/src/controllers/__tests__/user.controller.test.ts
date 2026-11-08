@@ -81,7 +81,6 @@ vi.mock('../../utils/password.js', () => ({
 
 import {
   readUsers,
-  writeUsers,
   readManagers,
   queryOne,
   deserialize,
@@ -156,6 +155,9 @@ const mockUser = {
 describe('user.controller 认证流程', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    // 清掉 mockResolvedValueOnce 队列，避免跨用例串扰
+    vi.mocked(queryOne).mockReset()
+    vi.mocked(queryOne).mockResolvedValue(null)
     vi.mocked(generateTokens).mockResolvedValue({
       token: 'jwt_token',
       refreshToken: 'refresh_token',
@@ -164,7 +166,7 @@ describe('user.controller 认证流程', () => {
 
   describe('registerUser 注册', () => {
     it('应成功注册并返回不含密码的用户信息', async () => {
-      vi.mocked(readUsers).mockResolvedValue([mockUser])
+      vi.mocked(queryOne).mockResolvedValueOnce(null).mockResolvedValueOnce(null)
       const req = makeReq({
         body: { phone: '13800000002', password: '123456', nickname: '新用户' },
       })
@@ -172,9 +174,8 @@ describe('user.controller 认证流程', () => {
 
       await registerUser(req, res, makeNext())
 
-      expect(writeUsers).toHaveBeenCalledTimes(1)
-      const written = vi.mocked(writeUsers).mock.calls[0][0]
-      const created = written[written.length - 1] as typeof mockUser
+      expect(insertUser).toHaveBeenCalledTimes(1)
+      const created = vi.mocked(insertUser).mock.calls[0][0]
       expect(created.phone).toBe('13800000002')
       expect(created.password).not.toBe('123456')
       const payload = jsonPayload(res)
@@ -201,7 +202,7 @@ describe('user.controller 认证流程', () => {
     })
 
     it('重复手机号应返回 409', async () => {
-      vi.mocked(readUsers).mockResolvedValue([mockUser])
+      vi.mocked(queryOne).mockResolvedValueOnce({ id: 'u_1' })
       const req = makeReq({ body: { phone: '13800000001', password: '123456' } })
       const next = makeNext()
 
@@ -212,7 +213,9 @@ describe('user.controller 认证流程', () => {
     })
 
     it('团队名称重复应返回 409', async () => {
-      vi.mocked(readUsers).mockResolvedValue([mockUser])
+      vi.mocked(queryOne)
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({ id: 'u_1' })
       const req = makeReq({
         body: { phone: '13800000002', password: '123456', teamName: '团队A' },
       })
@@ -446,7 +449,7 @@ describe('user.controller 认证流程', () => {
 
     it('用户不存在应返回 404', async () => {
       vi.mocked(verifySmsCode).mockReturnValue(true)
-      vi.mocked(readUsers).mockResolvedValue([])
+      vi.mocked(queryOne).mockResolvedValue(null)
       const next = makeNext()
 
       await setUserPassword(
@@ -463,7 +466,7 @@ describe('user.controller 认证流程', () => {
 
     it('成功设置应写入哈希密码', async () => {
       vi.mocked(verifySmsCode).mockReturnValue(true)
-      vi.mocked(readUsers).mockResolvedValue([{ ...mockUser }])
+      vi.mocked(queryOne).mockResolvedValue({ id: 'u_1' })
       const res = makeRes()
 
       await setUserPassword(
@@ -474,9 +477,7 @@ describe('user.controller 认证流程', () => {
         makeNext()
       )
 
-      const written = vi.mocked(writeUsers).mock.calls[0][0] as Array<typeof mockUser>
-      expect(written[0].password).toBe('hashed_password')
-      expect(written[0].password).not.toBe('654321')
+      expect(updateUser).toHaveBeenCalledWith('u_1', { password: 'hashed_password' })
       const payload = vi.mocked(res.json).mock.calls[0][0] as { code: number }
       expect(payload.code).toBe(0)
     })

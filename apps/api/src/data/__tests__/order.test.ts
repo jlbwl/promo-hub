@@ -214,10 +214,10 @@ describe('data/order.ts', () => {
       expect(lastSql()).toContain('deletedAt = NULL')
     })
 
-    it('purgeOrder 仅物理删除回收站中的订单（AND deleted = 1）', async () => {
+    it('purgeOrder 仅物理删除回收站中且未进入结算流程的订单', async () => {
       await purgeOrder('o_1')
 
-      expect(lastSql()).toBe('DELETE FROM orders WHERE id = ? AND deleted = 1')
+      expect(lastSql()).toBe("DELETE FROM orders WHERE id = ? AND deleted = 1 AND status NOT IN ('approved','pending_payment','settled')")
       expect(lastParams()).toEqual(['o_1'])
     })
   })
