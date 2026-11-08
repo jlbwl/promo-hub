@@ -263,6 +263,8 @@ function healthCheckHandler(_req: Request, res: Response) {
 }
 
 app.get('/health', healthCheckHandler)
+// 兼容直连 3000 端口且带 /api 前缀的探针（CI 部署脚本），与 /health 同一处理函数
+app.get('/api/health', healthCheckHandler)
 
 // 缓存清理接口（仅管理员；O14：路径不写 /api 前缀，Nginx 转发前已剥离）
 app.post('/cache/clear', requireAdmin, async (_req, res) => {
