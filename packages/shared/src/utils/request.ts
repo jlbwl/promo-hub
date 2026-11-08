@@ -231,7 +231,11 @@ function createRequest(): AxiosInstance {
       if (code === 401 && !window.location.pathname.includes('/login')) {
         return handleUnauthorized(response.config)
       }
-      return Promise.reject(new Error(message || '请求失败'))
+      // M1：保留业务码与附加数据（如重单冲突摘要），供页面做二次确认
+      const businessError = new Error(message || '请求失败') as Error & { code?: number; data?: unknown }
+      businessError.code = code
+      businessError.data = response.data?.data
+      return Promise.reject(businessError)
     },
     (error) => {
       // HTTP 层 401（access token 过期）：同样走统一续期流程，避免误清登录态
@@ -256,7 +260,10 @@ function createRequest(): AxiosInstance {
         })
       }
       const msg = responseData?.message || error.message || '网络错误'
-      return Promise.reject(new Error(msg))
+      const httpError = new Error(msg) as Error & { code?: number; data?: unknown }
+      httpError.code = responseData?.code ?? error.response?.status
+      httpError.data = responseData?.data
+      return Promise.reject(httpError)
     },
   )
 

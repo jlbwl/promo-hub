@@ -129,7 +129,8 @@ export const adminChangePassword = async (req: Request, res: Response): Promise<
     return sendError(res, '新密码长度不能超过32位', 400)
   }
 
-  const user = req.session?.user
+  // M25：Session 中间件已移除，兼容 JWT 身份（req.user）
+  const user = req.session?.user || req.user
   if (!user) {
     return sendError(res, '未登录', 401)
   }

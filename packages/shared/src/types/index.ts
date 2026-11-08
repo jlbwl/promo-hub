@@ -111,6 +111,8 @@ export interface Order {
   transferredFromManager?: string
   transferredAt?: string
   managedBy?: string
+  /** M1：同客户同产品存在多笔资金流程订单时由服务端标记 */
+  duplicate?: boolean
   deleted?: boolean
   deletedAt?: string
   createdAt: string

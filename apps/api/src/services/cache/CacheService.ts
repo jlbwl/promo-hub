@@ -216,6 +216,13 @@ export class CacheService {
   }
 
   /**
+   * M22：对外暴露 Redis 连接状态，供鉴权层明确降级行为（而非静默退化为内存）
+   */
+  isRedisAvailable(): boolean {
+    return this.isRedisConnected
+  }
+
+  /**
    * 获取缓存统计信息
    */
   getStats(): {

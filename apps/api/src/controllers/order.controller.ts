@@ -316,6 +316,15 @@ export const deleteUserOrder = async (req: Request, res: Response): Promise<void
 
     await orderService.deleteUserOrder(id, userId)
 
+    // M3：删除动作留痕（软删除可从回收站恢复，仍需可追溯）
+    await logAdminOperation(req, {
+      operationType: 'delete',
+      targetType: 'order',
+      targetId: id,
+      targetName: `订单 ${id}`,
+      detail: '用户将订单移入回收站（软删除）',
+    })
+
     sendSuccess(res, null, '已移至回收站')
   } catch (error) {
     sendError(res, getErrorMessage(error, '删除失败'), (error as { code?: number }).code || 500)
@@ -372,6 +381,15 @@ export const purgeUserOrder = async (req: Request, res: Response): Promise<void>
 
     await orderService.purgeOrder(id, userId)
 
+    // M3：物理删除不可恢复，必须留痕
+    await logAdminOperation(req, {
+      operationType: 'delete',
+      targetType: 'order',
+      targetId: id,
+      targetName: `订单 ${id}`,
+      detail: '用户永久删除回收站订单（物理删除）',
+    })
+
     sendSuccess(res, null, '已永久删除')
   } catch (error) {
     sendError(res, getErrorMessage(error, '删除失败'), (error as { code?: number }).code || 500)
@@ -416,16 +434,42 @@ export const reviewOrder = async (req: Request, res: Response): Promise<void> =>
     }
 
     // 归属校验：经理只能操作本团队订单（service 层依据 operator 判定）
-    await orderService.reviewOrder(orderId, {
+    const order = await orderService.reviewOrder(orderId, {
       action,
       reason,
+      // M1：前端人工确认重单后带 force=true 重发
+      force: req.body?.force === true,
       ...(req.user ? { operator: { id: req.user.id, role: req.user.role } } : {}),
+    })
+
+    // M3：资金相关动作必须留审计轨迹（谁、何时、对哪一单、批/驳原因）
+    const customer = order.userName || (order.userPhone ? maskPhone(order.userPhone) : '') || '未知客户'
+    const amount = `¥${Number(order.productPrice || 0).toFixed(2)}`
+    await logAdminOperation(req, {
+      operationType: 'update',
+      targetType: 'order',
+      targetId: order.id,
+      targetName: `${customer} · ${order.productName || '未命名产品'} · ${amount}`,
+      reason: action === 'reject' ? (reason || '推广无效') : '',
+      detail: buildAuditDetail({
+        summary: `${action === 'approve' ? '审核通过' : '订单驳回'} ${order.id}`,
+        meta: {
+          订单号: order.id,
+          客户: customer,
+          产品: order.productName || '-',
+          金额: amount,
+          审核结果: action === 'approve' ? '通过' : '驳回',
+          ...(action === 'reject' ? { 驳回原因: reason || '推广无效' } : {}),
+        },
+      }),
     })
 
     const message = action === 'approve' ? '审核通过' : '已驳回'
     sendSuccess(res, null, message)
   } catch (error) {
-    sendError(res, getErrorMessage(error, '审核失败'), (error as { code?: number }).code || 500)
+    // M1：409 时把冲突订单摘要一并返回，前端据此二次确认
+    const err = error as { code?: number; data?: unknown }
+    sendError(res, getErrorMessage(error, '审核失败'), err.code || 500, undefined, err.data ?? null)
   }
 }
 
@@ -446,9 +490,29 @@ export const settleOrder = async (req: Request, res: Response): Promise<void> =>
     }
 
     // 归属校验：经理只能操作本团队订单（service 层依据 operator 判定）
-    await orderService.settleOrder(orderId, {
+    const order = await orderService.settleOrder(orderId, {
       action,
       ...(req.user ? { operator: { id: req.user.id, role: req.user.role } } : {}),
+    })
+
+    // M3：结算/待发放同样涉及资金状态流转，必须留审计轨迹
+    const customer = order.userName || (order.userPhone ? maskPhone(order.userPhone) : '') || '未知客户'
+    const amount = `¥${Number(order.productPrice || 0).toFixed(2)}`
+    await logAdminOperation(req, {
+      operationType: 'update',
+      targetType: 'order',
+      targetId: order.id,
+      targetName: `${customer} · ${order.productName || '未命名产品'} · ${amount}`,
+      detail: buildAuditDetail({
+        summary: `${action === 'pending_payment' ? '加入待发放' : '确认结算'} ${order.id}`,
+        meta: {
+          订单号: order.id,
+          客户: customer,
+          产品: order.productName || '-',
+          金额: amount,
+          结算动作: action === 'pending_payment' ? '加入待发放' : '确认结算',
+        },
+      }),
     })
 
     const message = action === 'pending_payment' ? '已添加到待发放' : '已结算'

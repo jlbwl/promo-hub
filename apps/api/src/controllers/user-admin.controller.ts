@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express'
 import type { Manager } from '@promo/shared'
 import { sendSuccess, AppError, ErrorCode, HttpStatus, asyncHandler } from '../utils/response.js'
-import logger from '../utils/logger.js'
+import logger, { maskPhone } from '../utils/logger.js'
 import { parsePage, parsePageSize } from '../utils/pagination.js'
 import {
   readUsers,
@@ -145,7 +145,7 @@ export const deleteUser = asyncHandler(
       detail: '已停用该用户账号并清理员工账号；订单与佣金等资金记录保留，不再物理删除',
     })
 
-    logger.info('User deleted', { userId, deletedBy: adminInfo.phone })
+    logger.info('User deleted', { userId, deletedBy: maskPhone(adminInfo.phone) })
     sendSuccess(res, null, '删除成功')
   }
 )
@@ -253,21 +253,8 @@ export const updateUserRole = asyncHandler(
     const managers = await readManagers()
     const mgrIdx = managers.findIndex((m: Manager) => m.id === userId)
     if (mgrIdx !== -1) {
-      await updateManager(userId, { role })
-      logger.info('Manager role updated', { managerId: userId, role })
-      await logAdminOperation(req, {
-        operationType: 'update',
-        targetType: 'manager',
-        targetId: userId,
-        targetName: managers[mgrIdx].name || managers[mgrIdx].teamName || userId,
-        detail: buildAuditDetail({
-          summary: `角色更新：${roleLabel(managers[mgrIdx].role)} → ${roleLabel(role)}`,
-          changes: [
-            { field: 'role', label: '角色', from: roleLabel(managers[mgrIdx].role), to: roleLabel(role) },
-          ],
-        }),
-      })
-      return sendSuccess(res, null, '更新成功')
+      // M15：经理角色字段由 managers 表独立管理，禁止通过「用户角色变更」改写
+      throw new AppError('经理账号不支持角色变更', ErrorCode.BAD_REQUEST, HttpStatus.BAD_REQUEST)
     }
 
     const users = await readUsers()

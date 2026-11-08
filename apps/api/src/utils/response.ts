@@ -57,7 +57,8 @@ export const sendError = (
   res: Response,
   message: string,
   code: number = ErrorCode.BAD_REQUEST,
-  statusCode?: number
+  statusCode?: number,
+  data: unknown = null
 ): void => {
   const httpStatus =
     statusCode ?? (code >= 400 && code <= 599 ? code : HttpStatus.BAD_REQUEST)
@@ -66,10 +67,10 @@ export const sendError = (
     process.env.NODE_ENV === 'production' && httpStatus >= 500
       ? '服务器内部错误'
       : message
-  const response: ApiResponse<null> = {
+  const response: ApiResponse<unknown> = {
     code,
     message: finalMessage,
-    data: null,
+    data,
     timestamp: Date.now(),
   }
   res.status(httpStatus).json(response)

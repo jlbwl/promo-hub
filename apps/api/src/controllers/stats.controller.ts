@@ -1,13 +1,12 @@
 import logger from '../utils/logger.js'
 import { Request, Response } from 'express'
-import { getErrorMessage, type OrderStats, type Product, type Commission } from '@promo/shared'
+import { getErrorMessage, type OrderStats } from '@promo/shared'
 import { sendSuccess, sendError } from '../utils/response.js'
 import type { OrderRow } from '../data-memory.js'
+import { queryOne } from '../db.js'
 import {
   getOrderStats,
-  readOrders,
-  readProducts,
-  readCommissions,
+  getUserOrderStats,
 } from '../data/index.js'
 
 // H15：生产环境禁止把数据库失败静默降级为内存数据
@@ -26,13 +25,16 @@ export const getStats = async (req: Request, res: Response): Promise<void> => {
     let { userId, managerId, employeeId } = req.query as Record<string, string | undefined>
     const currentUser = req.user
 
-    // P1-7: 按登录角色强制覆盖查询身份，防止越权查看他人统计
+    // P1-7 / M9: 按登录角色强制覆盖查询身份，并清空低优先级参数，防止越权读取他人聚合
     if (currentUser?.role === 'user') {
       userId = currentUser.id
+      employeeId = undefined
     } else if (currentUser?.role === 'manager') {
       managerId = currentUser.id
+      userId = undefined
     } else if (currentUser?.role === 'employee') {
       employeeId = currentUser.id
+      userId = undefined
     }
 
     let stats: OrderStats | null = null
@@ -46,32 +48,27 @@ export const getStats = async (req: Request, res: Response): Promise<void> => {
     }
 
     if (userId || employeeId) {
-      let orders: OrderRow[] = []
       try {
-        orders = await readOrders()
+        // M26：用户/员工维度直接走聚合 SQL，不再读取全表后在内存过滤
+        stats = await getUserOrderStats(userId || '', employeeId)
       } catch (dbError2) {
         if (!allowMemoryFallback) throw dbError2
-        logger.warn('[订单统计] readOrders 失败，尝试降级:', { error: getErrorMessage(dbError2) })
+        logger.warn('[订单统计] 聚合查询失败，尝试降级:', { error: getErrorMessage(dbError2) })
         const { readOrders: memReadOrders } = await import('../data-memory.js')
-        orders = await memReadOrders()
-      }
-      
-      const filteredOrders = orders.filter((o: OrderRow) => {
-        if (employeeId) {
-          return o.employeeId === employeeId
+        const orders: OrderRow[] = await memReadOrders()
+        const filtered = orders.filter((o: OrderRow) => (employeeId ? o.employeeId === employeeId : o.userId === userId))
+        stats = {
+          total: filtered.length,
+          pending: filtered.filter((o) => o.status === 'pending').length,
+          approved: filtered.filter((o) => o.status === 'approved').length,
+          pendingPayment: filtered.filter((o) => o.status === 'pending_payment').length,
+          settled: filtered.filter((o) => o.status === 'settled').length,
+          rejected: filtered.filter((o) => o.status === 'rejected').length,
         }
-        return o.userId === userId
-      })
-      
-      const pending = filteredOrders.filter((o: OrderRow) => o.status === 'pending').length
-      const approved = filteredOrders.filter((o: OrderRow) => o.status === 'approved').length
-      const pendingPayment = filteredOrders.filter((o: OrderRow) => o.status === 'pending_payment').length
-      const settled = filteredOrders.filter((o: OrderRow) => o.status === 'settled').length
-      const rejected = filteredOrders.filter((o: OrderRow) => o.status === 'rejected').length
-      sendSuccess(res, { total: filteredOrders.length, pending, approved, pendingPayment, settled, rejected })
-    } else {
-      sendSuccess(res, stats)
+      }
     }
+
+    sendSuccess(res, stats)
   } catch (error) {
     logger.error('[订单统计] 最终错误:', { error: getErrorMessage(error) })
     // H15：生产环境禁止用全 0 伪装统计成功
@@ -93,32 +90,38 @@ export const getDashboardStats = async (req: Request, res: Response): Promise<vo
     if (req.user?.role === 'manager') {
       managerId = req.user.id
     }
-    const products = await readProducts()
-    const commissions = await readCommissions()
+    // M26：仪表盘统计改为聚合 SQL，避免每次请求读取 products/commissions 全表
+    const productSql = managerId
+      ? 'SELECT COUNT(*) AS total, SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) AS published FROM products WHERE managerId = ?'
+      : 'SELECT COUNT(*) AS total, SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) AS published FROM products'
+    const productStats = await queryOne<{ total?: number | string; published?: number | string }>(
+      productSql,
+      managerId ? ['published', managerId] : ['published']
+    )
 
-    const myProducts = managerId
-      ? products.filter((p: Product) => p.managerId === managerId)
-      : products
+    // M13：已发放口径按订单 settled 汇总（佣金表仅作发放流水）；待发放仍取佣金 pending
+    const pendingSql = managerId
+      ? `SELECT SUM(CASE WHEN status = 'pending' THEN amount ELSE 0 END) AS pending FROM commissions WHERE managerId = ?`
+      : `SELECT SUM(CASE WHEN status = 'pending' THEN amount ELSE 0 END) AS pending FROM commissions`
+    const pendingStats = await queryOne<{ pending?: number | string }>(
+      pendingSql,
+      managerId ? [managerId] : []
+    )
 
-    const totalProducts = myProducts.length
-    const publishedProducts = myProducts.filter((p: Product) => p.status === 'published').length
+    const settledSql = managerId
+      ? "SELECT SUM(productPrice) AS settled FROM orders WHERE deleted = 0 AND status = 'settled' AND managerId = ?"
+      : "SELECT SUM(productPrice) AS settled FROM orders WHERE deleted = 0 AND status = 'settled'"
+    const settledStats = await queryOne<{ settled?: number | string }>(
+      settledSql,
+      managerId ? [managerId] : []
+    )
 
-    // H5：commissions 表无 productId 列，按 managerId 过滤；DECIMAL 返回字符串需转 Number
-    const myCommissions = managerId
-      ? commissions.filter((c: Commission) => c.managerId === managerId)
-      : commissions
-
-    const pendingCommissions = myCommissions
-      .filter((c: Commission) => c.status === 'pending')
-      .reduce((sum: number, c: Commission) => sum + (Number(c.amount) || 0), 0)
-
-    const totalCommissions = myCommissions
-      .filter((c: Commission) => c.status === 'paid')
-      .reduce((sum: number, c: Commission) => sum + (Number(c.amount) || 0), 0)
+    const pendingCommissions = Number(pendingStats?.pending) || 0
+    const totalCommissions = Number(settledStats?.settled) || 0
 
     sendSuccess(res, {
-      totalProducts,
-      publishedProducts,
+      totalProducts: Number(productStats?.total) || 0,
+      publishedProducts: Number(productStats?.published) || 0,
       pendingCommissions: Math.round(pendingCommissions * 100) / 100,
       totalCommissions: Math.round(totalCommissions * 100) / 100,
     })

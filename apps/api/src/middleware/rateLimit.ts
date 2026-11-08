@@ -38,3 +38,27 @@ export const orderCreateLimiter = rateLimit({
   }
 })
 
+// M8：注册接口按 IP 限流，抑制批量注册/刷号
+export const registerLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    code: 429,
+    message: '注册过于频繁，请稍后再试'
+  }
+})
+
+// M17：OCR 接口限流，避免高频调用阿里云产生费用与并发内存压力
+export const ocrLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    code: 429,
+    message: '识别请求过于频繁，请稍后再试'
+  }
+})
+

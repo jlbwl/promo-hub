@@ -91,10 +91,23 @@ export async function isAccessTokenBlacklisted(token: string): Promise<boolean> 
   return false
 }
 
+// M22：Redis 不可用时 refresh token 会退化为进程内存，重启/发版即失效，必须显式告警
+let tokenStoreDegraded = false
+
 // 获取缓存服务（使用 Redis）
 function getTokenStore() {
   try {
-    return getCacheService()
+    const service = getCacheService()
+    const redisAvailable = typeof service.isRedisAvailable === 'function' ? service.isRedisAvailable() : true
+    if (!redisAvailable) {
+      if (!tokenStoreDegraded) {
+        tokenStoreDegraded = true
+        logger.error('[Auth] Redis 不可用：refresh token 仅保存在进程内存，重启/发版后用户需重新登录')
+      }
+    } else {
+      tokenStoreDegraded = false
+    }
+    return service
   } catch {
     logger.warn('[Auth] CacheService 未初始化，降级到内存存储')
     return null

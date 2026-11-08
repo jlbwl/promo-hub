@@ -10,6 +10,7 @@ vi.mock('../../utils/logger.js', () => ({
     debug: vi.fn(),
     logError: vi.fn(),
   },
+  maskPhone: (phone: string) => phone,
 }))
 
 vi.mock('../../services/index.js', () => ({
@@ -79,6 +80,10 @@ const jsonPayload = (res: Response) =>
 describe('order.controller', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    // M3 审计日志需要读取返回的订单快照，默认给一个最小订单
+    const snapshot = { id: 'o_1', userName: '', productName: '', productPrice: 0 } as unknown as OrderRow
+    vi.mocked(orderService.reviewOrder).mockResolvedValue(snapshot)
+    vi.mocked(orderService.settleOrder).mockResolvedValue(snapshot)
   })
 
   describe('createOrder 做单归属模型', () => {
@@ -442,8 +447,24 @@ describe('order.controller', () => {
       expect(orderService.reviewOrder).toHaveBeenCalledWith('o_1', {
         action: 'approve',
         reason: 'ok',
+        force: false,
       })
       expect(jsonPayload(res).message).toBe('审核通过')
+    })
+
+    it('人工确认重单后透传 force=true', async () => {
+      const res = makeRes()
+
+      await reviewOrder(
+        makeReq({ params: { id: 'o_1' }, body: { action: 'approve', force: true } }),
+        res
+      )
+
+      expect(orderService.reviewOrder).toHaveBeenCalledWith('o_1', {
+        action: 'approve',
+        reason: undefined,
+        force: true,
+      })
     })
 
     it('经理审核时透传操作者用于归属校验', async () => {
@@ -461,6 +482,7 @@ describe('order.controller', () => {
       expect(orderService.reviewOrder).toHaveBeenCalledWith('o_1', {
         action: 'approve',
         reason: undefined,
+        force: false,
         operator: { id: 'm_1', role: 'manager' },
       })
     })

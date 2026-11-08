@@ -18,13 +18,22 @@ export interface OrderUserOption {
   orderCount: number
 }
 
+// M26：订单筛选下拉是聚合查询，前端高频打开筛选时用 60 秒缓存兜住
+let orderUserOptionsCache: { data: OrderUserOption[]; at: number } | null = null
+const ORDER_USER_OPTIONS_TTL_MS = 60 * 1000
+
 export async function readOrderUserOptions(): Promise<OrderUserOption[]> {
-  return (await query(
+  if (orderUserOptionsCache && Date.now() - orderUserOptionsCache.at < ORDER_USER_OPTIONS_TTL_MS) {
+    return orderUserOptionsCache.data
+  }
+  const data = (await query(
     `SELECT userId, userName, userPhone, teamName, COUNT(*) as orderCount
      FROM orders WHERE deleted = 0
      GROUP BY userId, userName, userPhone, teamName
      ORDER BY MAX(createdAt) DESC`
   )) as OrderUserOption[]
+  orderUserOptionsCache = { data, at: Date.now() }
+  return data
 }
 
 export async function readOrder(id: string): Promise<OrderRow | null> {
@@ -47,6 +56,93 @@ export async function getOrderStats(managerId?: string): Promise<OrderStats> {
     SUM(CASE WHEN status = 'settled' THEN 1 ELSE 0 END) as settled,
     SUM(CASE WHEN status = 'rejected' THEN 1 ELSE 0 END) as rejected
   FROM orders WHERE ${whereClause}`
+
+  const result = (await queryOne(sql, params)) as {
+    total?: number | string
+    pending?: number | string
+    approved?: number | string
+    pendingPayment?: number | string
+    settled?: number | string
+    rejected?: number | string
+  } | null
+
+  return {
+    total: Number(result?.total) || 0,
+    pending: Number(result?.pending) || 0,
+    approved: Number(result?.approved) || 0,
+    pendingPayment: Number(result?.pendingPayment) || 0,
+    settled: Number(result?.settled) || 0,
+    rejected: Number(result?.rejected) || 0,
+  }
+}
+
+/**
+ * M1：查询同客户同产品已进入资金流程的订单（排除当前订单）
+ */
+export async function findDuplicateOrder(
+  userPhone: string,
+  productId: string,
+  excludeOrderId: string
+): Promise<OrderRow | null> {
+  return queryOne<OrderRow>(
+    `SELECT id, userName, productName, productPrice, status, createdAt
+     FROM orders
+     WHERE deleted = 0 AND id <> ? AND userPhone = ? AND productId = ?
+       AND status IN ('approved','pending_payment','settled')
+     ORDER BY createdAt DESC LIMIT 1`,
+    [excludeOrderId, userPhone, productId]
+  )
+}
+
+/**
+ * M1：批量标记列表中的重单（同客户手机号 + 同产品，且存在资金流程订单）
+ */
+async function markDuplicateOrders(orders: OrderRow[]): Promise<OrderRow[]> {
+  const keys: [string, string][] = []
+  for (const order of orders) {
+    if (order.userPhone && order.productId) {
+      keys.push([order.userPhone, order.productId])
+    }
+  }
+  if (keys.length === 0) return orders
+
+  const placeholders = keys.map(() => '(?, ?)').join(', ')
+  const rows = (await query(
+    `SELECT userPhone, productId, COUNT(*) AS cnt FROM orders
+     WHERE deleted = 0 AND status IN ('approved','pending_payment','settled')
+       AND (userPhone, productId) IN (${placeholders})
+     GROUP BY userPhone, productId`,
+    keys.flat()
+  )) as { userPhone: string; productId: string; cnt: number | string }[]
+
+  const counts = new Map<string, number>()
+  rows.forEach((row) => counts.set(`${row.userPhone}::${row.productId}`, Number(row.cnt) || 0))
+
+  return orders.map((order) => {
+    const key = order.userPhone && order.productId ? `${order.userPhone}::${order.productId}` : ''
+    const inFlow = key ? (counts.get(key) || 0) : 0
+    // 待审核订单命中任一在流程订单即视为重单（审核会触发二次确认）；
+    // 已进入流程的订单需存在另一笔在流程订单才算重单
+    const isFundingStatus = order.status === 'approved' || order.status === 'pending_payment' || order.status === 'settled'
+    const duplicate = order.status === 'pending' ? inFlow >= 1 : isFundingStatus ? inFlow >= 2 : false
+    return { ...order, duplicate }
+  })
+}
+
+/**
+ * 用户/员工维度的订单统计（M26）：直接聚合 SQL，避免读取全部订单后在内存过滤
+ */
+export async function getUserOrderStats(userId: string, employeeId?: string): Promise<OrderStats> {
+  const where = employeeId ? 'employeeId = ?' : 'userId = ?'
+  const params = [employeeId || userId]
+  const sql = `SELECT
+    COUNT(*) as total,
+    SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending,
+    SUM(CASE WHEN status = 'approved' THEN 1 ELSE 0 END) as approved,
+    SUM(CASE WHEN status = 'pending_payment' THEN 1 ELSE 0 END) as pendingPayment,
+    SUM(CASE WHEN status = 'settled' THEN 1 ELSE 0 END) as settled,
+    SUM(CASE WHEN status = 'rejected' THEN 1 ELSE 0 END) as rejected
+  FROM orders WHERE deleted = 0 AND ${where}`
 
   const result = (await queryOne(sql, params)) as {
     total?: number | string
@@ -212,6 +308,33 @@ export async function applyOrderReview(
   })
 }
 
+/**
+ * 订单结算（事务）：条件更新订单为已结算 + 同步佣金为已发放，原子提交
+ * 订单状态条件更新未命中（并发下已结算）时回滚并返回 false
+ */
+export async function applyOrderSettlement(
+  orderId: string,
+  settledAt: string,
+  commissionId?: string,
+  paidAt?: string
+): Promise<boolean> {
+  return withTransaction(async (conn) => {
+    const [result] = await conn.query(
+      'UPDATE orders SET status = ?, settledAt = ? WHERE id = ? AND status = ?',
+      ['settled', settledAt, orderId, 'pending_payment']
+    )
+    if ((result as { affectedRows?: number }).affectedRows === 0) return false
+
+    if (commissionId) {
+      await conn.query(
+        'UPDATE commissions SET status = ?, paidAt = ? WHERE id = ?',
+        ['paid', paidAt || settledAt, commissionId]
+      )
+    }
+    return true
+  })
+}
+
 export async function deleteOrder(id: string): Promise<void> {
   await query('UPDATE orders SET deleted = 1, deletedAt = NOW() WHERE id = ?', [id])
 }
@@ -313,14 +436,16 @@ export async function getOrdersPaginated(params: {
       }
     }
 
-    return {
-      list: orders.map(order => ({
-        ...order,
-        productPrice: Number(order.productPrice) || 0,
-        teamName: order.teamName || usersMap.get(order.userId) || '',
-      })),
-      total,
-    }
+    const normalized = orders.map(order => ({
+      ...order,
+      productPrice: Number(order.productPrice) || 0,
+      teamName: order.teamName || usersMap.get(order.userId) || '',
+    }))
+
+    // M1：标记同客户同产品的重单（不阻断，仅用于列表提示）
+    const list = await markDuplicateOrders(normalized)
+
+    return { list, total }
   } catch (error) {
     logger.error('[订单查询] 数据库错误:', { error: getErrorMessage(error) })
     const err = new Error('获取订单列表失败') as Error & { code?: number }

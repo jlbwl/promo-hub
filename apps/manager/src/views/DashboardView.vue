@@ -62,7 +62,7 @@
         >
           <div class="stat-content">
             <div class="stat-info">
-              <span class="stat-label">待审核佣金</span>
+              <span class="stat-label">待发放佣金</span>
               <el-statistic :value="stats.pendingCommissions" />
             </div>
             <el-icon
@@ -85,7 +85,7 @@
         >
           <div class="stat-content">
             <div class="stat-info">
-              <span class="stat-label">累计佣金</span>
+              <span class="stat-label">累计已结算佣金</span>
               <el-statistic :value="stats.totalCommissions" />
             </div>
             <el-icon

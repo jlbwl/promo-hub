@@ -118,14 +118,23 @@ describe('fetchProductDetail 成功路径', () => {
 })
 
 describe('fetchProductDetail 失败路径', () => {
-  it('请求失败时提示且不向外抛未捕获错误', async () => {
-    vi.mocked(get).mockRejectedValue(new Error('network down'))
+  it('请求失败时优先展示后端错误文案且不向外抛未捕获错误', async () => {
+    vi.mocked(get).mockRejectedValue(new Error('该产品已下架'))
+    const detail = useProductDetail(makeRoute())
+
+    await expect(detail.fetchProductDetail()).resolves.toBeUndefined()
+
+    expect(showToast).toHaveBeenCalledWith('该产品已下架')
+    expect(detail.product.title).toBe('')
+  })
+
+  it('无错误信息时回退到默认提示文案', async () => {
+    vi.mocked(get).mockRejectedValue(undefined)
     const detail = useProductDetail(makeRoute())
 
     await expect(detail.fetchProductDetail()).resolves.toBeUndefined()
 
     expect(showToast).toHaveBeenCalledWith('获取产品详情失败')
-    expect(detail.product.title).toBe('')
   })
 })
 

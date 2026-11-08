@@ -19,8 +19,9 @@ import {
   readOrderUserOptions,
   readProduct,
   readCommissionByOrderId,
-  updateCommission,
   applyOrderReview,
+  applyOrderSettlement,
+  findDuplicateOrder,
   updateOrderIfStatus,
   type OrderUserOption,
 } from '../data/index.js'
@@ -64,6 +65,8 @@ export interface OrderReviewParams {
   action: 'approve' | 'reject'
   reason?: string
   operator?: OrderOperator
+  /** M1：人工确认重单后强制审核，默认 false 时命中重单返回 409 */
+  force?: boolean
 }
 
 export interface OrderSettleParams {
@@ -300,6 +303,11 @@ export class OrderServiceImpl implements OrderService {
       throwForbidden('无权操作此订单')
     }
 
+    // M7：资金账号仅在做单待审核阶段允许修改，进入审核/发放流程后一律拒绝
+    if (order.status !== 'pending') {
+      throwBadRequest('该订单已进入结算流程，不可修改资金账号')
+    }
+
     await updateOrder(orderId, { fundAccount })
   }
 
@@ -317,6 +325,30 @@ export class OrderServiceImpl implements OrderService {
     }
 
     const nowMySQL = formatMySQLDateTime(new Date())!
+
+    // M1：同客户同产品若已有进入资金流程的订单，默认返回 409 交人工判断；
+    // 同客户同产品多单属正常业务，不做唯一约束、不禁止重复做单。
+    if (action === 'approve' && !params.force && order.userPhone && order.productId) {
+      const conflict = await findDuplicateOrder(order.userPhone, order.productId, order.id)
+      if (conflict) {
+        const error = new Error('该客户已有同产品在流程中的订单，请确认是否重复') as Error & {
+          code?: number
+          data?: unknown
+        }
+        error.code = 409
+        error.data = {
+          conflict: {
+            id: conflict.id,
+            userName: conflict.userName,
+            productName: conflict.productName,
+            productPrice: conflict.productPrice,
+            status: conflict.status,
+            createdAt: conflict.createdAt,
+          },
+        }
+        throw error
+      }
+    }
 
     let updated = false
     if (action === 'approve') {
@@ -384,13 +416,11 @@ export class OrderServiceImpl implements OrderService {
       if (order.status !== 'pending_payment') {
         throwBadRequest('仅待付款的订单可确认结算')
       }
-      const updated = await updateOrderIfStatus(orderId, { status: 'settled', settledAt: nowMySQL }, 'pending_payment')
+      // M2：订单状态与佣金状态必须同事务提交，避免「订单已结算但佣金未发放」的不一致
+      const commission = await readCommissionByOrderId(orderId)
+      const updated = await applyOrderSettlement(orderId, nowMySQL, commission?.id, nowMySQL)
       if (!updated) {
         throwBadRequest('订单状态已变化，请刷新后重试')
-      }
-      const commission = await readCommissionByOrderId(orderId)
-      if (commission) {
-        await updateCommission(commission.id, { status: CommissionStatus.PAID, paidAt: nowMySQL })
       }
       return { ...order, status: 'settled', settledAt: nowMySQL }
     } else {

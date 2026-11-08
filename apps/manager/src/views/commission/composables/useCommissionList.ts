@@ -89,13 +89,39 @@ export function useCommissionList() {
 
   // 审核通过
   const handleApprove = async (row: Order) => {
+    const statusLabels: Record<string, string> = {
+      approved: '已通过',
+      pending_payment: '待发放',
+      settled: '已发放',
+    }
+    const submitApprove = async (force = false) => {
+      await put(`/orders/${row.id}/review`, { action: 'approve', ...(force ? { force: true } : {}) })
+    }
     try {
       await ElMessageBox.confirm(
         `确认「${row.productName}」记录有效，发放记录 ¥${row.productPrice}？`,
         '审核确认',
         { confirmButtonText: '通过', cancelButtonText: '取消', type: 'success' }
       )
-      await put(`/orders/${row.id}/review`, { action: 'approve' })
+
+      try {
+        await submitApprove()
+      } catch (error) {
+        const err = error as Error & {
+          code?: number
+          data?: { conflict?: { id?: string; userName?: string; productName?: string; productPrice?: number; status?: string; createdAt?: string } }
+        }
+        // M1：同客户同产品已有在流程订单时，由人工二次确认后强制通过
+        if (err.code !== 409 || !err.data?.conflict) throw error
+        const conflict = err.data.conflict
+        await ElMessageBox.confirm(
+          `客户「${conflict.userName || '未知'}」已有同产品订单：${conflict.productName || ''} · ¥${conflict.productPrice || 0} · ${statusLabels[conflict.status || ''] || conflict.status || ''}${conflict.createdAt ? `（${conflict.createdAt}）` : ''}。是否仍要审核通过？`,
+          '重单提醒',
+          { confirmButtonText: '仍要通过', cancelButtonText: '取消', type: 'warning' }
+        )
+        await submitApprove(true)
+      }
+
       ElMessage.success('已确认记录有效，记录待发放')
       fetchStats()
       fetchData()

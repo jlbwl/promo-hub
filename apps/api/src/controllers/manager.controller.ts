@@ -280,22 +280,21 @@ export const updateManagerTeamName = async (req: Request, res: Response): Promis
 
     const oldTeamName = existingManager.teamName || ''
 
-    // 更新经理信息
-    await updateManager(managerId, {
-      teamName: finalTeamName,
-      name: finalTeamName,
-      username: finalTeamName,
-    })
-
-    // 同时更新该经理下所有用户的团队名称（单条 UPDATE，避免全表读取/回写）
+    // M16：经理信息与团队成员名称必须同事务更新，避免中途失败造成团队名不一致
     let updatedUsers = 0
-    if (oldTeamName) {
-      const result = await query(
-        'UPDATE users SET teamName = ?, updatedAt = NOW() WHERE teamName = ?',
-        [finalTeamName, oldTeamName]
-      ) as { affectedRows?: number }
-      updatedUsers = result.affectedRows || 0
-    }
+    await withTransaction(async (conn) => {
+      await conn.query(
+        'UPDATE managers SET teamName = ?, name = ?, username = ?, updatedAt = NOW() WHERE id = ?',
+        [finalTeamName, finalTeamName, finalTeamName, managerId]
+      )
+      if (oldTeamName) {
+        const [result] = await conn.query(
+          'UPDATE users SET teamName = ?, updatedAt = NOW() WHERE teamName = ?',
+          [finalTeamName, oldTeamName]
+        )
+        updatedUsers = (result as { affectedRows?: number }).affectedRows || 0
+      }
+    })
 
     // 返回更新后的经理信息
     const { password: _, ...safeManager } = {

@@ -6,6 +6,8 @@ import {
   readCartItems,
   readCartItem,
   readCartByManagerId,
+  readUser,
+  readManager,
   addToCart,
   removeFromCart,
   isInCart,
@@ -18,12 +20,24 @@ const allowMemoryFallback = process.env.NODE_ENV !== 'production'
  * 购物车身份解析：
  * - user 角色：强制使用会话身份（防传他人 userId 越权）
  * - employee 角色：仅允许访问其主账户（req.user.userId）的购物车，忽略请求传入值
+ * - manager 角色：仅允许访问本团队用户；跨团队返回空，按参数缺失处理
  */
-function resolveCartUserId(req: Request, requested: unknown): string {
+async function resolveCartUserId(req: Request, requested: unknown): Promise<string> {
   if (req.user?.role === 'employee') {
     return req.user.userId || ''
   }
   if (req.user?.role === 'user') return req.user.id
+  if (req.user?.role === 'manager') {
+    const target = requested as string
+    if (!target) return ''
+    // M11：经理只能读取本团队用户的购物车
+    const [manager, targetUser] = await Promise.all([
+      readManager(req.user.id),
+      readUser(target),
+    ])
+    if (!manager || !targetUser) return ''
+    return targetUser.teamName === manager.teamName ? target : ''
+  }
   return requested as string
 }
 
@@ -36,7 +50,7 @@ function resolveCartUserId(req: Request, requested: unknown): string {
  */
 export const getCartItems = async (req: Request, res: Response): Promise<void> => {
   try {
-    const userId = resolveCartUserId(req, req.query.userId)
+    const userId = await resolveCartUserId(req, req.query.userId)
     if (!userId) {
       return sendError(res, '缺少用户ID', 400)
     }
@@ -70,7 +84,8 @@ export const getCartItems = async (req: Request, res: Response): Promise<void> =
  */
 export const getManagerCart = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { managerId } = req.query
+    // M11：经理只能查看自己的购物车汇总，忽略前端传入的 managerId；管理员仍可指定
+    const managerId = req.user?.role === 'manager' ? req.user.id : req.query.managerId
     if (!managerId) {
       return sendError(res, '缺少经理ID', 400)
     }
@@ -105,7 +120,7 @@ export const getManagerCart = async (req: Request, res: Response): Promise<void>
 export const addItemToCart = async (req: Request, res: Response): Promise<void> => {
   try {
     const { managerId, productId, productName, productPrice, coverImage, optionLabel, redirectUrl } = req.body
-    const userId = resolveCartUserId(req, req.body.userId)
+    const userId = await resolveCartUserId(req, req.body.userId)
     if (!userId || !productId) {
       return sendError(res, '缺少必要参数', 400)
     }
@@ -168,7 +183,7 @@ export const removeItemFromCart = async (req: Request, res: Response): Promise<v
 export const checkProductInCart = async (req: Request, res: Response): Promise<void> => {
   try {
     const { productId } = req.query
-    const userId = resolveCartUserId(req, req.query.userId)
+    const userId = await resolveCartUserId(req, req.query.userId)
     if (!userId || !productId) {
       return sendError(res, '缺少必要参数', 400)
     }

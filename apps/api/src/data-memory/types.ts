@@ -10,6 +10,8 @@ export type OrderRow = Omit<Order, 'deleted' | 'deletedAt'> & {
   sharerId?: string
   deleted?: number | boolean
   deletedAt?: string | null
+  /** M1：同客户同产品存在多笔资金流程订单时标记 */
+  duplicate?: boolean
 }
 
 export interface AdminRow {

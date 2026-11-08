@@ -250,7 +250,9 @@ async function checkUserPermission(
   // 经理可以操作自己团队的用户
   if (user.role === 'manager') {
     const targetUser = await queryOne<UserRow>('SELECT * FROM users WHERE id = ?', [userId])
-    if (targetUser && targetUser.teamName === user.teamName) {
+    // M21：JWT 中不含 teamName，需按当前经理 ID 实时查团队名再比较
+    const manager = await queryOne<TeamNameRow>('SELECT teamName FROM managers WHERE id = ?', [user.id])
+    if (targetUser && manager && targetUser.teamName === manager.teamName) {
       return { hasPermission: true, resourceOwnerId: user.id }
     }
     return { hasPermission: false, message: '您没有权限操作此用户' }

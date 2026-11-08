@@ -360,10 +360,12 @@ describe('resourcePermission middleware', () => {
       req.user = authUser('manager1', 'manager', { teamName: 'team1' })
       req.params = { id: 'user1' }
 
-      vi.mocked(queryOne).mockResolvedValue({ 
-        id: 'user1', 
-        teamName: 'team1' 
-      })
+      // M21：JWT 无 teamName，代码会按经理 ID 再查一次 managers.teamName
+      vi.mocked(queryOne).mockImplementation(async (sql: unknown) => (
+        String(sql).includes('managers')
+          ? { teamName: 'team1' }
+          : { id: 'user1', teamName: 'team1' }
+      ))
 
       const middleware = resourcePermission({
         resourceType: 'user',
@@ -379,10 +381,11 @@ describe('resourcePermission middleware', () => {
       req.user = authUser('manager1', 'manager', { teamName: 'team1' })
       req.params = { id: 'user1' }
 
-      vi.mocked(queryOne).mockResolvedValue({ 
-        id: 'user1', 
-        teamName: 'team2' 
-      })
+      vi.mocked(queryOne).mockImplementation(async (sql: unknown) => (
+        String(sql).includes('managers')
+          ? { teamName: 'team1' }
+          : { id: 'user1', teamName: 'team2' }
+      ))
 
       const middleware = resourcePermission({
         resourceType: 'user',

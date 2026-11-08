@@ -3,6 +3,7 @@
  */
 import crypto from 'crypto'
 import { getErrorMessage } from '@promo/shared'
+import logger from './logger.js'
 
 interface SmsCodeRecord {
   code: string
@@ -12,7 +13,32 @@ interface SmsCodeRecord {
 }
 
 const smsCodes = new Map<string, SmsCodeRecord>()
-const usedCodes = new Set<string>() // 记录已使用的验证码，防止重放攻击
+// M12：used 记录带过期时间并设上限，避免只增不减常驻内存
+const usedCodes = new Map<string, number>()
+const USED_CODE_TTL_MS = 10 * 60 * 1000
+const USED_CODES_MAX = 2000
+const SMS_HTTP_TIMEOUT_MS = 5000
+const isProd = process.env.NODE_ENV === 'production'
+
+/** 清理过期验证码与超量 used 记录 */
+function pruneSmsState(): void {
+  const now = Date.now()
+  for (const [phone, record] of smsCodes) {
+    if (now > record.expiresAt) smsCodes.delete(phone)
+  }
+  for (const [key, expireAt] of usedCodes) {
+    if (now > expireAt) usedCodes.delete(key)
+  }
+  if (usedCodes.size > USED_CODES_MAX) {
+    const overflow = usedCodes.size - USED_CODES_MAX
+    let removed = 0
+    for (const key of usedCodes.keys()) {
+      if (removed >= overflow) break
+      usedCodes.delete(key)
+      removed += 1
+    }
+  }
+}
 
 /**
  * 生成随机验证码（H9：使用密码学安全随机数，杜绝可预测性）
@@ -25,6 +51,7 @@ export const generateSmsCode = (): string => {
  * 保存验证码
  */
 export const saveSmsCode = (phone: string, code: string, expiresInSeconds = 300): void => {
+  pruneSmsState()
   smsCodes.set(phone, {
     code,
     expiresAt: Date.now() + expiresInSeconds * 1000,
@@ -68,7 +95,8 @@ export const consumeSmsCode = (phone: string, code: string): boolean => {
   // 标记为已使用（原子操作）
   record.used = true
   const usedKey = `${phone}:${code}`
-  usedCodes.add(usedKey)
+  usedCodes.set(usedKey, Date.now() + USED_CODE_TTL_MS)
+  pruneSmsState()
   
   // 立即删除验证码，防止再次使用
   smsCodes.delete(phone)
@@ -96,7 +124,13 @@ export const deleteSmsCode = (phone: string): void => {
  */
 export const isSmsCodeUsed = (phone: string, code: string): boolean => {
   const usedKey = `${phone}:${code}`
-  return usedCodes.has(usedKey)
+  const expireAt = usedCodes.get(usedKey)
+  if (!expireAt) return false
+  if (Date.now() > expireAt) {
+    usedCodes.delete(usedKey)
+    return false
+  }
+  return true
 }
 
 const SMS_CONFIG = {
@@ -137,6 +171,11 @@ function getTimestamp(): string {
 
 export async function sendSmsCode(phone: string, code: string): Promise<{ success: boolean; message: string }> {
   if (!SMS_CONFIG.accessKeyId || !SMS_CONFIG.accessKeySecret) {
+    if (isProd) {
+      // M12：生产未配置 AK 必须失败并告警，避免接口假成功、用户收不到验证码
+      logger.error('[SMS] 生产环境未配置阿里云短信 AK，拒绝发送')
+      return { success: false, message: '短信服务未配置' }
+    }
     return { success: true, message: '开发模式：验证码仅打印到日志' }
   }
 
@@ -161,7 +200,8 @@ export async function sendSmsCode(phone: string, code: string): Promise<{ succes
     const queryString = sortedParams.map(k => `${percentEncode(k)}=${percentEncode(parameters[k])}`).join('&')
     const url = `https://dysmsapi.aliyuncs.com/?Signature=${percentEncode(signature)}&${queryString}`
 
-    const response = await fetch(url)
+    // M12：外部 HTTP 请求必须有超时，避免阿里云无响应时发码接口长时间悬挂
+    const response = await fetch(url, { signal: AbortSignal.timeout(SMS_HTTP_TIMEOUT_MS) })
     const result = await response.json()
 
     if (result.Code === 'OK') {

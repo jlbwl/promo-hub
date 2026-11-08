@@ -97,6 +97,16 @@ export const error = (message: string, meta?: Record<string, unknown>): void => 
 }
 
 /**
+ * 手机号脱敏：保留前 3 位与后 4 位，日志中禁止出现完整号码
+ */
+export const maskPhone = (phone?: string | null): string => {
+  if (!phone) return ''
+  const value = String(phone)
+  if (value.length <= 7) return '***'
+  return `${value.slice(0, 3)}****${value.slice(-4)}`
+}
+
+/**
  * 记录 API 请求日志
  */
 export const logRequest = (method: string, url: string, ip?: string, userId?: string): void => {
@@ -123,6 +133,7 @@ export default {
   info,
   warn,
   error,
+  maskPhone,
   logRequest,
   logError,
 }

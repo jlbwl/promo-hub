@@ -131,6 +131,12 @@ export const exportOperationLogs = async (req: Request, res: Response): Promise<
   } catch (error) {
     // 响应头已发出，无法再改写为 JSON 错误；保留已导出的部分并记录日志
     logger.error('[导出操作日志] 分页读取失败，导出中止:', { error: getErrorMessage(error), page })
+    // M23：在文件末尾追加显式中断标记，避免前端把截断的 CSV 当作完整数据
+    try {
+      res.write('#导出中断，数据不完整\n')
+    } catch {
+      // 连接已断开时忽略写入异常
+    }
   } finally {
     res.end()
   }

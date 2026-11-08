@@ -11,6 +11,9 @@ import logger from '../utils/logger.js'
  * 本接口按产品动态渲染带标题/封面/摘要的落地页，人类访客自动跳转到详情页。
  */
 
+// M14：站点域名固定，避免用可伪造的 X-Forwarded-* 拼接跳转地址
+const SITE_ORIGIN = (process.env.SITE_ORIGIN || 'https://www.jlbtg.cn').replace(/\/+$/, '')
+
 /** HTML 转义，防止产品标题/描述注入页面 */
 function escapeHtml(text: string): string {
   return text
@@ -107,10 +110,8 @@ export const getProductSharePage = async (req: Request, res: Response): Promise<
       return
     }
 
-    // 请求来源（Nginx 代理场景优先取转发头）
-    const proto = (req.headers['x-forwarded-proto'] as string) || req.protocol || 'https'
-    const host = (req.headers['x-forwarded-host'] as string) || req.headers.host || ''
-    const origin = `${proto}://${host}`
+    // M14：使用固定站点域名，不信任请求头中的 X-Forwarded-Proto / X-Forwarded-Host
+    const origin = SITE_ORIGIN
 
     // 封面绝对地址
     const cover = product.coverImage || ''

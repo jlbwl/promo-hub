@@ -36,11 +36,15 @@ export const getProducts = async (req: Request, res: Response): Promise<void> =>
       keyword
     })
 
+    // M10：仅管理员/经理可查看非上架产品；访客与普通用户强制只看已上架
+    const canViewUnpublished = user?.role === 'admin' || user?.role === 'manager'
+    const effectiveStatus = canViewUnpublished ? (status as string) : 'published'
+
     const { list, total } = await productService.getProducts({
       page: pageNum,
       pageSize: pageSizeNum,
       category: category as string,
-      status: status as string,
+      status: effectiveStatus,
       managerId,
       keyword: keyword as string,
       // 仅管理员可开启管理视图，避免普通用户/经理通过 query 参数绕过可见性限制
@@ -84,6 +88,13 @@ export const getProductById = async (req: Request, res: Response): Promise<void>
     }
 
     const { product, sales } = await productService.getProductById(id)
+
+    // M10：访客/普通用户不允许读取草稿或下架产品，返回明确文案供前端友好提示
+    const canViewUnpublished = user?.role === 'admin' || user?.role === 'manager'
+    if (!canViewUnpublished && product.status !== 'published') {
+      return sendError(res, '该产品已下架', 403)
+    }
+
     product.sales = sales
     sendSuccess(res, product)
   } catch (error) {
@@ -102,9 +113,38 @@ export const getProductById = async (req: Request, res: Response): Promise<void>
  * @param res - HTTP响应对象
  * @returns 新创建的产品信息
  */
+/**
+ * M5：价格/库存入参校验。
+ * - 价格必须是有限数字，0 ≤ 价格 ≤ 10000，且最多两位小数
+ * - 库存必须是整数，且落在 [-1, 1000000]（-1/0 的历史语义保持不变）
+ * @returns 错误文案；合法返回 null
+ */
+function validateProductFields(body: Record<string, unknown>): string | null {
+  if (body.productPrice !== undefined && body.productPrice !== null && body.productPrice !== '') {
+    const price = Number(body.productPrice)
+    if (!Number.isFinite(price) || price < 0 || price > 10000) {
+      return '产品价格需在 0-10000 之间'
+    }
+    if (Math.round(price * 100) !== price * 100) {
+      return '产品价格最多保留两位小数'
+    }
+  }
+  if (body.stock !== undefined && body.stock !== null && body.stock !== '') {
+    const stock = Number(body.stock)
+    if (!Number.isInteger(stock) || stock < -1 || stock > 1000000) {
+      return '库存必须为不小于 -1 的整数'
+    }
+  }
+  return null
+}
+
 export const createProduct = async (req: Request, res: Response): Promise<void> => {
   try {
     const user = req.user
+    const invalid = validateProductFields(req.body as Record<string, unknown>)
+    if (invalid) {
+      return sendError(res, invalid, 400)
+    }
     // 富文本描述入库前净化，防存储型 XSS（用户端 v-html 渲染）
     if (typeof req.body.description === 'string') {
       req.body.description = sanitizeRichText(req.body.description)
@@ -143,7 +183,10 @@ export const updateProductById = async (req: Request, res: Response): Promise<vo
   const id = req.params.id as string
   try {
     const user = req.user
-    
+    const invalid = validateProductFields(req.body as Record<string, unknown>)
+    if (invalid) {
+      return sendError(res, invalid, 400)
+    }
     // 从用户信息中获取managerId（中间件已经验证了权限）
     const managerId = user?.role === 'manager' ? user.id : (req.body.managerId || '')
 

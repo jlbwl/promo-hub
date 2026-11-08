@@ -32,6 +32,15 @@
         >
           {{ row.fundAccount }}
         </el-tag>
+        <!-- M1：同客户同产品存在多笔在流程订单时标记「重单」，仅提示不阻断 -->
+        <el-tag
+          v-if="row.duplicate"
+          size="small"
+          type="warning"
+          style="margin-left: 6px;"
+        >
+          重单
+        </el-tag>
       </template>
     </el-table-column>
     <el-table-column

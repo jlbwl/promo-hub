@@ -3,6 +3,7 @@
  * 做单流程（payload 组装/提交/跳转）见 useProductOrder，由视图装配
  */
 import { logger } from '@promo/shared/utils/logger'
+import { getErrorMessage } from '@promo/shared/utils/errors'
 import { reactive, ref } from 'vue'
 import { showToast } from 'vant'
 import { get } from '@promo/shared/utils/request'
@@ -83,7 +84,8 @@ export const useProductDetail = (route: RouteLocationNormalizedLoaded) => {
       }
     } catch (error) {
       logger.error('获取产品详情失败:', error)
-      showToast('获取产品详情失败')
+      // M10：下架/草稿产品由后端返回「该产品已下架」，直接展示后端文案给访客友好提示
+      showToast(getErrorMessage(error, '获取产品详情失败'))
     }
   }
 

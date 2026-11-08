@@ -8,6 +8,7 @@
 import { Router } from 'express'
 import multer from 'multer'
 import { requireManager } from '../middleware/auth.js'
+import { ocrLimiter } from '../middleware/rateLimit.js'
 import { sendError, sendSuccess } from '../utils/response.js'
 import logger from '../utils/logger.js'
 import {
@@ -25,6 +26,7 @@ const posterUpload = multer({
 
 router.post(
   '/ocr/poster',
+  ocrLimiter,
   requireManager,
   posterUpload.single('image'),
   async (req, res) => {

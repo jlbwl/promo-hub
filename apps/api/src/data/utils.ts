@@ -47,7 +47,9 @@ function formatMySQLDateTime(date: string | Date | null | undefined): string | n
   if (!date) return null
   const d = new Date(date)
   if (isNaN(d.getTime())) return null
-  return d.toISOString().replace('T', ' ').substring(0, 19)
+  // M4：数据库按北京时间（UTC+8）存 NOW()，这里同步偏移，避免审核/结算时间比实际早 8 小时
+  const beijing = new Date(d.getTime() + 8 * 60 * 60 * 1000)
+  return beijing.toISOString().replace('T', ' ').substring(0, 19)
 }
 
 export function deserialize<T = unknown>(val: unknown): T[] {

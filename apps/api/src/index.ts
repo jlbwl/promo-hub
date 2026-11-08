@@ -321,6 +321,20 @@ process.on('SIGINT', async () => {
   process.exit(0)
 })
 
+// M20：进程级兜底。记录完整日志后退出，由 pm2 拉起，避免静默崩溃/悬挂
+process.on('unhandledRejection', (reason) => {
+  logger.error('未处理的 Promise 拒绝，进程退出', { error: getErrorMessage(reason) })
+  process.exit(1)
+})
+
+process.on('uncaughtException', (error) => {
+  logger.error('未捕获异常，进程退出', {
+    error: getErrorMessage(error),
+    stack: (error as Error)?.stack,
+  })
+  process.exit(1)
+})
+
 start().catch(err => {
   logger.error('Failed to start server:', { error: getErrorMessage(err) })
   process.exit(1)
