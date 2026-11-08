@@ -152,7 +152,7 @@ const handleAddToCart = () => {
 .category-tag {
   position: absolute;
   top: 7px;
-  left: 7px;
+  right: 7px;
   padding: 2px 5px;
   border-radius: var(--r-xs);
   font-size: 8.5px;
