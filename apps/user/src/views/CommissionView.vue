@@ -1,13 +1,22 @@
 <template>
   <div class="commission-page">
-    <!-- 顶部导航栏 -->
-    <van-nav-bar
-      title="我的佣金"
-      fixed
-      placeholder
-      right-text="回收站"
-      @click-right="openRecycleBin"
-    />
+    <!-- 顶部 hero（与产品大厅一致：大标题在这里，不再用导航栏重复） -->
+    <div class="commission-mast">
+      <div class="mast-inner">
+        <div class="mast-row">
+          <span class="mast-brand">COMMISSION</span>
+          <span
+            class="recycle-link"
+            @click="openRecycleBin"
+          >
+            回收站
+          </span>
+        </div>
+        <div class="title-row">
+          <h1>我的佣金</h1>
+        </div>
+      </div>
+    </div>
 
     <!-- 页面内容（下拉刷新：概览 + 订单列表） -->
     <van-pull-refresh
@@ -20,7 +29,6 @@
       <van-tabs
         v-model:active="activeTab"
         sticky
-        offset-top="46"
         @change="onTabChange"
       >
         <van-tab
@@ -118,6 +126,65 @@ const handleFundSubmitted = (record: Order, fundAccount: string) => {
 .commission-page {
   min-height: 100%;
   background-color: var(--paper);
+}
+
+.commission-mast {
+  position: relative;
+  overflow: hidden;
+  padding: 10px 14px 14px;
+  background: var(--mast);
+  color: var(--on-dark);
+
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: repeating-linear-gradient(
+      96deg,
+      rgba(255, 235, 205, 0.045) 0 1px,
+      transparent 1px 7px
+    );
+  }
+}
+
+.mast-inner {
+  position: relative;
+  z-index: 1;
+}
+
+.mast-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 28px;
+
+  .mast-brand {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.22em;
+    color: #d8b07a;
+  }
+
+  .recycle-link {
+    font-size: 12px;
+    color: #e2c48e;
+  }
+}
+
+.title-row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  margin-top: 8px;
+
+  h1 {
+    margin: 0;
+    font-size: var(--fs-display);
+    font-weight: 650;
+    letter-spacing: 0.01em;
+    color: var(--on-dark);
+  }
 }
 
 .commission-page :deep(.van-tabs__wrap) {

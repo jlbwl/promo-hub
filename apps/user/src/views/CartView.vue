@@ -1,21 +1,24 @@
 <template>
   <div class="cart-page">
-    <!-- 顶部导航栏 -->
-    <van-nav-bar
-      title="收藏"
-      fixed
-      placeholder
-    >
-      <template #right>
-        <span
-          v-if="canManage"
-          class="manage-toggle"
-          @click="toggleManage"
-        >
-          {{ manageMode ? '完成' : '管理' }}
-        </span>
-      </template>
-    </van-nav-bar>
+    <!-- 顶部 hero（与产品大厅一致：大标题在这里，不再用导航栏重复） -->
+    <div class="cart-mast">
+      <div class="mast-inner">
+        <div class="mast-row">
+          <span class="mast-brand">COLLECTION</span>
+          <span
+            v-if="canManage"
+            class="manage-toggle"
+            @click="toggleManage"
+          >
+            {{ manageMode ? '完成' : '管理' }}
+          </span>
+        </div>
+        <div class="title-row">
+          <h1>收藏</h1>
+          <span class="mast-count">共 <b>{{ cartItems.length }}</b> 件</span>
+        </div>
+      </div>
+    </div>
 
     <!-- 购物车列表 -->
     <van-pull-refresh
@@ -30,18 +33,33 @@
           v-if="cartItems.length > 0"
           class="cart-list"
         >
-          <CartItem
+          <van-swipe-cell
             v-for="item in cartItems"
-            :key="item.id"
-            :item="item"
-            :is-employee="isEmployee"
-            :selectable="manageMode"
-            :selected="isSelected(item.id)"
-            @click="goToProduct"
-            @remove="handleRemove"
-            @order="handleOrder"
-            @toggle="toggleItem"
-          />
+            :key="`${item.id}-${manageMode}`"
+            class="cart-swipe"
+            :disabled="!swipeEnabled"
+          >
+            <CartItem
+              :item="item"
+              :is-employee="isEmployee"
+              :selectable="manageMode"
+              :selected="isSelected(item.id)"
+              @click="handleItemClick"
+              @remove="handleRemove"
+              @toggle="toggleItem"
+            />
+            <template
+              v-if="swipeEnabled"
+              #right
+            >
+              <van-button
+                class="swipe-delete"
+                square
+                text="删除"
+                @click="handleRemove(item)"
+              />
+            </template>
+          </van-swipe-cell>
         </div>
 
         <!-- 空状态 -->
@@ -145,6 +163,10 @@ const selectedIds = ref<string[]>([])
 const removing = ref(false)
 
 const canManage = computed(() => !isEmployee.value && cartItems.value.length > 0)
+/**
+ * 左滑删除是否可用：员工只读不可删；批量管理模式下沿用原有批量操作
+ */
+const swipeEnabled = computed(() => !isEmployee.value && !manageMode.value)
 const allSelected = computed(
   () => cartItems.value.length > 0 && selectedIds.value.length === cartItems.value.length
 )
@@ -217,17 +239,13 @@ const onRefresh = async () => {
 }
 
 /**
- * 跳转到产品详情
+ * 点击收藏项：主账户直接进做单（跳转详情页并自动打开做单表单），员工只读进入详情
  */
-const goToProduct = (item: CartItemEntity) => {
-  router.push(`/product/${item.productId}`)
-}
-
-/**
- * 直接做单：跳转详情页并自动打开做单表单，带上收藏时保存的选项
- */
-const handleOrder = (item: CartItemEntity) => {
-  if (isEmployee.value) return
+const handleItemClick = (item: CartItemEntity) => {
+  if (isEmployee.value) {
+    router.push(`/product/${item.productId}`)
+    return
+  }
   router.push({
     path: `/product/${item.productId}`,
     query: {
@@ -312,6 +330,90 @@ onMounted(() => {
 .cart-page {
   min-height: 100%;
   background-color: var(--paper);
+}
+
+.cart-mast {
+  position: relative;
+  overflow: hidden;
+  padding: 10px 14px 14px;
+  background: var(--mast);
+  color: var(--on-dark);
+
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: repeating-linear-gradient(
+      96deg,
+      rgba(255, 235, 205, 0.045) 0 1px,
+      transparent 1px 7px
+    );
+  }
+}
+
+.mast-inner {
+  position: relative;
+  z-index: 1;
+}
+
+.mast-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 28px;
+
+  .mast-brand {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.22em;
+    color: #d8b07a;
+  }
+}
+
+.title-row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  margin-top: 8px;
+
+  h1 {
+    margin: 0;
+    font-size: var(--fs-display);
+    font-weight: 650;
+    letter-spacing: 0.01em;
+    color: var(--on-dark);
+  }
+
+  .mast-count {
+    padding-bottom: 3px;
+    font-size: var(--fs-micro);
+    color: var(--on-dark-muted);
+
+    b {
+      font-size: 11px;
+      color: var(--tabbar-active);
+    }
+  }
+}
+
+.cart-swipe {
+  border-radius: var(--r-md);
+
+  :deep(.van-swipe-cell__wrapper) {
+    border-radius: var(--r-md);
+  }
+
+  .swipe-delete {
+    height: 100%;
+    width: 68px;
+    border: none;
+    border-radius: 0 var(--r-md) var(--r-md) 0;
+    background: var(--brand-deep);
+    color: var(--on-dark);
+    font-size: 12px;
+    letter-spacing: 0.1em;
+  }
 }
 
 .cart-content {

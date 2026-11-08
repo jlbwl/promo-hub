@@ -50,16 +50,8 @@
       v-if="!props.selectable"
       class="item-actions"
     >
-      <!-- 主账户可以直接做单/移除，子账户为只读角色 -->
+      <!-- 主账户可直接移除（做单改为点击整张卡片进入），子账户为只读角色 -->
       <template v-if="!props.isEmployee">
-        <van-button
-          class="order-btn"
-          size="small"
-          round
-          @click.stop="emit('order', props.item)"
-        >
-          做单
-        </van-button>
         <van-button
           class="remove-btn"
           size="small"
@@ -101,7 +93,6 @@ interface CartItemProps {
 interface Emits {
   (e: 'click', item: CartItemProps['item']): void
   (e: 'remove', item: CartItemProps['item']): void
-  (e: 'order', item: CartItemProps['item']): void
   (e: 'toggle', item: CartItemProps['item']): void
 }
 
@@ -221,22 +212,11 @@ const handleItemClick = () => {
   gap: 6px;
   margin-left: 8px;
 
-  .order-btn,
   .remove-btn {
     font-size: 11px;
     height: 28px;
     padding: 0 11px;
     border-radius: var(--r-full);
-  }
-
-  .order-btn {
-    color: var(--brand-deep);
-    background: var(--surface-2);
-    border-color: var(--gold);
-    font-weight: 600;
-  }
-
-  .remove-btn {
     color: var(--muted);
     background: var(--surface);
     border-color: var(--line);
