@@ -47,22 +47,11 @@
       </div>
     </div>
     <div
-      v-if="!props.selectable"
+      v-if="!props.selectable && props.isEmployee"
       class="item-actions"
     >
-      <!-- 主账户可直接移除（做单改为点击整张卡片进入），子账户为只读角色 -->
-      <template v-if="!props.isEmployee">
-        <van-button
-          class="remove-btn"
-          size="small"
-          round
-          @click.stop="emit('remove', props.item)"
-        >
-          移除
-        </van-button>
-      </template>
+      <!-- 子账户只读：卡片上只保留来源标记，收藏操作仅由左滑触发 -->
       <van-tag
-        v-else
         type="warning"
         size="medium"
       >
@@ -92,7 +81,6 @@ interface CartItemProps {
  */
 interface Emits {
   (e: 'click', item: CartItemProps['item']): void
-  (e: 'remove', item: CartItemProps['item']): void
   (e: 'toggle', item: CartItemProps['item']): void
 }
 
@@ -211,15 +199,5 @@ const handleItemClick = () => {
   align-items: stretch;
   gap: 6px;
   margin-left: 8px;
-
-  .remove-btn {
-    font-size: 11px;
-    height: 28px;
-    padding: 0 11px;
-    border-radius: var(--r-full);
-    color: var(--muted);
-    background: var(--surface);
-    border-color: var(--line);
-  }
 }
 </style>

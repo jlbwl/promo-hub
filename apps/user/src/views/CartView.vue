@@ -45,7 +45,6 @@
               :selectable="manageMode"
               :selected="isSelected(item.id)"
               @click="handleItemClick"
-              @remove="handleRemove"
               @toggle="toggleItem"
             />
             <template
@@ -55,7 +54,7 @@
               <van-button
                 class="swipe-delete"
                 square
-                text="删除"
+                text="取消收藏"
                 @click="handleRemove(item)"
               />
             </template>
@@ -104,7 +103,7 @@
         :loading="removing"
         @click="handleBatchRemove"
       >
-        移除所选{{ selectedIds.length > 0 ? `（${selectedIds.length}）` : '' }}
+        取消收藏{{ selectedIds.length > 0 ? `（${selectedIds.length}）` : '' }}
       </van-button>
     </div>
 
@@ -256,14 +255,14 @@ const handleItemClick = (item: CartItemEntity) => {
 }
 
 /**
- * 移除单项收藏（员工只读，不可操作）
+ * 取消单条收藏（员工只读，不可操作）
  */
 const handleRemove = async (item: CartItemEntity) => {
   if (isEmployee.value) return
   try {
     const res = await del(`/cart/${item.id}`)
     if (res.code === 0) {
-      showToast('已移除')
+      showToast('已取消收藏')
       // 从列表中移除
       const index = cartItems.value.findIndex(i => i.id === item.id)
       if (index > -1) {
@@ -272,24 +271,24 @@ const handleRemove = async (item: CartItemEntity) => {
       // 通知 Tabbar 刷新收藏徽标计数
       window.dispatchEvent(new CustomEvent('cart-changed'))
     } else {
-      showToast(res.message || '移除失败')
+      showToast(res.message || '取消收藏失败')
     }
   } catch (error) {
-    logger.error('[CartView] 移除失败:', error)
-    showToast(getErrorMessage(error, '移除失败'))
+    logger.error('[CartView] 取消收藏失败:', error)
+    showToast(getErrorMessage(error, '取消收藏失败'))
   }
 }
 
 /**
- * 批量移除所选收藏（员工只读，不可操作）
+ * 批量取消所选收藏（员工只读，不可操作）
  */
 const handleBatchRemove = async () => {
   if (isEmployee.value || selectedIds.value.length === 0) return
   const ids = [...selectedIds.value]
   try {
     await showConfirmDialog({
-      title: '批量移除',
-      message: `确定移除选中的 ${ids.length} 个收藏？`,
+      title: '取消收藏',
+      message: `确定取消收藏选中的 ${ids.length} 个产品？`,
     })
   } catch {
     return
@@ -301,18 +300,18 @@ const handleBatchRemove = async () => {
     if (res.code === 0) {
       cartItems.value = cartItems.value.filter((item) => !ids.includes(item.id))
       selectedIds.value = []
-      showToast('已移除')
+      showToast('已取消收藏')
       // 通知 Tabbar 刷新收藏徽标计数
       window.dispatchEvent(new CustomEvent('cart-changed'))
       if (cartItems.value.length === 0) {
         manageMode.value = false
       }
     } else {
-      showToast(res.message || '移除失败')
+      showToast(res.message || '取消收藏失败')
     }
   } catch (error) {
-    logger.error('[CartView] 批量移除失败:', error)
-    showToast(getErrorMessage(error, '移除失败'))
+    logger.error('[CartView] 批量取消收藏失败:', error)
+    showToast(getErrorMessage(error, '取消收藏失败'))
   } finally {
     removing.value = false
   }
@@ -406,13 +405,14 @@ onMounted(() => {
 
   .swipe-delete {
     height: 100%;
-    width: 68px;
+    width: 76px;
+    padding: 0 6px;
     border: none;
     border-radius: 0 var(--r-md) var(--r-md) 0;
     background: var(--brand-deep);
     color: var(--on-dark);
     font-size: 12px;
-    letter-spacing: 0.1em;
+    letter-spacing: 0.06em;
   }
 }
 
