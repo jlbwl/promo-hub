@@ -32,28 +32,28 @@ defineProps<{
 
 <style scoped lang="scss">
 .icp-footer {
-  padding: 16px 0;
+  padding: 12px 0 10px;
   text-align: center;
-  background-color: #f7f8fa;
-  border-top: 1px solid #ebedf0;
+  background-color: transparent;
+  border-top: none;
 }
 
 .icp-info {
-  font-size: 12px;
-  color: #909399;
+  font-size: 9.5px;
+  color: var(--faint);
 }
 
 .icp-link {
-  color: #909399;
+  color: var(--faint);
   text-decoration: none;
   transition: color 0.3s;
 
   &:hover {
-    color: #409eff;
+    color: var(--brand);
   }
 }
 
 .icp-placeholder {
-  color: #c0c4cc;
+  color: var(--faint);
 }
 </style>

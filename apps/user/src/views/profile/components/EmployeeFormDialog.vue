@@ -40,7 +40,7 @@
               <van-icon
                 name="phone"
                 size="16"
-                color="#1989fa"
+                color="#8A5222"
               />
             </template>
             <template
@@ -61,7 +61,7 @@
               <van-icon
                 name="lock"
                 size="16"
-                color="#1989fa"
+                color="#8A5222"
               />
             </template>
           </van-field>
@@ -76,7 +76,7 @@
               <van-icon
                 name="user-o"
                 size="16"
-                color="#1989fa"
+                color="#8A5222"
               />
             </template>
           </van-field>
@@ -91,7 +91,7 @@
               <van-icon
                 name="clock-o"
                 size="16"
-                color="#1989fa"
+                color="#8A5222"
               />
             </template>
             <template #right-icon>
@@ -103,7 +103,7 @@
           <van-icon
             name="info-o"
             size="16"
-            color="#1989fa"
+            color="#8A5222"
           />
           <div class="tips-content">
             <p>员工账户有效期到期后将自动失效</p>
@@ -250,16 +250,16 @@ defineExpose({ open })
 <style scoped lang="scss">
 // 创建员工子账户弹窗
 .employee-dialog {
-  background: #fff;
+  background: var(--surface);
   border-radius: 16px;
   overflow: hidden;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+  box-shadow: var(--shadow-pop);
 
   .dialog-header {
     display: flex;
     align-items: center;
     padding: 20px 24px;
-    background: linear-gradient(135deg, #1989fa 0%, #4fc3f7 100%);
+    background: var(--mast);
 
     .header-icon {
       width: 40px;
@@ -267,29 +267,29 @@ defineExpose({ open })
       display: flex;
       align-items: center;
       justify-content: center;
-      background: rgba(255, 255, 255, 0.2);
+      background: rgba(216, 176, 122, 0.18);
       border-radius: 50%;
       margin-right: 12px;
-      color: #fff;
+      color: var(--tabbar-active);
     }
 
     h3 {
       flex: 1;
       font-size: 18px;
-      font-weight: 600;
-      color: #fff;
+      font-weight: 650;
+      color: var(--on-dark);
       margin: 0;
     }
 
     .close-icon {
       font-size: 20px;
-      color: rgba(255, 255, 255, 0.8);
+      color: rgba(247, 235, 216, 0.8);
       cursor: pointer;
       padding: 4px;
       transition: all 0.2s;
 
       &:hover {
-        color: #fff;
+        color: var(--on-dark);
         transform: rotate(90deg);
       }
     }
@@ -300,13 +300,13 @@ defineExpose({ open })
   }
 
   .form-group {
-    background: #f8f9fa;
+    background: var(--surface-2);
     border-radius: 12px;
     padding: 8px 0;
     margin-bottom: 16px;
 
     .form-field {
-      border-bottom: 1px solid #e8e8e8;
+      border-bottom: 1px solid var(--line-soft);
 
       &:last-child {
         border-bottom: none;
@@ -314,7 +314,7 @@ defineExpose({ open })
 
       :deep(.van-field__label) {
         font-size: 14px;
-        color: #646566;
+        color: var(--muted);
         width: 72px;
       }
 
@@ -333,16 +333,16 @@ defineExpose({ open })
     align-items: flex-start;
     gap: 8px;
     padding: 12px 16px;
-    background: #e8f4fd;
+    background: rgba(234, 214, 176, 0.35);
     border-radius: 8px;
-    border-left: 4px solid #1989fa;
+    border-left: 4px solid var(--gold);
 
     .tips-content {
       flex: 1;
 
       p {
         font-size: 12px;
-        color: #646566;
+        color: var(--ink-2);
         margin: 4px 0;
         line-height: 1.5;
       }
@@ -351,12 +351,12 @@ defineExpose({ open })
 
   .unit {
     font-size: 13px;
-    color: #969799;
+    color: var(--muted);
   }
 
   .readonly-tip {
     font-size: 12px;
-    color: #969799;
+    color: var(--muted);
   }
 
   .dialog-footer {
@@ -369,12 +369,12 @@ defineExpose({ open })
       border-radius: 10px;
       height: 44px;
       font-size: 15px;
-      color: #646566;
-      background: #f5f5f5;
-      border: none;
+      color: var(--ink-2);
+      background: var(--surface-2);
+      border: 1px solid var(--line);
 
       &:active {
-        background: #e8e8e8;
+        background: #efe4d0;
       }
     }
 
@@ -383,9 +383,9 @@ defineExpose({ open })
       height: 44px;
       font-size: 15px;
       font-weight: 500;
-      background: linear-gradient(135deg, #1989fa 0%, #4fc3f7 100%);
+      background: var(--brand);
       border: none;
-      box-shadow: 0 4px 12px rgba(25, 137, 250, 0.3);
+      box-shadow: 0 4px 12px rgba(138, 82, 34, 0.28);
 
       &:active {
         transform: scale(0.98);

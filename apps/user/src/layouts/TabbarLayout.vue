@@ -163,11 +163,27 @@ watch(
   display: flex;
   flex-direction: column;
   height: 100%;
+  background: var(--paper);
 }
 
 .tabbar-content {
   flex: 1;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+  background: var(--paper);
+}
+
+// 底栏文字：选中态加粗，未选中保持克制
+:deep(.van-tabbar-item) {
+  letter-spacing: 0.02em;
+}
+
+:deep(.van-tabbar-item--active) {
+  font-weight: 650;
+}
+
+// 选中图标略有暖金光泽
+:deep(.van-tabbar-item--active .van-icon) {
+  filter: drop-shadow(0 0 6px rgba(226, 196, 142, 0.35));
 }
 </style>

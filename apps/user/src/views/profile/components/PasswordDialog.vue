@@ -160,34 +160,34 @@ onBeforeUnmount(() => {
 <style scoped lang="scss">
 // 设置密码弹窗
 .password-dialog {
-  background: #fff;
+  background: var(--surface);
   border-radius: 16px;
   overflow: hidden;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+  box-shadow: var(--shadow-pop);
 
   .dialog-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
     padding: 20px 24px;
-    background: linear-gradient(135deg, #1989fa 0%, #4fc3f7 100%);
+    background: var(--mast);
 
     h3 {
       font-size: 18px;
-      font-weight: 600;
-      color: #fff;
+      font-weight: 650;
+      color: var(--on-dark);
       margin: 0;
     }
 
     :deep(.van-icon) {
       font-size: 20px;
-      color: rgba(255, 255, 255, 0.8);
+      color: rgba(247, 235, 216, 0.8);
       cursor: pointer;
       padding: 4px;
       transition: all 0.2s;
 
       &:hover {
-        color: #fff;
+        color: var(--on-dark);
         transform: rotate(90deg);
       }
     }

@@ -6,7 +6,7 @@
           <van-icon
             name="user-o"
             size="48"
-            color="#1989fa"
+            color="#8A5222"
           />
         </div>
         <h1 class="title">
@@ -135,14 +135,17 @@ const goBack = () => {
 <style scoped lang="scss">
 .employee-login-page {
   min-height: 100vh;
-  background: linear-gradient(180deg, #1989fa 0%, #4fc3f7 100%);
+  background:
+    radial-gradient(900px 480px at 18% -10%, #3e2a19 0%, rgba(62, 42, 25, 0) 62%),
+    linear-gradient(168deg, #120d09 0%, #1d140d 52%, #0e0a07 100%);
   display: flex;
   flex-direction: column;
-  padding: 60px 20px 40px;
+  padding: 60px 20px calc(40px + env(safe-area-inset-bottom));
 }
 
 .login-container {
-  background: #fff;
+  background: var(--surface);
+  border: 1px solid var(--line);
   border-radius: 16px;
   padding: 32px 24px;
   margin-bottom: 20px;
@@ -157,7 +160,8 @@ const goBack = () => {
   width: 88px;
   height: 88px;
   margin: 0 auto 16px;
-  background: rgba(25, 137, 250, 0.1);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -166,14 +170,14 @@ const goBack = () => {
 
 .title {
   font-size: 24px;
-  font-weight: 600;
-  color: #323233;
+  font-weight: 650;
+  color: var(--ink);
   margin: 0 0 8px;
 }
 
 .subtitle {
   font-size: 14px;
-  color: #969799;
+  color: var(--muted);
   margin: 0;
 }
 
@@ -200,7 +204,7 @@ const goBack = () => {
 
 .back-link {
   text-align: center;
-  color: rgba(255, 255, 255, 0.8);
+  color: rgba(247, 235, 216, 0.75);
   font-size: 14px;
   padding: 16px;
 }

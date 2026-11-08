@@ -8,7 +8,6 @@
       <van-icon
         name="users"
         size="20"
-        color="#1989fa"
       />
       <span class="stat-value">{{ employeeCount }}</span>
       <span class="stat-label">我的团队</span>
@@ -32,21 +31,26 @@ const emit = defineEmits<{
   display: flex;
   align-items: center;
   justify-content: space-around;
-  margin: -20px 16px 12px;
-  padding: 20px;
-  background-color: #ffffff;
-  border-radius: 12px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  margin: -26px 14px 12px;
+  padding: 18px;
+  background-color: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  box-shadow: 0 10px 26px -20px rgba(31, 24, 17, 0.5);
   position: relative;
-  z-index: 1;
+  z-index: 2;
 }
 
 .stat-item {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   cursor: pointer;
+
+  :deep(.van-icon) {
+    color: var(--brand);
+  }
 
   &:active {
     opacity: 0.7;
@@ -54,13 +58,15 @@ const emit = defineEmits<{
 }
 
 .stat-value {
-  font-size: 18px;
-  font-weight: 700;
-  color: #323233;
+  font-size: 20px;
+  font-weight: 750;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
 }
 
 .stat-label {
-  font-size: 12px;
-  color: #969799;
+  font-size: 10.5px;
+  color: var(--muted);
+  letter-spacing: 0.02em;
 }
 </style>

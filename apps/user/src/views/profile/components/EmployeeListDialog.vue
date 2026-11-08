@@ -60,13 +60,13 @@
                 <van-icon
                   name="edit"
                   size="18"
-                  color="#1989fa"
+                  color="#8A5222"
                   @click="emit('edit', emp)"
                 />
                 <van-icon
                   name="delete"
                   size="18"
-                  color="#ee0a24"
+                  color="#9C382D"
                   @click="handleDeleteEmployee(emp)"
                 />
               </div>
@@ -136,7 +136,7 @@ const handleDeleteEmployee = async (emp: Employee) => {
       message: `确定要删除员工「${emp.nickname}」吗？`,
       confirmButtonText: '确定删除',
       cancelButtonText: '取消',
-      confirmButtonColor: '#ee0a24'
+      confirmButtonColor: '#9C382D'
     })
 
     const res = await del(`/employees/${emp.id}`)
@@ -161,16 +161,16 @@ const handleDeleteEmployee = async (emp: Employee) => {
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: #fff;
+  background: var(--surface);
   border-radius: 16px;
   overflow: hidden;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+  box-shadow: var(--shadow-pop);
 
   .dialog-header {
     display: flex;
     align-items: center;
     padding: 20px 24px;
-    background: linear-gradient(135deg, #1989fa 0%, #4fc3f7 100%);
+    background: var(--mast);
 
     .header-icon {
       width: 40px;
@@ -178,29 +178,29 @@ const handleDeleteEmployee = async (emp: Employee) => {
       display: flex;
       align-items: center;
       justify-content: center;
-      background: rgba(255, 255, 255, 0.2);
+      background: rgba(216, 176, 122, 0.18);
       border-radius: 50%;
       margin-right: 12px;
-      color: #fff;
+      color: var(--tabbar-active);
     }
 
     h3 {
       flex: 1;
       font-size: 18px;
-      font-weight: 600;
-      color: #fff;
+      font-weight: 650;
+      color: var(--on-dark);
       margin: 0;
     }
 
     .close-icon {
       font-size: 20px;
-      color: rgba(255, 255, 255, 0.8);
+      color: rgba(247, 235, 216, 0.8);
       cursor: pointer;
       padding: 4px;
       transition: all 0.2s;
 
       &:hover {
-        color: #fff;
+        color: var(--on-dark);
         transform: rotate(90deg);
       }
     }
@@ -225,10 +225,11 @@ const handleDeleteEmployee = async (emp: Employee) => {
     }
 
     .employee-item {
-      margin-bottom: 12px;
+      margin-bottom: 10px;
+      border: 1px solid var(--line);
       border-radius: 12px;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-      background: #fff;
+      box-shadow: none;
+      background: var(--surface-2);
 
       .employee-avatar {
         width: 44px;
@@ -236,22 +237,22 @@ const handleDeleteEmployee = async (emp: Employee) => {
         display: flex;
         align-items: center;
         justify-content: center;
-        background: linear-gradient(135deg, #e8f4fd 0%, #f0f7ff 100%);
+        background: rgba(234, 214, 176, 0.4);
         border-radius: 50%;
-        color: #1989fa;
+        color: var(--brand);
         font-size: 18px;
       }
 
       .employee-name {
         font-size: 15px;
-        font-weight: 600;
-        color: #323233;
+        font-weight: 650;
+        color: var(--ink);
         margin-bottom: 4px;
       }
 
       .employee-phone {
         font-size: 13px;
-        color: #969799;
+        color: var(--muted);
       }
 
       .employee-actions {
@@ -286,21 +287,21 @@ const handleDeleteEmployee = async (emp: Employee) => {
         display: flex;
         align-items: center;
         justify-content: center;
-        background: linear-gradient(135deg, #f5f7fa 0%, #e8eaed 100%);
+        background: var(--surface-2);
         border-radius: 50%;
-        color: #c8c9cc;
+        color: var(--faint);
         margin-bottom: 20px;
       }
 
       .empty-text {
         font-size: 16px;
-        color: #646566;
+        color: var(--ink-2);
         margin: 0 0 8px 0;
       }
 
       .empty-hint {
         font-size: 13px;
-        color: #969799;
+        color: var(--muted);
         margin: 0;
       }
     }
@@ -314,9 +315,9 @@ const handleDeleteEmployee = async (emp: Employee) => {
       height: 46px;
       font-size: 16px;
       font-weight: 500;
-      background: linear-gradient(135deg, #1989fa 0%, #4fc3f7 100%);
+      background: var(--brand);
       border: none;
-      box-shadow: 0 4px 16px rgba(25, 137, 250, 0.35);
+      box-shadow: 0 4px 16px rgba(138, 82, 34, 0.28);
 
       &:active {
         transform: scale(0.98);

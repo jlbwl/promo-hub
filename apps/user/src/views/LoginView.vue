@@ -6,7 +6,7 @@
         <van-icon
           name="shop-o"
           size="64"
-          color="#1989fa"
+          color="#E2C48E"
         />
       </div>
       <h2 class="app-name">
@@ -388,11 +388,13 @@ const goEmployeeLogin = () => {
 <style scoped lang="scss">
 .login-page {
   min-height: 100vh;
-  background: linear-gradient(135deg, #1989fa 0%, #4fc3f7 100%);
+  background:
+    radial-gradient(900px 480px at 18% -10%, #3e2a19 0%, rgba(62, 42, 25, 0) 62%),
+    linear-gradient(168deg, #120d09 0%, #1d140d 52%, #0e0a07 100%);
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 0 20px;
+  padding: 0 20px calc(24px + env(safe-area-inset-bottom));
 }
 
 .login-header {
@@ -401,8 +403,17 @@ const goEmployeeLogin = () => {
   margin-bottom: 24px;
 
   .logo { margin-bottom: 12px; }
-  .app-name { font-size: 22px; font-weight: 600; color: #ffffff; margin-bottom: 6px; }
-  .app-desc { font-size: 13px; color: rgba(255, 255, 255, 0.8); }
+  .app-name {
+    font-size: 22px;
+    font-weight: 650;
+    letter-spacing: 0.02em;
+    color: var(--on-dark);
+    margin-bottom: 6px;
+  }
+  .app-desc {
+    font-size: 12px;
+    color: rgba(247, 235, 216, 0.6);
+  }
 }
 
 .login-form {
@@ -414,17 +425,17 @@ const goEmployeeLogin = () => {
   }
 
   :deep(.van-tab) {
-    color: rgba(255, 255, 255, 0.7);
+    color: rgba(247, 235, 216, 0.65);
     font-size: 14px;
   }
 
   :deep(.van-tab--active) {
-    color: #ffffff;
-    font-weight: 600;
+    color: var(--tabbar-active);
+    font-weight: 650;
   }
 
   :deep(.van-tabs__line) {
-    background: #ffffff;
+    background: var(--gold);
   }
 
   :deep(.van-cell-group--inset) {
@@ -445,7 +456,8 @@ const goEmployeeLogin = () => {
 .option-item {
   display: flex;
   align-items: center;
-  background: rgba(255, 255, 255, 0.15);
+  background: rgba(255, 248, 236, 0.06);
+  border: 1px solid rgba(216, 176, 122, 0.18);
   border-radius: 16px;
   padding: 20px 16px;
   cursor: pointer;
@@ -453,22 +465,30 @@ const goEmployeeLogin = () => {
   backdrop-filter: blur(10px);
 
   &:active {
-    background: rgba(255, 255, 255, 0.25);
+    background: rgba(255, 248, 236, 0.12);
     transform: scale(0.98);
+  }
+
+  :deep(.van-icon) {
+    color: var(--on-dark-muted);
   }
 }
 
 .option-icon {
   width: 56px;
   height: 56px;
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(216, 176, 122, 0.18);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #ffffff;
+  color: var(--tabbar-active);
   margin-right: 16px;
   flex-shrink: 0;
+
+  :deep(.van-icon) {
+    color: var(--tabbar-active);
+  }
 }
 
 .option-content {
@@ -476,22 +496,22 @@ const goEmployeeLogin = () => {
 }
 
 .option-title {
-  font-size: 17px;
-  font-weight: 600;
-  color: #ffffff;
+  font-size: 16px;
+  font-weight: 650;
+  color: var(--on-dark);
   margin-bottom: 4px;
 }
 
 .option-desc {
-  font-size: 13px;
-  color: rgba(255, 255, 255, 0.75);
+  font-size: 12px;
+  color: rgba(247, 235, 216, 0.6);
 }
 
 /* 返回按钮 */
 .back-btn {
   display: flex;
   align-items: center;
-  color: #ffffff;
+  color: var(--on-dark);
   font-size: 15px;
   padding: 8px 0 16px;
   cursor: pointer;
@@ -508,17 +528,17 @@ const goEmployeeLogin = () => {
   }
 
   :deep(.van-tab) {
-    color: rgba(255, 255, 255, 0.7);
+    color: rgba(247, 235, 216, 0.65);
     font-size: 14px;
   }
 
   :deep(.van-tab--active) {
-    color: #ffffff;
-    font-weight: 600;
+    color: var(--tabbar-active);
+    font-weight: 650;
   }
 
   :deep(.van-tabs__line) {
-    background: #ffffff;
+    background: var(--gold);
   }
 }
 
@@ -531,7 +551,7 @@ const goEmployeeLogin = () => {
 
   .link-text {
     font-size: 13px;
-    color: rgba(255, 255, 255, 0.8);
+    color: rgba(247, 235, 216, 0.75);
     cursor: pointer;
     &:active { opacity: 0.7; }
   }
@@ -540,7 +560,7 @@ const goEmployeeLogin = () => {
 .sms-tip {
   text-align: center;
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.6);
+  color: rgba(247, 235, 216, 0.55);
   margin-top: 8px;
 }
 </style>

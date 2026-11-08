@@ -1,0 +1,197 @@
+/**
+ * 墨金高密度主题令牌
+ *
+ * - 自定义令牌统一挂在 :root，供页面 scoped 样式通过 var(--xxx) 复用
+ * - Vant 变量使用 :root:root 提升特异性：Vant 的 base.css 由组件按需引入，
+ *   加载时机可能晚于本文件，普通 :root 会被后加载的 :root 覆盖
+ * - 只保留两类全局例外（NavBar 渐变、Tabbar 深底），其余一律走变量
+ */
+
+:root {
+  /* 颜色 */
+  --paper: #ede6d8;
+  --surface: #fffcf5;
+  --surface-2: #f6eedf;
+  --ink: #1f1811;
+  --ink-2: #4a3b2c;
+  --muted: #7c6c59;
+  --faint: #a99781;
+  --line: #ded3c0;
+  --line-soft: #ece3d3;
+  --brand: #8a5222;
+  --brand-deep: #6b3d17;
+  --gold: #c89a58;
+  --gold-soft: #ead6b0;
+  --profit: #a33e28;
+  --success: #3f6b4a;
+  --info: #4c6170;
+  --danger: #9c382d;
+  --warn: #9a641c;
+  --on-dark: #f7ebd8;
+  --on-dark-muted: rgba(247, 235, 216, 0.62);
+  --on-dark-line: rgba(216, 176, 122, 0.2);
+
+  /* 渐变与底栏 */
+  --mast: linear-gradient(150deg, #241a12 0%, #3b2918 55%, #4e3520 100%);
+  --tabbar-bg: #1b1310;
+  --tabbar-idle: #8e7e6b;
+  --tabbar-active: #e2c48e;
+
+  /* 圆角 */
+  --r-xs: 4px;
+  --r-sm: 8px;
+  --r-md: 12px;
+  --r-lg: 16px;
+  --r-full: 999px;
+
+  /* 间距 */
+  --sp-1: 4px;
+  --sp-2: 6px;
+  --sp-3: 8px;
+  --sp-4: 12px;
+  --sp-5: 14px;
+  --sp-6: 16px;
+  --sp-7: 20px;
+  --sp-8: 24px;
+
+  /* 阴影与动效 */
+  --shadow-card: none;
+  --shadow-pop: 0 18px 44px -20px rgba(31, 24, 17, 0.45);
+  --duration: 180ms;
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+
+  /* 字号 */
+  --fs-display: 22px;
+  --fs-hero: 21px;
+  --fs-card: 13px;
+  --fs-body: 12px;
+  --fs-meta: 10.5px;
+  --fs-micro: 9.5px;
+  --fs-price-card: 17px;
+  --fs-price-detail: 24px;
+}
+
+:root:root {
+  /* 品牌与状态色 */
+  --van-primary-color: #8a5222;
+  --van-success-color: #3f6b4a;
+  --van-danger-color: #9c382d;
+  --van-warning-color: #9a641c;
+
+  /* 文字 */
+  --van-text-color: #1f1811;
+  --van-text-color-2: #7c6c59;
+  --van-text-color-3: #a99781;
+  --van-active-color: #f6eedf;
+
+  /* 背景与描边 */
+  --van-background: #ede6d8;
+  --van-background-2: #fffcf5;
+  --van-background-3: #f6eedf;
+  --van-border-color: #ded3c0;
+
+  /* 圆角与字体 */
+  --van-radius-sm: 6px;
+  --van-radius-md: 10px;
+  --van-radius-lg: 12px;
+  --van-radius-max: 999px;
+  --van-base-font: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', 'PingFang SC',
+    'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  --van-price-font: var(--van-base-font);
+
+  /* NavBar */
+  --van-nav-bar-background: #241a12;
+  --van-nav-bar-title-text-color: #f7ebd8;
+  --van-nav-bar-icon-color: #e2c48e;
+  --van-nav-bar-text-color: #e2c48e;
+  --van-nav-bar-title-font-size: 16px;
+
+  /* Tabbar */
+  --van-tabbar-background: #1b1310;
+  --van-tabbar-item-text-color: #8e7e6b;
+  --van-tabbar-item-active-color: #e2c48e;
+  --van-tabbar-item-active-background: transparent;
+  --van-tabbar-height: 56px;
+  --van-tabbar-item-icon-size: 21px;
+  --van-tabbar-item-font-size: 10px;
+
+  /* Tabs */
+  --van-tabs-nav-background: #fffcf5;
+  --van-tabs-default-color: #7c6c59;
+  --van-tab-text-color: #7c6c59;
+  --van-tab-active-text-color: #6b3d17;
+  --van-tabs-bottom-bar-color: #c89a58;
+
+  /* Button */
+  --van-button-primary-background: #8a5222;
+  --van-button-primary-border-color: #8a5222;
+  --van-button-primary-color: #fffcf5;
+  --van-button-default-background: #f6eedf;
+  --van-button-default-color: #6b3d17;
+  --van-button-default-border-color: #ded3c0;
+  --van-button-danger-background: #9c382d;
+  --van-button-danger-border-color: #9c382d;
+
+  /* Cell / Field */
+  --van-cell-background: #fffcf5;
+  --van-cell-border-color: #ece3d3;
+  --van-cell-label-color: #7c6c59;
+  --van-cell-value-color: #4a3b2c;
+  --van-field-label-color: #4a3b2c;
+  --van-field-input-text-color: #1f1811;
+  --van-field-placeholder-text-color: #a99781;
+  --van-field-error-message-color: #9c382d;
+
+  /* Radio */
+  --van-radio-checked-icon-color: #8a5222;
+  --van-radio-border-color: #ded3c0;
+
+  /* Dialog / Popup */
+  --van-dialog-background: #fffcf5;
+  --van-dialog-confirm-button-text-color: #8a5222;
+  --van-dialog-has-title-message-text-color: #4a3b2c;
+  --van-dialog-radius: 16px;
+  --van-popup-background: #fffcf5;
+  --van-popup-round-radius: 16px;
+
+  /* Toast / Tag / Empty / List */
+  --van-toast-background: rgba(31, 24, 17, 0.9);
+  --van-toast-text-color: #f7ebd8;
+  --van-empty-description-color: #7c6c59;
+  --van-list-text-color: #a99781;
+  --van-pull-refresh-head-text-color: #7c6c59;
+  --van-loading-spinner-color: #8a5222;
+  --van-badge-background: #9c382d;
+
+  /* ActionBar / Search / Image */
+  --van-action-bar-background: #fffcf5;
+  --van-search-background: transparent;
+  --van-search-content-background: #fffcf5;
+  --van-image-placeholder-background: #f6eedf;
+  --van-image-error-icon-color: #a99781;
+}
+
+/* 全局例外 1：NavBar 深墨底（与页面 hero 顶部同色，避免出现色块断层） */
+.van-nav-bar {
+  background-color: #241a12;
+
+  &::after {
+    border-bottom-color: transparent;
+  }
+}
+
+/* 固定导航占位块跟随深色，避免顶部出现纸色断层 */
+.van-nav-bar__placeholder {
+  background-color: #241a12;
+}
+
+/* 全局例外 2：Tabbar 深底与顶部细描边 */
+.van-tabbar {
+  background: var(--tabbar-bg);
+  border-top: 1px solid rgba(216, 176, 122, 0.16);
+  box-shadow: none;
+
+  &::after {
+    border-top-color: transparent;
+  }
+}

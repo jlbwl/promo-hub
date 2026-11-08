@@ -155,20 +155,43 @@ const doLogout = async () => {
 <style scoped lang="scss">
 .employee-profile-page {
   min-height: 100%;
-  background-color: #f7f8fa;
-  padding-bottom: 20px;
+  background-color: var(--paper);
+  padding-bottom: calc(20px + env(safe-area-inset-bottom));
 }
 
 // 用户信息头部
 .user-header {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  padding: 40px 20px 30px;
+  position: relative;
+  overflow: hidden;
+  padding: 34px 18px 40px;
+  background: var(--mast);
+  color: var(--on-dark);
+
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: repeating-linear-gradient(
+      96deg,
+      rgba(255, 235, 205, 0.045) 0 1px,
+      transparent 1px 7px
+    );
+  }
 }
 
 .user-info {
+  position: relative;
+  z-index: 1;
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 14px;
+
+  :deep(.van-image) {
+    flex: none;
+    border: 1px solid rgba(216, 176, 122, 0.3);
+    box-shadow: 0 6px 18px -8px rgba(0, 0, 0, 0.5);
+  }
 }
 
 .avatar-placeholder {
@@ -177,48 +200,71 @@ const doLogout = async () => {
   justify-content: center;
   width: 100%;
   height: 100%;
-  background-color: rgba(255, 255, 255, 0.3);
+  background-color: rgba(216, 176, 122, 0.28);
   border-radius: 50%;
 }
 
 .user-detail {
+  min-width: 0;
+
   .user-name {
     font-size: 18px;
-    font-weight: 600;
-    color: #ffffff;
+    font-weight: 650;
+    color: var(--on-dark);
     margin-bottom: 4px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .user-id {
-    font-size: 13px;
-    color: rgba(255, 255, 255, 0.8);
+    font-size: 10.5px;
+    letter-spacing: 0.04em;
+    color: var(--on-dark-muted);
   }
 }
 
 // 主账户信息卡片
-.main-account-card {
-  margin-top: -20px;
-  position: relative;
-  z-index: 1;
-  border-radius: 12px;
+.main-account-card,
+.expire-card {
+  margin: 10px 14px 0;
   overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface);
+}
+
+.main-account-card {
+  margin-top: -26px;
+  position: relative;
+  z-index: 2;
+  box-shadow: 0 10px 26px -20px rgba(31, 24, 17, 0.5);
 
   :deep(.van-cell__left-icon) {
-    color: #667eea;
-    font-size: 20px;
+    color: var(--brand);
+    font-size: 19px;
     margin-right: 8px;
   }
 }
 
-// 有效期卡片
 .expire-card {
-  margin-top: 12px;
-  border-radius: 12px;
-  overflow: hidden;
+  margin-top: 10px;
+}
+
+.employee-profile-page :deep(.van-cell) {
+  font-size: 13px;
 }
 
 // 退出登录
 .logout-wrap {
-  margin: 24px 16px 0;
+  margin: 20px 14px 0;
+
+  :deep(.van-button) {
+    height: 44px;
+    font-size: 13px;
+    border-color: var(--line);
+    color: var(--danger);
+    background: transparent;
+  }
 }
 </style>

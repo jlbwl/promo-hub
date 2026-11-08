@@ -73,7 +73,7 @@
       show-cancel-button
       confirm-button-text="确定退出"
       cancel-button-text="取消"
-      confirm-button-color="#ee0a24"
+      confirm-button-color="#9C382D"
       @confirm="doLogout"
     />
 
@@ -218,25 +218,40 @@ const doLogout = async () => {
 <style scoped lang="scss">
 .profile-page {
   min-height: 100%;
-  background-color: #f7f8fa;
-  padding-bottom: 20px;
+  background-color: var(--paper);
+  padding-bottom: calc(20px + env(safe-area-inset-bottom));
 }
 
 // 功能列表
-.func-group {
-  margin-top: 12px;
-  border-radius: 12px;
+.profile-page :deep(.func-group) {
+  margin: 10px 14px 0;
   overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface);
 
-  :deep(.van-cell__left-icon) {
-    color: #1989fa;
-    font-size: 20px;
+  .van-cell__left-icon {
+    color: var(--brand);
+    font-size: 19px;
     margin-right: 8px;
+  }
+
+  .van-cell {
+    font-size: 13px;
+    font-weight: 500;
   }
 }
 
 // 退出登录
 .logout-wrap {
-  margin: 24px 16px 0;
+  margin: 20px 14px 0;
+
+  :deep(.van-button) {
+    height: 44px;
+    font-size: 13px;
+    border-color: var(--line);
+    color: var(--danger);
+    background: transparent;
+  }
 }
 </style>
