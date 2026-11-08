@@ -8,40 +8,45 @@
     />
 
     <!-- 购物车列表 -->
-    <div class="cart-content">
-      <div
-        v-if="cartItems.length > 0"
-        class="cart-list"
-      >
-        <CartItem
-          v-for="item in cartItems"
-          :key="item.id"
-          :item="item"
-          :is-employee="isEmployee"
-          @click="goToProduct"
-          @remove="handleRemove"
-        />
-      </div>
+    <van-pull-refresh
+      v-model="refreshing"
+      @refresh="onRefresh"
+    >
+      <div class="cart-content">
+        <div
+          v-if="cartItems.length > 0"
+          class="cart-list"
+        >
+          <CartItem
+            v-for="item in cartItems"
+            :key="item.id"
+            :item="item"
+            :is-employee="isEmployee"
+            @click="goToProduct"
+            @remove="handleRemove"
+          />
+        </div>
 
-      <!-- 空状态 -->
-      <van-empty
-        v-else
-        description="收藏是空的"
-        image="https://fastly.jsdelivr.net/npm/@vant/assets/custom-empty-image.png"
-        image-size="100"
-      >
-        <template #bottom>
-          <van-button
-            round
-            type="primary"
-            to="/home"
-            size="small"
-          >
-            去选产品
-          </van-button>
-        </template>
-      </van-empty>
-    </div>
+        <!-- 空状态 -->
+        <van-empty
+          v-else
+          description="收藏是空的"
+          image="https://fastly.jsdelivr.net/npm/@vant/assets/custom-empty-image.png"
+          image-size="100"
+        >
+          <template #bottom>
+            <van-button
+              round
+              type="primary"
+              to="/home"
+              size="small"
+            >
+              去选产品
+            </van-button>
+          </template>
+        </van-empty>
+      </div>
+    </van-pull-refresh>
 
     <!-- 底部提示（子账户） -->
     <div
@@ -81,6 +86,11 @@ const { getUserId, isEmployee: checkIsEmployee } = useUser()
 const cartItems = ref<CartItemEntity[]>([])
 
 /**
+ * 下拉刷新状态
+ */
+const refreshing = ref(false)
+
+/**
  * 是否为员工账户
  */
 const isEmployee = computed(() => checkIsEmployee())
@@ -89,21 +99,36 @@ const isEmployee = computed(() => checkIsEmployee())
  * 加载购物车数据
  * 主账户读取自己的购物车；员工读取其主账户的购物车（user_info.id 即主账户 id）。
  * 统一走 /cart 接口，与 Tabbar 收藏徽标计数口径保持一致。
+ * @returns 请求是否成功
  */
-const loadCart = async () => {
+const loadCart = async (): Promise<boolean> => {
   try {
     const userId = getUserId()
     if (!userId) {
       cartItems.value = []
-      return
+      return true
     }
     const res = await get<CartItemEntity[]>('/cart', { userId })
     if (res.code === 0) {
       cartItems.value = res.data || []
     }
+    return true
   } catch (error) {
     logger.error('[CartView] 获取购物车失败:', error)
+    // 失败时不修改已有列表，保留当前已展示的数据
+    return false
   }
+}
+
+/**
+ * 下拉刷新：重新请求收藏列表，失败时保留已展示的数据
+ */
+const onRefresh = async () => {
+  const success = await loadCart()
+  if (!success) {
+    showToast('刷新失败，请稍后重试')
+  }
+  refreshing.value = false
 }
 
 /**

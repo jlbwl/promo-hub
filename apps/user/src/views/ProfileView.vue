@@ -1,50 +1,69 @@
 <template>
   <div class="profile-page">
-    <!-- 用户信息区域 -->
-    <UserHeader :user-info="userInfo" />
-
-    <!-- 数据统计 -->
-    <StatsCard
-      :employee-count="employeeCount"
-      @show-employees="showEmployeeList = true"
-    />
-
-    <!-- 功能列表 -->
-    <van-cell-group
-      inset
-      class="func-group"
+    <van-pull-refresh
+      v-model="refreshing"
+      @refresh="onRefresh"
     >
-      <van-cell
-        title="创建员工子账户"
-        icon="user-o"
-        is-link
-        @click="openCreateEmployee"
-      />
-    </van-cell-group>
+      <!-- 用户信息区域 -->
+      <UserHeader :user-info="userInfo" />
 
-    <van-cell-group
-      inset
-      class="func-group"
-    >
-      <van-cell
-        title="修改密码"
-        icon="lock"
-        is-link
-        @click="handleChangePassword"
+      <!-- 数据统计 -->
+      <StatsCard
+        :employee-count="employeeCount"
+        @show-employees="showEmployeeList = true"
       />
-      <van-cell
-        title="关于我们"
-        icon="info-o"
-        is-link
-        @click="handleAbout"
-      />
-      <van-cell
-        title="联系客服"
-        icon="service-o"
-        is-link
-        @click="handleContactService"
-      />
-    </van-cell-group>
+
+      <!-- 功能列表 -->
+      <van-cell-group
+        inset
+        class="func-group"
+      >
+        <van-cell
+          title="创建员工子账户"
+          icon="user-o"
+          is-link
+          @click="openCreateEmployee"
+        />
+      </van-cell-group>
+
+      <van-cell-group
+        inset
+        class="func-group"
+      >
+        <van-cell
+          title="修改密码"
+          icon="lock"
+          is-link
+          @click="handleChangePassword"
+        />
+        <van-cell
+          title="关于我们"
+          icon="info-o"
+          is-link
+          @click="handleAbout"
+        />
+        <van-cell
+          title="联系客服"
+          icon="service-o"
+          is-link
+          @click="handleContactService"
+        />
+      </van-cell-group>
+
+      <!-- 退出登录按钮 -->
+      <div class="logout-wrap">
+        <van-button
+          block
+          round
+          plain
+          type="danger"
+          size="large"
+          @click="logoutDialogVisible = true"
+        >
+          退出登录
+        </van-button>
+      </div>
+    </van-pull-refresh>
 
     <!-- 退出登录确认弹窗 -->
     <van-dialog
@@ -82,20 +101,6 @@
       ref="passwordDialogRef"
       :phone="userInfo.phone"
     />
-
-    <!-- 退出登录按钮 -->
-    <div class="logout-wrap">
-      <van-button
-        block
-        round
-        plain
-        type="danger"
-        size="large"
-        @click="logoutDialogVisible = true"
-      >
-        退出登录
-      </van-button>
-    </div>
   </div>
 </template>
 
@@ -120,6 +125,9 @@ const router = useRouter()
 // 用户信息
 const { userInfo, loadUserInfo } = useUserInfo()
 
+// 下拉刷新状态
+const refreshing = ref(false)
+
 // 员工子账户列表
 const {
   showEmployeeList,
@@ -137,6 +145,15 @@ const passwordDialogRef = ref<{ open: () => void } | null>(null)
 onMounted(() => {
   loadUserInfo()
 })
+
+// 下拉刷新：重新拉取用户信息，失败时保留已展示的数据
+const onRefresh = async () => {
+  const success = await loadUserInfo()
+  if (!success) {
+    showToast('刷新失败，请稍后重试')
+  }
+  refreshing.value = false
+}
 
 // 打开创建员工弹窗
 const openCreateEmployee = () => {

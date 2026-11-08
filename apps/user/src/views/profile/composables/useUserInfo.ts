@@ -18,18 +18,19 @@ export function useUserInfo() {
   })
 
   // 加载用户信息
-  const loadUserInfo = async () => {
+  // @returns 请求是否成功（失败时保留已展示的数据）
+  const loadUserInfo = async (): Promise<boolean> => {
     try {
       const infoStr = localStorage.getItem('user_info')
       if (!infoStr) {
         logger.warn('localStorage 中没有用户信息')
-        return
+        return false
       }
 
       const info = JSON.parse(infoStr) as StoredUserInfo
       if (!info.id) {
         logger.warn('localStorage 中的用户信息不完整，缺少 id')
-        return
+        return false
       }
 
       userInfo.id = info.id
@@ -51,13 +52,19 @@ export function useUserInfo() {
             ...info,
             teamName: userInfo.teamName
           }))
-        } else {
-          logger.warn('获取用户信息失败，API 返回错误:', res.message)
+          return true
         }
+        logger.warn('获取用户信息失败，API 返回错误:', res.message)
+        return false
       }
+      return false
     } catch (e) {
       logger.error('获取用户信息失败:', e)
-      userInfo.nickname = '用户'
+      // 仅在首次加载未能展示数据时兜底，避免刷新失败覆盖已展示的信息
+      if (userInfo.nickname === '加载中...') {
+        userInfo.nickname = '用户'
+      }
+      return false
     }
   }
 

@@ -9,50 +9,55 @@
       @click-right="openRecycleBin"
     />
 
-    <!-- 佣金概览卡片 -->
-    <OverviewCard :overview="overview" />
-
-    <!-- Tab 切换 -->
-    <van-tabs
-      v-model:active="activeTab"
-      sticky
-      @change="onTabChange"
+    <!-- 页面内容（下拉刷新：概览 + 订单列表） -->
+    <van-pull-refresh
+      v-model="refreshing"
+      @refresh="refreshData"
     >
-      <van-tab
-        title="全部"
-        name="all"
-      />
-      <van-tab
-        title="待审核"
-        name="pending"
-      />
-      <van-tab
-        title="已通过"
-        name="approved"
-      />
-      <van-tab
-        title="待发放"
-        name="pending_payment"
-      />
-      <van-tab
-        title="已发放"
-        name="settled"
-      />
-      <van-tab
-        title="已驳回"
-        name="rejected"
-      />
-    </van-tabs>
+      <OverviewCard :overview="overview" />
 
-    <!-- 订单记录列表 -->
-    <RecordList
-      v-model:loading="loading"
-      :finished="finished"
-      :records="records"
-      @load="loadRecords"
-      @deleted="handleDeleted"
-      @fund-submitted="handleFundSubmitted"
-    />
+      <!-- Tab 切换 -->
+      <van-tabs
+        v-model:active="activeTab"
+        sticky
+        @change="onTabChange"
+      >
+        <van-tab
+          title="全部"
+          name="all"
+        />
+        <van-tab
+          title="待审核"
+          name="pending"
+        />
+        <van-tab
+          title="已通过"
+          name="approved"
+        />
+        <van-tab
+          title="待发放"
+          name="pending_payment"
+        />
+        <van-tab
+          title="已发放"
+          name="settled"
+        />
+        <van-tab
+          title="已驳回"
+          name="rejected"
+        />
+      </van-tabs>
+
+      <!-- 订单记录列表 -->
+      <RecordList
+        v-model:loading="loading"
+        :finished="finished"
+        :records="records"
+        @load="loadRecords"
+        @deleted="handleDeleted"
+        @fund-submitted="handleFundSubmitted"
+      />
+    </van-pull-refresh>
 
     <!-- 回收站弹窗 -->
     <RecycleBinSheet
@@ -75,11 +80,13 @@ const {
   activeTab,
   loading,
   finished,
+  refreshing,
   overview,
   records,
   showRecycleBin,
   deletedOrders,
   loadRecords,
+  refreshData,
   onTabChange,
   openRecycleBin,
   handleRestore,

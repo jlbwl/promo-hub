@@ -1,48 +1,53 @@
 <template>
   <div class="home-page">
-    <!-- 顶部搜索栏 -->
-    <div class="search-bar">
-      <van-search
-        v-model="searchKeyword"
-        shape="round"
-        placeholder="搜索产品"
-        @search="handleSearch"
+    <van-pull-refresh
+      v-model="refreshing"
+      @refresh="onRefresh"
+    >
+      <!-- 顶部搜索栏 -->
+      <div class="search-bar">
+        <van-search
+          v-model="searchKeyword"
+          shape="round"
+          placeholder="搜索产品"
+          @search="handleSearch"
+        />
+      </div>
+
+      <!-- 产品分类横向滚动 -->
+      <CategoryList
+        :categories="displayCategories"
+        :active-category="activeCategory"
+        @select="selectCategory"
       />
-    </div>
 
-    <!-- 产品分类横向滚动 -->
-    <CategoryList
-      :categories="displayCategories"
-      :active-category="activeCategory"
-      @select="selectCategory"
-    />
-
-    <!-- 产品列表 -->
-    <div class="product-list">
-      <van-list
-        v-model:loading="loading"
-        :finished="finished"
-        finished-text="没有更多了"
-        @load="loadProducts"
-      >
-        <div class="product-grid">
-          <ProductCard
-            v-for="product in products"
-            :key="product.id"
-            :product="product"
-            :category-name="getCategoryName(product.category, product.categoryNameSnapshot)"
-            @click="goToDetail"
-            @add-to-cart="addToCart"
-          />
-        </div>
-      </van-list>
-    </div>
+      <!-- 产品列表 -->
+      <div class="product-list">
+        <van-list
+          v-model:loading="loading"
+          :finished="finished"
+          finished-text="没有更多了"
+          @load="loadProducts"
+        >
+          <div class="product-grid">
+            <ProductCard
+              v-for="product in products"
+              :key="product.id"
+              :product="product"
+              :category-name="getCategoryName(product.category, product.categoryNameSnapshot)"
+              @click="goToDetail"
+              @add-to-cart="addToCart"
+            />
+          </div>
+        </van-list>
+      </div>
+    </van-pull-refresh>
   </div>
 </template>
 
 <script setup lang="ts">
 import { logger } from '@promo/shared/utils/logger'
-import { ref, onMounted, computed } from 'vue'
+import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { get, post } from '@promo/shared/utils/request'
 import { getErrorMessage } from '@promo/shared/utils/errors'
@@ -66,7 +71,7 @@ const { getUserId } = useUser()
 /**
  * 产品分类 composable
  */
-const { categories, getCategoryName } = useProductCategories()
+const { categories, getCategoryName, fetchCategories } = useProductCategories()
 
 /**
  * 显示的分类，添加全部选项
@@ -106,6 +111,16 @@ const loading = ref(false)
 const finished = ref(false)
 
 /**
+ * 下拉刷新状态
+ */
+const refreshing = ref(false)
+
+/**
+ * 是否有请求正在进行，避免分页加载与下拉刷新请求叠加
+ */
+let requestInFlight = false
+
+/**
  * 分页
  */
 const page = ref(1)
@@ -113,8 +128,14 @@ const pageSize = 10
 
 /**
  * 加载产品列表
+ * @param replace 为 true 时用于下拉刷新：用第一页数据整体替换当前列表
+ * @returns 请求是否成功（已有请求进行中时直接跳过，不重复请求）
  */
-const loadProducts = async () => {
+const loadProducts = async (replace = false): Promise<boolean> => {
+  if (requestInFlight) {
+    return true
+  }
+  requestInFlight = true
   try {
     const categoryValue = displayCategories.value.find(c => c.id === activeCategory.value)?.value
     const res = await get<{ list: HomeProduct[]; total: number }>('/products', {
@@ -124,15 +145,27 @@ const loadProducts = async () => {
       keyword: searchKeyword.value || undefined,
     })
     const { list, total } = res.data
+    // 检查产品在购物车中的状态
+    const newProducts = list.map((p) => ({
+      ...p,
+      cover: p.coverImage || '',
+      inCart: p.inCart || false
+    }))
+
+    if (replace) {
+      // 下拉刷新：成功后整体替换列表，失败时由调用方保留原有数据
+      products.value = newProducts
+      page.value = 2
+      finished.value = products.value.length >= total
+      if (getUserId()) {
+        await checkCartStatus()
+      }
+      return true
+    }
+
     if (list.length === 0 || products.value.length >= total) {
       finished.value = true
     } else {
-      // 检查产品在购物车中的状态
-      const newProducts = list.map((p) => ({
-        ...p,
-        cover: p.coverImage || '',
-        inCart: p.inCart || false
-      }))
       products.value.push(...newProducts)
       page.value++
 
@@ -141,10 +174,15 @@ const loadProducts = async () => {
         await checkCartStatus()
       }
     }
+    return true
   } catch (error) {
     logger.error('[HomeView] 加载产品失败:', error)
-    finished.value = true
+    if (!replace) {
+      finished.value = true
+    }
+    return false
   } finally {
+    requestInFlight = false
     loading.value = false
   }
 }
@@ -254,11 +292,22 @@ const addToCart = async (product: HomeProduct) => {
 }
 
 /**
- * 组件挂载时初始化
+ * 下拉刷新：重新请求第一页数据，失败时保留已展示的数据
  */
-onMounted(() => {
-  loadProducts()
-})
+const onRefresh = async () => {
+  const prevPage = page.value
+  const prevFinished = finished.value
+  page.value = 1
+  // 产品列表与分类同时重新请求
+  const [success] = await Promise.all([loadProducts(true), fetchCategories()])
+  if (!success) {
+    // 刷新失败：回退分页状态，保留当前列表，并给出可见提示
+    page.value = prevPage
+    finished.value = prevFinished
+    showToast('刷新失败，请稍后重试')
+  }
+  refreshing.value = false
+}
 </script>
 
 <style scoped lang="scss">

@@ -17,6 +17,9 @@ export function useCommission() {
   const loading = ref(false)
   const finished = ref(false)
 
+  // 下拉刷新状态
+  const refreshing = ref(false)
+
   // 分页
   const page = ref(1)
   const pageSize = 20
@@ -42,7 +45,7 @@ export function useCommission() {
   const deletedOrders = ref<Order[]>([])
 
   // 加载统计数据
-  const loadStats = async () => {
+  const loadStats = async (): Promise<boolean> => {
     try {
       const params: {
         employeeId?: string
@@ -62,16 +65,18 @@ export function useCommission() {
         overview.settled = res.data.settled || 0
         overview.rejected = res.data.rejected || 0
       }
+      return true
     } catch (error) {
       logger.error('获取统计失败:', error)
+      return false
     }
   }
 
   // 加载订单记录
-  const loadRecords = async () => {
+  const loadRecords = async (): Promise<boolean> => {
     if (isLoading) {
       loading.value = false
-      return
+      return false
     }
     isLoading = true
     try {
@@ -109,9 +114,11 @@ export function useCommission() {
         }
         page.value++
       }
+      return true
     } catch (error) {
       logger.error('获取订单失败:', error)
       finished.value = true
+      return false
     } finally {
       loading.value = false
       isLoading = false
@@ -218,11 +225,40 @@ export function useCommission() {
     loadRecords()
   }
 
+  // 下拉刷新：重新请求统计数据与第一页订单，失败时保留已展示的数据
+  const refreshData = async () => {
+    if (isLoading) {
+      refreshing.value = false
+      return
+    }
+    const prevPage = page.value
+    const prevFinished = finished.value
+    page.value = 1
+    finished.value = false
+    const [statsOk, recordsOk] = await Promise.all([loadStats(), loadRecords()])
+    if (!statsOk || !recordsOk) {
+      // 订单请求失败时恢复分页状态，避免列表被误判为「没有更多了」
+      if (!recordsOk) {
+        page.value = prevPage
+        finished.value = prevFinished
+      }
+      showToast('刷新失败，请稍后重试')
+    }
+    refreshing.value = false
+  }
+
+  // 页面首次挂载与 keep-alive 激活都会触发加载，跳过首次激活避免重复请求
+  let skipNextActivated = false
   onMounted(() => {
     initData()
+    skipNextActivated = true
   })
 
   onActivated(() => {
+    if (skipNextActivated) {
+      skipNextActivated = false
+      return
+    }
     initData()
   })
 
@@ -230,12 +266,14 @@ export function useCommission() {
     activeTab,
     loading,
     finished,
+    refreshing,
     overview,
     records,
     showRecycleBin,
     handlePurge,
     deletedOrders,
     loadRecords,
+    refreshData,
     onTabChange,
     openRecycleBin,
     handleRestore,
