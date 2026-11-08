@@ -36,13 +36,6 @@ export function useProductEdit() {
   // 保存状态
   const saving = ref(false)
 
-  // 封面图片信息
-  const coverImageInfo = ref<{
-    width: number
-    height: number
-    size: number
-  } | null>(null)
-
   // 分类数据
   const categories = ref<ProductCategory[]>([])
   const categoriesLoading = ref(false)
@@ -200,14 +193,9 @@ export function useProductEdit() {
     try {
       const result = await generateAutoCover((form.title || '').trim(), category)
       form.cover = markAutoCover(result.url, signature)
-      coverImageInfo.value = {
-        width: result.width,
-        height: result.height,
-        size: result.size
-      }
     } catch (error) {
       logger.warn('[封面] 自动生成失败:', error)
-      ElMessage.warning('封面自动生成失败，可稍后手动上传封面')
+      ElMessage.warning('封面自动生成失败，请稍后重试')
     }
   }
 
@@ -315,14 +303,6 @@ export function useProductEdit() {
           requireName: p.requireName || false,
           requirePhone: p.requirePhone || false
         })
-        // 如果有封面图片，设置默认信息
-        if (p.coverImage) {
-          coverImageInfo.value = {
-            width: 800,
-            height: 400,
-            size: 0
-          }
-        }
       }
     } catch (error) {
       logger.error('获取产品详情失败:', error)
@@ -343,7 +323,6 @@ export function useProductEdit() {
     categoriesLoading,
     isEdit,
     saving,
-    coverImageInfo,
     addOption,
     updateOptionField,
     handleQrUpload,

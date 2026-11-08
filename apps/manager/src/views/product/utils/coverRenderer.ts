@@ -159,7 +159,7 @@ const drawTitle = (ctx: CanvasRenderingContext2D, title: string) => {
   ctx.shadowOffsetY = 0
 }
 
-const renderCoverBlob = (template: CoverTemplate, title: string): Promise<Blob> =>
+export const renderCoverBlob = (template: CoverTemplate, title: string): Promise<Blob> =>
   new Promise((resolve, reject) => {
     const canvas = document.createElement('canvas')
     canvas.width = COVER_WIDTH

@@ -115,14 +115,13 @@
           />
         </el-form-item>
 
-        <!-- 封面图片 -->
-        <el-form-item
-          label="封面图片"
-          prop="cover"
-        >
-          <CoverImageUploader
-            v-model:cover="form.cover"
-            v-model:cover-info="coverImageInfo"
+        <!-- 封面：统一由系统按标题与分类生成，不提供手动上传入口 -->
+        <el-form-item label="封面">
+          <AutoCoverPreview
+            :cover="form.cover"
+            :title="form.title"
+            :category="form.category"
+            :categories="categories"
           />
         </el-form-item>
 
@@ -158,7 +157,7 @@ import { ref } from 'vue'
 import { ArrowLeft } from '@element-plus/icons-vue'
 import RichTextEditor from '@/components/RichTextEditor.vue'
 import OptionGroupEditor from './components/OptionGroupEditor.vue'
-import CoverImageUploader from './components/CoverImageUploader.vue'
+import AutoCoverPreview from './components/AutoCoverPreview.vue'
 import { useProductEdit } from './composables/useProductEdit'
 
 // 富文本编辑器引用
@@ -172,7 +171,6 @@ const {
   categoriesLoading,
   isEdit,
   saving,
-  coverImageInfo,
   addOption,
   updateOptionField,
   handleQrUpload,
