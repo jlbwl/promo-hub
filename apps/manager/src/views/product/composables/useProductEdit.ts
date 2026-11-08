@@ -5,6 +5,8 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, type FormInstance, type FormRules, type UploadFile } from 'element-plus'
 import { get, post, put, clearAuthStorage } from '@promo/shared/utils/request'
 import { optimizeRichText, readManagerInfo } from '../utils'
+import { generateAutoCover } from '../utils/coverRenderer'
+import { coverSignature, getAutoCoverSignature, isAutoCover, markAutoCover } from '../utils/coverTemplate'
 import type { Product, ProductCategory } from '@promo/shared/types'
 
 // 选项行数据（_qrLoading 为二维码识别中的临时状态，不参与保存）
@@ -175,6 +177,40 @@ export function useProductEdit() {
     })
   }
 
+  /**
+   * 自动封面：新建时无封面则生成；编辑时仅重绘「系统生成」的封面，人工上传的永不覆盖
+   * - 老产品封面为空时不做任何自动补齐
+   * - 自动封面带 ?gen=<标题+分类签名>，文案变化时才重新生成（避免无意义重复上传）
+   */
+  const ensureAutoCover = async () => {
+    const currentCover = form.cover || ''
+    const category = categories.value.find((item) => item.value === form.category)
+    const signature = coverSignature((form.title || '').trim(), form.category)
+
+    if (isEdit.value) {
+      if (!currentCover || !isAutoCover(currentCover)) return
+      if (getAutoCoverSignature(currentCover) === signature) return
+    } else if (currentCover) {
+      // 新建时运营已手动上传封面，保持人工优先
+      return
+    }
+
+    if (!category) return
+
+    try {
+      const result = await generateAutoCover((form.title || '').trim(), category)
+      form.cover = markAutoCover(result.url, signature)
+      coverImageInfo.value = {
+        width: result.width,
+        height: result.height,
+        size: result.size
+      }
+    } catch (error) {
+      logger.warn('[封面] 自动生成失败:', error)
+      ElMessage.warning('封面自动生成失败，可稍后手动上传封面')
+    }
+  }
+
   // 保存产品
   const handleSave = async () => {
     if (!formRef.value) return
@@ -183,6 +219,9 @@ export function useProductEdit() {
       await formRef.value.validate()
 
       saving.value = true
+
+      // 封面自动生成必须先于保存，确保 payload 里是可用的图片地址
+      await ensureAutoCover()
 
       // 获取当前经理 ID，增加验证和错误提示
       const managerInfo = readManagerInfo()
