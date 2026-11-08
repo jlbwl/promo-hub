@@ -3,23 +3,10 @@
     <!-- 用户信息区域 -->
     <div class="user-header">
       <div class="user-info">
-        <van-image
-          round
-          width="64"
-          height="64"
+        <UserAvatar
           :src="employeeInfo.avatar"
-          fit="cover"
-        >
-          <template #error>
-            <div class="avatar-placeholder">
-              <van-icon
-                name="user-o"
-                size="32"
-                color="#fff"
-              />
-            </div>
-          </template>
-        </van-image>
+          :name="employeeInfo.nickname"
+        />
         <div class="user-detail">
           <h3 class="user-name">
             {{ employeeInfo.nickname }}
@@ -85,6 +72,7 @@ import { useRouter } from 'vue-router'
 import { showToast } from 'vant'
 import { formatTime, maskPhone } from '@promo/shared/utils/helpers'
 import { clearAuthStorage, post } from '@promo/shared/utils/request'
+import UserAvatar from '@/components/UserAvatar.vue'
 
 const router = useRouter()
 
@@ -186,22 +174,6 @@ const doLogout = async () => {
   display: flex;
   align-items: center;
   gap: 14px;
-
-  :deep(.van-image) {
-    flex: none;
-    border: 1px solid rgba(216, 176, 122, 0.3);
-    box-shadow: 0 6px 18px -8px rgba(0, 0, 0, 0.5);
-  }
-}
-
-.avatar-placeholder {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(216, 176, 122, 0.28);
-  border-radius: 50%;
 }
 
 .user-detail {

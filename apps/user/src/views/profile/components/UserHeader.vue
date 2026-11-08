@@ -2,23 +2,10 @@
   <!-- 用户信息区域 -->
   <div class="user-header">
     <div class="user-info">
-      <van-image
-        round
-        width="64"
-        height="64"
+      <UserAvatar
         :src="userInfo.avatar"
-        fit="cover"
-      >
-        <template #error>
-          <div class="avatar-placeholder">
-            <van-icon
-              name="user-o"
-              size="32"
-              color="#fff"
-            />
-          </div>
-        </template>
-      </van-image>
+        :name="userInfo.nickname || userInfo.teamName"
+      />
       <div class="user-detail">
         <h3 class="user-name">
           {{ userInfo.teamName || userInfo.nickname }}
@@ -32,6 +19,8 @@
 </template>
 
 <script setup lang="ts">
+import UserAvatar from '@/components/UserAvatar.vue'
+
 defineProps<{
   userInfo: {
     id: string
@@ -71,22 +60,6 @@ defineProps<{
   display: flex;
   align-items: center;
   gap: 14px;
-
-  :deep(.van-image) {
-    flex: none;
-    border: 1px solid rgba(216, 176, 122, 0.3);
-    box-shadow: 0 6px 18px -8px rgba(0, 0, 0, 0.5);
-  }
-}
-
-.avatar-placeholder {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(216, 176, 122, 0.28);
-  border-radius: 50%;
 }
 
 .user-detail {
