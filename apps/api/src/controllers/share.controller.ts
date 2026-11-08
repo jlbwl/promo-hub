@@ -79,7 +79,6 @@ export function renderSharePage(opts: SharePageOptions): string {
       <h1>${escapeHtml(title)}</h1>
       <a href="${escapeHtml(targetUrl)}">立即打开</a>
     </div>
-    <script>location.replace(${JSON.stringify(targetUrl)})</script>
   </body>
 </html>`
 }

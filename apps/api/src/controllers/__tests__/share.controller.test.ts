@@ -22,11 +22,13 @@ describe('renderSharePage 分享落地页', () => {
     expect(html).toContain('&lt;script&gt;')
   })
 
-  it('跳转目标写入 meta refresh 与 JS replace，人类访客自动进入详情页', () => {
+  it('跳转只依赖 meta refresh，不输出内联脚本（CSP 未放开 unsafe-inline）', () => {
     const html = renderSharePage(base)
     // meta refresh 中 URL 的 & 被 HTML 转义为 &amp;
     expect(html).toContain(`content="0;url=${base.targetUrl.replace(/&/g, '&amp;')}"`)
-    expect(html).toContain(JSON.stringify(base.targetUrl))
+    // 内联脚本会被 helmet/Nginx 的 script-src 'self' 拦截，页面不得再输出
+    expect(html).not.toContain('<script>')
+    expect(html).not.toContain('location.replace')
   })
 
   it('无封面时不输出 og:image 的空值图片标签', () => {
