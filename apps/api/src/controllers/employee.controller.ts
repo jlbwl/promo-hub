@@ -11,7 +11,7 @@ import {
   readUser,
   type EmployeeInput,
 } from '../data/index.js'
-import { login as sessionLogin, generateTokens } from '../middleware/auth.js'
+import { generateTokens } from '../middleware/auth.js'
 import { hashPassword, verifyPassword } from '../utils/password.js'
 
 // ============================================
@@ -240,7 +240,6 @@ export const employeeLogin = async (req: Request, res: Response): Promise<void> 
       userId: employee.userId
     }
     const tokens = await generateTokens(authUser)
-    await sessionLogin(req, { ...authUser, token: tokens.token })
     
     sendSuccess(res, {
       token: tokens.token,

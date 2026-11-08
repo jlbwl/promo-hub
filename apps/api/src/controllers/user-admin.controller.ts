@@ -113,8 +113,7 @@ export const deleteUser = asyncHandler(
       throw new AppError('验证码不能为空', ErrorCode.BAD_REQUEST, HttpStatus.BAD_REQUEST)
     }
 
-    // 获取管理员信息（支持 session 和 JWT token）
-    const adminInfo = req.session?.user || req.user
+    const adminInfo = req.user
     if (!adminInfo || !adminInfo.phone) {
       throw new AppError('未登录', ErrorCode.UNAUTHORIZED, HttpStatus.UNAUTHORIZED)
     }

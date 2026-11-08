@@ -4,6 +4,7 @@ import { queryOne, type UserRow } from '../data/index.js'
 import type { OrderRow } from '../data-memory.js'
 import type { AuthUser } from './auth.js'
 import logger from '../utils/logger.js'
+import { sendError } from '../utils/response.js'
 
 // 轻量行类型：仅声明调用点实际消费的字段（列查询用）
 interface ManagerIdRow {
@@ -55,11 +56,7 @@ export const resourcePermission = (config: ResourcePermissionConfig) => {
       const user = req.user
       
       if (!user) {
-        res.status(401).json({
-          code: 401,
-          message: '未登录或会话已过期',
-          data: null
-        })
+        sendError(res, '未登录或会话已过期', 401)
         return
       }
 
@@ -93,11 +90,7 @@ export const resourcePermission = (config: ResourcePermissionConfig) => {
           resourceType: config.resourceType,
           action: config.action
         })
-        res.status(400).json({
-          code: 400,
-          message: '缺少资源ID参数',
-          data: null
-        })
+        sendError(res, '缺少资源ID参数', 400)
         return
       }
 
@@ -117,22 +110,14 @@ export const resourcePermission = (config: ResourcePermissionConfig) => {
           action: config.action,
           reason: result.message
         })
-        res.status(403).json({
-          code: 403,
-          message: result.message || '您没有权限操作此资源',
-          data: null
-        })
+        sendError(res, result.message || '您没有权限操作此资源', 403)
       }
     } catch (error) {
       logger.error('[ResourcePermission] 权限检查出错', {
         error: getErrorMessage(error),
         stack: error instanceof Error ? error.stack : undefined
       })
-      res.status(500).json({
-        code: 500,
-        message: '权限验证时出错',
-        data: null
-      })
+      sendError(res, '权限验证时出错', 500)
     }
   }
 }

@@ -10,7 +10,7 @@ import {
   updateManager,
   type UserRow,
 } from '../data/index.js'
-import { login as sessionLogin, generateTokens } from '../middleware/auth.js'
+import { generateTokens } from '../middleware/auth.js'
 import { sendSmsCode } from '../utils/sms.js'
 import { generateSmsCode, saveSmsCode, verifySmsCode, deleteSmsCode } from '../utils/sms.js'
 import { logAdminOperation } from '../utils/auditLog.js'
@@ -147,7 +147,7 @@ export const createManager = async (req: Request, res: Response): Promise<void> 
 export const deleteManagerWithCascade = async (req: Request, res: Response): Promise<void> => {
   const smsCode = req.query.smsCode as string
   
-  const adminInfo = req.session?.user || req.user
+  const adminInfo = req.user
   if (!adminInfo?.phone) {
     return sendError(res, '未登录', 401)
   }
@@ -350,7 +350,6 @@ export const managerLogin = async (req: Request, res: Response): Promise<void> =
   
   const user = { id: manager.id, phone: manager.phone, role: 'manager' as const, nickname: manager.name, teamName: manager.teamName }
   const tokens = await generateTokens(user)
-  await sessionLogin(req, { ...user, token: tokens.token })
   
   const { password: _, ...safeManager } = manager
   sendSuccess(res, { token: tokens.token, refreshToken: tokens.refreshToken, manager: safeManager }, '登录成功')
@@ -399,7 +398,6 @@ export const managerSmsLogin = async (req: Request, res: Response): Promise<void
   
   const user = { id: manager.id, phone: manager.phone, role: 'manager' as const, nickname: manager.name, teamName: manager.teamName }
   const tokens = await generateTokens(user)
-  await sessionLogin(req, { ...user, token: tokens.token })
   
   const { password: _, ...safeManager } = manager
   sendSuccess(res, { token: tokens.token, refreshToken: tokens.refreshToken, manager: safeManager }, '登录成功')

@@ -10,7 +10,7 @@ import {
   type UserRecord,
   touchUserLastLogin,
 } from '../data/index.js'
-import { login as sessionLogin, logout as sessionLogout, generateTokens, revokeRefreshToken, blacklistAccessToken, type AuthUser } from '../middleware/auth.js'
+import { generateTokens, revokeRefreshToken, blacklistAccessToken, type AuthUser } from '../middleware/auth.js'
 import { verifySmsCode } from '../utils/sms.js'
 import { hashPassword, verifyPassword } from '../utils/password.js'
 import { userService } from '../services/index.js'
@@ -52,7 +52,6 @@ export const userLogin = asyncHandler(
 
     const authUser = { id: user.id, phone: user.phone as string, role: 'user' as const, nickname: user.nickname, teamName: user.teamName }
     const tokens = await generateTokens(authUser)
-    await sessionLogin(req, { ...authUser, token: tokens.token })
 
     // 记录最近登录时间（失败不阻断登录）
     try {
@@ -84,20 +83,6 @@ export const userSmsLogin = asyncHandler(
     }
 
     const { user, isNewUser } = await userService.smsLogin(phone, code, teamName)
-
-    try {
-      await sessionLogin(req, {
-        id: user.id as string,
-        phone: user.phone as string,
-        role: (user.role || 'user') as AuthUser['role'],
-        nickname: user.nickname as string,
-        teamName: user.teamName as string,
-      })
-    } catch (sessionError) {
-      logger.warn('Session save failed, continuing anyway', {
-        error: getErrorMessage(sessionError),
-      })
-    }
 
     logger.info('User logged in successfully', { userId: user.id, method: 'sms', isNewUser })
 
@@ -169,9 +154,6 @@ export const userLogout = asyncHandler(
     if (bearerToken) {
       await blacklistAccessToken(bearerToken)
     }
-
-    // 清除 Session（已 no-op，保留兼容）
-    sessionLogout(req)
 
     // 返回成功响应
     sendSuccess(res, null, '登出成功')

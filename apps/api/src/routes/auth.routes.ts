@@ -1,5 +1,3 @@
-import logger from '../utils/logger.js'
-import { getErrorMessage } from '@promo/shared'
 import { Router } from 'express'
 import { refreshAuthToken, revokeRefreshToken, blacklistAccessToken } from '../middleware/auth.js'
 import { sendSuccess, sendError } from '../utils/response.js'
@@ -34,14 +32,6 @@ router.post('/auth/logout', async (req, res) => {
   const bearerToken = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null
   if (bearerToken) {
     await blacklistAccessToken(bearerToken)
-  }
-
-  if (req.session) {
-    req.session.destroy((err) => {
-      if (err) {
-        logger.error('[Auth] 销毁会话失败:', { error: getErrorMessage(err) })
-      }
-    })
   }
 
   sendSuccess(res, null, '退出登录成功')

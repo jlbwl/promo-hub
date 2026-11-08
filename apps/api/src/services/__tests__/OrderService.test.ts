@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { orderService } from '../OrderService.js'
+import { orderService, ALLOWED_TRANSITIONS } from '../OrderService.js'
 
 // Mock console to keep test output clean
 vi.spyOn(console, 'log').mockImplementation(() => {})
@@ -20,6 +20,7 @@ vi.mock('../../data/index.js', () => ({
   readCommissionByOrderId: vi.fn(),
   updateCommission: vi.fn(),
   applyOrderReview: vi.fn(),
+  applyOrderSettlement: vi.fn(),
   updateOrderIfStatus: vi.fn()
 }))
 
@@ -38,6 +39,7 @@ import {
   readDeletedOrders,
   purgeOrder,
   applyOrderReview,
+  applyOrderSettlement,
   updateOrderIfStatus
 } from '../../data/index.js'
 import { query } from '../../db.js'
@@ -179,6 +181,105 @@ describe('OrderService', () => {
       await orderService.reviewOrder('o2', { action: 'approve', operator: { id: 'a1', role: 'admin' } })
 
       expect(applyOrderReview).toHaveBeenCalledTimes(2)
+    })
+  })
+
+  describe('订单状态流转表', () => {
+    it('只登记四条既定流转', () => {
+      expect(ALLOWED_TRANSITIONS).toEqual({
+        approve: { from: 'pending', to: 'approved' },
+        reject: { from: 'pending', to: 'rejected' },
+        pending_payment: { from: 'approved', to: 'pending_payment' },
+        paid: { from: 'pending_payment', to: 'settled' },
+      })
+    })
+  })
+
+  describe('reviewOrder 状态流转校验', () => {
+    const admin = { id: 'a1', role: 'admin' as const }
+
+    it('pending 可通过审核并流转为 approved', async () => {
+      vi.mocked(readOrder).mockResolvedValue({ id: 'o1', managerId: 'm1', status: 'pending' } as never)
+      vi.mocked(applyOrderReview).mockResolvedValue(true)
+
+      const result = await orderService.reviewOrder('o1', { action: 'approve', operator: admin })
+
+      expect(applyOrderReview).toHaveBeenCalledWith('o1', expect.any(Object), 'pending', 'approved', expect.any(Object))
+      expect(result.status).toBe('approved')
+    })
+
+    it('pending 可驳回并流转为 rejected', async () => {
+      vi.mocked(readOrder).mockResolvedValue({ id: 'o1', managerId: 'm1', status: 'pending' } as never)
+      vi.mocked(applyOrderReview).mockResolvedValue(true)
+
+      const result = await orderService.reviewOrder('o1', { action: 'reject', reason: '无效推广', operator: admin })
+
+      expect(applyOrderReview).toHaveBeenCalledWith('o1', expect.any(Object), 'pending', 'rejected', undefined, undefined)
+      expect(result.status).toBe('rejected')
+    })
+
+    it('已审核订单再次审核被拒绝（400）', async () => {
+      vi.mocked(readOrder).mockResolvedValue({ id: 'o1', managerId: 'm1', status: 'approved' } as never)
+
+      await expect(
+        orderService.reviewOrder('o1', { action: 'approve', operator: admin })
+      ).rejects.toMatchObject({ code: 400, message: '该订单已审核' })
+      expect(applyOrderReview).not.toHaveBeenCalled()
+    })
+
+    it('已驳回订单不能再次审核（400）', async () => {
+      vi.mocked(readOrder).mockResolvedValue({ id: 'o1', managerId: 'm1', status: 'rejected' } as never)
+
+      await expect(
+        orderService.reviewOrder('o1', { action: 'reject', operator: admin })
+      ).rejects.toMatchObject({ code: 400, message: '该订单已审核' })
+      expect(applyOrderReview).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('settleOrder 状态流转校验', () => {
+    const admin = { id: 'a1', role: 'admin' as const }
+
+    it('approved 可加入待付款并流转为 pending_payment', async () => {
+      vi.mocked(readOrder).mockResolvedValue({ id: 'o1', managerId: 'm1', status: 'approved' } as never)
+      vi.mocked(updateOrderIfStatus).mockResolvedValue(true)
+
+      const result = await orderService.settleOrder('o1', { action: 'pending_payment', operator: admin })
+
+      expect(updateOrderIfStatus).toHaveBeenCalledWith(
+        'o1',
+        expect.objectContaining({ status: 'pending_payment' }),
+        'approved'
+      )
+      expect(result.status).toBe('pending_payment')
+    })
+
+    it('pending_payment 可确认结算并流转为 settled', async () => {
+      vi.mocked(readOrder).mockResolvedValue({ id: 'o1', managerId: 'm1', status: 'pending_payment' } as never)
+      vi.mocked(applyOrderSettlement).mockResolvedValue(true)
+
+      const result = await orderService.settleOrder('o1', { action: 'paid', operator: admin })
+
+      expect(applyOrderSettlement).toHaveBeenCalled()
+      expect(result.status).toBe('settled')
+    })
+
+    it('pending 不能直接加入待付款（400）', async () => {
+      vi.mocked(readOrder).mockResolvedValue({ id: 'o1', managerId: 'm1', status: 'pending' } as never)
+
+      await expect(
+        orderService.settleOrder('o1', { action: 'pending_payment', operator: admin })
+      ).rejects.toMatchObject({ code: 400, message: '仅已通过的订单可添加到待付款' })
+      expect(updateOrderIfStatus).not.toHaveBeenCalled()
+    })
+
+    it('approved 不能直接确认结算（400）', async () => {
+      vi.mocked(readOrder).mockResolvedValue({ id: 'o1', managerId: 'm1', status: 'approved' } as never)
+
+      await expect(
+        orderService.settleOrder('o1', { action: 'paid', operator: admin })
+      ).rejects.toMatchObject({ code: 400, message: '仅待付款的订单可确认结算' })
+      expect(applyOrderSettlement).not.toHaveBeenCalled()
     })
   })
 })

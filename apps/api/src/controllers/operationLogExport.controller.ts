@@ -9,8 +9,11 @@ import { toCsvLine, UTF8_BOM } from '../utils/csv.js'
 
 /** 每页拉取条数：与列表接口上限一致，避免单次查询过重 */
 const EXPORT_PAGE_SIZE = 100
-/** 单次导出硬上限：防止超大结果集长时间占用连接 */
-const MAX_EXPORT_ROWS = 100000
+/** 单次导出硬上限：防止超大结果集长时间占用连接（R6：可通过环境变量覆盖，默认 100000） */
+const MAX_EXPORT_ROWS = (() => {
+  const parsed = Number.parseInt(process.env.OPERATION_LOG_EXPORT_MAX_ROWS || '', 10)
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 100000
+})()
 
 const CSV_HEADER = [
   '操作时间',

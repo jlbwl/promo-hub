@@ -53,11 +53,13 @@ describe('resourcePermission middleware', () => {
       await middleware(req as Request, res as Response, next)
 
       expect(res.status).toHaveBeenCalledWith(401)
-      expect(res.json).toHaveBeenCalledWith({
-        code: 401,
-        message: '未登录或会话已过期',
-        data: null,
-      })
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          code: 401,
+          message: '未登录或会话已过期',
+          data: null,
+        })
+      )
       expect(next).not.toHaveBeenCalled()
     })
   })
@@ -124,11 +126,13 @@ describe('resourcePermission middleware', () => {
       await middleware(req as Request, res as Response, next)
 
       expect(res.status).toHaveBeenCalledWith(400)
-      expect(res.json).toHaveBeenCalledWith({
-        code: 400,
-        message: '缺少资源ID参数',
-        data: null,
-      })
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          code: 400,
+          message: '缺少资源ID参数',
+          data: null,
+        })
+      )
       expect(next).not.toHaveBeenCalled()
     })
 
@@ -561,11 +565,13 @@ describe('resourcePermission middleware', () => {
       await middleware(req as Request, res as Response, next)
 
       expect(res.status).toHaveBeenCalledWith(500)
-      expect(res.json).toHaveBeenCalledWith({
-        code: 500,
-        message: '权限验证时出错',
-        data: null,
-      })
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          code: 500,
+          message: '权限验证时出错',
+          data: null,
+        })
+      )
     })
   })
 })

@@ -12,7 +12,7 @@ import {
 } from '../data/index.js'
 import { queryOne } from '../db.js'
 import { getCacheService, CacheKeys } from '../services/cache/index.js'
-import { login as sessionLogin, generateTokens } from '../middleware/auth.js'
+import { generateTokens } from '../middleware/auth.js'
 import { generateSmsCode, saveSmsCode, verifySmsCode, deleteSmsCode } from '../utils/sms.js'
 import { sendSmsCode } from '../utils/sms.js'
 import { hashPassword, verifyPassword } from '../utils/password.js'
@@ -75,7 +75,6 @@ export const adminLogin = async (req: Request, res: Response): Promise<void> => 
 
   const user = { id: admin.id, phone: admin.phone, role: 'admin' as const, nickname: admin.name }
   const tokens = await generateTokens(user)
-  await sessionLogin(req, { ...user, token: tokens.token })
 
   sendSuccess(res, {
     token: tokens.token,
@@ -105,7 +104,6 @@ export const adminSmsLogin = async (req: Request, res: Response): Promise<void> 
 
   const user = { id: admin.id, phone: admin.phone, role: 'admin' as const, nickname: admin.name }
   const tokens = await generateTokens(user)
-  await sessionLogin(req, { ...user, token: tokens.token })
 
   sendSuccess(res, {
     token: tokens.token,
@@ -129,8 +127,7 @@ export const adminChangePassword = async (req: Request, res: Response): Promise<
     return sendError(res, '新密码长度不能超过32位', 400)
   }
 
-  // M25：Session 中间件已移除，兼容 JWT 身份（req.user）
-  const user = req.session?.user || req.user
+  const user = req.user
   if (!user) {
     return sendError(res, '未登录', 401)
   }
@@ -184,7 +181,7 @@ export const adminPasswordUpdate = async (req: Request, res: Response): Promise<
     return sendError(res, '新密码长度不能超过32位', 400)
   }
 
-  const user = req.session?.user || req.user
+  const user = req.user
   if (!user) {
     return sendError(res, '未登录或会话已过期', 401)
   }

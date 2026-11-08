@@ -1,7 +1,6 @@
 import logger from '../utils/logger.js'
 import { getErrorMessage } from '@promo/shared'
 import { Request, Response, NextFunction, RequestHandler } from 'express'
-import session from 'express-session'
 import jwt from 'jsonwebtoken'
 import { getCacheService } from '../services/cache/index.js'
 import { readEmployeeById, readUser, readManager, readAdminById } from '../data/index.js'
@@ -29,13 +28,6 @@ export interface AuthUser {
   token?: string
 }
 
-declare module 'express-session' {
-  interface SessionData {
-    user?: AuthUser
-    isAuthenticated?: boolean
-  }
-}
-
 declare global {
   namespace Express {
     interface Request {
@@ -54,20 +46,29 @@ interface JwtPayload {
   userId?: string
 }
 
+/** R6：读取正整数环境变量，未配置或非法时回退到历史默认值（行为不变） */
+function readPositiveIntEnv(name: string, fallback: number): number {
+  const parsed = Number.parseInt(process.env[name] || '', 10)
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback
+}
+
 // Refresh Token 存储键前缀
 const REFRESH_TOKEN_PREFIX = 'refresh_token:'
-// P0-7: 宽限期键前缀，旧 token 删除后 60 秒内仍可用
+// P0-7: 宽限期键前缀，旧 token 删除后默认 60 秒内仍可用
 const REFRESH_TOKEN_GRACE_PREFIX = 'refresh_token_grace:'
-const REFRESH_TOKEN_GRACE_TTL = 60  // 60秒宽限期
+const REFRESH_TOKEN_GRACE_TTL = readPositiveIntEnv('REFRESH_TOKEN_GRACE_TTL_SECONDS', 60)  // 60秒宽限期
+// Access Token 有效期（秒），默认 1 小时；黑名单 TTL 与之保持一致
+const ACCESS_TOKEN_TTL = readPositiveIntEnv('ACCESS_TOKEN_TTL_SECONDS', 60 * 60)
+// Refresh Token 有效期（秒），默认 7 天；签发与缓存 TTL 共用同一值
+const REFRESH_TOKEN_TTL = readPositiveIntEnv('REFRESH_TOKEN_TTL_SECONDS', 7 * 24 * 60 * 60)
 // Admin 单设备登录：存储当前活跃的 refresh token
 const ADMIN_ACTIVE_TOKEN_PREFIX = 'admin_active_token:'
-// Admin refresh token 滑动过期时间（365天，每次刷新自动续期）
-const ADMIN_REFRESH_TOKEN_TTL = 365 * 24 * 60 * 60
+// Admin refresh token 滑动过期时间（默认 365 天，每次刷新自动续期）
+const ADMIN_REFRESH_TOKEN_TTL = readPositiveIntEnv('ADMIN_REFRESH_TOKEN_TTL_SECONDS', 365 * 24 * 60 * 60)
 
 // Plan C: Access Token 黑名单（登出后使未过期的 Access Token 立即失效）
-// 与 Access Token 有效期一致（1 小时），到期自动清理
+// 与 Access Token 有效期一致，到期自动清理
 const ACCESS_TOKEN_BLACKLIST_PREFIX = 'access_token_blacklist:'
-const ACCESS_TOKEN_TTL = 60 * 60
 
 /**
  * 将 Access Token 加入黑名单（登出时调用）
@@ -114,40 +115,6 @@ function getTokenStore() {
   }
 }
 
-// 创建 session 中间件（支持 MongoDB 降级到内存存储）
-export const sessionMiddleware: RequestHandler = (() => {
-  let store: session.Store | undefined = undefined
-
-  if (process.env.MONGODB_URI) {
-    try {
-      const MongoStore = require('connect-mongo').default
-      store = MongoStore.create({
-        mongoUrl: process.env.MONGODB_URI,
-        ttl: 90 * 24 * 60 * 60,
-        touchAfter: 24 * 60 * 60,
-      })
-      logger.debug('[Session] 使用 MongoDB 存储，有效期90天')
-    } catch (err) {
-      logger.warn('[Session] MongoDB 连接失败，降级到内存存储', { error: getErrorMessage(err) })
-    }
-  } else {
-    logger.debug('[Session] 未配置 MongoDB，使用内存存储')
-  }
-  
-  return session({
-    secret: SESSION_SECRET,
-    resave: false,
-    saveUninitialized: false,
-    store,
-    cookie: {
-      secure: process.env.NODE_ENV === 'production',
-      httpOnly: true,
-      maxAge: 90 * 24 * 60 * 60 * 1000,
-      sameSite: 'lax',
-    },
-  })
-})()
-
 // H8：账号状态校验（60 秒进程内缓存，避免每次请求都查库）
 const ACCOUNT_STATUS_CACHE_TTL = 60 * 1000
 const accountStatusCache = new Map<string, { active: boolean; at: number }>()
@@ -193,7 +160,7 @@ export function generateAuthToken(user: AuthUser): string {
   return jwt.sign(
     { id: user.id, phone: user.phone, role: user.role, type: 'access', userId: user.userId },
     JWT_SECRET,
-    { expiresIn: '1h' } // Access Token 有效期 1 小时
+    { expiresIn: ACCESS_TOKEN_TTL } // Access Token 有效期（默认 1 小时）
   )
 }
 
@@ -205,12 +172,12 @@ export async function generateRefreshToken(user: AuthUser): Promise<string> {
   const refreshToken = jwt.sign(
     { id: user.id, phone: user.phone, role: user.role, type: 'refresh', userId: user.userId },
     JWT_SECRET,
-    isAdmin ? {} : { expiresIn: '7d' }
+    isAdmin ? {} : { expiresIn: REFRESH_TOKEN_TTL }
   )
 
   const cacheService = getTokenStore()
   if (cacheService) {
-    const ttl = isAdmin ? ADMIN_REFRESH_TOKEN_TTL : 7 * 24 * 60 * 60
+    const ttl = isAdmin ? ADMIN_REFRESH_TOKEN_TTL : REFRESH_TOKEN_TTL
     await cacheService.set(REFRESH_TOKEN_PREFIX + refreshToken, JSON.stringify(user), ttl)
     // Admin 单设备登录：记录当前活跃 token，新登录自动覆盖旧 token（顶号）
     if (isAdmin) {
@@ -331,54 +298,6 @@ export const authMiddleware = (allowedRoles?: Array<'admin' | 'manager' | 'user'
       logger.error('[Auth] Middleware error:', { error: getErrorMessage(error) })
       res.status(500).json({ code: 500, message: '认证服务异常', data: null })
     }
-  }
-}
-
-// Plan C: 登录态完全由 JWT 承载，不再写入服务端 Session
-// 保留此函数仅为兼容调用方（控制器中 login() 的调用），实际为 no-op
-export const login = (req: Request, _user: AuthUser): Promise<void> => {
-  return new Promise((resolve) => {
-    if (req.session) {
-      try {
-        req.session.user = _user
-        req.session.isAuthenticated = true
-        req.session.save((err) => {
-          if (err) {
-            logger.error('[Session] 保存会话失败:', { error: getErrorMessage(err) })
-          } else {
-            logger.debug(`[Session] 用户 ${_user.id} (${_user.role}) 登录成功`)
-          }
-          resolve()
-        })
-      } catch (error) {
-        logger.error('[Session] 设置会话失败', { error: getErrorMessage(error) })
-        resolve()
-      }
-    } else {
-      resolve()
-    }
-  })
-}
-
-// 兼容旧的调用方式（不等待的版本）
-export const loginSync = (req: Request, user: AuthUser) => {
-  login(req, user).catch(err => {
-    logger.error('[Session] 会话保存出错（但不影响请求）:', { error: getErrorMessage(err) })
-  })
-}
-
-export const logout = (req: Request) => {
-  const userId = req.session?.user?.id || req.user?.id
-  if (req.session) {
-    req.session.destroy((err) => {
-      if (err) {
-        logger.error('[Session] 销毁会话失败:', { error: getErrorMessage(err) })
-      } else {
-        logger.debug(`[Session] 用户 ${userId} 已登出`)
-      }
-    })
-  } else {
-    logger.debug(`[Auth] 用户 ${userId} 已登出（无 Session）`)
   }
 }
 

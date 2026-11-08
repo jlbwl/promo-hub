@@ -17,7 +17,7 @@ export interface AdminOperationInfo {
  * 审计写入失败不阻塞主业务，仅记录错误日志便于排查。
  */
 export async function logAdminOperation(req: Request, info: AdminOperationInfo): Promise<void> {
-  const admin = req.session?.user || req.user
+  const admin = req.user
   try {
     await insertOperationLog({
       adminId: admin?.id || '',

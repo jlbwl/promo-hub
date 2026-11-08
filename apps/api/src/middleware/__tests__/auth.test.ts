@@ -32,7 +32,6 @@ import { attachUser } from '../auth.js'
 const makeReq = (overrides: Partial<Request> = {}): Request =>
   ({
     headers: {},
-    session: {},
     ...overrides,
   }) as unknown as Request
 
@@ -51,18 +50,12 @@ describe('attachUser 可选鉴权中间件', () => {
     next = vi.fn() as NextFunction & Mock
   })
 
-  it('仅有 Session（无 Bearer）：Plan C 已移除 Session 鉴权，不挂载用户', async () => {
-    const req = makeReq({
-      session: {
-        isAuthenticated: true,
-        user: { id: 'u_session', phone: '13800000000', role: 'user' },
-      },
-    } as Partial<Request>)
+  it('仅无 Bearer：不挂载用户（登录态只由 JWT 承载）', async () => {
+    const req = makeReq()
     const res = makeRes()
 
     await attachUser(req, res, next)
 
-    // Plan C: 登录态完全由 JWT 承载，Session 不再作为身份来源
     expect(req.user).toBeUndefined()
     expect(next).toHaveBeenCalledTimes(1)
   })

@@ -22,7 +22,6 @@ import {
   processCoverImage,
   validateImageFile,
   COVER_IMAGE_CONFIG,
-  COVER_DIR,
   UPLOAD_DIR,
 } from './utils/imageProcessor.js'
 
@@ -245,8 +244,8 @@ app.use('/uploads', (req, res, next) => {
   }
   next()
 })
+// COVER_DIR 是 UPLOAD_DIR/covers 的子目录，/uploads 静态挂载已覆盖封面路径
 app.use('/uploads', express.static(UPLOAD_DIR))
-app.use('/uploads/covers', express.static(COVER_DIR))
 
 // 健康检查：生产 Nginx 的 /api/ 代理会剥离前缀（/api/health -> /health），因此两个路径都要注册
 function healthCheckHandler(_req: Request, res: Response) {

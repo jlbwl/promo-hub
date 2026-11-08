@@ -56,10 +56,7 @@ vi.mock('../../data/index.js', () => ({
 }))
 
 vi.mock('../../middleware/auth.js', () => ({
-  login: vi.fn(),
-  loginSync: vi.fn(),
   generateAuthToken: vi.fn(),
-  logout: vi.fn(),
   generateTokens: vi.fn(),
   refreshAuthToken: vi.fn(),
   revokeRefreshToken: vi.fn(),
@@ -89,8 +86,6 @@ import {
 } from '../../data/index.js'
 import {
   generateTokens,
-  login as sessionLogin,
-  logout as sessionLogout,
 } from '../../middleware/auth.js'
 import {
   sendSmsCode,
@@ -115,7 +110,6 @@ const makeReq = (overrides: Partial<Request> = {}): Request =>
     body: {},
     query: {},
     params: {},
-    session: undefined as unknown as Request['session'],
     ...overrides,
   }) as Request
 
@@ -397,22 +391,6 @@ describe('user.controller 认证流程', () => {
       expect(payload.code).toBe(0)
     })
 
-    it('session 保存失败不阻断登录（容错分支）', async () => {
-      vi.mocked(verifySmsCode).mockReturnValue(true)
-      vi.mocked(queryOne).mockResolvedValue(null)
-      vi.mocked(sessionLogin).mockRejectedValue(new Error('redis down'))
-      const res = makeRes()
-
-      await userSmsLogin(
-        makeReq({ body: { phone: '13900000002', code: '123456' } }),
-        res,
-        makeNext()
-      )
-
-      const payload = vi.mocked(res.json).mock.calls[0][0] as { code: number }
-      expect(payload.code).toBe(0)
-    })
-
     it('非 AppError 异常应包装为 500 且保留原始信息', async () => {
       vi.mocked(verifySmsCode).mockReturnValue(true)
       vi.mocked(queryOne).mockRejectedValue(new Error('connection refused'))
@@ -484,12 +462,11 @@ describe('user.controller 认证流程', () => {
   })
 
   describe('userLogout 登出', () => {
-    it('应清除会话并返回成功', async () => {
+    it('应返回退出成功', async () => {
       const res = makeRes()
 
       await userLogout(makeReq(), res, makeNext())
 
-      expect(sessionLogout).toHaveBeenCalledTimes(1)
       const payload = vi.mocked(res.json).mock.calls[0][0] as { code: number }
       expect(payload.code).toBe(0)
     })
@@ -527,7 +504,7 @@ describe('user.controller 认证流程', () => {
       await deleteUser(
         makeReq({
           query: {},
-          session: { user: { phone: '13700000000' } },
+          user: { phone: '13700000000' },
         } as unknown as Partial<Request>),
         makeRes(),
         next
@@ -557,7 +534,7 @@ describe('user.controller 认证流程', () => {
       await deleteUser(
         makeReq({
           query: { smsCode: '000000' },
-          session: { user: { phone: '13700000000' } },
+          user: { phone: '13700000000' },
         } as unknown as Partial<Request>),
         makeRes(),
         next

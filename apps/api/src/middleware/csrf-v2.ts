@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express'
 import crypto from 'crypto'
 import { getErrorMessage } from '@promo/shared'
 import logger from '../utils/logger.js'
+import { sendError, sendSuccess } from '../utils/response.js'
 
 /**
  * CSRF 防护中间件（Double Submit Cookie 模式）
@@ -20,6 +21,12 @@ function generateCsrfToken(): string {
   return `${random}.${timestamp}`
 }
 
+/** R6：CSRF Cookie 有效期（秒），默认 24 小时，未配置时行为不变 */
+const CSRF_COOKIE_MAX_AGE_MS = (() => {
+  const parsed = Number.parseInt(process.env.CSRF_COOKIE_MAX_AGE_SECONDS || '', 10)
+  return Number.isFinite(parsed) && parsed > 0 ? parsed * 1000 : 24 * 60 * 60 * 1000
+})()
+
 // CSRF 中间件 - 生成 token 并设置到 cookie
 export function csrfGenerate(req: Request, res: Response, next: NextFunction) {
   try {
@@ -33,7 +40,7 @@ export function csrfGenerate(req: Request, res: Response, next: NextFunction) {
         httpOnly: false, // 前端 JS 需要读取这个 token
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'strict',
-        maxAge: 24 * 60 * 60 * 1000 // 24小时
+        maxAge: CSRF_COOKIE_MAX_AGE_MS // 默认 24 小时
       })
     }
 
@@ -128,11 +135,7 @@ export function csrfVerify(req: Request, res: Response, next: NextFunction) {
       url: req.originalUrl,
       hasCookieToken: !!cookieToken
     })
-    return res.status(403).json({
-      code: 403,
-      message: 'CSRF token missing',
-      data: null
-    })
+    return sendError(res, 'CSRF token missing', 403)
   }
 
   // 强制要求 cookieToken 存在且与 requestToken 匹配
@@ -144,11 +147,7 @@ export function csrfVerify(req: Request, res: Response, next: NextFunction) {
       url: req.originalUrl,
       hasCookieToken: !!cookieToken
     })
-    return res.status(403).json({
-      code: 403,
-      message: 'Invalid CSRF token',
-      data: null
-    })
+    return sendError(res, 'Invalid CSRF token', 403)
   }
 
   // Token 验证通过
@@ -171,13 +170,9 @@ export function getCsrfToken(req: Request, res: Response) {
       httpOnly: false,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'strict',
-      maxAge: 24 * 60 * 60 * 1000
+      maxAge: CSRF_COOKIE_MAX_AGE_MS
     })
   }
 
-  res.json({
-    code: 0,
-    message: '获取成功',
-    data: { csrfToken: token }
-  })
+  sendSuccess(res, { csrfToken: token }, '获取成功')
 }

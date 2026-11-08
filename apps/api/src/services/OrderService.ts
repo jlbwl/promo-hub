@@ -117,6 +117,53 @@ function assertOperatorCanHandle(order: OrderRow, operator?: OrderOperator): voi
 // H6：已进入资金流程的订单禁止用户自行删除/永久删除，保留财务凭证
 const FINANCIAL_ORDER_STATUSES = new Set(['approved', 'pending_payment', 'settled'])
 
+/** 订单业务状态 */
+export type OrderStatus = 'pending' | 'approved' | 'rejected' | 'pending_payment' | 'settled'
+
+/** 会改变订单状态的动作 */
+export type OrderTransitionAction = 'approve' | 'reject' | 'pending_payment' | 'paid'
+
+/**
+ * R8：订单状态流转唯一事实来源。
+ * 任何审核/结算动作只允许按此表校验，禁止再在业务代码里散落写 from 状态字面量。
+ */
+export const ALLOWED_TRANSITIONS: Record<
+  OrderTransitionAction,
+  { from: OrderStatus; to: OrderStatus }
+> = {
+  approve: { from: 'pending', to: 'approved' },
+  reject: { from: 'pending', to: 'rejected' },
+  pending_payment: { from: 'approved', to: 'pending_payment' },
+  paid: { from: 'pending_payment', to: 'settled' },
+}
+
+/** 当前状态不允许该流转时的对外提示（与改造前逐字一致） */
+const TRANSITION_REJECT_MESSAGES: Record<OrderTransitionAction, string> = {
+  approve: '该订单已审核',
+  reject: '该订单已审核',
+  pending_payment: '仅已通过的订单可添加到待付款',
+  paid: '仅待付款的订单可确认结算',
+}
+
+/**
+ * 校验订单状态是否允许执行该流转，不允许时按既有文案抛出 400。
+ * @param invalidActionMessage 传入非法 action（绕过 controller 校验）时的提示
+ */
+function assertTransitionAllowed(
+  action: OrderTransitionAction,
+  currentStatus: string,
+  invalidActionMessage: string
+): { from: OrderStatus; to: OrderStatus } {
+  const transition = ALLOWED_TRANSITIONS[action]
+  if (!transition) {
+    throwBadRequest(invalidActionMessage)
+  }
+  if (currentStatus !== transition.from) {
+    throwBadRequest(TRANSITION_REJECT_MESSAGES[action])
+  }
+  return transition
+}
+
 @injectable()
 export class OrderServiceImpl implements OrderService {
   constructor(
@@ -338,9 +385,7 @@ export class OrderServiceImpl implements OrderService {
 
     assertOperatorCanHandle(order, operator)
 
-    if (order.status !== 'pending') {
-      throwBadRequest('该订单已审核')
-    }
+    const transition = assertTransitionAllowed(action, order.status, '无效的审核操作')
 
     const nowMySQL = formatMySQLDateTime(new Date())!
 
@@ -371,7 +416,7 @@ export class OrderServiceImpl implements OrderService {
     let updated = false
     if (action === 'approve') {
       // 事务：更新订单 + 创建待发放佣金记录，原子提交
-      updated = await applyOrderReview(orderId, { reviewedAt: nowMySQL }, 'pending', 'approved', {
+      updated = await applyOrderReview(orderId, { reviewedAt: nowMySQL }, transition.from, transition.to, {
         id: `c_${Date.now()}_${randomUUID().replace(/-/g, '').slice(0, 8)}`,
         orderId: order.id,
         userId: order.userId,
@@ -388,8 +433,8 @@ export class OrderServiceImpl implements OrderService {
       updated = await applyOrderReview(
         orderId,
         { reviewedAt: nowMySQL, rejectReason: reason || '推广无效' },
-        'pending',
-        'rejected',
+        transition.from,
+        transition.to,
         undefined,
         shouldRestoreStock ? product!.id : undefined
       )
@@ -419,31 +464,26 @@ export class OrderServiceImpl implements OrderService {
 
     assertOperatorCanHandle(order, operator)
 
+    const transition = assertTransitionAllowed(action, order.status, '无效的结算操作')
+
     const nowMySQL = formatMySQLDateTime(new Date())!
 
     if (action === 'pending_payment') {
-      if (order.status !== 'approved') {
-        throwBadRequest('仅已通过的订单可添加到待付款')
-      }
-      const updated = await updateOrderIfStatus(orderId, { status: 'pending_payment', addedToPaymentAt: nowMySQL }, 'approved')
+      const updated = await updateOrderIfStatus(orderId, { status: transition.to, addedToPaymentAt: nowMySQL }, transition.from)
       if (!updated) {
         throwBadRequest('订单状态已变化，请刷新后重试')
       }
-      return { ...order, status: 'pending_payment', addedToPaymentAt: nowMySQL }
+      return { ...order, status: transition.to, addedToPaymentAt: nowMySQL }
     } else if (action === 'paid') {
-      if (order.status !== 'pending_payment') {
-        throwBadRequest('仅待付款的订单可确认结算')
-      }
       // M2：订单状态与佣金状态必须同事务提交，避免「订单已结算但佣金未发放」的不一致
       const commission = await readCommissionByOrderId(orderId)
       const updated = await applyOrderSettlement(orderId, nowMySQL, commission?.id, nowMySQL)
       if (!updated) {
         throwBadRequest('订单状态已变化，请刷新后重试')
       }
-      return { ...order, status: 'settled', settledAt: nowMySQL }
-    } else {
-      throwBadRequest('无效的结算操作')
+      return { ...order, status: transition.to, settledAt: nowMySQL }
     }
+    throwBadRequest('无效的结算操作')
   }
 
   async updateOrderTeamName(orderId: string, teamName: string): Promise<OrderRow> {
