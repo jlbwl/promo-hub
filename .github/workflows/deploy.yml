@@ -264,13 +264,6 @@ jobs:
           path: apps/api/dist
           retention-days: 1
 
-      - name: Upload Nginx config template
-        uses: actions/upload-artifact@v7
-        with:
-          name: nginx-config-template
-          path: config/nginx.conf.template
-          retention-days: 1
-
   deploy:
     name: 部署业务代码到服务器
     needs: build
@@ -327,15 +320,9 @@ jobs:
 
       # 模板只用于「服务器上还没有站点配置」时创建配置，现有服务器不会被覆盖。
       # 传输失败不阻断部署：远端脚本会判断站点配置是否存在，存在则跳过，不存在则明确报错中止。
-      # source 用「目录 + 尾斜杠」= 只拷目录内容，落地为 $DEPLOY_DIR/config/nginx.conf.template（与仓库其它 scp 步骤一致）。
-      - name: Download Nginx config template
-        id: nginx_template_download
-        continue-on-error: true
-        uses: actions/download-artifact@v7
-        with:
-          name: nginx-config-template
-          path: nginx-config-template
-
+      # 直接上传 checkout 出来的仓库文件：scp-action 会保留源路径的目录层级，
+      # 单文件源 + strip_components: 1 剥掉 config/，落点为 $DEPLOY_DIR/config/nginx.conf.template，
+      # 与远端脚本读取的路径一致（同样的写法已由 deploy-remote.sh 上传在线上实测验证）。
       - name: Upload Nginx config template to server
         id: nginx_template_upload
         continue-on-error: true
@@ -345,8 +332,9 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: ${{ secrets.SERVER_PORT || 22 }}
-          source: "nginx-config-template/"
+          source: "config/nginx.conf.template"
           target: "${{ env.DEPLOY_DIR }}/config/"
+          strip_components: 1
           rm: false
 
       - name: 创建发布快照（备份失败则中止部署）
