@@ -6,16 +6,16 @@ import { getCacheService } from '../services/cache/index.js'
 import { readEmployeeById, readUser, readManager, readAdminById } from '../data/index.js'
 
 // 安全验证：确保必需的密钥环境变量已设置
-if (!process.env.JWT_SECRET || !process.env.SESSION_SECRET) {
-  throw new Error('致命错误：JWT_SECRET 和 SESSION_SECRET 环境变量未设置')
+// 只强制 JWT_SECRET；SESSION_SECRET 已废弃（改为无状态 JWT + CSRF Double-Submit）
+if (!process.env.JWT_SECRET) {
+  throw new Error('致命错误：JWT_SECRET 环境变量未设置')
 }
 
-const SESSION_SECRET = process.env.SESSION_SECRET
 const JWT_SECRET = process.env.JWT_SECRET
 
-// 验证 SESSION_SECRET 强度
-if (SESSION_SECRET.length < 32) {
-  logger.warn('[Security] SESSION_SECRET 长度不足（建议至少32字符）', { currentLength: SESSION_SECRET.length })
+// 验证 JWT_SECRET 强度
+if (JWT_SECRET.length < 32) {
+  logger.warn('[Security] JWT_SECRET 长度不足（建议至少32字符）', { currentLength: JWT_SECRET.length })
 }
 
 export interface AuthUser {

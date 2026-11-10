@@ -7,9 +7,7 @@ import { injectable } from 'tsyringe'
 export interface AppConfig {
   port: number
   nodeEnv: string
-  sessionSecret: string
   jwtSecret: string
-  corsOrigins: string[]
   dataDir: string
 }
 
@@ -29,11 +27,8 @@ export class ConfigService {
     return {
       port: parseInt(process.env.PORT || '3000', 10),
       nodeEnv: process.env.NODE_ENV || 'development',
-      sessionSecret: process.env.SESSION_SECRET || this.generateFallbackSecret(),
+      // SESSION_SECRET 已废弃，仅保留一个版本周期作为历史环境的回退来源
       jwtSecret: process.env.JWT_SECRET || process.env.SESSION_SECRET || this.generateFallbackSecret(),
-      corsOrigins: (process.env.CORS_ORIGINS || 'http://localhost:5173,http://localhost:5174')
-        .split(',')
-        .map(o => o.trim()),
       dataDir: process.env.DATA_DIR || '',
     }
   }

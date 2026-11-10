@@ -87,7 +87,7 @@ cp config/environments/.env.frontend.dev.template apps/user/.env
 - `DB_USER`: 数据库用户
 - `DB_PASSWORD`: 数据库密码
 - `DB_NAME`: 数据库名称
-- `SESSION_SECRET`: Session 密钥（生产环境必须使用强随机字符串）
+- `JWT_SECRET`: 鉴权密钥（生产环境必须使用强随机字符串，缺失时 API 启动失败）
 - `ADMIN_PHONE`: 默认管理员手机号
 - `ADMIN_PASSWORD`: 默认管理员密码
 
@@ -228,7 +228,7 @@ git commit -m "docs: 更新开发文档"
 - `DB_HOST`: 数据库主机
 - `DB_USER`: 数据库用户
 - `DB_PASSWORD`: 数据库密码
-- `SESSION_SECRET`: Session 密钥
+- `JWT_SECRET`: 鉴权密钥
 - `ALIBABA_CLOUD_*`: 阿里云相关配置
 - 等等...
 

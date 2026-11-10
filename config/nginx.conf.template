@@ -1,5 +1,19 @@
 # Nginx 配置模板文件
-# 在部署时通过变量替换生成实际配置
+# 用途：在「目标机还没有 /etc/nginx/conf.d/promo-hub.conf」时，由部署流程渲染后创建，
+#       或在新机器重建时手工渲染。它不是部署的日常输入，日常配置以线上文件为准。
+#
+# 可替换变量（仅这 6 个，其余内容与 config/nginx.conf 保持一致）：
+#   ${DOMAIN_NAMES}   例：www.example.com example.com
+#   ${SSL_CERT_PATH}  例：/etc/nginx/ssl/www.example.com.pem
+#   ${SSL_KEY_PATH}   例：/etc/nginx/ssl/www.example.com.key
+#   ${ACME_ROOT}      例：/var/www/html
+#   ${API_URL}        例：http://127.0.0.1:3000/
+#   ${PROJECT_ROOT}   例：/www/wwwroot/promo-hub
+#
+# 渲染方式（envsubst 只会替换显式列出的变量，避免误伤 nginx 自身的 $host/$uri）：
+#   envsubst '${DOMAIN_NAMES} ${SSL_CERT_PATH} ${SSL_KEY_PATH} ${ACME_ROOT} ${API_URL} ${PROJECT_ROOT}' \
+#     < config/nginx.conf.template > /etc/nginx/conf.d/promo-hub.conf
+#   nginx -t && nginx -s reload
 
 server {
     listen 80;
@@ -7,13 +21,13 @@ server {
     gzip on;
     gzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript image/svg+xml;
     gzip_min_length 1024;
-    
-    # Let's Encrypt ACME 验证路径 (必须保持在 HTTP)
+
+    # Let's Encrypt ACME 验证路径（必须保持在 HTTP）
     location /.well-known/acme-challenge/ {
         root ${ACME_ROOT};
         allow all;
     }
-    
+
     # 所有其他 HTTP 请求重定向到 HTTPS
     location / {
         return 301 https://$host$request_uri;
@@ -39,12 +53,21 @@ server {
     ssl_session_timeout 1d;
     ssl_session_tickets off;
 
-    # HSTS (HTTP Strict Transport Security)
+    client_max_body_size 10m;
+    # HSTS
     add_header Strict-Transport-Security "max-age=63072000; includeSubDomains" always;
 
-    # Favicon: Serve from user directory by default
+    # CSP（强制模式）：浏览器实测无违规后启用，策略内容保持不变；
+    # 放行依据：user 端 jweixin-1.6.0.js、Vant 图标字体 at.alicdn.com、
+    # tesseract.js（worker/core/wasm）cdn.jsdelivr.net、Vant 空态图 fastly.jsdelivr.net
+    # 注意：location 内只要出现 add_header，就会整体丢弃 server 级继承的头，
+    #       所以需要 CSP 的 location 必须各自重复声明一次。
+    set $csp_policy "default-src 'self'; script-src 'self' https://res.wx.qq.com https://cdn.jsdelivr.net 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://fastly.jsdelivr.net; font-src 'self' data: https://at.alicdn.com; connect-src 'self' https://cdn.jsdelivr.net https://fastly.jsdelivr.net; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'self'; form-action 'self'";
+    add_header Content-Security-Policy $csp_policy always;
+
+    # Favicon（与线上一致：取用户端产物目录）
     location ~* ^/favicon\.(ico|svg|png)$ {
-        alias ${PROJECT_ROOT}/user/;
+        alias ${PROJECT_ROOT}/user/user-dist/;
         expires 30d;
         add_header Cache-Control "public, immutable";
         try_files $uri $uri/ =404;
@@ -53,7 +76,7 @@ server {
     # 带内容哈希的构建产物：一年强缓存（Vite 产物文件名含 hash，内容变化即换名）
     # 注意：chunk 缺失时直接 404，禁止 fallback 到 index.html（避免 text/html MIME 报错掩盖问题）
     location ^~ /admin/assets/ {
-        alias ${PROJECT_ROOT}/admin/assets/;
+        alias ${PROJECT_ROOT}/admin/admin-dist/assets/;
         expires 1y;
         add_header Strict-Transport-Security "max-age=63072000; includeSubDomains" always;
         add_header Cache-Control "public, immutable";
@@ -61,7 +84,7 @@ server {
     }
 
     location ^~ /manager/assets/ {
-        alias ${PROJECT_ROOT}/manager/assets/;
+        alias ${PROJECT_ROOT}/manager/manager-dist/assets/;
         expires 1y;
         add_header Strict-Transport-Security "max-age=63072000; includeSubDomains" always;
         add_header Cache-Control "public, immutable";
@@ -69,56 +92,70 @@ server {
     }
 
     location ^~ /user/assets/ {
-        alias ${PROJECT_ROOT}/user/assets/;
+        alias ${PROJECT_ROOT}/user/user-dist/assets/;
         expires 1y;
         add_header Strict-Transport-Security "max-age=63072000; includeSubDomains" always;
         add_header Cache-Control "public, immutable";
         try_files $uri =404;
     }
 
-    # 管理员后台 (最优先)：HTML 入口 no-cache 协商缓存，确保每次部署后浏览器立即拿到新入口
+    # 管理员后台：HTML 入口 no-cache 协商缓存，确保每次部署后浏览器立即拿到新入口
     location /admin/ {
-        alias ${PROJECT_ROOT}/admin/;
+        alias ${PROJECT_ROOT}/admin/admin-dist/;
         index index.html;
         add_header Strict-Transport-Security "max-age=63072000; includeSubDomains" always;
         add_header Cache-Control "no-cache";
+        add_header Content-Security-Policy $csp_policy always;
         try_files $uri $uri/ /admin/index.html;
     }
 
     # 渠道经理后台
     location /manager/ {
-        alias ${PROJECT_ROOT}/manager/;
+        alias ${PROJECT_ROOT}/manager/manager-dist/;
         index index.html;
         add_header Strict-Transport-Security "max-age=63072000; includeSubDomains" always;
         add_header Cache-Control "no-cache";
+        add_header Content-Security-Policy $csp_policy always;
         try_files $uri $uri/ /manager/index.html;
     }
 
     # 用户端
     location /user/ {
-        alias ${PROJECT_ROOT}/user/;
+        alias ${PROJECT_ROOT}/user/user-dist/;
         index index.html;
         add_header Strict-Transport-Security "max-age=63072000; includeSubDomains" always;
         add_header Cache-Control "no-cache";
+        add_header Content-Security-Policy $csp_policy always;
         try_files $uri $uri/ /user/index.html;
     }
 
-    # 上传图片静态文件（直接由 Nginx 提供，不经过 Node）
+    # 上传文件静态服务（直接由 Nginx 提供，不经过 Node）
     location /uploads/ {
         alias ${PROJECT_ROOT}/api/data/uploads/;
-        expires 7d;
-        add_header Cache-Control "public";
-        add_header X-Content-Type-Options "nosniff" always;
+        expires 30d;
+        add_header Cache-Control "public, immutable";
+        add_header X-Content-Type-Options nosniff always;
         access_log off;
-        # H13：禁止把上传文件当 HTML/脚本/SVG 渲染执行
-        location ~* \.(html?|js|mjs|svg)$ {
-            return 403;
-        }
+    }
+
+    # 拒绝上传目录中的可执行/可渲染脚本类文件（H13，放在 server 级才能覆盖 /uploads/ 的 alias）
+    location ~* ^/uploads/.*\.(html?|js|mjs|svg)$ {
+        return 403;
     }
 
     # API 反向代理
     location /api/ { proxy_pass ${API_URL}; proxy_set_header Host $host; proxy_set_header X-Real-IP $remote_addr; proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for; proxy_set_header X-Forwarded-Proto $scheme; }
 
-    # 根路径精确匹配 - 跳转到 /user/
+    # 微信业务域名校验文件
+    location = /69584b3808d46aa560a28586227ad6c5.txt {
+        alias ${PROJECT_ROOT}/user/user-dist/69584b3808d46aa560a28586227ad6c5.txt;
+        default_type text/plain;
+    }
+    location = /MP_verify_XGpX0TOr10ayUppj.txt {
+        alias ${PROJECT_ROOT}/user/user-dist/MP_verify_XGpX0TOr10ayUppj.txt;
+        default_type text/plain;
+    }
+
+    # 根路径跳转到用户端
     location = / { return 302 /user/; }
 }

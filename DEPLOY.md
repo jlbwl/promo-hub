@@ -181,8 +181,13 @@ PORT=3000
 NODE_ENV=production
 CORS_ORIGIN=https://www.jlbtg.cn,https://jlbtg.cn
 
-# Session 配置
-SESSION_SECRET=<从 Secrets 获取>
+# 鉴权密钥（必填，缺失时 API 启动失败）
+JWT_SECRET=<从 Secrets 获取>
+
+# 阿里云 OCR 配置（可选，未配置则回退本地识别）
+ALIYUN_OCR_ACCESS_KEY_ID=<从 Secrets 获取，可选>
+ALIYUN_OCR_ACCESS_KEY_SECRET=<从 Secrets 获取，可选>
+ALIYUN_OCR_ENDPOINT=
 
 # 阿里云 SMS 配置
 ALIBABA_CLOUD_ACCESS_KEY_ID=<从 Secrets 获取>
@@ -209,7 +214,7 @@ DATA_DIR=/www/wwwroot/promo-hub/api/data
 | `DB_USER` | 数据库用户名 | ✅ |
 | `DB_PASSWORD` | 数据库密码 | ✅ |
 | `DB_NAME` | 数据库名称 | ✅ |
-| `SESSION_SECRET` | Session 密钥 | ✅ |
+| `JWT_SECRET` | 鉴权密钥（缺失时 API 启动失败） | ✅ |
 | `ADMIN_PHONE` | 管理员手机号 | ✅ |
 | `ADMIN_PASSWORD` | 管理员密码 | ✅ |
 | `ALIBABA_CLOUD_ACCESS_KEY_ID` | 阿里云访问密钥 ID | ✅ |

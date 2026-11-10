@@ -8,16 +8,18 @@ on:
 
 concurrency:
   group: deploy-production
-  cancel-in-progress: true
+  # 不要在部署中途取消：scp 的 rm:true 会先清空目标目录，中途取消会把前端留在 404 状态。
+  # 副作用：连续 push 时正在执行的那次会跑完；GitHub 对挂起队列只保留最新一条，中间提交会被跳过。
+  cancel-in-progress: false
 
 env:
   DEPLOY_DIR: /www/wwwroot/promo-hub
   DOMAIN_NAMES: "www.jlbtg.cn jlbtg.cn"
-  SSL_CERT_PATH: /root/certs/www.jlbtg.cn.pem
-  SSL_KEY_PATH: /root/certs/www.jlbtg.cn.key
+  SSL_CERT_PATH: /etc/nginx/ssl/www.jlbtg.cn.pem
+  SSL_KEY_PATH: /etc/nginx/ssl/www.jlbtg.cn.key
   ACME_ROOT: /var/www/html
   API_URL: "http://127.0.0.1:3000/"
-  CERT_DIR: /root/certs
+  CERT_DIR: /etc/nginx/ssl
 
 jobs:
   pre-check:
@@ -305,6 +307,114 @@ jobs:
           name: shared-dist
           path: shared-dist
 
+      # 模板只用于「服务器上还没有站点配置」时创建配置，现有服务器不会被覆盖。
+      # 传输失败不阻断部署：远端脚本会判断站点配置是否存在，存在则跳过，不存在则明确报错中止。
+      # source 用「目录 + 尾斜杠」= 只拷目录内容，落地为 $DEPLOY_DIR/config/nginx.conf.template（与仓库其它 scp 步骤一致）。
+      - name: Download Nginx config template
+        id: nginx_template_download
+        continue-on-error: true
+        uses: actions/download-artifact@v7
+        with:
+          name: nginx-config-template
+          path: nginx-config-template
+
+      - name: Upload Nginx config template to server
+        id: nginx_template_upload
+        continue-on-error: true
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          port: ${{ secrets.SERVER_PORT || 22 }}
+          source: "nginx-config-template/"
+          target: "${{ env.DEPLOY_DIR }}/config/"
+          rm: false
+
+      - name: 创建发布快照（备份失败则中止部署）
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          port: ${{ secrets.SERVER_PORT || 22 }}
+          script: |
+            set -e
+            DEPLOY_DIR="${{ env.DEPLOY_DIR }}"
+            RELEASES_DIR="$DEPLOY_DIR/releases"
+            KEEP_RELEASES=3
+
+            # 首次部署（api 目录不存在）没有可备份内容，直接跳过
+            if [ ! -d "$DEPLOY_DIR/api" ]; then
+              echo "ℹ️ api 目录不存在，判定为首次部署，跳过快照"
+              exit 0
+            fi
+
+            PREV_SHA=$(cat "$DEPLOY_DIR/RELEASE" 2>/dev/null | tr -d '[:space:]' || true)
+            PREV_SHA=${PREV_SHA:-unknown}
+            SHORT_SHA=$(echo "$PREV_SHA" | cut -c1-7)
+            SNAP="$RELEASES_DIR/$(date +%Y%m%d_%H%M%S)_$SHORT_SHA"
+
+            umask 077
+            mkdir -p "$SNAP"
+            chmod 700 "$RELEASES_DIR" "$SNAP"
+            echo "$PREV_SHA" > "$SNAP/REVISION"
+
+            # 1) .env：存在即必须备份成功，否则中止（避免删除后无法恢复配置）
+            if [ ! -f "$DEPLOY_DIR/api/.env" ]; then
+              echo "❌ 未找到 $DEPLOY_DIR/api/.env，中止部署（请先人工确认配置）"
+              exit 1
+            fi
+            cp -a "$DEPLOY_DIR/api/.env" "$SNAP/api.env"
+            chmod 600 "$SNAP/api.env"
+            if ! cmp -s "$DEPLOY_DIR/api/.env" "$SNAP/api.env"; then
+              echo "❌ .env 快照校验失败，中止部署"
+              exit 1
+            fi
+            echo "✅ .env 快照完成"
+
+            # 2) 上传文件：存在即必须打包成功且可读，否则中止
+            if [ -d "$DEPLOY_DIR/api/data/uploads" ]; then
+              tar czf "$SNAP/uploads.tar.gz" -C "$DEPLOY_DIR/api/data" uploads
+              tar -tzf "$SNAP/uploads.tar.gz" > /dev/null
+              chmod 600 "$SNAP/uploads.tar.gz"
+              echo "✅ uploads 快照完成"
+            fi
+
+            # 3) API 产物（排除可重建的 node_modules 与运行时数据）
+            mkdir -p "$SNAP/api"
+            tar cf - -C "$DEPLOY_DIR/api" --exclude=node_modules --exclude=data --exclude=.env . | tar xf - -C "$SNAP/api"
+            if [ ! -f "$SNAP/api/index.js" ] && [ ! -f "$SNAP/api/dist/index.js" ]; then
+              echo "❌ API 产物快照不完整（缺少 index.js），中止部署"
+              exit 1
+            fi
+            echo "✅ API 产物快照完成"
+
+            # 4) 三端前端产物与 shared 包（必须在 scp rm:true 之前完成）
+            for APP in admin manager user; do
+              if [ -d "$DEPLOY_DIR/$APP" ]; then
+                cp -a "$DEPLOY_DIR/$APP" "$SNAP/$APP"
+                if [ ! -d "$SNAP/$APP" ]; then
+                  echo "❌ $APP 前端快照失败，中止部署"
+                  exit 1
+                fi
+                echo "✅ $APP 快照完成"
+              fi
+            done
+            if [ -d "$DEPLOY_DIR/shared" ]; then
+              cp -a "$DEPLOY_DIR/shared" "$SNAP/shared"
+              [ -d "$SNAP/shared" ] || { echo "❌ shared 快照失败，中止部署"; exit 1; }
+              echo "✅ shared 快照完成"
+            fi
+
+            # 5) 记录最近一次快照，供部署过程中的恢复步骤与回滚脚本使用
+            echo "$SNAP" > "$RELEASES_DIR/.last"
+
+            # 6) 仅保留最近 KEEP_RELEASES 份快照
+            cd "$RELEASES_DIR"
+            ls -1dt */ 2>/dev/null | tail -n +$((KEEP_RELEASES + 1)) | xargs -r rm -rf
+            echo "✅ 快照完成：${SNAP}（当前保留 $(ls -1d */ 2>/dev/null | wc -l | tr -d ' ') 份）"
+
       - name: Upload Admin to server
         uses: appleboy/scp-action@v0.1.7
         with:
@@ -338,21 +448,6 @@ jobs:
           target: "${{ env.DEPLOY_DIR }}/user/"
           rm: true
 
-      - name: 备份 API 数据（.env 与上传文件）
-        uses: appleboy/ssh-action@v1.2.0
-        with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SERVER_SSH_KEY }}
-          port: ${{ secrets.SERVER_PORT || 22 }}
-          script: |
-            set -e
-            DEPLOY_DIR="${{ env.DEPLOY_DIR }}"
-            # Upload API step 的 scp rm:true 会清空 api/ 目录，必须先备份数据
-            tar czf /tmp/promo-env-backup.tgz -C "$DEPLOY_DIR/api" .env 2>/dev/null || echo "ℹ️ .env 不存在（首次部署）"
-            tar czf /tmp/promo-uploads-backup.tgz -C "$DEPLOY_DIR/api/data" uploads 2>/dev/null || echo "ℹ️ uploads 不存在（首次部署）"
-            ls -la /tmp/promo-*backup.tgz 2>/dev/null || true
-
       - name: Upload API files to server
         uses: appleboy/scp-action@v0.1.7
         with:
@@ -377,11 +472,36 @@ jobs:
 
       - name: 部署业务代码（保护已有配置）
         uses: appleboy/ssh-action@v1.2.0
+        # 敏感值只进入本步骤的进程环境，由 ssh-action 的 envs 透传到远端 shell，
+        # 不参与脚本正文拼接（避免 secret 被插值进脚本、也避免远端 shell 二次展开）。
+        env:
+          DB_HOST: ${{ secrets.DB_HOST }}
+          DB_PORT: ${{ secrets.DB_PORT }}
+          DB_USER: ${{ secrets.DB_USER }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          DB_NAME: ${{ secrets.DB_NAME }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          SESSION_SECRET: ${{ secrets.SESSION_SECRET }}
+          ADMIN_PHONE: ${{ secrets.ADMIN_PHONE }}
+          ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
+          ALIBABA_CLOUD_ACCESS_KEY_ID: ${{ secrets.ALIBABA_CLOUD_ACCESS_KEY_ID }}
+          ALIBABA_CLOUD_ACCESS_KEY_SECRET: ${{ secrets.ALIBABA_CLOUD_ACCESS_KEY_SECRET }}
+          ALIBABA_CLOUD_SMS_SIGN_NAME: ${{ secrets.ALIBABA_CLOUD_SMS_SIGN_NAME }}
+          ALIBABA_CLOUD_SMS_TEMPLATE_CODE: ${{ secrets.ALIBABA_CLOUD_SMS_TEMPLATE_CODE }}
+          ALIYUN_OCR_ACCESS_KEY_ID: ${{ secrets.ALIYUN_OCR_ACCESS_KEY_ID }}
+          ALIYUN_OCR_ACCESS_KEY_SECRET: ${{ secrets.ALIYUN_OCR_ACCESS_KEY_SECRET }}
+          ALIYUN_OCR_ENDPOINT: ${{ secrets.ALIYUN_OCR_ENDPOINT }}
+          REDIS_HOST: ${{ secrets.REDIS_HOST }}
+          REDIS_PORT: ${{ secrets.REDIS_PORT }}
+          REDIS_PASSWORD: ${{ secrets.REDIS_PASSWORD }}
+          REDIS_DB: ${{ secrets.REDIS_DB }}
+          DATA_DIR: ${{ secrets.DATA_DIR }}
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: ${{ secrets.SERVER_PORT || 22 }}
+          envs: DB_HOST,DB_PORT,DB_USER,DB_PASSWORD,DB_NAME,JWT_SECRET,SESSION_SECRET,ADMIN_PHONE,ADMIN_PASSWORD,ALIBABA_CLOUD_ACCESS_KEY_ID,ALIBABA_CLOUD_ACCESS_KEY_SECRET,ALIBABA_CLOUD_SMS_SIGN_NAME,ALIBABA_CLOUD_SMS_TEMPLATE_CODE,ALIYUN_OCR_ACCESS_KEY_ID,ALIYUN_OCR_ACCESS_KEY_SECRET,ALIYUN_OCR_ENDPOINT,REDIS_HOST,REDIS_PORT,REDIS_PASSWORD,REDIS_DB,DATA_DIR
           script: |
             set -e
             DEPLOY_DIR="${{ env.DEPLOY_DIR }}"
@@ -457,90 +577,141 @@ jobs:
             fi
 
             # =======================
-            # 2.8 恢复 .env 与上传文件（scp rm:true 清空了 api 目录）
+            # 2.8 从发布快照恢复 .env 与上传文件（scp rm:true 清空了 api 目录）
             # =======================
-            echo "🔄 恢复 .env 与上传文件..."
-            if [ -f /tmp/promo-env-backup.tgz ]; then
-              tar xzf /tmp/promo-env-backup.tgz -C "$DEPLOY_DIR/api"
-              rm -f /tmp/promo-env-backup.tgz
-              echo "✅ .env 已恢复"
+            echo "🔄 从发布快照恢复 .env 与上传文件..."
+            SNAP="$(cat "$DEPLOY_DIR/releases/.last" 2>/dev/null || true)"
+            if [ -n "$SNAP" ] && [ -f "$SNAP/api.env" ]; then
+              cp -a "$SNAP/api.env" "$DEPLOY_DIR/api/.env"
+              chmod 600 "$DEPLOY_DIR/api/.env"
+              echo "✅ .env 已从快照恢复"
             fi
-            if [ -f /tmp/promo-uploads-backup.tgz ]; then
+            if [ -n "$SNAP" ] && [ -f "$SNAP/uploads.tar.gz" ]; then
               mkdir -p "$DEPLOY_DIR/api/data"
-              tar xzf /tmp/promo-uploads-backup.tgz -C "$DEPLOY_DIR/api/data"
-              rm -f /tmp/promo-uploads-backup.tgz
-              echo "✅ 上传文件已恢复（$(find "$DEPLOY_DIR/api/data/uploads" -type f 2>/dev/null | wc -l) 个文件）"
+              tar xzf "$SNAP/uploads.tar.gz" -C "$DEPLOY_DIR/api/data"
+              echo "✅ 上传文件已从快照恢复（$(find "$DEPLOY_DIR/api/data/uploads" -type f 2>/dev/null | wc -l) 个文件）"
             fi
 
             # =======================
             # 3. 检查并创建 .env（仅在不存在时）
+            # 取值全部来自步骤级 env + ssh-action envs，脚本正文里不出现 secret 表达式。
             # =======================
-            if [ -f ".env" ]; then
+            ENV_FILE="$DEPLOY_DIR/api/.env"
+            if [ -f "$ENV_FILE" ]; then
               echo "🔒 .env 文件已存在，保持原样，不覆盖"
             else
               echo "⚠️ .env 文件不存在，创建新的"
               
               # 生成安全的随机密钥（如果 Secrets 未配置）
-              GENERATED_SESSION_SECRET="${{ secrets.SESSION_SECRET }}"
-              if [ -z "$GENERATED_SESSION_SECRET" ]; then
-                GENERATED_SESSION_SECRET=$(openssl rand -base64 32)
-                echo "🔑 自动生成了 SESSION_SECRET"
+              # SESSION_SECRET 已不再被代码使用，仅保留为 JWT_SECRET 的历史回退来源
+              GEN_JWT_SECRET="${JWT_SECRET:-}"
+              if [ -z "$GEN_JWT_SECRET" ]; then
+                GEN_JWT_SECRET="${SESSION_SECRET:-}"
               fi
-              
-              GENERATED_JWT_SECRET="${{ secrets.JWT_SECRET || secrets.SESSION_SECRET }}"
-              if [ -z "$GENERATED_JWT_SECRET" ]; then
-                GENERATED_JWT_SECRET=$(openssl rand -base64 32)
+              if [ -z "$GEN_JWT_SECRET" ]; then
+                GEN_JWT_SECRET=$(openssl rand -base64 32)
                 echo "🔑 自动生成了 JWT_SECRET"
               fi
+
+              # 可选值统一在这里兜底；空值写成 KEY=（单行、无多余空格），不会产生畸形行
+              OPT_REDIS_PORT="${REDIS_PORT:-6379}"
+              OPT_REDIS_DB="${REDIS_DB:-0}"
+              OPT_DATA_DIR="${DATA_DIR:-/www/wwwroot/promo-hub/api/data}"
               
-              echo "# 数据库配置" > .env
-              echo "DB_HOST=${{ secrets.DB_HOST }}" >> .env
-              echo "DB_PORT=${{ secrets.DB_PORT }}" >> .env
-              echo "DB_USER=${{ secrets.DB_USER }}" >> .env
-              echo "DB_PASSWORD=${{ secrets.DB_PASSWORD }}" >> .env
-              echo "DB_NAME=${{ secrets.DB_NAME }}" >> .env
-              echo "" >> .env
-              echo "# 应用配置" >> .env
-              echo "PORT=3000" >> .env
-              echo "NODE_ENV=production" >> .env
-              echo "" >> .env
-              echo "# Session 配置" >> .env
-              echo "SESSION_SECRET=$GENERATED_SESSION_SECRET" >> .env
-              echo "JWT_SECRET=$GENERATED_JWT_SECRET" >> .env
-              echo "" >> .env
-              echo "# 管理员配置" >> .env
-              echo "ADMIN_PHONE=${{ secrets.ADMIN_PHONE }}" >> .env
-              echo "ADMIN_PASSWORD=${{ secrets.ADMIN_PASSWORD }}" >> .env
-              echo "" >> .env
-              echo "# 阿里云 SMS 配置" >> .env
-              echo "ALIBABA_CLOUD_ACCESS_KEY_ID=${{ secrets.ALIBABA_CLOUD_ACCESS_KEY_ID }}" >> .env
-              echo "ALIBABA_CLOUD_ACCESS_KEY_SECRET=${{ secrets.ALIBABA_CLOUD_ACCESS_KEY_SECRET }}" >> .env
-              echo "ALIBABA_CLOUD_SMS_SIGN_NAME=${{ secrets.ALIBABA_CLOUD_SMS_SIGN_NAME }}" >> .env
-              echo "ALIBABA_CLOUD_SMS_TEMPLATE_CODE=${{ secrets.ALIBABA_CLOUD_SMS_TEMPLATE_CODE }}" >> .env
-              echo "" >> .env
-              echo "# Redis 配置（可选，未配置则使用内存缓存）" >> .env
-              echo "REDIS_HOST=${{ secrets.REDIS_HOST || '' }}" >> .env
-              echo "REDIS_PORT=${{ secrets.REDIS_PORT || '6379' }}" >> .env
-              echo "REDIS_PASSWORD=${{ secrets.REDIS_PASSWORD || '' }}" >> .env
-              echo "REDIS_DB=${{ secrets.REDIS_DB || '0' }}" >> .env
-              echo "" >> .env
-              echo "# CORS 配置" >> .env
-              echo "CORS_ORIGIN=https://www.jlbtg.cn,https://jlbtg.cn" >> .env
-              echo "" >> .env
-              echo "# 数据目录" >> .env
-              echo "DATA_DIR=${{ secrets.DATA_DIR || '/www/wwwroot/promo-hub/api/data' }}" >> .env
-              echo "✅ .env 文件已创建（首次部署）"
+              # 用 printf 写值：值不经过 shell 二次展开，$ / 反引号 / ! / 空格 / = 都按字面写入。
+              # 子 shell 内设 umask 077，文件从创建那一刻起就是 600。
+              (
+                umask 077
+                {
+                  printf '%s\n' "# 数据库配置"
+                  printf 'DB_HOST=%s\n' "$DB_HOST"
+                  printf 'DB_PORT=%s\n' "$DB_PORT"
+                  printf 'DB_USER=%s\n' "$DB_USER"
+                  printf 'DB_PASSWORD=%s\n' "$DB_PASSWORD"
+                  printf 'DB_NAME=%s\n' "$DB_NAME"
+                  printf '\n'
+                  printf '%s\n' "# 应用配置"
+                  printf 'PORT=3000\n'
+                  printf 'NODE_ENV=production\n'
+                  printf '\n'
+                  printf '%s\n' "# 鉴权密钥"
+                  printf 'JWT_SECRET=%s\n' "$GEN_JWT_SECRET"
+                  printf '\n'
+                  printf '%s\n' "# 管理员配置"
+                  printf 'ADMIN_PHONE=%s\n' "$ADMIN_PHONE"
+                  printf 'ADMIN_PASSWORD=%s\n' "$ADMIN_PASSWORD"
+                  printf '\n'
+                  printf '%s\n' "# 阿里云 SMS 配置"
+                  printf 'ALIBABA_CLOUD_ACCESS_KEY_ID=%s\n' "$ALIBABA_CLOUD_ACCESS_KEY_ID"
+                  printf 'ALIBABA_CLOUD_ACCESS_KEY_SECRET=%s\n' "$ALIBABA_CLOUD_ACCESS_KEY_SECRET"
+                  printf 'ALIBABA_CLOUD_SMS_SIGN_NAME=%s\n' "$ALIBABA_CLOUD_SMS_SIGN_NAME"
+                  printf 'ALIBABA_CLOUD_SMS_TEMPLATE_CODE=%s\n' "$ALIBABA_CLOUD_SMS_TEMPLATE_CODE"
+                  printf '\n'
+                  printf '%s\n' "# 阿里云 OCR 配置（可选，未配置则回退本地识别，不影响启动）"
+                  printf 'ALIYUN_OCR_ACCESS_KEY_ID=%s\n' "$ALIYUN_OCR_ACCESS_KEY_ID"
+                  printf 'ALIYUN_OCR_ACCESS_KEY_SECRET=%s\n' "$ALIYUN_OCR_ACCESS_KEY_SECRET"
+                  printf 'ALIYUN_OCR_ENDPOINT=%s\n' "$ALIYUN_OCR_ENDPOINT"
+                  printf '\n'
+                  printf '%s\n' "# Redis 配置（可选，未配置则使用内存缓存）"
+                  printf 'REDIS_HOST=%s\n' "$REDIS_HOST"
+                  printf 'REDIS_PORT=%s\n' "$OPT_REDIS_PORT"
+                  printf 'REDIS_PASSWORD=%s\n' "$REDIS_PASSWORD"
+                  printf 'REDIS_DB=%s\n' "$OPT_REDIS_DB"
+                  printf '\n'
+                  printf '%s\n' "# CORS 配置"
+                  printf 'CORS_ORIGIN=https://www.jlbtg.cn,https://jlbtg.cn\n'
+                  printf '\n'
+                  printf '%s\n' "# 数据目录"
+                  printf 'DATA_DIR=%s\n' "$OPT_DATA_DIR"
+                } > "$ENV_FILE"
+              )
+              chmod 600 "$ENV_FILE"
+              echo "✅ .env 文件已创建（首次部署，权限 600）"
             fi
+
+            # 新建和从快照恢复两条路径都再收紧一次，避免历史文件残留 644
+            chmod 600 "$ENV_FILE" 2>/dev/null || true
+
+            # =======================
+            # 3.1 .env 必填项校验（当前只打印，不阻断部署）
+            # TODO: 观察一个发布周期确认各环境补齐后，把下面的告警分支改为 exit 1，
+            #       让缺配置在部署阶段暴露，而不是等到健康检查超时才发现。
+            # =======================
+            ENV_FILE="$DEPLOY_DIR/api/.env"
+            MISSING_ENV=""
+            for KEY in DB_HOST DB_PORT DB_USER DB_PASSWORD DB_NAME PORT JWT_SECRET; do
+              VAL=$(grep -E "^${KEY}=" "$ENV_FILE" 2>/dev/null | head -n 1 | cut -d= -f2-)
+              if [ -z "$VAL" ]; then
+                MISSING_ENV="$MISSING_ENV $KEY"
+              fi
+            done
+            if [ -n "$MISSING_ENV" ]; then
+              echo "⚠️ .env 缺少必填项:${MISSING_ENV}（本轮不阻断部署，补齐后应改为阻断）"
+            else
+              echo "✅ .env 必填项齐全"
+            fi
+            for KEY in ALIYUN_OCR_ACCESS_KEY_ID ALIYUN_OCR_ACCESS_KEY_SECRET; do
+              VAL=$(grep -E "^${KEY}=" "$ENV_FILE" 2>/dev/null | head -n 1 | cut -d= -f2-)
+              if [ -z "$VAL" ]; then
+                echo "ℹ️ 未配置 ${KEY}，OCR 将回退本地识别"
+              fi
+            done
 
             # =======================
             # 3.5 创建上传目录
             # =======================
             echo "📁 创建上传目录..."
-            # 从 .env 文件读取 DATA_DIR，如果不存在则使用默认值
-            if [ -f "$DEPLOY_DIR/api/.env" ]; then
-              source "$DEPLOY_DIR/api/.env" 2>/dev/null || true
-            fi
-            CURRENT_DATA_DIR="${DATA_DIR:-/www/wwwroot/promo-hub/api/data}"
+            # 不 source .env：只按 KEY= 行取值，绝不执行文件内容。
+            # 同时把 envs 透传进来的 Secret 从本 shell 环境清掉，避免后面的 npm/knex/pm2 子进程
+            # 因 dotenv 不覆盖已有变量而用 CI 值顶掉服务器 .env 里人工维护的值。
+            unset DB_HOST DB_PORT DB_USER DB_PASSWORD DB_NAME \
+                  JWT_SECRET SESSION_SECRET ADMIN_PHONE ADMIN_PASSWORD \
+                  ALIBABA_CLOUD_ACCESS_KEY_ID ALIBABA_CLOUD_ACCESS_KEY_SECRET \
+                  ALIBABA_CLOUD_SMS_SIGN_NAME ALIBABA_CLOUD_SMS_TEMPLATE_CODE \
+                  ALIYUN_OCR_ACCESS_KEY_ID ALIYUN_OCR_ACCESS_KEY_SECRET ALIYUN_OCR_ENDPOINT \
+                  REDIS_HOST REDIS_PORT REDIS_PASSWORD REDIS_DB DATA_DIR 2>/dev/null || true
+            CURRENT_DATA_DIR=$(cat "$ENV_FILE" 2>/dev/null | grep -E '^DATA_DIR=' | head -n 1 | cut -d= -f2- || true)
+            CURRENT_DATA_DIR="${CURRENT_DATA_DIR:-/www/wwwroot/promo-hub/api/data}"
             mkdir -p "$CURRENT_DATA_DIR/uploads/covers"
             echo "✅ 上传目录已创建: $CURRENT_DATA_DIR/uploads/covers"
 
@@ -548,27 +719,56 @@ jobs:
             # 4. 检查 Nginx 配置（仅在不存在时创建）
             # =======================
             if [ -f "/etc/nginx/conf.d/promo-hub.conf" ]; then
-              echo "🔒 Nginx 配置已存在，保持原样，不覆盖"
-              echo "🔒 如需更新 Nginx 配置，请手动操作"
+              echo "🔒 Nginx 配置已存在，保持原样，不覆盖（如需更新请手动操作）"
             else
-              echo "⚠️ Nginx 配置不存在，使用模板创建（首次部署）"
-              if [ -f "$DEPLOY_DIR/config/nginx.conf.template" ]; then
-                DOMAIN_NAMES="${{ secrets.DOMAIN_NAMES || env.DOMAIN_NAMES }}"
-                SSL_CERT_PATH="${{ secrets.SSL_CERT_PATH || env.SSL_CERT_PATH }}"
-                SSL_KEY_PATH="${{ secrets.SSL_KEY_PATH || env.SSL_KEY_PATH }}"
-                ACME_ROOT="${{ secrets.ACME_ROOT || env.ACME_ROOT }}"
-                API_URL="${{ secrets.API_URL || env.API_URL }}"
-                PROJECT_ROOT="$DEPLOY_DIR"
-
-                cp "$DEPLOY_DIR/config/nginx.conf.template" /etc/nginx/conf.d/promo-hub.conf
-                sed -i "s|\${DOMAIN_NAMES}|$DOMAIN_NAMES|g" /etc/nginx/conf.d/promo-hub.conf
-                sed -i "s|\${SSL_CERT_PATH}|$SSL_CERT_PATH|g" /etc/nginx/conf.d/promo-hub.conf
-                sed -i "s|\${SSL_KEY_PATH}|$SSL_KEY_PATH|g" /etc/nginx/conf.d/promo-hub.conf
-                sed -i "s|\${ACME_ROOT}|$ACME_ROOT|g" /etc/nginx/conf.d/promo-hub.conf
-                sed -i "s|\${API_URL}|$API_URL|g" /etc/nginx/conf.d/promo-hub.conf
-                sed -i "s|\${PROJECT_ROOT}|$PROJECT_ROOT|g" /etc/nginx/conf.d/promo-hub.conf
-                echo "✅ Nginx 配置已从模板创建（首次部署）"
+              echo "⚠️ Nginx 配置不存在，使用模板创建（首次部署 / 新机器重建）"
+              TEMPLATE="$DEPLOY_DIR/config/nginx.conf.template"
+              if [ ! -f "$TEMPLATE" ]; then
+                echo "❌ 站点配置与模板同时缺失：$TEMPLATE 不存在，无法创建 Nginx 配置，中止部署"
+                exit 1
               fi
+
+              DOMAIN_NAMES="${{ secrets.DOMAIN_NAMES || env.DOMAIN_NAMES }}"
+              SSL_CERT_PATH="${{ secrets.SSL_CERT_PATH || env.SSL_CERT_PATH }}"
+              SSL_KEY_PATH="${{ secrets.SSL_KEY_PATH || env.SSL_KEY_PATH }}"
+              ACME_ROOT="${{ secrets.ACME_ROOT || env.ACME_ROOT }}"
+              API_URL="${{ secrets.API_URL || env.API_URL }}"
+              PROJECT_ROOT="$DEPLOY_DIR"
+
+              for KV in "DOMAIN_NAMES=$DOMAIN_NAMES" "SSL_CERT_PATH=$SSL_CERT_PATH" "SSL_KEY_PATH=$SSL_KEY_PATH" "ACME_ROOT=$ACME_ROOT" "API_URL=$API_URL"; do
+                if [ -z "${KV#*=}" ]; then
+                  echo "❌ 渲染变量为空：${KV%%=*}，无法生成 Nginx 配置，中止部署"
+                  exit 1
+                fi
+              done
+
+              # 先渲染到临时文件并校验，校验通过才安装到 conf.d，避免留下半渲染配置
+              TMP_CONF="/tmp/promo-hub.conf.$$"
+              cp "$TEMPLATE" "$TMP_CONF"
+              sed -i "s|\${DOMAIN_NAMES}|$DOMAIN_NAMES|g" "$TMP_CONF"
+              sed -i "s|\${SSL_CERT_PATH}|$SSL_CERT_PATH|g" "$TMP_CONF"
+              sed -i "s|\${SSL_KEY_PATH}|$SSL_KEY_PATH|g" "$TMP_CONF"
+              sed -i "s|\${ACME_ROOT}|$ACME_ROOT|g" "$TMP_CONF"
+              sed -i "s|\${API_URL}|$API_URL|g" "$TMP_CONF"
+              sed -i "s|\${PROJECT_ROOT}|$PROJECT_ROOT|g" "$TMP_CONF"
+
+              LEFT_OVER=$(grep -oE '[$][{][A-Za-z_]+[}]' "$TMP_CONF" | sort -u | tr '\n' ' ')
+              if [ -n "$LEFT_OVER" ]; then
+                echo "❌ Nginx 模板渲染失败，仍有未替换占位符：$LEFT_OVER，中止部署"
+                rm -f "$TMP_CONF"
+                exit 1
+              fi
+              for SNIPPET in "listen 443" "server_name $DOMAIN_NAMES" "ssl_certificate " "ssl_certificate_key " "location /api/"; do
+                if ! grep -qF "$SNIPPET" "$TMP_CONF"; then
+                  echo "❌ 渲染结果缺少关键片段：$SNIPPET，中止部署"
+                  rm -f "$TMP_CONF"
+                  exit 1
+                fi
+              done
+
+              install -m 644 "$TMP_CONF" /etc/nginx/conf.d/promo-hub.conf
+              rm -f "$TMP_CONF"
+              echo "✅ Nginx 配置已从模板创建（首次部署）"
             fi
 
             # =======================
@@ -608,7 +808,7 @@ jobs:
             else
               echo "❌ package.json 不存在，创建包含所有依赖的完整版本"
               printf '%s\n' \
-                '{"name":"@promo/api","version":"1.0.0","private":true,"type":"module","dependencies":{"@promo/shared":"workspace:*","@fastify/csrf":"^8.0.1","bcryptjs":"^3.0.3","connect-mongo":"^5.1.0","cookie-parser":"^1.4.7","cors":"^2.8.5","csurf":"^1.11.0","dotenv":"^17.4.2","express":"^4.21.0","express-rate-limit":"^8.5.1","express-session":"^1.18.1","jsonwebtoken":"^9.0.3","knex":"^3.1.0","multer":"^1.4.5-lts.1","mysql2":"^3.22.3","redis":"^5.12.1","reflect-metadata":"^0.2.2","sharp":"^0.33.5","tsyringe":"^4.10.0","uuid":"^11.0.0"}}' \
+                '{"name":"@promo/api","version":"1.0.0","private":true,"type":"module","dependencies":{"@promo/shared":"workspace:*","bcryptjs":"^3.0.3","cookie-parser":"^1.4.7","cors":"^2.8.5","dotenv":"^17.4.2","express":"^4.21.0","express-rate-limit":"^8.5.1","jsonwebtoken":"^9.0.3","knex":"^3.1.0","multer":"^1.4.5-lts.1","mysql2":"^3.22.3","redis":"^5.12.1","reflect-metadata":"^0.2.2","sharp":"^0.33.5","tsyringe":"^4.10.0","uuid":"^11.0.0"},"overrides":{"qs":"^6.16.1","ip-address":"^10.7.4"}}' \
                 > package.json
             fi
 
@@ -632,6 +832,8 @@ jobs:
               npm install --omit=dev --legacy-peer-deps --no-audit --no-fund --registry="$NPM_OFFICIAL_REGISTRY" || { echo "❌ npm install 失败，终止部署"; exit 1; }
             fi
             echo "✅ npm依赖已安装（包括 reflect-metadata、tsyringe 和 knex）"
+            # overrides 需要 npm >= 8.3；打印出来便于从部署日志判断断言失败的原因
+            echo "ℹ️ 服务器 npm 版本：$(npm -v)（overrides 需 >= 8.3）"
 
             # =======================
             # 6.1 sharp 平台二进制自检（原生包漏装会导致 API 启动崩溃循环）
@@ -650,6 +852,8 @@ jobs:
             # =======================
             echo "🔄 执行数据库迁移..."
             if [ -f "knexfile.ts" ] && [ -d "migrations" ]; then
+              # 先打印迁移清单（只读，失败也不影响部署），便于从日志判断本次是否动了 schema
+              npx --yes tsx node_modules/knex/bin/cli.js migrate:list --env production || true
               # knexfile/迁移文件为 TS，通过 tsx 加载执行（缺失则临时下载）
               npx --yes tsx node_modules/knex/bin/cli.js migrate:latest --env production || { echo "❌ 数据库迁移失败，终止部署"; exit 1; }
               echo "✅ 数据库迁移完成"
@@ -688,6 +892,48 @@ jobs:
                 .then(() => { console.log('✅ 关键依赖自检通过'); })
                 .catch((e) => { console.error('❌ 依赖自检失败:', e.message); process.exit(1); })
             "
+
+            # =======================
+            # 7.6 依赖版本断言（只读；overrides 未生效或 npm < 8.3 时在这里暴露）
+            # =======================
+            echo "🔍 依赖版本断言（qs / ip-address / sanitize-html 修复下限）..."
+            ASSERT_ROOT="$DEPLOY_DIR/api" node -e '
+              const fs = require("fs");
+              const path = require("path");
+              const root = process.env.ASSERT_ROOT || process.cwd();
+              const floors = {
+                "qs": "6.16.1",
+                "ip-address": "10.7.4",
+                "sanitize-html": "2.18.0",
+              };
+              const cmp = (a, b) => {
+                for (let i = 0; i < 3; i++) {
+                  const x = a[i] || 0;
+                  const y = b[i] || 0;
+                  if (x !== y) return x - y;
+                }
+                return 0;
+              };
+              const bad = [];
+              for (const [name, floor] of Object.entries(floors)) {
+                const p = path.join(root, "node_modules", name, "package.json");
+                if (!fs.existsSync(p)) {
+                  bad.push(name + ": 未安装（要求 >= " + floor + "）");
+                  continue;
+                }
+                const actual = JSON.parse(fs.readFileSync(p, "utf8")).version || "0.0.0";
+                const a = actual.replace(/^[^0-9]*/, "").split("-")[0].split(".").map(Number);
+                const b = floor.split(".").map(Number);
+                if (cmp(a, b) < 0) bad.push(name + ": 实际 " + actual + "，要求 >= " + floor);
+                else console.log("   ✅ " + name + " " + actual + " >= " + floor);
+              }
+              if (bad.length) {
+                console.error("❌ 依赖版本断言失败（npm overrides 可能未生效，或 npm < 8.3）：");
+                bad.forEach((line) => console.error("   - " + line));
+                process.exit(1);
+              }
+              console.log("✅ 依赖版本断言通过");
+            '
 
             # =======================
             # 8. 检查 index.js
