@@ -2,6 +2,7 @@ import logger from '../utils/logger.js'
 import { getErrorMessage } from '@promo/shared'
 import { Router } from 'express'
 import { smsLimiter, loginLimiter, registerLimiter } from '../middleware/rateLimit.js'
+import { smsSendLimiter } from '../middleware/smsSendLimiter.js'
 import { requireAdmin, requireAuth, refreshAuthToken } from '../middleware/auth.js'
 import { resourcePermission } from '../middleware/resourcePermission.js'
 import { sendSuccess, sendError } from '../utils/response.js'
@@ -29,7 +30,7 @@ const router: Router = Router()
 // 用户注册和登录
 router.post('/users/register', registerLimiter, registerUser)
 router.post('/users/login', loginLimiter, userLogin)
-router.post('/users/sms/send', smsLimiter, sendUserSmsCode)
+router.post('/users/sms/send', smsLimiter, smsSendLimiter, sendUserSmsCode)
 router.post('/users/sms/login', loginLimiter, userSmsLogin)
 router.post('/users/password/set', loginLimiter, setUserPassword)
 router.post('/users/logout', requireAuth, userLogout)

@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import { smsLimiter, loginLimiter } from '../middleware/rateLimit.js'
+import { smsSendLimiter } from '../middleware/smsSendLimiter.js'
 import { requireAdmin, requireAuth } from '../middleware/auth.js'
 import { resourcePermission } from '../middleware/resourcePermission.js'
 import {
@@ -49,7 +50,7 @@ router.put(
 
 // 经理登录相关
 router.post('/managers/login', loginLimiter, managerLogin)
-router.post('/managers/sms/send', smsLimiter, sendManagerSmsCode)
+router.post('/managers/sms/send', smsLimiter, smsSendLimiter, sendManagerSmsCode)
 router.post('/managers/sms/login', loginLimiter, managerSmsLogin)
 
 // 经理验证（仅登录用户可校验账号状态，防止匿名枚举）

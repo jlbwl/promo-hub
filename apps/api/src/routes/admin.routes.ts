@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import { smsLimiter, loginLimiter } from '../middleware/rateLimit.js'
+import { smsSendLimiter } from '../middleware/smsSendLimiter.js'
 import { requireAdmin } from '../middleware/auth.js'
 import {
   adminLogin,
@@ -18,7 +19,7 @@ const router: Router = Router()
 
 // 管理员登录接口
 router.post('/admin/login', loginLimiter, adminLogin)
-router.post('/admin/sms/send', smsLimiter, sendAdminSmsCode)
+router.post('/admin/sms/send', smsLimiter, smsSendLimiter, sendAdminSmsCode)
 // 短信登录同样需要限流，防止 6 位验证码被暴力尝试
 router.post('/admin/sms/login', loginLimiter, adminSmsLogin)
 router.post('/admin/change-password', requireAdmin, adminChangePassword)
