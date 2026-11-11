@@ -71,6 +71,18 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
       }
     }
 
+    // 做单幂等：优先取请求体，其次 Idempotency-Key 头。
+    // 缺失或格式非法时视为缺省，走原有不做去重的路径（保持既有行为）
+    const headerKey = req.headers?.['idempotency-key']
+    const rawIdempotencyKey = req.body?.idempotencyKey ?? (Array.isArray(headerKey) ? headerKey[0] : headerKey)
+    let idempotencyKey: string | undefined
+    if (typeof rawIdempotencyKey === 'string') {
+      const trimmedKey = rawIdempotencyKey.trim()
+      if (trimmedKey.length > 0 && trimmedKey.length <= 128) {
+        idempotencyKey = trimmedKey
+      }
+    }
+
     // 归属裁决：userId 一律由服务端按登录态/分享归因生成，绝不取自请求体
     const currentUser = req.user
     let realUserId: string | undefined
@@ -114,6 +126,7 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
       userName,
       userPhone,
       sharerId,
+      idempotencyKey,
     })
 
     sendSuccess(res, { order, remainingStock }, '做单成功')

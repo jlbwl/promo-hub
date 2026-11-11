@@ -104,6 +104,78 @@ export const buildOrderPayload = (input: {
 }
 
 /**
+ * 做单幂等键（前端侧）
+ *
+ * - 同一「做单意图签名」在有效期内复用同一个键：覆盖超时重试、弱网重复点击
+ * - 拿到成功响应后立即调用 rotateOrderIdempotencyKey 轮换：下一次提交生成新键，
+ *   保证同客户同产品的第二次真实独立购买照常生成第二单
+ * - 未拿到成功结果（超时/断网）时不轮换，重试仍命中同一订单
+ * - 窗口与服务端幂等 TTL 对齐；服务端记录只用于重试保护，不影响新键产生新单
+ */
+const ORDER_IDEMPOTENCY_TTL_MS = 10 * 60 * 1000
+const ORDER_IDEMPOTENCY_STORAGE_PREFIX = 'order_idem:'
+
+/** 做单意图签名：同签名视为同一次提交尝试 */
+export const buildOrderIdempotencySignature = (payload: OrderPayload): string =>
+  [
+    payload.productId,
+    payload.optionLabel || '',
+    payload.userName || '',
+    payload.userPhone || '',
+    payload.userId || '',
+    payload.sharerId || '',
+  ].join('|')
+
+const idempotencyStorageKey = (signature: string): string =>
+  `${ORDER_IDEMPOTENCY_STORAGE_PREFIX}${signature}`
+
+/**
+ * 取当前做单意图的幂等键：有效期内复用，过期或不存在则生成新键。
+ * sessionStorage 不可用（隐私模式等）时退化为本次提交专用键。
+ */
+export const resolveOrderIdempotencyKey = (signature: string): string => {
+  const storageKey = idempotencyStorageKey(signature)
+  try {
+    const cached = sessionStorage.getItem(storageKey)
+    if (cached) {
+      const parsed = JSON.parse(cached) as { key?: string; expiresAt?: number }
+      if (parsed.key && typeof parsed.expiresAt === 'number' && parsed.expiresAt > Date.now()) {
+        return parsed.key
+      }
+    }
+  } catch {
+    // 读取/解析失败时按缺失处理
+  }
+
+  const key =
+    typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
+  try {
+    sessionStorage.setItem(
+      storageKey,
+      JSON.stringify({ key, expiresAt: Date.now() + ORDER_IDEMPOTENCY_TTL_MS })
+    )
+  } catch {
+    // 写入失败不影响本次提交
+  }
+  return key
+}
+
+/**
+ * 做单成功（拿到成功响应）后轮换：丢弃该签名对应的键，下一次提交生成新键。
+ * 审核层允许同客户同产品重复购买，因此成功一次后不能继续复用旧键。
+ * 注意：服务端幂等记录是进程内内存（单实例 fork），改 cluster/多实例前必须换成 Redis SET NX。
+ */
+export const rotateOrderIdempotencyKey = (signature: string): void => {
+  try {
+    sessionStorage.removeItem(idempotencyStorageKey(signature))
+  } catch {
+    // sessionStorage 不可用时无副作用
+  }
+}
+
+/**
  * 是否员工账户登录
  */
 export const isEmployeeAccount = (): boolean => localStorage.getItem('login_type') === 'employee'

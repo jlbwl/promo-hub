@@ -106,6 +106,33 @@ describe('order.controller', () => {
       )
     })
 
+    it('幂等键可从 Idempotency-Key 头读取并透传给服务层', async () => {
+      vi.mocked(orderService.createOrder).mockResolvedValue(orderResult)
+      const req = makeReq({
+        body: { productId: 'p_1' },
+        headers: { 'idempotency-key': 'key-header' },
+        user: { id: 'u_self', role: 'user' },
+      })
+
+      await createOrder(req, makeRes())
+
+      expect(vi.mocked(orderService.createOrder).mock.calls[0][0]).toEqual(
+        expect.objectContaining({ idempotencyKey: 'key-header' })
+      )
+    })
+
+    it('未携带幂等键时按缺省透传，保持既有行为', async () => {
+      vi.mocked(orderService.createOrder).mockResolvedValue(orderResult)
+      const req = makeReq({
+        body: { productId: 'p_1' },
+        user: { id: 'u_self', role: 'user' },
+      })
+
+      await createOrder(req, makeRes())
+
+      expect(vi.mocked(orderService.createOrder).mock.calls[0][0].idempotencyKey).toBeUndefined()
+    })
+
     it('员工代做单归属关联用户（userId=关联用户, employeeId=员工）', async () => {
       vi.mocked(orderService.createOrder).mockResolvedValue(orderResult)
       const req = makeReq({

@@ -57,6 +57,8 @@ export interface OrderCreateData {
   userName?: string
   userPhone?: string
   sharerId?: string
+  /** 幂等键：同一用户 + 同一键在有效期内只创建一单；缺省时保持原有行为 */
+  idempotencyKey?: string
 }
 
 /** 审核/结算操作者范围：经理只能操作本团队订单，管理员不受限 */
@@ -116,6 +118,17 @@ function assertOperatorCanHandle(order: OrderRow, operator?: OrderOperator): voi
 
 // H6：已进入资金流程的订单禁止用户自行删除/永久删除，保留财务凭证
 const FINANCIAL_ORDER_STATUSES = new Set(['approved', 'pending_payment', 'settled'])
+
+/**
+ * 做单幂等缓存：覆盖超时重试、返回上一页重提、弱网重复点击的短窗口。
+ * 只缓存在进程内存，pm2 目前是单实例 fork 模式（instances=1）。
+ * 改 cluster/多实例前必须换 Redis `SET NX`，否则多进程各自持有独立缓存，幂等失效。
+ */
+const ORDER_IDEMPOTENCY_TTL_MS = 10 * 60 * 1000
+const orderIdempotencyStore = new Map<
+  string,
+  { result: Promise<{ order: OrderRow; remainingStock: number }>; expiresAt: number }
+>()
 
 /** 订单业务状态 */
 export type OrderStatus = 'pending' | 'approved' | 'rejected' | 'pending_payment' | 'settled'
@@ -184,6 +197,54 @@ export class OrderServiceImpl implements OrderService {
   }
 
   async createOrder(orderData: OrderCreateData) {
+    const idempotencyKey = this.buildIdempotencyKey(orderData)
+    if (!idempotencyKey) {
+      return this.performCreateOrder(orderData)
+    }
+
+    const now = Date.now()
+    const cached = orderIdempotencyStore.get(idempotencyKey)
+    if (cached && cached.expiresAt > now) {
+      return cached.result
+    }
+
+    // 同步占位：check 与 set 之间没有 await，单进程内并发同键只会有一个进入真实创建
+    const result = this.performCreateOrder(orderData)
+    orderIdempotencyStore.set(idempotencyKey, {
+      result,
+      expiresAt: now + ORDER_IDEMPOTENCY_TTL_MS,
+    })
+    this.pruneOrderIdempotencyStore(now)
+
+    try {
+      return await result
+    } catch (error) {
+      // 失败不缓存，允许调用方用同一个键重试
+      if (orderIdempotencyStore.get(idempotencyKey)?.result === result) {
+        orderIdempotencyStore.delete(idempotencyKey)
+      }
+      throw error
+    }
+  }
+
+  /** 幂等键按用户隔离，避免不同用户偶然撞键互相影响；缺键时返回 null 走原路径 */
+  private buildIdempotencyKey(orderData: OrderCreateData): string | null {
+    const key = (orderData.idempotencyKey || '').trim()
+    const userId = (orderData.userId || '').trim()
+    if (!key || !userId) return null
+    return `${userId}::${key}`
+  }
+
+  private pruneOrderIdempotencyStore(now: number): void {
+    if (orderIdempotencyStore.size < 200) return
+    for (const [key, entry] of orderIdempotencyStore) {
+      if (entry.expiresAt <= now) {
+        orderIdempotencyStore.delete(key)
+      }
+    }
+  }
+
+  private async performCreateOrder(orderData: OrderCreateData) {
     const { productId, userId, employeeId, optionLabel, redirectUrl, userName, userPhone, sharerId } = orderData
 
     const products = await this.db.readProducts()

@@ -249,10 +249,13 @@ import { post } from '@promo/shared/utils/request'
 import { getErrorMessage } from '@promo/shared/utils/errors'
 import {
   beginShareVisit,
+  buildOrderIdempotencySignature,
   buildOrderPayload,
   endShareVisit,
   jumpToUrl,
+  resolveOrderIdempotencyKey,
   resolveSharerId,
+  rotateOrderIdempotencyKey,
 } from '@/composables/useProductOrder'
 import { useProductDetail } from '@/composables/useProductDetail'
 
@@ -397,8 +400,13 @@ const submitGoOrder = (userName: string, userPhone: string) => {
   }
 
   submitting.value = true
-  // 先提交订单，成功后再跳转
-  post('/orders', payload).then((res) => {
+  const idempotencySignature = buildOrderIdempotencySignature(payload)
+  // 先提交订单，成功后再跳转；幂等键让重试/重提落到同一订单
+  post('/orders', payload, {
+    headers: { 'Idempotency-Key': resolveOrderIdempotencyKey(idempotencySignature) },
+  }).then((res) => {
+    // 成功响应已拿到：立即轮换幂等键，下一次做单生成新键（允许同客户同产品再次购买）
+    rotateOrderIdempotencyKey(idempotencySignature)
     logger.debug('[做单] 成功, 响应:', JSON.stringify(res))
 
     // 归因只对本次分享访问有效：移除地址栏参数，刷新后不再复用；

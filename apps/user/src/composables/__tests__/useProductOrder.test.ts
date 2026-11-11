@@ -7,6 +7,9 @@ import {
   endShareVisit,
   resolveSharerId,
   buildOrderPayload,
+  buildOrderIdempotencySignature,
+  resolveOrderIdempotencyKey,
+  rotateOrderIdempotencyKey,
   isEmployeeAccount,
   getEmployeeId,
   jumpToUrl,
@@ -138,6 +141,63 @@ describe('buildOrderPayload', () => {
   it('携带分享归因 sharerId', () => {
     const { payload } = buildOrderPayload({ ...baseInput, sharerId: 'u_9' })
     expect(payload.sharerId).toBe('u_9')
+  })
+})
+
+describe('做单幂等键生命周期', () => {
+  const payload = { productId: 'p_1', userId: 'u_1', userName: '张三', userPhone: '13800138000' }
+  const signature = () => buildOrderIdempotencySignature(payload)
+
+  it('场景1：成功拿到响应后轮换，下一次做单生成新键（第二单）', () => {
+    const first = resolveOrderIdempotencyKey(signature())
+    // 成功响应返回给前端后立即轮换
+    rotateOrderIdempotencyKey(signature())
+    const second = resolveOrderIdempotencyKey(signature())
+    expect(second).not.toBe(first)
+  })
+
+  it('场景2：超时未拿到成功结果时保留键，重试仍命中同一键（同一订单）', () => {
+    const first = resolveOrderIdempotencyKey(signature())
+    expect(resolveOrderIdempotencyKey(signature())).toBe(first)
+    expect(resolveOrderIdempotencyKey(signature())).toBe(first)
+  })
+
+  it('场景3：超时后放弃并重新填写同样信息，有效期内仍是同一键', () => {
+    const first = resolveOrderIdempotencyKey(signature())
+    const refilled = buildOrderIdempotencySignature({ ...payload })
+    expect(resolveOrderIdempotencyKey(refilled)).toBe(first)
+  })
+
+  it('场景3 边界：键超过有效期后重新填写同样信息生成新键', () => {
+    vi.useFakeTimers()
+    try {
+      const first = resolveOrderIdempotencyKey(signature())
+      vi.advanceTimersByTime(10 * 60 * 1000 + 1)
+      expect(resolveOrderIdempotencyKey(signature())).not.toBe(first)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('场景4：拿不到响应反复点提交，键恒定只落一单', () => {
+    const first = resolveOrderIdempotencyKey(signature())
+    const keys = Array.from({ length: 5 }, () => resolveOrderIdempotencyKey(signature()))
+    expect(new Set(keys).size).toBe(1)
+    expect(keys[0]).toBe(first)
+  })
+
+  it('签名要素变化（选项/客户信息/归属人）使用不同键', () => {
+    const a = resolveOrderIdempotencyKey(buildOrderIdempotencySignature(payload))
+    const withOption = resolveOrderIdempotencyKey(
+      buildOrderIdempotencySignature({ ...payload, optionLabel: 'A套餐' })
+    )
+    const withPhone = resolveOrderIdempotencyKey(
+      buildOrderIdempotencySignature({ ...payload, userPhone: '13800138001' })
+    )
+    const withSharer = resolveOrderIdempotencyKey(
+      buildOrderIdempotencySignature({ ...payload, sharerId: 'u_9' })
+    )
+    expect(new Set([a, withOption, withPhone, withSharer]).size).toBe(4)
   })
 })
 
