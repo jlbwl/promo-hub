@@ -181,15 +181,16 @@ const handlePasswordLogin = async () => {
     })
 
     if (res.code === 0) {
-      if (res.data?.manager) {
+      // 没有真实 token 视为登录失败：写入伪 token 会让后续请求全部 401
+      if (!res.data?.token) {
+        ElMessage.error('登录失败：未获取到登录凭证，请重试')
+        return
+      }
+      if (res.data.manager) {
         localStorage.setItem('manager_info', JSON.stringify(res.data.manager))
       }
-      if (res.data?.token) {
-        localStorage.setItem('manager_token', res.data.token)
-      } else {
-        localStorage.setItem('manager_token', 'logged_in')
-      }
-      if (res.data?.refreshToken) {
+      localStorage.setItem('manager_token', res.data.token)
+      if (res.data.refreshToken) {
         localStorage.setItem('manager_refresh_token', res.data.refreshToken)
       }
       ElMessage.success('登录成功')
@@ -236,15 +237,16 @@ const handleSmsLogin = async () => {
     })
 
     if (res.code === 0) {
-      if (res.data?.manager) {
+      // 没有真实 token 视为登录失败：写入伪 token 会让后续请求全部 401
+      if (!res.data?.token) {
+        ElMessage.error('登录失败：未获取到登录凭证，请重试')
+        return
+      }
+      if (res.data.manager) {
         localStorage.setItem('manager_info', JSON.stringify(res.data.manager))
       }
-      if (res.data?.token) {
-        localStorage.setItem('manager_token', res.data.token)
-      } else {
-        localStorage.setItem('manager_token', 'logged_in')
-      }
-      if (res.data?.refreshToken) {
+      localStorage.setItem('manager_token', res.data.token)
+      if (res.data.refreshToken) {
         localStorage.setItem('manager_refresh_token', res.data.refreshToken)
       }
       ElMessage.success('登录成功')

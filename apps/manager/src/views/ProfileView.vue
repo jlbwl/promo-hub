@@ -10,16 +10,25 @@
           <template #header>
             <span>经理信息</span>
           </template>
+          <!-- 信息缺失时明确告知，不用假数据顶替 -->
+          <el-alert
+            v-if="infoMissing"
+            type="warning"
+            :closable="false"
+            show-icon
+            title="未获取到经理信息，修改密码等功能暂不可用，请重新登录"
+            style="margin-bottom: 16px;"
+          />
           <div class="profile-info">
             <div class="avatar-section">
               <el-avatar
                 :size="80"
                 class="avatar"
               >
-                {{ (managerInfo.teamName || managerInfo.name).charAt(0) }}
+                {{ managerInitial }}
               </el-avatar>
               <div class="info-text">
-                <h3>{{ managerInfo.teamName || managerInfo.name }}</h3>
+                <h3>{{ managerDisplayName }}</h3>
                 <p class="info-label">
                   渠道经理
                 </p>
@@ -31,13 +40,13 @@
               class="info-descriptions"
             >
               <el-descriptions-item label="渠道名称">
-                {{ managerInfo.teamName || managerInfo.name }}
+                {{ managerInfo.teamName || managerInfo.name || '未获取到' }}
               </el-descriptions-item>
               <el-descriptions-item label="手机号">
-                {{ managerInfo.phone }}
+                {{ managerInfo.phone || '未获取到' }}
               </el-descriptions-item>
               <el-descriptions-item label="注册时间">
-                {{ managerInfo.createdAt }}
+                {{ managerInfo.createdAt || '未获取到' }}
               </el-descriptions-item>
             </el-descriptions>
           </div>
@@ -125,7 +134,7 @@
 <script setup lang="ts">
 import { logger } from '@promo/shared/utils/logger'
 import { getErrorMessage } from '@promo/shared/utils/errors'
-import { ref, reactive, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { ElMessage, type FormInstance, type FormItemRule, type FormRules } from 'element-plus'
 import { get, post, clearAuthStorage } from '@promo/shared/utils/request'
 import { formatDate } from '@promo/shared/utils/helpers'
@@ -141,13 +150,22 @@ const passwordSaving = ref(false)
 const smsCooldown = ref(0)
 let smsTimer: ReturnType<typeof setInterval> | null = null
 
-// 经理信息（模拟数据，实际从接口获取）
+// 经理信息（来源仅限本地登录态与后端详情接口，不做硬编码兜底）
 const managerInfo = reactive({
   name: '',
   teamName: '',
   phone: '',
   createdAt: ''
 })
+
+// 缺少手机号或名称时视为信息缺失，页面明确提示而不是展示假数据
+const infoMissing = computed(() => !managerInfo.phone || !(managerInfo.name || managerInfo.teamName))
+
+const managerDisplayName = computed(
+  () => managerInfo.teamName || managerInfo.name || '未获取到经理信息'
+)
+
+const managerInitial = computed(() => managerDisplayName.value.charAt(0))
 
 // 修改密码表单
 const passwordForm = reactive({
@@ -191,8 +209,8 @@ const fetchManagerInfo = async () => {
     const storedInfo = localStorage.getItem('manager_info')
     if (storedInfo) {
       const info = JSON.parse(storedInfo)
-      managerInfo.name = info.name || '张经理'
-      managerInfo.phone = info.phone || '13800138000'
+      managerInfo.name = info.name || ''
+      managerInfo.phone = info.phone || ''
       managerInfo.teamName = info.teamName || ''
     }
 
@@ -204,14 +222,8 @@ const fetchManagerInfo = async () => {
         managerInfo.name = res.data.name || managerInfo.name
         managerInfo.phone = res.data.phone || managerInfo.phone
         managerInfo.teamName = res.data.teamName || managerInfo.name
-        managerInfo.createdAt = res.data.createdAt ? formatTime(res.data.createdAt) : '2025-06-15 10:00:00'
+        managerInfo.createdAt = res.data.createdAt ? formatTime(res.data.createdAt) : ''
       }
-
-      
-    }
-
-    if (!managerInfo.createdAt) {
-      managerInfo.createdAt = '2025-06-15 10:00:00'
     }
   } catch (error) {
     logger.error('获取经理信息失败:', error)
@@ -232,7 +244,8 @@ const getManagerId = () => {
 
 // 发送短信验证码
 const handleSendSms = async () => {
-  if (!managerInfo.phone) return ElMessage.error('获取手机号失败')
+  // 手机号只来自登录态/详情接口，缺失时明确提示且不发请求
+  if (!managerInfo.phone) return ElMessage.error('未获取到手机号，无法发送验证码，请重新登录后重试')
   if (!/^1[3-9]\d{9}$/.test(managerInfo.phone)) return ElMessage.error('手机号格式不正确')
 
   try {
@@ -251,6 +264,12 @@ const handleSendSms = async () => {
 // 修改密码
 const handleChangePassword = async () => {
   if (!passwordFormRef.value) return
+
+  // 改密必须使用真实手机号，取不到时不提交请求
+  if (!managerInfo.phone) {
+    ElMessage.error('未获取到手机号，无法修改密码，请重新登录后重试')
+    return
+  }
 
   try {
     await passwordFormRef.value.validate()
