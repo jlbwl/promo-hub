@@ -5,7 +5,7 @@ import { get, put } from '@promo/shared/utils/request'
 import { getErrorMessage } from '@promo/shared/utils/errors'
 import { appendQrCodeToWorkbook, createDispatchWorkbook, downloadWorkbook } from '../utils'
 import type { QrCodeItem } from '../utils'
-import type { Product, ProductCategory } from '@promo/shared/types'
+import type { PaginatedResponse, Product, ProductCategory } from '@promo/shared/types'
 
 /**
  * 分类管理页：分类列表加载、归档/启用切换与一键派单导出
@@ -57,11 +57,34 @@ export function useCategoryAdmin() {
   // 一键派单导出Excel（fallbackQrDataUrl 为默认二维码获取失败时的回退图片）
   const exportProducts = async (fallbackQrDataUrl: string) => {
     try {
-      const res = await get<{ list: Product[] }>('/products', { adminMode: 'true', status: 'published', page: '1', pageSize: '1000' })
-      const products = res.data?.list || []
+      // 后端单页上限为 100，循环分页拉全量，避免产品超过 100 时静默漏行
+      const PAGE_SIZE = 100
+      const products: Product[] = []
+      let total = 0
+      for (let page = 1; ; page++) {
+        const res = await get<PaginatedResponse<Product>>('/products', {
+          adminMode: 'true',
+          status: 'published',
+          page,
+          pageSize: PAGE_SIZE,
+        })
+        const data = res.data
+        const list = data?.list || []
+        total = data?.total ?? products.length + list.length
+        products.push(...list)
+
+        const totalPages = data?.totalPages ?? Math.ceil(total / PAGE_SIZE)
+        if (list.length === 0 || products.length >= total || page >= totalPages) break
+      }
 
       if (products.length === 0) {
         ElMessage.info('暂无开放的产品')
+        return
+      }
+
+      // 数据不完整时终止导出并明示，禁止生成残缺派单表
+      if (products.length < total) {
+        ElMessage.error(`产品数据未拉取完整（${products.length}/${total}），已取消导出，请重试`)
         return
       }
 

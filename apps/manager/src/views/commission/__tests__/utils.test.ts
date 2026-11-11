@@ -9,7 +9,7 @@ vi.mock('@promo/shared/utils/request', () => ({
 }))
 
 import { get } from '@promo/shared/utils/request'
-import { fetchAllOrders, formatTime, getManagerId, maskName, maskPhone, statusTagType, statusText } from '../utils'
+import { fetchAllOrders, formatTime, getManagerId, maskName, maskPhone, settleOrders, statusTagType, statusText, sumProductPrice } from '../utils'
 
 beforeEach(() => {
   localStorage.clear()
@@ -89,7 +89,10 @@ describe('fetchAllOrders', () => {
 
     const result = await fetchAllOrders({ status: 'pending_payment' })
 
-    expect(result).toHaveLength(150)
+    expect(result.orders).toHaveLength(150)
+    expect(result.total).toBe(150)
+    expect(result.truncated).toBe(false)
+    expect(result.remaining).toBe(0)
     expect(get).toHaveBeenCalledTimes(2)
     expect(vi.mocked(get).mock.calls[0][1]).toMatchObject({
       status: 'pending_payment',
@@ -106,7 +109,87 @@ describe('fetchAllOrders', () => {
       data: { list: [], total: 0, page: 1, pageSize: 100 },
     })
 
-    expect(await fetchAllOrders({})).toEqual([])
+    const result = await fetchAllOrders({})
+
+    expect(result.orders).toEqual([])
+    expect(result.total).toBe(0)
+    expect(result.truncated).toBe(false)
     expect(get).toHaveBeenCalledTimes(1)
+  })
+
+  it('超过 5000 笔时返回截断标记与未拉取数量，不静默丢弃', async () => {
+    vi.mocked(get).mockImplementation((_url: string, params?: object) => {
+      const query = (params || {}) as Record<string, unknown>
+      const page = Number(query.page || 1)
+      const list = Array.from({ length: 100 }, (_, i) => ({ id: `p${page}-${i}` }) as Order)
+      return Promise.resolve({
+        code: 0,
+        message: 'success',
+        data: { list, total: 5100, page, pageSize: 100 },
+      })
+    })
+
+    const result = await fetchAllOrders({ status: 'pending_payment' })
+
+    expect(get).toHaveBeenCalledTimes(50)
+    expect(result.orders).toHaveLength(5000)
+    expect(result.total).toBe(5100)
+    expect(result.truncated).toBe(true)
+    expect(result.remaining).toBe(100)
+  })
+
+  it('恰好 5000 笔时不算截断', async () => {
+    vi.mocked(get).mockImplementation((_url: string, params?: object) => {
+      const query = (params || {}) as Record<string, unknown>
+      const page = Number(query.page || 1)
+      const list = Array.from({ length: 100 }, (_, i) => ({ id: `p${page}-${i}` }) as Order)
+      return Promise.resolve({
+        code: 0,
+        message: 'success',
+        data: { list, total: 5000, page, pageSize: 100 },
+      })
+    })
+
+    const result = await fetchAllOrders({})
+
+    expect(result.orders).toHaveLength(5000)
+    expect(result.truncated).toBe(false)
+    expect(result.remaining).toBe(0)
+  })
+})
+
+describe('settleOrders / sumProductPrice', () => {
+  const orders = [
+    { id: 'o1', productPrice: 100 } as Order,
+    { id: 'o2', productPrice: 50 } as Order,
+    { id: 'o3', productPrice: '30' as unknown as number } as Order,
+  ]
+
+  it('逐笔结算，单笔失败不中断，并分别返回成功与失败明细', async () => {
+    const settle = vi.fn(async (order: Order) => {
+      if (order.id === 'o2') throw new Error('boom')
+    })
+
+    const result = await settleOrders(orders, settle)
+
+    expect(settle).toHaveBeenCalledTimes(3)
+    expect(result.settled.map(o => o.id)).toEqual(['o1', 'o3'])
+    expect(result.failed.map(o => o.id)).toEqual(['o2'])
+    // 合计只统计成功部分
+    expect(sumProductPrice(result.settled)).toBe(130)
+    expect(sumProductPrice(result.failed)).toBe(50)
+  })
+
+  it('全部成功时失败清单为空', async () => {
+    const result = await settleOrders(orders, async () => undefined)
+
+    expect(result.failed).toEqual([])
+    expect(result.settled).toHaveLength(3)
+    expect(sumProductPrice(result.settled)).toBe(180)
+  })
+
+  it('sumProductPrice 对非法金额按 0 处理', () => {
+    expect(sumProductPrice([{ id: 'x', productPrice: 'abc' as unknown as number } as Order])).toBe(0)
+    expect(sumProductPrice([])).toBe(0)
   })
 })

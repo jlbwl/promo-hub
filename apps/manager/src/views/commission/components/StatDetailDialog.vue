@@ -10,6 +10,18 @@
       class="stat-dialog-content"
       style="overflow: hidden;"
     >
+      <el-alert
+        v-if="statDialogTruncated"
+        type="warning"
+        :closable="false"
+        show-icon
+        style="margin-bottom: 12px;"
+      >
+        <template #title>
+          数据共 {{ statDialogTotalCount }} 条，已达到单次加载上限，当前仅展示 {{ statDialogOrders.length }} 条，另有 {{ statDialogRemaining }} 条未加载，合计不完整
+        </template>
+      </el-alert>
+
       <div class="payment-summary">
         <span>共 <strong>{{ statDialogOrders.length }}</strong> 条记录</span>
         <span class="payment-total">
@@ -150,6 +162,10 @@ import type { Order } from '@promo/shared/types'
 const statDialogVisible = ref(false)
 const statDialogTitle = ref('')
 const statDialogOrders = ref<Order[]>([])
+// 后端总条数与截断信息，达到单次上限时必须明确展示
+const statDialogTotalCount = ref(0)
+const statDialogTruncated = ref(false)
+const statDialogRemaining = ref(0)
 
 const statDialogTotal = computed(() => {
   return statDialogOrders.value.reduce((sum: number, o: Order) => sum + (Number(o.productPrice) || 0), 0).toFixed(2)
@@ -158,14 +174,21 @@ const statDialogTotal = computed(() => {
 // 打开通用数据查看弹窗
 const open = async (status: string, title: string) => {
   statDialogTitle.value = title + '明细'
+  statDialogTruncated.value = false
+  statDialogRemaining.value = 0
+  statDialogTotalCount.value = 0
   statDialogVisible.value = true
 
   try {
     // 分页拉取全部订单，避免后端单页上限导致明细与合计失真
-    statDialogOrders.value = await fetchAllOrders({
+    const result = await fetchAllOrders({
       managerId: getManagerId() || undefined,
       ...(status !== 'all' ? { status } : {}),
     })
+    statDialogOrders.value = result.orders
+    statDialogTotalCount.value = result.total
+    statDialogTruncated.value = result.truncated
+    statDialogRemaining.value = result.remaining
   } catch (error) {
     ElMessage.error('获取数据失败')
     statDialogVisible.value = false
