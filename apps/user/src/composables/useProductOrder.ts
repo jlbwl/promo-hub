@@ -21,15 +21,40 @@ export interface OrderPayload {
 }
 
 /**
- * 解析分享归因 ID：优先取当前 URL 参数；站内跳转会丢失 query，用 sessionStorage 记住最近一次分享来源
+ * 本次分享访问的归因记录：只存在于内存，绑定的产品页关闭/切换即失效
  */
-export const resolveSharerId = (route: Pick<RouteLocationNormalizedLoaded, 'query'>): string => {
-  const fromQuery = route.query.sharerId as string
-  if (fromQuery) {
-    sessionStorage.setItem('sharer_id', fromQuery)
-    return fromQuery
-  }
-  return sessionStorage.getItem('sharer_id') || ''
+interface ShareVisit {
+  productId: string
+  sharerId: string
+}
+
+let currentShareVisit: ShareVisit | null = null
+
+/**
+ * 建立本次分享访问：URL 无 sharerId 时视为非分享入口，直接清空归因
+ */
+export const beginShareVisit = (
+  route: Pick<RouteLocationNormalizedLoaded, 'query'>,
+  productId: string
+): void => {
+  const fromQuery = typeof route.query.sharerId === 'string' ? route.query.sharerId : ''
+  currentShareVisit = fromQuery ? { productId, sharerId: fromQuery } : null
+}
+
+/**
+ * 结束本次分享访问：离开产品详情页时调用
+ */
+export const endShareVisit = (): void => {
+  currentShareVisit = null
+}
+
+/**
+ * 解析本次分享访问的归因：仅同一产品有效。
+ * 归因不随下单消费，保证同一次分享访问内连续做单仍归属同一分享人
+ */
+export const resolveSharerId = (productId: string): string => {
+  if (!currentShareVisit || currentShareVisit.productId !== productId) return ''
+  return currentShareVisit.sharerId
 }
 
 /**

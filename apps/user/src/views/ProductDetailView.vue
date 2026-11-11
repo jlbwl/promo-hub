@@ -242,13 +242,15 @@
 
 <script setup lang="ts">
 import { logger } from '@promo/shared/utils/logger'
-import { reactive, ref, onMounted } from 'vue'
+import { reactive, ref, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { showToast, showDialog, showImagePreview } from 'vant'
 import { post } from '@promo/shared/utils/request'
 import { getErrorMessage } from '@promo/shared/utils/errors'
 import {
+  beginShareVisit,
   buildOrderPayload,
+  endShareVisit,
   jumpToUrl,
   resolveSharerId,
 } from '@/composables/useProductOrder'
@@ -257,6 +259,20 @@ import { useProductDetail } from '@/composables/useProductDetail'
 // 路由实例
 const router = useRouter()
 const route = useRoute()
+
+// 分享归因跟随本次产品页访问：同一次访问内连续做单保持归因，
+// 离开页面、切换产品或从非分享入口进入时失效
+const syncShareVisit = () => beginShareVisit(route, String(route.params.id))
+syncShareVisit()
+watch(() => route.params.id, syncShareVisit)
+watch(
+  () => route.query.sharerId,
+  (sharerId) => {
+    // 下单成功后我们会移除 URL 参数，此时保持内存中的本次访问归因
+    if (typeof sharerId === 'string' && sharerId) syncShareVisit()
+  }
+)
+onBeforeUnmount(endShareVisit)
 
 // 产品详情（加载/选项选择/分享）
 const {
@@ -370,7 +386,7 @@ const submitGoOrder = (userName: string, userPhone: string) => {
     userName,
     userPhone,
     userId: getUserId(),
-    sharerId: resolveSharerId(route),
+    sharerId: resolveSharerId(product.id),
   })
 
   // 与后端归属规则一致：未登录且无分享归因（sharerId）时不允许下单
@@ -384,6 +400,14 @@ const submitGoOrder = (userName: string, userPhone: string) => {
   // 先提交订单，成功后再跳转
   post('/orders', payload).then((res) => {
     logger.debug('[做单] 成功, 响应:', JSON.stringify(res))
+
+    // 归因只对本次分享访问有效：移除地址栏参数，刷新后不再复用；
+    // 内存中的访问归因保留，同页继续做单仍归到该分享人
+    if (route.query.sharerId) {
+      const restQuery = { ...route.query }
+      delete restQuery.sharerId
+      router.replace({ query: restQuery })
+    }
 
     // 订单提交成功后执行跳转
     if (jumpUrl) {

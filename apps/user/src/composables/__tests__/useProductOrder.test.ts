@@ -3,6 +3,8 @@
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import {
+  beginShareVisit,
+  endShareVisit,
   resolveSharerId,
   buildOrderPayload,
   isEmployeeAccount,
@@ -23,23 +25,54 @@ const baseInput = {
 beforeEach(() => {
   localStorage.clear()
   sessionStorage.clear()
+  endShareVisit()
   vi.unstubAllGlobals()
 })
 
-describe('resolveSharerId', () => {
-  it('URL 参数优先，并写入 sessionStorage 记忆', () => {
-    const id = resolveSharerId({ query: { sharerId: 'u_9' } })
-    expect(id).toBe('u_9')
-    expect(sessionStorage.getItem('sharer_id')).toBe('u_9')
+describe('分享访问归因生命周期', () => {
+  it('首次归因生效：从分享链接进入即可归因', () => {
+    beginShareVisit({ query: { sharerId: 'u_9' } }, 'p_1')
+    expect(resolveSharerId('p_1')).toBe('u_9')
   })
 
-  it('无 URL 参数时回退 sessionStorage', () => {
-    sessionStorage.setItem('sharer_id', 'u_8')
-    expect(resolveSharerId({ query: {} })).toBe('u_8')
+  it('同页连续两单都归因到同一分享人', () => {
+    beginShareVisit({ query: { sharerId: 'u_9' } }, 'p_1')
+
+    const first = buildOrderPayload({ ...baseInput, sharerId: resolveSharerId('p_1') })
+    const second = buildOrderPayload({ ...baseInput, sharerId: resolveSharerId('p_1') })
+
+    expect(first.payload.sharerId).toBe('u_9')
+    expect(second.payload.sharerId).toBe('u_9')
   })
 
-  it('两处均无时返回空串', () => {
-    expect(resolveSharerId({ query: {} })).toBe('')
+  it('离开后再从非分享入口进入不归因', () => {
+    beginShareVisit({ query: { sharerId: 'u_9' } }, 'p_1')
+    endShareVisit()
+    beginShareVisit({ query: {} }, 'p_1')
+    expect(resolveSharerId('p_1')).toBe('')
+  })
+
+  it('换产品不归因', () => {
+    beginShareVisit({ query: { sharerId: 'u_9' } }, 'p_1')
+    expect(resolveSharerId('p_2')).toBe('')
+    beginShareVisit({ query: {} }, 'p_2')
+    expect(resolveSharerId('p_1')).toBe('')
+  })
+
+  it('URL 参数变化后按新分享人重新归因', () => {
+    beginShareVisit({ query: { sharerId: 'u_1' } }, 'p_1')
+    expect(resolveSharerId('p_1')).toBe('u_1')
+
+    beginShareVisit({ query: { sharerId: 'u_2' } }, 'p_1')
+    expect(resolveSharerId('p_1')).toBe('u_2')
+  })
+
+  it('刷新等重建访问时 URL 无参数则不归因', () => {
+    beginShareVisit({ query: { sharerId: 'u_9' } }, 'p_1')
+    endShareVisit()
+    beginShareVisit({ query: {} }, 'p_1')
+    expect(resolveSharerId('p_1')).toBe('')
+    expect(sessionStorage.getItem('sharer_id')).toBeNull()
   })
 })
 
