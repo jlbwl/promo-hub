@@ -10,7 +10,7 @@ import {
   updateManager,
   type UserRow,
 } from '../data/index.js'
-import { generateTokens } from '../middleware/auth.js'
+import { generateTokens, revokeAllRefreshTokens } from '../middleware/auth.js'
 import { sendSmsCode } from '../utils/sms.js'
 import { generateSmsCode, saveSmsCode, verifySmsCode, deleteSmsCode } from '../utils/sms.js'
 import { logAdminOperation } from '../utils/auditLog.js'
@@ -446,6 +446,9 @@ export const setManagerPassword = async (req: Request, res: Response): Promise<v
 
   const hashedPassword = await hashPassword(password)
   await updateManager(existing.id, { password: hashedPassword })
+
+  // 改密后吊销该账号已签发的全部 refresh token（旧会话最长保留 1 小时 access token 有效期）
+  await revokeAllRefreshTokens('manager', existing.id)
 
   sendSuccess(res, null, '密码修改成功')
 }

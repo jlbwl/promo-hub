@@ -23,6 +23,10 @@ vi.mock('../../services/cache/index.js', () => ({
 
 vi.mock('../../data/index.js', () => ({
   readEmployeeById: vi.fn(),
+  // refresh 现在以数据库为准确认身份，这里给普通用户提供默认的 active 账号
+  readUser: vi.fn(async (id: string) => ({ id, phone: '13700000000', role: 'user', status: 'active' })),
+  readManager: vi.fn(),
+  readAdminById: vi.fn(),
 }))
 
 import jwt from 'jsonwebtoken'

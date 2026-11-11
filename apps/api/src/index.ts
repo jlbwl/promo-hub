@@ -13,6 +13,7 @@ import cookieParser from 'cookie-parser'
 import { attachUser, requireManager, requireAdmin } from './middleware/auth.js'
 import { csrfGenerate, csrfVerify, getCsrfToken } from './middleware/csrf-v2.js'
 import routes from './routes/index.js'
+import { clearBusinessCache } from './controllers/cache.controller.js'
 import { errorHandler } from './utils/response.js'
 import { logRequest } from './utils/logger.js'
 import { initializeCache, closeCache, getCacheService } from './services/index.js'
@@ -266,15 +267,8 @@ app.get('/health', healthCheckHandler)
 app.get('/api/health', healthCheckHandler)
 
 // 缓存清理接口（仅管理员；O14：路径不写 /api 前缀，Nginx 转发前已剥离）
-app.post('/cache/clear', requireAdmin, async (_req, res) => {
-  try {
-    const cacheService = getCacheService()
-    await cacheService.flush()
-    res.json({ code: 0, message: '缓存已清空', data: null })
-  } catch (error) {
-    res.json({ code: 500, message: '清空缓存失败: ' + getErrorMessage(error), data: null })
-  }
-})
+// 只清理产品域缓存，禁止使用 flush()（Redis FLUSHDB 会清空令牌键空间）
+app.post('/cache/clear', requireAdmin, clearBusinessCache)
 
 // 主路由（不添加 /api 前缀，已由 Nginx 代理处理）
 app.use('/', routes)

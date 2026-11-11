@@ -10,7 +10,7 @@ import {
   type UserRecord,
   touchUserLastLogin,
 } from '../data/index.js'
-import { generateTokens, revokeRefreshToken, blacklistAccessToken, type AuthUser } from '../middleware/auth.js'
+import { generateTokens, revokeRefreshToken, revokeAllRefreshTokens, blacklistAccessToken, type AuthUser } from '../middleware/auth.js'
 import { verifySmsCode } from '../utils/sms.js'
 import { hashPassword, verifyPassword } from '../utils/password.js'
 import { userService } from '../services/index.js'
@@ -128,6 +128,9 @@ export const setUserPassword = asyncHandler(
 
     const hashedPassword = await hashPassword(password)
     await updateUserData(targetUser.id, { password: hashedPassword })
+
+    // 改密后吊销该账号已签发的全部 refresh token（旧会话最长保留 1 小时 access token 有效期）
+    await revokeAllRefreshTokens('user', targetUser.id)
 
     logger.info('User password updated', { userId: targetUser.id })
     sendSuccess(res, null, '密码设置成功')

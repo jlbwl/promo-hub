@@ -11,7 +11,7 @@ import {
   readUser,
   type EmployeeInput,
 } from '../data/index.js'
-import { generateTokens } from '../middleware/auth.js'
+import { generateTokens, revokeAllRefreshTokens } from '../middleware/auth.js'
 import { hashPassword, verifyPassword } from '../utils/password.js'
 
 // ============================================
@@ -186,6 +186,11 @@ export const updateEmployeeById = async (req: Request, res: Response): Promise<v
     }
 
     await updateEmployee(id, updateFields)
+
+    // 管理员/主账户重置员工密码后，吊销该员工已签发的全部 refresh token
+    if (updateFields.password) {
+      await revokeAllRefreshTokens('employee', id)
+    }
 
     const updated = await readEmployeeById(id)
     sendSuccess(res, updated ? maskEmployee(updated) : null, '更新成功')

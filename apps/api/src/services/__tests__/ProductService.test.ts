@@ -1,49 +1,69 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { productService } from '../ProductService.js'
 
 // Mock console to keep test output clean
 vi.spyOn(console, 'log').mockImplementation(() => {})
 vi.spyOn(console, 'error').mockImplementation(() => {})
 
-// Mock cache module
-vi.mock('../cache/index.js', () => {
-  const mockCacheService = {
-    get: vi.fn().mockResolvedValue(null),
-    set: vi.fn().mockResolvedValue(undefined),
-    delete: vi.fn().mockResolvedValue(undefined),
-    deletePattern: vi.fn().mockResolvedValue(undefined),
+/**
+ * 带真实键空间语义的假缓存：按 'promo:' 前缀存取，
+ * 让"发布产品是否会误删 refresh token / 黑名单等令牌类键"可以被真实验证。
+ */
+const cacheMock = vi.hoisted(() => {
+  const PREFIX = 'promo:'
+  const store = new Map<string, unknown>()
+  const full = (key: string) => `${PREFIX}${key}`
+
+  return {
+    store,
+    seed: (key: string, value: unknown) => {
+      store.set(full(key), value)
+    },
+    has: (key: string) => store.has(full(key)),
+    get: vi.fn(async (key: string) => store.get(full(key)) ?? null),
+    set: vi.fn(async (key: string, value: unknown) => {
+      store.set(full(key), value)
+    }),
+    delete: vi.fn(async (key: string) => {
+      store.delete(full(key))
+    }),
+    deletePattern: vi.fn(async (pattern: string) => {
+      const prefix = full(pattern.replace(/\*$/, ''))
+      for (const key of Array.from(store.keys())) {
+        if (key.startsWith(prefix)) store.delete(key)
+      }
+    }),
+    flush: vi.fn(async () => {
+      store.clear()
+    }),
     connect: vi.fn().mockResolvedValue(undefined),
     disconnect: vi.fn().mockResolvedValue(undefined),
-    getStats: vi.fn().mockReturnValue({ redisConnected: false, memoryCacheSize: 0, memoryCacheKeys: [] })
-  }
-  return {
-    CacheService: class {
-      get = mockCacheService.get
-      set = mockCacheService.set
-      delete = mockCacheService.delete
-      deletePattern = mockCacheService.deletePattern
-      connect = mockCacheService.connect
-      disconnect = mockCacheService.disconnect
-      getStats = mockCacheService.getStats
-    },
-    getCacheService: vi.fn().mockReturnValue(mockCacheService),
-    initCacheService: vi.fn().mockResolvedValue(undefined),
-    closeCacheService: vi.fn().mockResolvedValue(undefined),
-    CacheKeys: {
-      PRODUCT: 'product',
-      PRODUCT_LIST: 'product:list',
-      PRODUCT_DETAIL: (id: string) => `product:${id}`
-    },
-    CacheTTL: {
-      SHORT: 60,
-      MEDIUM: 300,
-      LONG: 1800
-    }
+    getStats: vi.fn(() => ({ redisConnected: false, memoryCacheSize: store.size, memoryCacheKeys: [] })),
+    isRedisAvailable: vi.fn(() => false),
   }
 })
 
+// Mock cache module
+vi.mock('../cache/index.js', () => ({
+  CacheService: class {},
+  getCacheService: vi.fn(() => cacheMock),
+  initCacheService: vi.fn().mockResolvedValue(undefined),
+  closeCacheService: vi.fn().mockResolvedValue(undefined),
+  CacheKeys: {
+    PRODUCT: 'product',
+    PRODUCT_LIST: 'product:list',
+    PRODUCT_DETAIL: (id: string) => `product:${id}`
+  },
+  CacheTTL: {
+    SHORT: 60,
+    MEDIUM: 300,
+    LONG: 1800
+  }
+}))
+
 // Mock data module
 vi.mock('../../data/index.js', () => ({
+  readProduct: vi.fn(),
   readProducts: vi.fn(),
   readOrders: vi.fn(),
   queryOne: vi.fn(),
@@ -54,6 +74,7 @@ vi.mock('../../data/index.js', () => ({
 }))
 
 import {
+  readProduct,
   readProducts,
   readOrders,
   queryOne,
@@ -66,6 +87,7 @@ import {
 describe('ProductService', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    cacheMock.store.clear()
   })
 
   describe('getProducts', () => {
@@ -121,6 +143,34 @@ describe('ProductService', () => {
       vi.mocked(queryOne).mockResolvedValueOnce({ id: 'existing' }) // 产品标题验证
 
       await expect(productService.createProduct({ title: '已存在', managerId: 'm1' })).rejects.toThrow('产品标题已存在')
+    })
+
+    it('发布产品时只失效产品缓存，不得清空 refresh token / token 黑名单 / 管理员单设备令牌', async () => {
+      // 预置与鉴权相关的缓存键（真实键名形如 promo:refresh_token:xxx）
+      cacheMock.seed('refresh_token:user-refresh', { id: 'u1', role: 'user' })
+      cacheMock.seed('access_token_blacklist:revoked-jwt', '1')
+      cacheMock.seed('admin_active_token:admin1', 'admin-refresh')
+      // 预置另一个产品的详情缓存，验证是"精准失效"而非整域清空
+      cacheMock.seed('product:p_other', { product: { id: 'p_other' }, sales: 1 })
+
+      vi.mocked(queryOne).mockResolvedValueOnce({ id: 'm1', status: 'active' })
+      vi.mocked(queryOne).mockResolvedValueOnce(null)
+      vi.mocked(insertProduct).mockResolvedValue(undefined)
+      const inserted = { id: 'p_new', title: '新产品', managerId: 'm1' }
+      vi.mocked(readProduct).mockResolvedValue(inserted)
+
+      await productService.createProduct({ title: '新产品', managerId: 'm1' })
+
+      // 核心回归：不允许走 flush()（其实现为 Redis FLUSHDB）
+      expect(cacheMock.flush).not.toHaveBeenCalled()
+      expect(cacheMock.has('refresh_token:user-refresh')).toBe(true)
+      expect(cacheMock.has('access_token_blacklist:revoked-jwt')).toBe(true)
+      expect(cacheMock.has('admin_active_token:admin1')).toBe(true)
+      // 产品域缓存仍需正确失效（id 由服务端生成，从 insertProduct 入参取回）
+      const created = vi.mocked(insertProduct).mock.calls[0][0] as { id: string }
+      expect(cacheMock.delete).toHaveBeenCalledWith(`product:${created.id}`)
+      expect(cacheMock.deletePattern).toHaveBeenCalledWith('product:list:*')
+      expect(cacheMock.has('product:p_other')).toBe(true)
     })
   })
 

@@ -17,7 +17,6 @@ import {
 import { CacheService, CacheKeys, CacheTTL, getCacheService as getGlobalCacheService } from './cache/index.js'
 import { DatabaseService } from './DatabaseService.js'
 import { ErrorCode, throwNotFound, throwBadRequest, throwForbidden, throwConflict, type Product } from '@promo/shared'
-import logger from '../utils/logger.js'
 
 /** 携带做单量的产品（列表场景） */
 export type ProductWithSales = Product & { sales: number }
@@ -227,11 +226,10 @@ export class ProductServiceImpl implements ProductService {
 
     const savedProduct = await readProduct(product.id)
 
-    try {
-      await this.cache.flush()
-    } catch (error) {
-      logger.warn('Cache flush failed after product creation', { error: (error as Error).message })
-    }
+    // 安全：禁止使用 cache.flush()，它会执行 Redis FLUSHDB，连带清空 refresh token、
+    // access token 黑名单、管理员单点登录令牌所在键空间；此处只做产品域精准失效。
+    await this.cache.delete(CacheKeys.PRODUCT_DETAIL(product.id))
+    await this.cache.deletePattern('product:list:*')
 
     return savedProduct as Product
   }

@@ -12,7 +12,7 @@ import {
 } from '../data/index.js'
 import { queryOne } from '../db.js'
 import { getCacheService, CacheKeys } from '../services/cache/index.js'
-import { generateTokens } from '../middleware/auth.js'
+import { generateTokens, revokeAllRefreshTokens } from '../middleware/auth.js'
 import { generateSmsCode, saveSmsCode, verifySmsCode, deleteSmsCode } from '../utils/sms.js'
 import { sendSmsCode } from '../utils/sms.js'
 import { hashPassword, verifyPassword } from '../utils/password.js'
@@ -145,6 +145,9 @@ export const adminChangePassword = async (req: Request, res: Response): Promise<
   const hashedPassword = await hashPassword(newPassword)
   await updateAdmin(admin.id, { password: hashedPassword })
 
+  // 改密后吊销该账号已签发的全部 refresh token（旧会话最长保留 1 小时 access token 有效期）
+  await revokeAllRefreshTokens('admin', admin.id)
+
   // 只记录改密事件本身，不记录旧密码、新密码、口令片段或哈希
   await logAdminOperation(req, {
     operationType: 'update',
@@ -216,6 +219,9 @@ export const adminPasswordUpdate = async (req: Request, res: Response): Promise<
   // 更新密码
   const hashedPassword = await hashPassword(newPassword)
   await updateAdmin(admin.id, { password: hashedPassword })
+
+  // 改密后吊销该账号已签发的全部 refresh token（旧会话最长保留 1 小时 access token 有效期）
+  await revokeAllRefreshTokens('admin', admin.id)
 
   // 只记录改密事件本身，不记录任何密码内容或哈希
   await logAdminOperation(req, {

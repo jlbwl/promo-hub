@@ -60,6 +60,7 @@ vi.mock('../../middleware/auth.js', () => ({
   generateTokens: vi.fn(),
   refreshAuthToken: vi.fn(),
   revokeRefreshToken: vi.fn(),
+  revokeAllRefreshTokens: vi.fn(),
   blacklistAccessToken: vi.fn(),
 }))
 

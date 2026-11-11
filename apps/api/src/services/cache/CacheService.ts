@@ -253,17 +253,12 @@ export class CacheService {
     keysToDelete.forEach(key => this.memoryCache.delete(key))
   }
 
-  async flush(): Promise<void> {
-    if (this.isRedisConnected && this.client) {
-      try {
-        await this.client.flushDb()
-      } catch (error) {
-        logger.warn('Redis flushDb failed', { error: (error as Error).message })
-      }
-    }
-
-    this.memoryCache.clear()
-  }
+  /**
+   * 安全：不提供全库清空能力。
+   * 应用与 Redis 共用同一 DB（同一 promo: 前缀），FLUSHDB 会连带删除
+   * refresh_token / access_token_blacklist / admin_active_token 等令牌键，
+   * 造成全站掉线且已吊销令牌复活。批量清理请使用 deletePattern(业务前缀)。
+   */
 
   /**
    * M22：对外暴露 Redis 连接状态，供鉴权层明确降级行为（而非静默退化为内存）
