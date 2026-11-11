@@ -3,6 +3,8 @@
  */
 /* eslint-disable no-console -- 本文件是 console 的统一封装出口 */
 
+import { maskPhone } from './phone.js'
+
 // 日志级别
 export enum LogLevel {
   DEBUG = 'DEBUG',
@@ -98,26 +100,60 @@ export const error = (message: string, meta?: Record<string, unknown>): void => 
 
 /**
  * 手机号脱敏：保留前 3 位与后 4 位，日志中禁止出现完整号码
+ * 实现见 utils/phone.ts，这里保留导出以兼容既有引用
  */
-export const maskPhone = (phone?: string | null): string => {
-  if (!phone) return ''
-  const value = String(phone)
-  if (value.length <= 7) return '***'
-  return `${value.slice(0, 3)}****${value.slice(-4)}`
+export { maskPhone }
+
+/**
+ * 日志中必须脱敏的查询参数：一次性验证码、令牌、密码等
+ * 这些值一旦落日志，等于把凭据写进磁盘与日志采集系统
+ */
+const SENSITIVE_QUERY_KEYS = [
+  'smscode',
+  'sms_code',
+  'code',
+  'token',
+  'accesstoken',
+  'refreshtoken',
+  'password',
+  'secret',
+]
+
+/** 把 URL 查询串里的敏感参数值替换为 ***，保留参数名便于排查 */
+export const redactUrlQuery = (url: string): string => {
+  const queryIndex = url.indexOf('?')
+  if (queryIndex === -1) return url
+
+  const path = url.slice(0, queryIndex)
+  const query = url.slice(queryIndex + 1)
+  const redacted = query
+    .split('&')
+    .map(pair => {
+      const equalsIndex = pair.indexOf('=')
+      const rawKey = equalsIndex === -1 ? pair : pair.slice(0, equalsIndex)
+      const decodedKey = decodeURIComponent(rawKey).toLowerCase()
+      if (SENSITIVE_QUERY_KEYS.includes(decodedKey)) {
+        return `${rawKey}=***`
+      }
+      return pair
+    })
+    .join('&')
+
+  return `${path}?${redacted}`
 }
 
 /**
  * 记录 API 请求日志
  */
 export const logRequest = (method: string, url: string, ip?: string, userId?: string): void => {
-  info(`${method} ${url}`, { ip, userId })
+  info(`${method} ${redactUrlQuery(url)}`, { ip, userId })
 }
 
 /**
  * 记录 API 错误日志
  */
 export const logError = (err: Error, method: string, url: string, ip?: string, userId?: string): void => {
-  error(`API Error: ${method} ${url}`, {
+  error(`API Error: ${method} ${redactUrlQuery(url)}`, {
     error: {
       name: err.name,
       message: err.message,
@@ -134,6 +170,7 @@ export default {
   warn,
   error,
   maskPhone,
+  redactUrlQuery,
   logRequest,
   logError,
 }

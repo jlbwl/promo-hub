@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express'
 import { sendSuccess, AppError, ErrorCode, HttpStatus, asyncHandler } from '../utils/response.js'
 import logger from '../utils/logger.js'
+import { maskPhone } from '../utils/phone.js'
 import { sendSmsCode, generateSmsCode, saveSmsCode, deleteSmsCode } from '../utils/sms.js'
 
 /**
@@ -22,7 +23,7 @@ export const sendUserSmsCode = asyncHandler(
 
     const result = await sendSmsCode(phone, code)
     if (!result.success) {
-      logger.error('SMS code send failed', { phone, reason: result.message })
+      logger.error('SMS code send failed', { phone: maskPhone(phone), reason: result.message })
       deleteSmsCode(phone)
       throw new AppError('验证码发送失败，请稍后重试', ErrorCode.INTERNAL_SERVER_ERROR, HttpStatus.INTERNAL_SERVER_ERROR)
     }

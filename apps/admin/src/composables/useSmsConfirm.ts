@@ -13,8 +13,8 @@ export interface SmsConfirmTarget {
 interface SmsConfirmOptions {
   /** 业务实体名称（用户/渠道），用于确认弹窗与危险操作文案 */
   entityLabel: string
-  /** 构造带验证码的删除请求路径 */
-  deletePath: (id: string, smsCode: string) => string
+  /** 构造删除请求路径（验证码随请求体发送，不进 URL） */
+  deletePath: (id: string) => string
   /** 删除成功后的刷新回调 */
   onDeleted: () => void
 }
@@ -115,7 +115,7 @@ export function useSmsConfirm(options: SmsConfirmOptions) {
 
     smsLoading.value = true
     try {
-      const res = await del(options.deletePath(deleteRow.value.id, smsCode.value))
+      const res = await del(options.deletePath(deleteRow.value.id), { smsCode: smsCode.value })
       if (res.code === 0) {
         ElMessage.success('删除成功')
         deleteSmsDialogVisible.value = false

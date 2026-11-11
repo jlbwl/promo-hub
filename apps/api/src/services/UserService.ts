@@ -7,6 +7,7 @@ import { hashPassword, verifyPassword } from '../utils/password.js'
 import { verifySmsCode } from '../utils/sms.js'
 import { readUsers, readUser, type UserRow, queryOne, insertUser, updateUser as updateUserData, touchUserLastLogin, deserialize } from '../data/index.js'
 import logger from '../utils/logger.js'
+import { maskPhone } from '../utils/phone.js'
 
 /** 对外返回的安全用户信息（不包含密码），形状与 data 层 UserRow 一致 */
 export interface SafeUser {
@@ -198,7 +199,7 @@ export const userService: UserService = {
 
     if (!user) {
       isNewUser = true
-      logger.info('Creating new user via SMS', { phone })
+      logger.info('Creating new user via SMS', { phone: maskPhone(phone) })
 
       if (teamName) {
         const existingTeamUser = await queryOne('SELECT id FROM users WHERE teamName = ?', [teamName])

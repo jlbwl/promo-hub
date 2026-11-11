@@ -148,7 +148,7 @@ export function useManagerList() {
     confirmDelete
   } = useSmsConfirm({
     entityLabel: '渠道',
-    deletePath: (id, code) => `/managers/${id}?smsCode=${code}`,
+    deletePath: id => `/managers/${id}`,
     onDeleted: () => { void loadData() }
   })
 

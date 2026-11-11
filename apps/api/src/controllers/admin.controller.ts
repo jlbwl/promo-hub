@@ -39,7 +39,9 @@ export const sendAdminSmsCode = async (req: Request, res: Response): Promise<voi
 
   const admin = await readAdminByPhone(phone)
   if (!admin) {
-    return sendError(res, '该手机号未注册', 404)
+    // 防枚举：号码是否属于管理员不可区分。内部静默丢弃，不向该号码发送短信
+    sendSuccess(res, null, '验证码已发送')
+    return
   }
 
   const code = generateSmsCode()
@@ -47,7 +49,7 @@ export const sendAdminSmsCode = async (req: Request, res: Response): Promise<voi
 
   const result = await sendSmsCode(phone, code)
   if (!result.success) {
-    logger.error('Admin SMS code send failed', { phone, reason: result.message })
+    logger.error('Admin SMS code send failed', { phone: maskPhone(phone), reason: result.message })
     deleteSmsCode(phone)
     return sendError(res, '验证码发送失败，请稍后重试', 500)
   }
@@ -99,7 +101,8 @@ export const adminSmsLogin = async (req: Request, res: Response): Promise<void> 
 
   const admin = await readAdminByPhone(phone)
   if (!admin) {
-    return sendError(res, '该手机号未注册', 404)
+    // 防枚举：与"验证码错误"返回完全一致，不暴露号码是否属于管理员
+    return sendError(res, '验证码错误或已过期', 400)
   }
 
   const user = { id: admin.id, phone: admin.phone, role: 'admin' as const, nickname: admin.name }

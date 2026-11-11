@@ -1,7 +1,8 @@
 import { Request, Response, NextFunction } from 'express'
 import type { Manager } from '@promo/shared'
 import { sendSuccess, AppError, ErrorCode, HttpStatus, asyncHandler } from '../utils/response.js'
-import logger, { maskPhone } from '../utils/logger.js'
+import logger from '../utils/logger.js'
+import { maskPhone } from '../utils/phone.js'
 import { parsePage, parsePageSize } from '../utils/pagination.js'
 import {
   readUsers,
@@ -107,7 +108,8 @@ export const getUserById = asyncHandler(
  */
 export const deleteUser = asyncHandler(
   async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
-    const smsCode = req.query.smsCode as string
+    // 验证码从请求体读取：URL 会进入访问日志与代理日志，一次性凭据不能出现在 query 中
+    const smsCode = (req.body as { smsCode?: string } | undefined)?.smsCode
 
     if (!smsCode) {
       throw new AppError('验证码不能为空', ErrorCode.BAD_REQUEST, HttpStatus.BAD_REQUEST)

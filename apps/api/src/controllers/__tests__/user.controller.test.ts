@@ -160,7 +160,7 @@ describe('user.controller 认证流程', () => {
   })
 
   describe('registerUser 注册', () => {
-    it('应成功注册并返回不含密码的用户信息', async () => {
+    it('应成功注册并返回中性的受理提示', async () => {
       vi.mocked(queryOne).mockResolvedValueOnce(null).mockResolvedValueOnce(null)
       const req = makeReq({
         body: { phone: '13800000002', password: '123456', nickname: '新用户' },
@@ -175,7 +175,9 @@ describe('user.controller 认证流程', () => {
       expect(created.password).not.toBe('123456')
       const payload = jsonPayload(res)
       expect(payload.code).toBe(0)
-      expect(payload.data.user?.password).toBeUndefined()
+      // 防枚举：成功响应不返回任何账号信息，与"手机号已存在"分支保持一致
+      expect(payload.data).toBeNull()
+      expect(payload.message).toBe('注册请求已受理，请使用手机号和密码登录')
     })
 
     it.each([
@@ -196,15 +198,21 @@ describe('user.controller 认证流程', () => {
       expect(err.message).toBe(message)
     })
 
-    it('重复手机号应返回 409', async () => {
+    it('重复手机号不应暴露账号已存在，且不重复建号', async () => {
       vi.mocked(queryOne).mockResolvedValueOnce({ id: 'u_1' })
       const req = makeReq({ body: { phone: '13800000001', password: '123456' } })
+      const res = makeRes()
       const next = makeNext()
 
-      await registerUser(req, makeRes(), next)
+      await registerUser(req, res, next)
 
-      const err = vi.mocked(next).mock.calls[0][0] as AppError
-      expect(err.statusCode).toBe(409)
+      // 防枚举：不抛错、不建号，返回与注册成功一致的中性提示
+      expect(next).not.toHaveBeenCalled()
+      expect(insertUser).not.toHaveBeenCalled()
+      const payload = jsonPayload(res)
+      expect(payload.code).toBe(0)
+      expect(payload.data).toBeNull()
+      expect(payload.message).toBe('注册请求已受理，请使用手机号和密码登录')
     })
 
     it('团队名称重复应返回 409', async () => {
@@ -519,7 +527,7 @@ describe('user.controller 认证流程', () => {
       const next = makeNext()
 
       await deleteUser(
-        makeReq({ query: { smsCode: '123456' } }),
+        makeReq({ body: { smsCode: '123456' } }),
         makeRes(),
         next
       )
@@ -534,7 +542,7 @@ describe('user.controller 认证流程', () => {
 
       await deleteUser(
         makeReq({
-          query: { smsCode: '000000' },
+          body: { smsCode: '000000' },
           user: { phone: '13700000000' },
         } as unknown as Partial<Request>),
         makeRes(),

@@ -68,7 +68,7 @@ export const getManagerById = async (req: Request, res: Response): Promise<void>
  */
 export const createManager = async (req: Request, res: Response): Promise<void> => {
   try {
-    logger.info('[createManager] Starting manager creation', { teamName: req.body.teamName, phone: req.body.phone })
+    logger.info('[createManager] Starting manager creation', { teamName: req.body.teamName, phone: maskPhone(req.body.phone) })
 
     const managers = await readManagers()
     const { teamName, password, phone } = req.body
@@ -145,7 +145,8 @@ export const createManager = async (req: Request, res: Response): Promise<void> 
  * 删除经理（同时下架其所有产品，转移佣金数据给管理后台）
  */
 export const deleteManagerWithCascade = async (req: Request, res: Response): Promise<void> => {
-  const smsCode = req.query.smsCode as string
+  // 验证码从请求体读取：URL 会进入访问日志与代理日志，一次性凭据不能出现在 query 中
+  const smsCode = (req.body as { smsCode?: string } | undefined)?.smsCode
   
   const adminInfo = req.user
   if (!adminInfo?.phone) {
@@ -364,12 +365,20 @@ export const sendManagerSmsCode = async (req: Request, res: Response): Promise<v
     return sendError(res, '请输入正确的手机号', 400)
   }
 
+  const managers = await readManagers()
+  const manager = managers.find((m: Manager) => m.phone === phone && m.status === 'active')
+  if (!manager) {
+    // 防枚举：号码是否属于经理不可区分。内部静默丢弃，不向该号码发送短信
+    sendSuccess(res, null, '验证码已发送')
+    return
+  }
+
   const code = generateSmsCode()
   saveSmsCode(phone, code)
 
   const result = await sendSmsCode(phone, code)
   if (!result.success) {
-    logger.error('Manager SMS code send failed', { phone, reason: result.message })
+    logger.error('Manager SMS code send failed', { phone: maskPhone(phone), reason: result.message })
     deleteSmsCode(phone)
     return sendError(res, '验证码发送失败，请稍后重试', 500)
   }
@@ -393,7 +402,8 @@ export const managerSmsLogin = async (req: Request, res: Response): Promise<void
   const managers = await readManagers()
   const manager = managers.find((m: Manager) => m.phone === phone && m.status === 'active')
   if (!manager) {
-    return sendError(res, '该手机号未注册或已被禁用', 404)
+    // 防枚举：与"验证码错误"返回完全一致，不暴露号码是否属于经理
+    return sendError(res, '验证码错误或已过期', 400)
   }
   
   const user = { id: manager.id, phone: manager.phone, role: 'manager' as const, nickname: manager.name, teamName: manager.teamName }

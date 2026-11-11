@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express'
 import { sendSuccess, AppError, ErrorCode, HttpStatus, asyncHandler } from '../utils/response.js'
 import logger from '../utils/logger.js'
+import { maskPhone } from '../utils/phone.js'
 import { queryOne, insertUser, type UserRow } from '../data/index.js'
 import { hashPassword } from '../utils/password.js'
 
@@ -34,7 +35,10 @@ export const registerUser = asyncHandler(
       [phone]
     )
     if (existingPhone) {
-      throw new AppError('该手机号已注册', ErrorCode.USER_ALREADY_EXISTS, HttpStatus.CONFLICT)
+      // 防枚举：已注册与注册成功必须返回完全一致的响应，否则该接口可被批量探测手机号。
+      // 已注册时不覆盖密码、不建新号，仅返回中性提示。
+      sendSuccess(res, null, '注册请求已受理，请使用手机号和密码登录')
+      return
     }
 
     // 检查团队名称
@@ -64,8 +68,7 @@ export const registerUser = asyncHandler(
     }
     await insertUser(user)
 
-    logger.info('New user registered', { userId: user.id, phone: user.phone })
-    const { password: _, ...safeUser } = user
-    sendSuccess(res, { user: safeUser }, '注册成功')
+    logger.info('New user registered', { userId: user.id, phone: maskPhone(user.phone) })
+    sendSuccess(res, null, '注册请求已受理，请使用手机号和密码登录')
   }
 )

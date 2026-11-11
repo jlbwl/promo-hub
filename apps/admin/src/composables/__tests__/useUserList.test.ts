@@ -216,7 +216,8 @@ describe('删除（短信确认）', () => {
     smsCode.value = '123456'
     await confirmDelete()
 
-    expect(del).toHaveBeenCalledWith('/users/u9?smsCode=123456')
+    // 验证码走请求体，不进 URL（避免写入访问日志/浏览器历史）
+    expect(del).toHaveBeenCalledWith('/users/u9', { smsCode: '123456' })
     expect(msgSuccess).toHaveBeenCalledWith('删除成功')
     expect(deleteSmsDialogVisible.value).toBe(false)
     expect(smsCode.value).toBe('')

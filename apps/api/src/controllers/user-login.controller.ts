@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express'
 import { getErrorMessage } from '@promo/shared'
 import { sendSuccess, AppError, ErrorCode, HttpStatus, asyncHandler } from '../utils/response.js'
 import logger from '../utils/logger.js'
+import { maskPhone } from '../utils/phone.js'
 import {
   readUsers,
   queryOne,
@@ -76,7 +77,7 @@ export const userLogin = asyncHandler(
 export const userSmsLogin = asyncHandler(
   async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
     const { phone, code, teamName } = req.body
-    logger.info('SMS login attempt started', { phone, hasTeamName: !!teamName })
+    logger.info('SMS login attempt started', { phone: maskPhone(phone), hasTeamName: !!teamName })
 
     if (!phone || !code) {
       throw new AppError('手机号和验证码不能为空', ErrorCode.BAD_REQUEST, HttpStatus.BAD_REQUEST)

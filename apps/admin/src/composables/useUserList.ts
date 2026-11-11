@@ -86,7 +86,7 @@ export function useUserList() {
     confirmDelete
   } = useSmsConfirm({
     entityLabel: '用户',
-    deletePath: (id, code) => `/users/${id}?smsCode=${code}`,
+    deletePath: id => `/users/${id}`,
     onDeleted: () => { void loadData() }
   })
 
