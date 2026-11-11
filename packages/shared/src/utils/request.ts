@@ -51,6 +51,46 @@ export function clearAuthStorage(): void {
   SCOPE_STORAGE_KEYS[getAuthScope()].forEach((key) => localStorage.removeItem(key))
 }
 
+type SessionExpiredHandler = () => void
+
+// 会话彻底失效时的引导登录处理器，由各端入口注入（可复用路由跳转）
+let sessionExpiredHandler: SessionExpiredHandler | null = null
+// 并发请求同时失效时只提示一次，避免重复跳转
+let lastSessionExpiredAt = 0
+
+/**
+ * 注册会话失效处理器；未注册时回退为跳转当前端登录页
+ */
+export function setSessionExpiredHandler(handler: SessionExpiredHandler | null): void {
+  sessionExpiredHandler = handler
+  lastSessionExpiredAt = 0
+}
+
+function getLoginPath(pathname: string): string {
+  if (pathname.startsWith('/admin')) return '/admin/login'
+  if (pathname.startsWith('/manager')) return '/manager/login'
+  if (pathname.startsWith('/user')) return '/user/login'
+  return '/login'
+}
+
+/**
+ * 会话彻底失效：清理登录态并引导登录，不再整页刷新（避免丢失表单与刷新循环）
+ */
+function handleSessionExpired(): void {
+  clearAuthStorage()
+  const now = Date.now()
+  if (now - lastSessionExpiredAt < 2000) return
+  lastSessionExpiredAt = now
+  if (sessionExpiredHandler) {
+    sessionExpiredHandler()
+    return
+  }
+  if (typeof window === 'undefined') return
+  const { pathname, search } = window.location
+  if (pathname.includes('/login')) return
+  window.location.replace(`${getLoginPath(pathname)}?redirect=${encodeURIComponent(pathname + search)}`)
+}
+
 /**
  * 刷新 token（公共实现，供拦截器与各应用 useAuth 复用）
  * @returns 新的 access token
@@ -78,6 +118,15 @@ export async function refreshTokens(): Promise<string> {
     throw new Error('刷新令牌失败')
   }
 }
+
+/**
+ * 需要实时的 GET 前缀：交易、购物车、个人数据必须绕过 WebView 与中间代理的启发式缓存；
+ * 产品/分类等公开目录保持可缓存，减少弱网首屏开销与流量
+ */
+const REALTIME_GET_PREFIXES = ['/orders', '/cart', '/user/', '/users/', '/employees']
+
+const needsCacheBust = (url?: string): boolean =>
+  !!url && REALTIME_GET_PREFIXES.some((prefix) => url.startsWith(prefix))
 
 function createRequest(): AxiosInstance {
   const instance = axios.create({
@@ -115,7 +164,7 @@ function createRequest(): AxiosInstance {
 
   /**
    * 统一处理 401（HTTP 状态码 401 或业务 code 401）：
-   * 有 refresh token 则刷新后重放原请求；否则清除登录态并刷新页面。
+   * 有 refresh token 则刷新后重放原请求；否则清除登录态并引导登录（不整页刷新）。
    */
   const handleUnauthorized = (config: AxiosRequestConfig): Promise<AxiosResponse<ApiResponse>> => {
     const headers = (config.headers ?? {}) as Record<string, string>
@@ -123,8 +172,7 @@ function createRequest(): AxiosInstance {
     const canRefresh = !!readRefreshToken() && !isAuthEndpoint(config?.url) && !(config as { _retryAuth?: boolean })?._retryAuth
 
     if (!canRefresh) {
-      clearAuthStorage()
-      window.location.reload()
+      handleSessionExpired()
       return Promise.reject(new Error('未登录或会话已过期'))
     }
 
@@ -137,8 +185,7 @@ function createRequest(): AxiosInstance {
         ;(config as AxiosRequestConfig & { _retryAuth?: boolean })._retryAuth = true
         return instance(config)
       }).catch((error: Error) => {
-        clearAuthStorage()
-        window.location.reload()
+        handleSessionExpired()
         return Promise.reject(error)
       })
     }
@@ -152,8 +199,7 @@ function createRequest(): AxiosInstance {
       return instance(config)
     }).catch((error: Error) => {
       processQueue('', error)
-      clearAuthStorage()
-      window.location.reload()
+      handleSessionExpired()
       return Promise.reject(error)
     }).finally(() => {
       isRefreshing = false
@@ -181,9 +227,9 @@ function createRequest(): AxiosInstance {
         }
       }
 
-      // GET 请求附加时间戳参数改写 URL：强制绕过微信 X5/XWeb 等 WebView
-      // 与中间代理对无 Cache-Control 响应的启发式缓存（服务端忽略未知参数）
-      if ((config.method || 'get').toLowerCase() === 'get') {
+      // 仅实时性接口附加时间戳，绕过微信 X5/XWeb 等 WebView 与中间代理的启发式缓存；
+      // 产品/分类等公开目录不加 _t，允许浏览器与 CDN 正常缓存
+      if ((config.method || 'get').toLowerCase() === 'get' && needsCacheBust(config.url)) {
         config.params = { ...(config.params ?? {}), _t: Date.now() }
       }
 

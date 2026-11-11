@@ -61,8 +61,10 @@
       <RecordList
         v-model:loading="loading"
         :finished="finished"
+        :error="loadError"
         :records="records"
         @load="loadRecords"
+        @retry="retryLoad"
         @deleted="handleDeleted"
         @fund-submitted="handleFundSubmitted"
       />
@@ -89,12 +91,14 @@ const {
   activeTab,
   loading,
   finished,
+  loadError,
   refreshing,
   overview,
   records,
   showRecycleBin,
   deletedOrders,
   loadRecords,
+  retryLoad,
   refreshData,
   onTabChange,
   openRecycleBin,

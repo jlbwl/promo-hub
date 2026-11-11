@@ -17,6 +17,9 @@ export function useCommission() {
   const loading = ref(false)
   const finished = ref(false)
 
+  // 订单加载失败状态：用于呈现可重试的错误态，避免被误认为「暂无记录」
+  const loadError = ref(false)
+
   // 下拉刷新状态
   const refreshing = ref(false)
 
@@ -136,6 +139,7 @@ export function useCommission() {
         const { list, total } = res.data
         if (page.value === 1) {
           records.value = list || []
+          loadError.value = false
         } else {
           records.value.push(...(list || []))
         }
@@ -151,7 +155,11 @@ export function useCommission() {
         return true
       }
       logger.error('获取订单失败:', error)
-      finished.value = true
+      // 首屏/切 Tab 后无任何数据时进入错误态；追加失败保持可继续滚动重试
+      if (page.value === 1 && records.value.length === 0) {
+        loadError.value = true
+        finished.value = true
+      }
       return false
     } finally {
       inFlightCount -= 1
@@ -248,6 +256,7 @@ export function useCommission() {
     records.value = []
     finished.value = false
     loading.value = true
+    loadError.value = false
     loadRecords(true)
   }
 
@@ -256,8 +265,19 @@ export function useCommission() {
     page.value = 1
     records.value = []
     finished.value = false
+    loadError.value = false
     loadStats()
     loadRecords(true)
+  }
+
+  // 加载失败后重试
+  const retryLoad = async (): Promise<boolean> => {
+    page.value = 1
+    records.value = []
+    finished.value = false
+    loadError.value = false
+    loading.value = true
+    return loadRecords(true)
   }
 
   // 下拉刷新：重新请求统计数据与第一页订单，失败时保留已展示的数据
@@ -301,6 +321,7 @@ export function useCommission() {
     activeTab,
     loading,
     finished,
+    loadError,
     refreshing,
     overview,
     records,
@@ -308,6 +329,7 @@ export function useCommission() {
     handlePurge,
     deletedOrders,
     loadRecords,
+    retryLoad,
     refreshData,
     onTabChange,
     openRecycleBin,

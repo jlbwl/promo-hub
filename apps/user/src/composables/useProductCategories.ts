@@ -40,24 +40,12 @@ export function resolveCategoryGroupKey(name: string): Exclude<CategoryGroupKey,
   return 'comprehensive'
 }
 
-// 默认分类，作为降级方案
-const defaultCategories = [
-  { id: 'cat_1', name: '综合-立返', value: 'comprehensive-instant', sort: 1, status: 'active' as const, createdAt: '', updatedAt: '' },
-  { id: 'cat_2', name: '综合-数据', value: 'comprehensive-data', sort: 2, status: 'active' as const, createdAt: '', updatedAt: '' },
-  { id: 'cat_3', name: '个养和加挂', value: 'personal-insurance', sort: 3, status: 'active' as const, createdAt: '', updatedAt: '' },
-  { id: 'cat_4', name: '限三-立返', value: 'limit3-instant', sort: 4, status: 'active' as const, createdAt: '', updatedAt: '' },
-  { id: 'cat_5', name: '限三-数据', value: 'limit3-data', sort: 5, status: 'active' as const, createdAt: '', updatedAt: '' },
-  { id: 'cat_6', name: '不限三-立返', value: 'unlimit3-instant', sort: 6, status: 'active' as const, createdAt: '', updatedAt: '' },
-  { id: 'cat_7', name: '不限三-数据', value: 'unlimit3-data', sort: 7, status: 'active' as const, createdAt: '', updatedAt: '' },
-  { id: 'cat_8', name: '三方-立返', value: 'third-party-instant', sort: 8, status: 'active' as const, createdAt: '', updatedAt: '' },
-  { id: 'cat_9', name: '三方-数据', value: 'third-party-data', sort: 9, status: 'active' as const, createdAt: '', updatedAt: '' },
-  { id: 'cat_10', name: '其它', value: 'other', sort: 10, status: 'active' as const, createdAt: '', updatedAt: '' }
-]
-
-// 分类数据
-const categories = ref<ProductCategory[]>(defaultCategories)
+// 分类数据（不做硬编码兜底，加载失败时保持为空并暴露错误态）
+const categories = ref<ProductCategory[]>([])
 // 加载状态
 const loading = ref(false)
+// 加载失败状态：由页面呈现错误态并提供重试，禁止用假数据顶替
+const loadError = ref(false)
 
 /**
  * 归并分类组：由接口返回的二级分类动态聚合，「全部」为前端固定项
@@ -86,17 +74,24 @@ const categoryGroups = computed<CategoryGroup[]>(() => {
 
 /**
  * 从 API 获取分类列表
+ * @returns 是否加载成功
  */
-async function fetchCategories() {
+async function fetchCategories(): Promise<boolean> {
   loading.value = true
   try {
     const res = await get<{ list: ProductCategory[] }>('/categories')
     if (res.data?.list) {
       categories.value = res.data.list
+      loadError.value = false
+      return true
     }
+    loadError.value = true
+    return false
   } catch (error) {
     logger.error('获取分类失败:', error)
-    // 使用默认分类
+    // 不注入任何默认分类，交由页面显示错误态并重试
+    loadError.value = true
+    return false
   } finally {
     loading.value = false
   }
@@ -118,7 +113,8 @@ function getCategoryName(categoryValue: string, categoryNameSnapshot?: string): 
  */
 export function useProductCategories() {
   onMounted(() => {
-    if (categories.value.length === defaultCategories.length) {
+    // 已有数据不重复拉取；为空（含上次失败）时重试
+    if (categories.value.length === 0) {
       fetchCategories()
     }
   })
@@ -127,9 +123,10 @@ export function useProductCategories() {
     categories,
     categoryGroups,
     loading,
+    loadError,
     getCategoryName,
     fetchCategories
   }
 }
 
-export { categories, categoryGroups, defaultCategories }
+export { categories, categoryGroups, loadError }

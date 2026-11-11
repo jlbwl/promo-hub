@@ -31,6 +31,7 @@ describe('request module', () => {
   let requestErrorInterceptor: Mock
   let responseSuccessInterceptor: Mock
   let responseErrorInterceptor: Mock
+  let setSessionExpiredHandler: (handler: (() => void) | null) => void
 
   beforeEach(async () => {
     vi.clearAllMocks()
@@ -55,6 +56,7 @@ describe('request module', () => {
     post = module.post as unknown as Mock
     put = module.put as unknown as Mock
     del = module.del as unknown as Mock
+    setSessionExpiredHandler = module.setSessionExpiredHandler
   })
 
   afterEach(() => {
@@ -132,6 +134,31 @@ describe('request module', () => {
       expect(result.headers['X-Custom']).toBe('value')
     })
 
+    it('should add cache-busting _t for realtime GET endpoints', async () => {
+      vi.mocked(localStorage.getItem).mockReturnValue(null)
+
+      for (const url of ['/orders', '/orders/stats', '/cart', '/user/orders/deleted']) {
+        const result = await requestInterceptor({ method: 'get', url, headers: {} })
+        expect(result.params?._t).toEqual(expect.any(Number))
+      }
+    })
+
+    it('should not add _t for catalog GET endpoints', async () => {
+      vi.mocked(localStorage.getItem).mockReturnValue(null)
+
+      for (const url of ['/products', '/products/123', '/categories', '/share/product/1']) {
+        const result = await requestInterceptor({ method: 'get', url, headers: {} })
+        expect(result.params?._t).toBeUndefined()
+      }
+    })
+
+    it('should not add _t for non-GET requests', async () => {
+      vi.mocked(localStorage.getItem).mockReturnValue(null)
+      const result = await requestInterceptor({ method: 'post', url: '/orders', headers: {} })
+
+      expect(result.params?._t).toBeUndefined()
+    })
+
     it('should pass through request errors', async () => {
       const testError = new Error('Test request error')
 
@@ -151,6 +178,7 @@ describe('request module', () => {
         location: {
           pathname: '/dashboard',
           reload: vi.fn(),
+          replace: vi.fn(),
         },
       })
     })
@@ -204,6 +232,8 @@ describe('request module', () => {
     })
 
     it('should handle 401 error on non-login page', async () => {
+      const expiredHandler = vi.fn()
+      setSessionExpiredHandler(expiredHandler)
       const mockResponse = {
         data: {
           code: 401,
@@ -212,7 +242,7 @@ describe('request module', () => {
         config: { headers: {}, url: '/orders' },
       }
 
-      // 无 refresh token 可用：清除当前应用登录态并刷新页面
+      // 无 refresh token 可用：清除当前应用登录态并交给会话失效处理器引导登录
       await expect(responseSuccessInterceptor(mockResponse)).rejects.toThrow('未登录或会话已过期')
       expect(localStorage.removeItem).toHaveBeenCalledWith('token')
       expect(localStorage.removeItem).toHaveBeenCalledWith('refresh_token')
@@ -227,7 +257,9 @@ describe('request module', () => {
       expect(localStorage.removeItem).toHaveBeenCalledWith('user_info')
       expect(localStorage.removeItem).toHaveBeenCalledWith('employee_info')
       expect(localStorage.removeItem).toHaveBeenCalledWith('login_type')
-      expect(window.location.reload).toHaveBeenCalled()
+      expect(expiredHandler).toHaveBeenCalledTimes(1)
+      // 不整页刷新，避免丢失正在填写的表单
+      expect(window.location.reload).not.toHaveBeenCalled()
     })
 
     it('should not reload on 401 when on login page', async () => {
@@ -303,6 +335,8 @@ describe('request module', () => {
     })
 
     it('should clear tokens when replayed request fails after refresh', async () => {
+      const expiredHandler = vi.fn()
+      setSessionExpiredHandler(expiredHandler)
       vi.mocked(localStorage.getItem).mockImplementation((key: string) =>
         key === 'user_refresh_token' ? 'valid-refresh' : 'old-token'
       )
@@ -317,7 +351,25 @@ describe('request module', () => {
         config: { headers: {}, url: '/orders' },
       }
       await expect(responseSuccessInterceptor(mockResponse)).rejects.toThrow('replay failed')
-      expect(window.location.reload).toHaveBeenCalled()
+      expect(expiredHandler).toHaveBeenCalledTimes(1)
+      expect(window.location.reload).not.toHaveBeenCalled()
+    })
+
+    it('should invoke session expired handler when refresh fails', async () => {
+      const expiredHandler = vi.fn()
+      setSessionExpiredHandler(expiredHandler)
+      vi.mocked(localStorage.getItem).mockImplementation((key: string) =>
+        key === 'user_refresh_token' ? 'stale-refresh' : 'old-token'
+      )
+      axiosPostMock.mockRejectedValue(new Error('refresh failed'))
+
+      const mockResponse = {
+        data: { code: 401, message: 'Unauthorized' },
+        config: { headers: {}, url: '/orders' },
+      }
+      await expect(responseSuccessInterceptor(mockResponse)).rejects.toThrow('refresh failed')
+      expect(expiredHandler).toHaveBeenCalledTimes(1)
+      expect(window.location.reload).not.toHaveBeenCalled()
     })
   })
 

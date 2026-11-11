@@ -3,7 +3,7 @@
   <van-list
     :loading="loading"
     :finished="finished"
-    finished-text="没有更多了"
+    :finished-text="error ? '' : '没有更多了'"
     @update:loading="emit('update:loading', $event)"
     @load="emit('load')"
   >
@@ -117,9 +117,24 @@
       </van-swipe-cell>
     </div>
 
+    <!-- 加载失败：独立错误态，避免与「暂无做单记录」混淆 -->
+    <van-empty
+      v-if="!loading && error && records.length === 0"
+      description="加载失败"
+    >
+      <van-button
+        size="small"
+        type="primary"
+        plain
+        @click="emit('retry')"
+      >
+        重新加载
+      </van-button>
+    </van-empty>
+
     <!-- 空状态 -->
     <van-empty
-      v-if="!loading && records.length === 0"
+      v-else-if="!loading && records.length === 0"
       description="暂无做单记录"
     />
   </van-list>
@@ -139,11 +154,13 @@ defineProps<{
   records: Order[]
   loading: boolean
   finished: boolean
+  error?: boolean
 }>()
 
 const emit = defineEmits<{
   'update:loading': [value: boolean]
   load: []
+  retry: []
   deleted: [record: Order]
   'fund-submitted': [record: Order, fundAccount: string]
 }>()

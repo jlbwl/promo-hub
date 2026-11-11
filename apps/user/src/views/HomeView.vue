@@ -34,6 +34,20 @@
             :active-category="activeCategory"
             @select="selectCategory"
           />
+          <!-- 分类加载失败：显式错误态与重试，不使用硬编码兜底分类 -->
+          <div
+            v-if="categoryError"
+            class="category-error"
+          >
+            <span>分类加载失败</span>
+            <button
+              type="button"
+              class="retry-link"
+              @click="retryCategories"
+            >
+              重试
+            </button>
+          </div>
         </div>
       </div>
 
@@ -42,9 +56,24 @@
         <van-list
           v-model:loading="loading"
           :finished="finished"
-          finished-text="没有更多了"
+          :finished-text="listError ? '' : '没有更多了'"
           @load="loadProducts"
         >
+          <!-- 列表加载失败：独立错误态，避免与「没有更多了」空态混淆 -->
+          <div
+            v-if="listError && products.length === 0"
+            class="list-error"
+          >
+            <p>产品加载失败</p>
+            <van-button
+              size="small"
+              type="primary"
+              plain
+              @click="retryLoad"
+            >
+              重新加载
+            </van-button>
+          </div>
           <div class="product-grid">
             <ProductCard
               v-for="product in products"
@@ -87,7 +116,7 @@ const { getUserId } = useUser()
 /**
  * 产品分类 composable
  */
-const { categoryGroups, getCategoryName, fetchCategories } = useProductCategories()
+const { categoryGroups, getCategoryName, fetchCategories, loadError: categoryError } = useProductCategories()
 
 /**
  * 显示的分类：接口二级分类动态归并为六组，「全部」固定在前
@@ -133,6 +162,11 @@ const totalCount = ref(0)
  */
 const loading = ref(false)
 const finished = ref(false)
+
+/**
+ * 列表加载失败状态：用于呈现独立错误态，避免伪装成空列表
+ */
+const listError = ref(false)
 
 /**
  * 下拉刷新状态
@@ -182,6 +216,7 @@ const loadProducts = async (replace = false): Promise<boolean> => {
     if (seq !== querySeq) {
       return true
     }
+    listError.value = false
     const { list, total } = res.data
     totalCount.value = total
     // 检查产品在购物车中的状态
@@ -220,6 +255,10 @@ const loadProducts = async (replace = false): Promise<boolean> => {
       return true
     }
     logger.error('[HomeView] 加载产品失败:', error)
+    // 首屏/刷新且无任何数据时进入错误态，由用户主动重试
+    if (products.value.length === 0) {
+      listError.value = true
+    }
     if (!replace) {
       finished.value = true
     }
@@ -261,9 +300,26 @@ const reloadProducts = async () => {
   products.value = []
   page.value = 1
   finished.value = false
-  const success = await loadProducts(true)
+  listError.value = false
+  await loadProducts(true)
+}
+
+/**
+ * 列表错误态重试
+ */
+const retryLoad = () => reloadProducts()
+
+/**
+ * 分类加载失败重试：成功后重新加载当前筛选结果
+ */
+const retryCategories = async () => {
+  const success = await fetchCategories()
   if (!success) {
-    showToast('加载失败，请稍后重试')
+    showToast('分类加载失败，请稍后重试')
+    return
+  }
+  if (activeCategory.value !== 'all') {
+    await reloadProducts()
   }
 }
 
@@ -272,6 +328,11 @@ const reloadProducts = async () => {
  */
 const selectCategory = (categoryId: string) => {
   if (categoryId === activeCategory.value) {
+    return
+  }
+  // 分类未加载成功时切换分组只会得到空列表，提示先重试分类
+  if (categoryError.value && categoryId !== 'all') {
+    showToast('分类加载失败，请先点击重试')
     return
   }
   activeCategory.value = categoryId
@@ -371,6 +432,36 @@ const onRefresh = async () => {
 .home-page {
   min-height: 100%;
   background-color: var(--paper);
+}
+
+// 分类/列表加载失败态
+.category-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.retry-link {
+  padding: 0;
+  border: none;
+  background: transparent;
+  font-size: 12px;
+  color: var(--on-dark);
+  text-decoration: underline;
+}
+
+.list-error {
+  padding: 40px 16px;
+  text-align: center;
+
+  p {
+    margin-bottom: 12px;
+    font-size: 14px;
+    color: var(--ink-2);
+  }
 }
 
 // 深色主视觉
