@@ -225,6 +225,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { showToast } from 'vant'
 import { post } from '@promo/shared/utils/request'
 import { getErrorMessage } from '@promo/shared/utils/errors'
+import { loginWithIdentityFallback } from '@/composables/usePasswordLogin'
 import type { Employee, User } from '@promo/shared/types'
 
 const router = useRouter()
@@ -303,32 +304,39 @@ const handlePasswordLogin = async () => {
 
   loading.value = true
   try {
-    const res = await post<UserLoginResult>('/users/login', { phone: pwdForm.phone, password: pwdForm.password })
-    onLoginSuccess(res.data)
-  } catch (e) {
-    // 普通登录失败，尝试员工登录
-    try {
-      const employeeRes = await post<EmployeeLoginResult>('/employees/login', { phone: pwdForm.phone, password: pwdForm.password })
+    await loginWithIdentityFallback<UserLoginResult, EmployeeLoginResult>({
+      loginUser: async () => {
+        const res = await post<UserLoginResult>('/users/login', { phone: pwdForm.phone, password: pwdForm.password })
+        return res.data
+      },
+      loginEmployee: async () => {
+        const res = await post<EmployeeLoginResult>('/employees/login', { phone: pwdForm.phone, password: pwdForm.password })
+        return res.data
+      },
+      onUserLogin: onLoginSuccess,
+      onEmployeeLogin: (data) => {
+        // 员工登录与普通登录互斥：清除普通用户 token，使用 employee_token 承载员工身份
+        // （request 层 user 作用域优先读 employee_token）
+        localStorage.removeItem('user_token')
+        localStorage.removeItem('user_refresh_token')
+        localStorage.setItem('employee_info', JSON.stringify(data.employee))
+        localStorage.setItem('user_info', JSON.stringify(data.user))
+        localStorage.setItem('employee_token', data.token)
+        localStorage.setItem('login_type', 'employee')
+        if (data.refreshToken) {
+          localStorage.setItem('employee_refresh_token', data.refreshToken)
+        }
 
-      // 员工登录与普通登录互斥：清除普通用户 token，使用 employee_token 承载员工身份
-      // （request 层 user 作用域优先读 employee_token）
-      localStorage.removeItem('user_token')
-      localStorage.removeItem('user_refresh_token')
-      localStorage.setItem('employee_info', JSON.stringify(employeeRes.data.employee))
-      localStorage.setItem('user_info', JSON.stringify(employeeRes.data.user))
-      localStorage.setItem('employee_token', employeeRes.data.token)
-      localStorage.setItem('login_type', 'employee')
-      if (employeeRes.data.refreshToken) {
-        localStorage.setItem('employee_refresh_token', employeeRes.data.refreshToken)
-      }
-
-      showToast('员工登录成功')
-      setTimeout(() => {
-        router.replace('/home')
-      }, 1000)
-    } catch (ee) {
-      showToast(getErrorMessage(e, '登录失败，请确认登录方式'))
-    }
+        showToast('员工登录成功')
+        setTimeout(() => {
+          router.replace('/home')
+        }, 1000)
+      },
+      notify: showToast,
+      onFailure: (error) => {
+        showToast(getErrorMessage(error, '登录失败'))
+      },
+    })
   } finally {
     loading.value = false
   }

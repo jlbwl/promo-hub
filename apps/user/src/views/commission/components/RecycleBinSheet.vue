@@ -65,6 +65,12 @@
                 <span class="deleted-price">{{ order.productPrice }}</span>
                 <span class="deleted-time">删除于 {{ formatTime(order.deletedAt) }}</span>
               </div>
+              <p
+                v-if="purgeDisabledReason(order.status)"
+                class="purge-hint"
+              >
+                {{ purgeDisabledReason(order.status) }}
+              </p>
             </div>
           </div>
           <template #right>
@@ -78,8 +84,9 @@
               <van-button
                 class="purge-btn"
                 square
-                text="永久删除"
-                @click="emit('purge', order)"
+                :disabled="!canPurgeOrder(order.status)"
+                :text="canPurgeOrder(order.status) ? '永久删除' : '不可删除'"
+                @click="canPurgeOrder(order.status) && emit('purge', order)"
               />
               <van-button
                 type="danger"
@@ -97,6 +104,7 @@
 
 <script setup lang="ts">
 import { formatTime, maskPhone } from '../utils'
+import { canPurgeOrder, purgeDisabledReason } from '../orderActions'
 import type { Order } from '@promo/shared/types'
 
 defineProps<{
@@ -217,6 +225,12 @@ const closeSwipe = (idx: number) => {
   color: var(--faint);
 }
 
+.purge-hint {
+  margin-top: 4px;
+  font-size: 10.5px;
+  color: var(--warn);
+}
+
 // 回收站侧拉菜单样式
 .recycle-swipe-actions {
   display: flex;
@@ -230,6 +244,11 @@ const closeSwipe = (idx: number) => {
     flex: 1.4;
     background-color: var(--warn);
     color: var(--surface);
+
+    &.van-button--disabled {
+      opacity: 0.5;
+      background-color: var(--muted);
+    }
   }
 
   :deep(.van-button) {

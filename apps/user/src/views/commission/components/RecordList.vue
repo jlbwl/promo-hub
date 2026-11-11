@@ -12,7 +12,7 @@
         v-for="record in records"
         :key="record.id"
         :ref="el => { if (el) swipeCellRefs[record.id] = el as SwipeCellInstance }"
-        :right-width="getSwipeWidth(record.id)"
+        :right-width="getSwipeWidth(record)"
         @close="handleSwipeClose(record.id)"
       >
         <div class="record-card">
@@ -47,6 +47,10 @@
               >手机：{{ maskPhone(record.userPhone) }}</span>
             </div>
             <span class="record-time">{{ formatTime(record.createdAt) }}</span>
+            <span
+              v-if="orderActionHint(record.status)"
+              class="record-hint"
+            >{{ orderActionHint(record.status) }}</span>
             <span
               v-if="record.rejectReason"
               class="reject-reason"
@@ -97,15 +101,17 @@
               </div>
             </template>
 
-            <!-- 正常状态：显示提交资金号和删除按钮 -->
-            <template v-else>
+            <!-- 正常状态：仅待审核订单显示可执行的操作 -->
+            <template v-else-if="canSubmitFundAccount(record.status) || canDeleteOrder(record.status)">
               <van-button
+                v-if="canSubmitFundAccount(record.status)"
                 type="primary"
                 square
                 text="提交资金号"
                 @click="handleShowFundInput(record)"
               />
               <van-button
+                v-if="canDeleteOrder(record.status)"
                 type="danger"
                 square
                 text="删除"
@@ -147,6 +153,11 @@ import { showToast } from 'vant'
 import { post, del } from '@promo/shared/utils/request'
 import { getErrorMessage } from '@promo/shared/utils/errors'
 import { getUserId, statusType, statusLabel, formatTime, maskPhone } from '../utils'
+import {
+  canDeleteOrder,
+  canSubmitFundAccount,
+  orderActionHint,
+} from '../orderActions'
 import type { Order } from '@promo/shared/types'
 import type { SwipeCellInstance } from 'vant'
 
@@ -201,11 +212,15 @@ const handleSwipeClose = (recordId: string) => {
 }
 
 // 获取侧拉菜单宽度
-const getSwipeWidth = (recordId: string): number => {
-  if (confirmingIds.value.includes(recordId)) {
+const getSwipeWidth = (record: Order): number => {
+  // 无可用操作的订单不提供侧拉，避免点出必然失败的按钮
+  if (!canSubmitFundAccount(record.status) && !canDeleteOrder(record.status)) {
+    return 0
+  }
+  if (confirmingIds.value.includes(record.id)) {
     return 200
   }
-  if (fundInputIds.value.includes(recordId)) {
+  if (fundInputIds.value.includes(record.id)) {
     return 240
   }
   return 140
@@ -213,6 +228,10 @@ const getSwipeWidth = (recordId: string): number => {
 
 // 显示资金号输入框
 const handleShowFundInput = (record: Order) => {
+  if (!canSubmitFundAccount(record.status)) {
+    showToast('仅待审核订单可修改资金号')
+    return
+  }
   // 标记正在切换状态
   switchingIds.value.push(record.id)
   // 进入资金号输入状态
@@ -244,6 +263,10 @@ const handleShowFundInput = (record: Order) => {
 
 // 提交资金号
 const submitFundAccount = async (record: Order) => {
+  if (!canSubmitFundAccount(record.status)) {
+    showToast('仅待审核订单可修改资金号')
+    return
+  }
   const fundAccount = fundAccountNumbers[record.id]?.trim()
   if (!fundAccount) {
     showToast('请输入资金号')
@@ -277,6 +300,12 @@ const submitFundAccount = async (record: Order) => {
 
 // 删除订单（两步确认）
 const handleDelete = async (record: Order) => {
+  // 仅待审核订单允许软删除
+  if (!canDeleteOrder(record.status)) {
+    showToast('仅支持删除待审核状态的订单')
+    return
+  }
+
   // 检查是否已处于确认状态
   const isConfirming = confirmingIds.value.includes(record.id)
 
@@ -302,11 +331,6 @@ const handleDelete = async (record: Order) => {
       }
     }
   } else {
-    // 第一步：仅允许删除待审核状态的订单
-    if (record.status !== 'pending') {
-      showToast('仅支持删除待审核状态的订单')
-      return
-    }
     // 标记正在切换状态，防止close事件清除确认状态
     switchingIds.value.push(record.id)
     // 进入确认状态
@@ -369,6 +393,13 @@ const handleDelete = async (record: Order) => {
   color: var(--faint);
   display: block;
   margin-bottom: 2px;
+}
+
+.record-hint {
+  font-size: 10.5px;
+  color: var(--muted);
+  display: block;
+  margin-top: 2px;
 }
 
 .reject-reason {
