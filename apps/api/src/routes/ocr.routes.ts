@@ -32,8 +32,12 @@ router.post(
   async (req, res) => {
     // mimetype 非法时 multer 静默丢弃文件
     const file = req.file
-    if (!file || !file.mimetype.startsWith('image/')) {
-      sendError(res, '请上传有效的图片文件（JPG / PNG）')
+    if (!file) {
+      sendError(res, '请选择要识别的图片', 400, 400, { reason: 'NO_FILE' })
+      return
+    }
+    if (!file.mimetype.startsWith('image/')) {
+      sendError(res, '请上传有效的图片文件（JPG / PNG）', 400, 400, { reason: 'UNSUPPORTED_TYPE' })
       return
     }
     if (!isAliyunOcrConfigured()) {

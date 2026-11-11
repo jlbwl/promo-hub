@@ -14,7 +14,7 @@ import { attachUser, requireManager, requireAdmin } from './middleware/auth.js'
 import { csrfGenerate, csrfVerify, getCsrfToken } from './middleware/csrf-v2.js'
 import routes from './routes/index.js'
 import { clearBusinessCache } from './controllers/cache.controller.js'
-import { errorHandler } from './utils/response.js'
+import { errorHandler, sendError, sendUploadError } from './utils/response.js'
 import { logRequest } from './utils/logger.js'
 import { initializeCache, closeCache, getCacheService } from './services/index.js'
 import { resolve } from './container.js'
@@ -133,7 +133,7 @@ app.post(
   async (req, res) => {
     try {
       if (!req.file) {
-        res.json({ code: 400, message: '请选择封面图片', data: null })
+        sendError(res, '请选择封面图片', 400, 400, { reason: 'NO_FILE' })
         return
       }
 
@@ -141,7 +141,7 @@ app.post(
       const validation = validateImageFile(req.file)
       if (!validation.valid) {
         await removeTempUpload(req.file.path)
-        res.json({ code: 400, message: validation.error, data: null })
+        sendError(res, validation.error as string, 400, 400, { reason: validation.reason })
         return
       }
 
@@ -170,7 +170,7 @@ app.post(
     } catch (error) {
       logger.error('[API] 封面图片上传失败', { error: getErrorMessage(error) })
       await removeTempUpload(req.file?.path)
-      res.json({ code: 500, message: getErrorMessage(error, '上传失败'), data: null })
+      sendUploadError(res, error)
     }
   }
 )
@@ -189,7 +189,7 @@ app.post(
   async (req, res) => {
     try {
       if (!req.file) {
-        res.json({ code: 400, message: '请选择图片', data: null })
+        sendError(res, '请选择图片', 400, 400, { reason: 'NO_FILE' })
         return
       }
 
@@ -197,7 +197,7 @@ app.post(
       const validation = validateImageFile(req.file)
       if (!validation.valid) {
         await removeTempUpload(req.file.path)
-        res.json({ code: 400, message: validation.error, data: null })
+        sendError(res, validation.error as string, 400, 400, { reason: validation.reason })
         return
       }
 
@@ -226,7 +226,7 @@ app.post(
     } catch (error) {
       logger.error('[API] 通用图片上传失败', { error: getErrorMessage(error) })
       await removeTempUpload(req.file?.path)
-      res.json({ code: 500, message: getErrorMessage(error, '上传失败'), data: null })
+      sendUploadError(res, error)
     }
   }
 )

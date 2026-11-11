@@ -1,6 +1,7 @@
 import { Response, Request, NextFunction } from 'express'
 import logger from './logger.js'
 import { AppError, ErrorCode, HttpStatus, ApiResponse, getErrorMessage } from '@promo/shared'
+import { classifyUploadError } from './uploadError.js'
 
 // 重新导出共享的类型和错误类，保持向后兼容
 export { AppError, ErrorCode, HttpStatus }
@@ -76,6 +77,15 @@ export const sendError = (
     timestamp: Date.now(),
   }
   res.status(httpStatus).json(response)
+}
+
+/**
+ * 统一发送上传失败响应：区分类型不支持 / 体积超限 / 存储失败，
+ * data.reason 供前端定位问题，5xx 仍由 sendError 兜底脱敏
+ */
+export const sendUploadError = (res: Response, error: unknown): void => {
+  const failure = classifyUploadError(error)
+  sendError(res, failure.message, failure.code, failure.status, { reason: failure.reason })
 }
 
 /**
@@ -173,9 +183,11 @@ export const errorHandler = (
     return
   }
 
-  // Multer 错误
-  if ((err as { code?: string }).code === 'LIMIT_FILE_SIZE') {
-    sendError(res, '文件大小超过限制', ErrorCode.BAD_REQUEST, HttpStatus.BAD_REQUEST)
+  // Multer 错误：体积超限（413）、字段/请求格式错误（400），不再一律落到 500/400
+  const multerCode = (err as { code?: unknown }).code
+  if (typeof multerCode === 'string' && multerCode.startsWith('LIMIT_')) {
+    const failure = classifyUploadError(err)
+    sendError(res, failure.message, failure.code, failure.status, { reason: failure.reason })
     return
   }
 

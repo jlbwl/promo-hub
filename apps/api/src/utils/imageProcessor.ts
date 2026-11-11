@@ -114,12 +114,15 @@ export async function processCoverImage(
 export function validateImageFile(file: MulterFile): {
   valid: boolean
   error?: string
+  /** 机器可读的失败原因，便于接口层返回可定位的错误语义 */
+  reason?: 'FILE_TOO_LARGE' | 'UNSUPPORTED_TYPE'
 } {
   // 检查文件大小
   if (file.size > COVER_IMAGE_CONFIG.maxFileSize) {
     return {
       valid: false,
       error: `文件大小不能超过 ${COVER_IMAGE_CONFIG.maxFileSize / 1024 / 1024}MB`,
+      reason: 'FILE_TOO_LARGE',
     }
   }
 
@@ -129,6 +132,7 @@ export function validateImageFile(file: MulterFile): {
     return {
       valid: false,
       error: '只支持 JPEG/PNG/WebP 格式',
+      reason: 'UNSUPPORTED_TYPE',
     }
   }
 
@@ -137,6 +141,7 @@ export function validateImageFile(file: MulterFile): {
     return {
       valid: false,
       error: `只支持以下格式: ${COVER_IMAGE_CONFIG.supportedFormats.join(', ')}`,
+      reason: 'UNSUPPORTED_TYPE',
     }
   }
 
