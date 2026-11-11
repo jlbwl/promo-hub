@@ -6,6 +6,7 @@ import {
   readCartItems,
   readCartItem,
   readCartByManagerId,
+  readProduct,
   readUser,
   readManager,
   addToCart,
@@ -120,10 +121,31 @@ export const getManagerCart = async (req: Request, res: Response): Promise<void>
  */
 export const addItemToCart = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { managerId, productId, productName, productPrice, coverImage, optionLabel, redirectUrl } = req.body
+    const { productId, optionLabel, redirectUrl } = req.body
     const userId = await resolveCartUserId(req, req.body.userId)
     if (!userId || !productId) {
       return sendError(res, '缺少必要参数', 400)
+    }
+
+    // 价格与产品信息以数据库为准：前端传来的 productName / productPrice / coverImage /
+    // managerId 一律丢弃，避免收藏列表展示被篡改的价格或归属
+    const product = await readProduct(productId as string)
+    if (!product) {
+      return sendError(res, '产品不存在', 404, 404)
+    }
+    if (product.status !== 'published') {
+      return sendError(res, '该产品已下架', 400)
+    }
+
+    const cartItem = {
+      userId,
+      managerId: product.managerId || '',
+      productId: product.id,
+      productName: product.title,
+      productPrice: product.price,
+      coverImage: product.coverImage,
+      optionLabel,
+      redirectUrl,
     }
 
     try {
@@ -131,7 +153,7 @@ export const addItemToCart = async (req: Request, res: Response): Promise<void> 
       if (exists) {
         return sendError(res, '该产品已在购物车中', 400)
       }
-      await addToCart({ userId, managerId, productId, productName, productPrice, coverImage, optionLabel, redirectUrl })
+      await addToCart(cartItem)
     } catch (dbError) {
       if (!allowMemoryFallback) throw dbError
       logger.warn('[添加购物车] 数据库失败，尝试降级到内存:', { error: getErrorMessage(dbError) })
@@ -140,7 +162,7 @@ export const addItemToCart = async (req: Request, res: Response): Promise<void> 
       if (exists) {
         return sendError(res, '该产品已在购物车中', 400)
       }
-      await memAddToCart({ userId, managerId, productId, productName, productPrice, coverImage, optionLabel, redirectUrl })
+      await memAddToCart(cartItem)
     }
     sendSuccess(res, null, '添加成功')
   } catch (error) {

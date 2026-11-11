@@ -18,6 +18,8 @@ export interface OrderPayload {
   sharerId?: string
   optionLabel?: string
   redirectUrl?: string
+  /** 页面展示价：仅供服务端做一致性比对，不参与金额计算 */
+  productPrice?: number
 }
 
 /**
@@ -68,13 +70,18 @@ export const buildOrderPayload = (input: {
   userPhone: string
   userId: string
   sharerId?: string
+  productPrice?: number
 }): { payload: OrderPayload; jumpUrl: string } => {
-  const { productId, options, selectedOption, userName, userPhone, userId, sharerId } = input
+  const { productId, options, selectedOption, userName, userPhone, userId, sharerId, productPrice } = input
   const chosenOption = options.length > 0 ? options[selectedOption] : null
 
   logger.debug('[做单] 选中的选项:', JSON.stringify(chosenOption))
 
   const payload: OrderPayload = { productId, userId, userName, userPhone }
+  // 展示价随请求带上，由服务端比对；金额仍以服务端标价为准
+  if (typeof productPrice === 'number') {
+    payload.productPrice = productPrice
+  }
   const employeeId = getEmployeeId()
   if (employeeId) {
     payload.employeeId = employeeId

@@ -31,7 +31,7 @@ import {
 import type { OrderRow } from '../data-memory.js'
 import { query } from '../db.js'
 import { DatabaseService } from './DatabaseService.js'
-import { ErrorCode, throwNotFound, throwBadRequest, throwForbidden, CommissionStatus } from '@promo/shared'
+import { AppError, ErrorCode, HttpStatus, throwNotFound, throwBadRequest, throwForbidden, CommissionStatus } from '@promo/shared'
 import { formatMySQLDateTime } from '../data/utils.js'
 
 export interface OrderListParams {
@@ -59,6 +59,11 @@ export interface OrderCreateData {
   sharerId?: string
   /** 幂等键：同一用户 + 同一键在有效期内只创建一单；缺省时保持原有行为 */
   idempotencyKey?: string
+  /**
+   * 前端展示价，仅用于与服务端标价比对，不参与金额计算。
+   * 缺省时不做比对（兼容不传价格的旧客户端）
+   */
+  expectedPrice?: number
 }
 
 /** 审核/结算操作者范围：经理只能操作本团队订单，管理员不受限 */
@@ -257,6 +262,27 @@ export class OrderServiceImpl implements OrderService {
 
     if (product.status !== 'published') {
       throwBadRequest('该产品已下架')
+    }
+
+    // 服务端标价是唯一计价依据；前端价格只做一致性比对，不一致时拒绝，
+    // 既不按旧价成交也不静默按新价成交。金额保留两位小数比较，规避浮点误差。
+    if (orderData.expectedPrice !== undefined) {
+      const currentPrice = Number(product.price) || 0
+      const cents = (value: number): number => Math.round(value * 100)
+      if (cents(currentPrice) !== cents(orderData.expectedPrice)) {
+        throw new AppError(
+          '价格已变动，请刷新后重试',
+          ErrorCode.PRICE_CHANGED,
+          HttpStatus.CONFLICT,
+          {
+            reason: 'PRICE_CHANGED',
+            productId: product.id,
+            productName: product.title,
+            currentPrice,
+            submittedPrice: orderData.expectedPrice,
+          }
+        )
+      }
     }
 
     // 业务规则：做单必须填写客户姓名和手机号（做单记录仅收录完整提交的订单）。

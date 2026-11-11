@@ -1,6 +1,6 @@
 import logger from '../utils/logger.js'
 import { Request, Response } from 'express'
-import { getErrorMessage } from '@promo/shared'
+import { AppError, getErrorMessage } from '@promo/shared'
 import { sendSuccess, sendError, sendPagination, sendServerError } from '../utils/response.js'
 import { MAX_PAGE, MAX_PAGE_SIZE } from '../utils/pagination.js'
 import { orderService } from '../services/index.js'
@@ -47,6 +47,20 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
 
     if (!productId) {
       return sendError(res, '缺少产品ID', 400)
+    }
+
+    // 前端展示价仅用于与服务端标价比对，绝不参与金额计算；类型非法直接拒绝
+    const rawProductPrice = (req.body as { productPrice?: unknown })?.productPrice
+    let expectedPrice: number | undefined
+    if (rawProductPrice !== undefined && rawProductPrice !== null) {
+      if (
+        typeof rawProductPrice !== 'number' ||
+        !Number.isFinite(rawProductPrice) ||
+        rawProductPrice < 0
+      ) {
+        return sendError(res, '价格参数不正确', 400)
+      }
+      expectedPrice = rawProductPrice
     }
 
     // H12：对齐数据库列宽做长度/类型校验，避免超长字段写入失败或截断
@@ -127,10 +141,16 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
       userPhone,
       sharerId,
       idempotencyKey,
+      expectedPrice,
     })
 
     sendSuccess(res, { order, remainingStock }, '做单成功')
   } catch (error) {
+    // 业务错误需要保留 HTTP 语义与 details（如价格变动时指明具体产品）
+    if (error instanceof AppError) {
+      sendError(res, error.message, error.code, error.statusCode, error.details ?? null)
+      return
+    }
     sendServerError(res, error, '做单失败')
   }
 }

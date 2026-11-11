@@ -42,6 +42,8 @@ export enum ErrorCode {
   // 业务错误 (3xxx)
   PRODUCT_NOT_FOUND = 3001,
   INSUFFICIENT_STOCK = 3002,
+  /** 前端展示价与服务端标价不一致，需刷新后重新确认 */
+  PRICE_CHANGED = 3003,
 }
 
 /**

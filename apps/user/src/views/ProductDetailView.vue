@@ -390,6 +390,7 @@ const submitGoOrder = (userName: string, userPhone: string) => {
     userPhone,
     userId: getUserId(),
     sharerId: resolveSharerId(product.id),
+    productPrice: Number(product.price) || 0,
   })
 
   // 与后端归属规则一致：未登录且无分享归因（sharerId）时不允许下单
