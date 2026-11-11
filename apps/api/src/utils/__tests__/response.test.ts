@@ -4,6 +4,7 @@ import {
   sendError,
   sendPagination,
   sendAppError,
+  sendServerError,
   AppError,
   HttpStatus,
   ErrorCode,
@@ -153,6 +154,70 @@ describe('response utils', () => {
         expect.objectContaining({
           code: ErrorCode.BAD_REQUEST,
           message: 'App错误',
+        })
+      )
+    })
+  })
+
+  describe('sendServerError', () => {
+    const originalNodeEnv = process.env.NODE_ENV
+
+    afterEach(() => {
+      process.env.NODE_ENV = originalNodeEnv
+    })
+
+    function makeMySqlError(): Error {
+      return Object.assign(
+        new Error("Duplicate entry '测试产品' for key 'products.title'"),
+        { code: 'ER_DUP_ENTRY', errno: 1062, sqlState: '23000' }
+      )
+    }
+
+    it('生产环境把数据库错误统一脱敏为 500，响应体不含 SQL/表名/列名', () => {
+      process.env.NODE_ENV = 'production'
+      sendServerError(mockRes, makeMySqlError(), '获取失败')
+
+      expect(mockRes.status).toHaveBeenCalledWith(HttpStatus.INTERNAL_SERVER_ERROR)
+      const body = mockRes.json.mock.calls[0][0]
+      expect(body).toEqual(
+        expect.objectContaining({ code: ErrorCode.INTERNAL_SERVER_ERROR, message: '服务器内部错误', data: null })
+      )
+      const serialized = JSON.stringify(body)
+      expect(serialized).not.toContain('ER_DUP_ENTRY')
+      expect(serialized).not.toContain('Duplicate entry')
+      expect(serialized).not.toContain('products.title')
+    })
+
+    it('业务错误（AppError）保持原有 code 与 message，HTTP 映射不变', () => {
+      process.env.NODE_ENV = 'production'
+      const err = new AppError('产品不存在', ErrorCode.PRODUCT_NOT_FOUND, HttpStatus.NOT_FOUND)
+      sendServerError(mockRes, err)
+
+      expect(mockRes.status).toHaveBeenCalledWith(HttpStatus.BAD_REQUEST)
+      expect(mockRes.json).toHaveBeenCalledWith(
+        expect.objectContaining({ code: ErrorCode.PRODUCT_NOT_FOUND, message: '产品不存在' })
+      )
+    })
+
+    it('非生产环境保留原始错误信息，便于排查', () => {
+      process.env.NODE_ENV = 'development'
+      sendServerError(mockRes, makeMySqlError(), '获取失败')
+
+      expect(mockRes.status).toHaveBeenCalledWith(HttpStatus.INTERNAL_SERVER_ERROR)
+      const body = mockRes.json.mock.calls[0][0]
+      expect(body.code).toBe(ErrorCode.INTERNAL_SERVER_ERROR)
+      expect(String(body.message)).toContain('Duplicate entry')
+    })
+
+    it('把原始错误与堆栈写入日志', () => {
+      process.env.NODE_ENV = 'production'
+      sendServerError(mockRes, makeMySqlError(), '获取失败')
+
+      expect(logger.error).toHaveBeenCalledWith(
+        '[API] 未预期错误',
+        expect.objectContaining({
+          error: expect.stringContaining('Duplicate entry'),
+          stack: expect.any(String),
         })
       )
     })

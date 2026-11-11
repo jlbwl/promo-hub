@@ -1,6 +1,6 @@
 import { Response, Request, NextFunction } from 'express'
 import logger from './logger.js'
-import { AppError, ErrorCode, HttpStatus, ApiResponse } from '@promo/shared'
+import { AppError, ErrorCode, HttpStatus, ApiResponse, getErrorMessage } from '@promo/shared'
 
 // 重新导出共享的类型和错误类，保持向后兼容
 export { AppError, ErrorCode, HttpStatus }
@@ -60,8 +60,10 @@ export const sendError = (
   statusCode?: number,
   data: unknown = null
 ): void => {
-  const httpStatus =
-    statusCode ?? (code >= 400 && code <= 599 ? code : HttpStatus.BAD_REQUEST)
+  // 安全：数据库层错误码是字符串（ER_DUP_ENTRY / ER_NO_SUCH_TABLE 等），
+  // 直接参与数值比较会得到 NaN 并恒为 false，绝不能据此推断 HTTP 状态码
+  const isHttpStatus = typeof code === 'number' && code >= 400 && code <= 599
+  const httpStatus = statusCode ?? (isHttpStatus ? code : HttpStatus.BAD_REQUEST)
   // H7：生产环境 5xx 不回显原始异常/数据库信息，仅保留业务 4xx 的明确提示
   const finalMessage =
     process.env.NODE_ENV === 'production' && httpStatus >= 500
@@ -81,6 +83,45 @@ export const sendError = (
  */
 export const sendAppError = (res: Response, err: AppError): void => {
   sendError(res, err.message, err.code, err.statusCode)
+}
+
+/**
+ * 发送控制器 catch 分支捕获的异常
+ *
+ * 安全：数据库驱动的异常（mysql2）message 里含 SQL 片段、表名、列名、唯一索引名
+ * 甚至业务数据值，`error.code` 是 `ER_*` 字符串而非数字。因此：
+ * - 可识别的业务错误（AppError / 显式挂载数字码的异常）保持原有 code、message 与 HTTP 状态；
+ * - 其余一律按 500 处理，原始信息（message + stack）只写入日志，
+ *   生产环境由 sendError 的 5xx 分支脱敏为「服务器内部错误」。
+ */
+export const sendServerError = (
+  res: Response,
+  error: unknown,
+  fallbackMessage: string = '操作失败'
+): void => {
+  if (error instanceof AppError) {
+    sendError(res, error.message, error.code)
+    return
+  }
+
+  // 兼容服务层显式挂载数字错误码的业务异常（如 { code: 404, message: '订单不存在' }）。
+  // 只接受合法的 HTTP 数字码；mysql2 的 ER_* 是字符串，会落到下方 500 脱敏分支。
+  const rawCode = (error as { code?: unknown })?.code
+  if (typeof rawCode === 'number' && rawCode >= 400 && rawCode <= 599) {
+    sendError(res, getErrorMessage(error, fallbackMessage), rawCode)
+    return
+  }
+
+  logger.error('[API] 未预期错误', {
+    error: getErrorMessage(error, fallbackMessage),
+    stack: error instanceof Error ? error.stack : undefined,
+  })
+  sendError(
+    res,
+    getErrorMessage(error, fallbackMessage),
+    ErrorCode.INTERNAL_SERVER_ERROR,
+    HttpStatus.INTERNAL_SERVER_ERROR
+  )
 }
 
 /**

@@ -1,6 +1,5 @@
 import { Request, Response } from 'express'
-import { getErrorMessage } from '@promo/shared'
-import { sendSuccess, sendError } from '../utils/response.js'
+import { sendSuccess, sendError, sendServerError } from '../utils/response.js'
 import {
   readEmployeeByPhone,
   readEmployeeById,
@@ -89,7 +88,7 @@ export const createEmployee = async (req: Request, res: Response): Promise<void>
 
     sendSuccess(res, maskEmployee(employee), '创建成功')
   } catch (err) {
-    sendError(res, getErrorMessage(err, '创建失败'), 1)
+    sendServerError(res, err, '创建失败')
   }
 }
 
@@ -107,7 +106,7 @@ export const getEmployees = async (req: Request, res: Response): Promise<void> =
     const employees = await readEmployeesByUserId(userId)
     sendSuccess(res, employees.map(maskEmployee), 'success')
   } catch (err) {
-    sendError(res, getErrorMessage(err, '获取失败'), 1)
+    sendServerError(res, err, '获取失败')
   }
 }
 
@@ -126,7 +125,7 @@ export const getEmployeeById = async (req: Request, res: Response): Promise<void
     }
     sendSuccess(res, maskEmployee(employee), 'success')
   } catch (err) {
-    sendError(res, getErrorMessage(err, '获取失败'), 1)
+    sendServerError(res, err, '获取失败')
   }
 }
 
@@ -146,7 +145,7 @@ export const deleteEmployeeById = async (req: Request, res: Response): Promise<v
     await deleteEmployee(id)
     sendSuccess(res, null, '删除成功')
   } catch (err) {
-    sendError(res, getErrorMessage(err, '删除失败'), 1)
+    sendServerError(res, err, '删除失败')
   }
 }
 
@@ -195,7 +194,7 @@ export const updateEmployeeById = async (req: Request, res: Response): Promise<v
     const updated = await readEmployeeById(id)
     sendSuccess(res, updated ? maskEmployee(updated) : null, '更新成功')
   } catch (err) {
-    sendError(res, getErrorMessage(err, '更新失败'), 1)
+    sendServerError(res, err, '更新失败')
   }
 }
 
@@ -253,7 +252,7 @@ export const employeeLogin = async (req: Request, res: Response): Promise<void> 
       user: { id: user.id, phone: user.phone, nickname: user.nickname }
     }, '登录成功')
   } catch (err) {
-    sendError(res, getErrorMessage(err, '登录失败'), 1)
+    sendServerError(res, err, '登录失败')
   }
 }
 
@@ -293,6 +292,6 @@ export const validateEmployee = async (req: Request, res: Response): Promise<voi
     
     sendSuccess(res, { expiresAt: employee.expiresAt }, '账户有效')
   } catch (err) {
-    sendError(res, getErrorMessage(err, '验证失败'), 1)
+    sendServerError(res, err, '验证失败')
   }
 }

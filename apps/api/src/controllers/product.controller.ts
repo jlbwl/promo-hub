@@ -1,6 +1,6 @@
 import { Request, Response } from 'express'
 import { getErrorMessage } from '@promo/shared'
-import { sendSuccess, sendError, sendPagination } from '../utils/response.js'
+import { sendSuccess, sendError, sendPagination, sendServerError } from '../utils/response.js'
 import { parsePage, parsePageSize } from '../utils/pagination.js'
 import { sanitizeRichText } from '../utils/sanitize.js'
 import { productService } from '../services/index.js'
@@ -63,7 +63,7 @@ export const getProducts = async (req: Request, res: Response): Promise<void> =>
       error: getErrorMessage(error),
       stack: error instanceof Error ? error.stack : undefined
     })
-    sendError(res, getErrorMessage(error, '获取失败'), (error as { code?: number }).code || 500)
+    sendServerError(res, error, '获取失败')
   }
 }
 
@@ -108,7 +108,7 @@ export const getProductById = async (req: Request, res: Response): Promise<void>
       productId: id,
       error: getErrorMessage(error)
     })
-    sendError(res, getErrorMessage(error, '获取失败'), (error as { code?: number }).code || 500)
+    sendServerError(res, error, '获取失败')
   }
 }
 
@@ -174,7 +174,7 @@ export const createProduct = async (req: Request, res: Response): Promise<void> 
     logger.error('[ProductController] 创建产品失败', {
       error: getErrorMessage(error)
     })
-    sendError(res, getErrorMessage(error, '创建失败'), (error as { code?: number }).code || 500)
+    sendServerError(res, error, '创建失败')
   }
 }
 
@@ -215,7 +215,7 @@ export const updateProductById = async (req: Request, res: Response): Promise<vo
       productId: id,
       error: getErrorMessage(error)
     })
-    sendError(res, getErrorMessage(error, '更新失败'), (error as { code?: number }).code || 500)
+    sendServerError(res, error, '更新失败')
   }
 }
 
@@ -249,7 +249,7 @@ export const deleteProductById = async (req: Request, res: Response): Promise<vo
       productId: id,
       error: getErrorMessage(error)
     })
-    sendError(res, getErrorMessage(error, '删除失败'), (error as { code?: number }).code || 500)
+    sendServerError(res, error, '删除失败')
   }
 }
 

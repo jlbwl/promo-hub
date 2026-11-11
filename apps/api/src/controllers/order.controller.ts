@@ -1,7 +1,7 @@
 import logger from '../utils/logger.js'
 import { Request, Response } from 'express'
 import { getErrorMessage } from '@promo/shared'
-import { sendSuccess, sendError, sendPagination } from '../utils/response.js'
+import { sendSuccess, sendError, sendPagination, sendServerError } from '../utils/response.js'
 import { MAX_PAGE, MAX_PAGE_SIZE } from '../utils/pagination.js'
 import { orderService } from '../services/index.js'
 import { logAdminOperation } from '../utils/auditLog.js'
@@ -118,7 +118,7 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
 
     sendSuccess(res, { order, remainingStock }, '做单成功')
   } catch (error) {
-    sendError(res, getErrorMessage(error, '做单失败'), (error as { code?: number }).code || 500)
+    sendServerError(res, error, '做单失败')
   }
 }
 
@@ -301,7 +301,7 @@ export const adminDeleteOrder = async (req: Request, res: Response): Promise<voi
 
     sendSuccess(res, null, '删除成功')
   } catch (error) {
-    sendError(res, getErrorMessage(error, '删除失败'), (error as { code?: number }).code || 500)
+    sendServerError(res, error, '删除失败')
   }
 }
 
@@ -333,7 +333,7 @@ export const deleteUserOrder = async (req: Request, res: Response): Promise<void
 
     sendSuccess(res, null, '已移至回收站')
   } catch (error) {
-    sendError(res, getErrorMessage(error, '删除失败'), (error as { code?: number }).code || 500)
+    sendServerError(res, error, '删除失败')
   }
 }
 
@@ -350,7 +350,7 @@ export const getDeletedOrders = async (req: Request, res: Response): Promise<voi
     const orders = await orderService.getDeletedOrders(userId)
     sendSuccess(res, orders)
   } catch (error) {
-    sendError(res, getErrorMessage(error, '获取失败'), (error as { code?: number }).code || 500)
+    sendServerError(res, error, '获取失败')
   }
 }
 
@@ -369,7 +369,7 @@ export const restoreUserOrder = async (req: Request, res: Response): Promise<voi
 
     sendSuccess(res, null, '恢复成功')
   } catch (error) {
-    sendError(res, getErrorMessage(error, '恢复失败'), (error as { code?: number }).code || 500)
+    sendServerError(res, error, '恢复失败')
   }
 }
 
@@ -398,7 +398,7 @@ export const purgeUserOrder = async (req: Request, res: Response): Promise<void>
 
     sendSuccess(res, null, '已永久删除')
   } catch (error) {
-    sendError(res, getErrorMessage(error, '删除失败'), (error as { code?: number }).code || 500)
+    sendServerError(res, error, '删除失败')
   }
 }
 
@@ -419,7 +419,7 @@ export const submitFundAccount = async (req: Request, res: Response): Promise<vo
 
     sendSuccess(res, null, '提交成功')
   } catch (error) {
-    sendError(res, getErrorMessage(error, '提交失败'), (error as { code?: number }).code || 500)
+    sendServerError(res, error, '提交失败')
   }
 }
 
@@ -474,8 +474,14 @@ export const reviewOrder = async (req: Request, res: Response): Promise<void> =>
     sendSuccess(res, null, message)
   } catch (error) {
     // M1：409 时把冲突订单摘要一并返回，前端据此二次确认
-    const err = error as { code?: number; data?: unknown }
-    sendError(res, getErrorMessage(error, '审核失败'), err.code || 500, undefined, err.data ?? null)
+    // 安全：只有数字且落在合法 HTTP 范围的 code 才透传；
+    // 数据库错误的 code 是 ER_* 字符串，必须走统一的 500 脱敏分支
+    const err = error as { code?: unknown; data?: unknown }
+    if (typeof err.code === 'number' && err.code >= 400 && err.code <= 599) {
+      sendError(res, getErrorMessage(error, '审核失败'), err.code, undefined, err.data ?? null)
+      return
+    }
+    sendServerError(res, error, '审核失败')
   }
 }
 
@@ -524,7 +530,7 @@ export const settleOrder = async (req: Request, res: Response): Promise<void> =>
     const message = action === 'pending_payment' ? '已添加到待发放' : '已结算'
     sendSuccess(res, null, message)
   } catch (error) {
-    sendError(res, getErrorMessage(error, '结算失败'), (error as { code?: number }).code || 500)
+    sendServerError(res, error, '结算失败')
   }
 }
 
@@ -564,6 +570,6 @@ export const updateOrderTeamName = async (req: Request, res: Response): Promise<
 
     sendSuccess(res, null, '团队名称更新成功')
   } catch (error) {
-    sendError(res, getErrorMessage(error, '更新失败'), (error as { code?: number }).code || 500)
+    sendServerError(res, error, '更新失败')
   }
 }
