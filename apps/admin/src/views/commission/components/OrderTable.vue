@@ -127,13 +127,12 @@
       </template>
     </el-table-column>
     <el-table-column
-      prop="rejectReason"
-      label="驳回原因"
+      label="审核结果"
       width="120"
       show-overflow-tooltip
     >
       <template #default="{ row }">
-        <span style="color: #f56c6c;">{{ row.rejectReason || '--' }}</span>
+        <span :style="row.status === 'rejected' ? 'color: #f56c6c;' : ''">{{ auditResultText(row) }}</span>
       </template>
     </el-table-column>
     <el-table-column
@@ -183,7 +182,7 @@
 
 <script setup lang="ts">
 import { Edit } from '@element-plus/icons-vue'
-import { maskPhone, formatTime, statusTagType, statusText, getManagerTeamName, displayProductPrice } from '../utils'
+import { maskPhone, formatTime, statusTagType, statusText, getManagerTeamName, displayProductPrice, auditResultText } from '../utils'
 import type { Manager, Order } from '@promo/shared/types'
 
 const props = defineProps<{

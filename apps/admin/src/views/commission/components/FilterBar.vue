@@ -38,10 +38,6 @@
         label="已发放"
         value="settled"
       />
-      <el-option
-        label="已驳回"
-        value="rejected"
-      />
     </el-select>
     <el-select
       :model-value="manager"

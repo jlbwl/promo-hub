@@ -1,45 +1,35 @@
 <template>
-  <!-- 统计卡片 -->
-  <el-row
-    :gutter="20"
-    class="stat-cards"
-    justify="center"
-  >
-    <el-col
+  <!-- 统计卡片：5 张等分铺满整行 -->
+  <div class="stat-cards">
+    <el-card
       v-for="card in cards"
       :key="card.status"
-      :xs="24"
-      :sm="12"
-      :md="4"
+      shadow="hover"
+      class="stat-card clickable"
+      :class="{ 'has-items': card.isPayment && stats.pendingPayment > 0 }"
+      @click="handleCardClick(card)"
     >
-      <el-card
-        shadow="hover"
-        class="stat-card clickable"
-        :class="{ 'has-items': card.isPayment && stats.pendingPayment > 0 }"
-        @click="handleCardClick(card)"
-      >
-        <div class="stat-content">
-          <div class="stat-info">
-            <span class="stat-label">{{ card.label }}</span>
-            <el-statistic :value="getCardValue(card)" />
-          </div>
-          <el-icon
-            class="stat-icon"
-            :style="card.iconStyle"
-          >
-            <component :is="card.icon" />
-          </el-icon>
+      <div class="stat-content">
+        <div class="stat-info">
+          <span class="stat-label">{{ card.label }}</span>
+          <el-statistic :value="getCardValue(card)" />
         </div>
-        <div
-          v-if="getCardValue(card) > 0"
-          class="card-badge"
-          :style="card.badgeStyle"
+        <el-icon
+          class="stat-icon"
+          :style="card.iconStyle"
         >
-          {{ card.badgeText }}
-        </div>
-      </el-card>
-    </el-col>
-  </el-row>
+          <component :is="card.icon" />
+        </el-icon>
+      </div>
+      <div
+        v-if="getCardValue(card) > 0"
+        class="card-badge"
+        :style="card.badgeStyle"
+      >
+        {{ card.badgeText }}
+      </div>
+    </el-card>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -107,13 +97,16 @@ const handleCardClick = (card: StatCardItem) => {
 
 <style lang="scss" scoped>
 .stat-cards {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 20px;
   margin-bottom: 20px;
 }
 
 .stat-card {
-  margin-bottom: 16px;
   position: relative;
   cursor: default;
+  min-width: 0;
 
   .stat-content {
     display: flex;
@@ -165,6 +158,20 @@ const handleCardClick = (card: StatCardItem) => {
     font-size: 11px;
     color: #ffffff;
     background: linear-gradient(135deg, #409eff, #66b1ff);
+  }
+}
+
+// 窄屏换行：平板两列、手机单列，避免文字被挤压
+@media (max-width: 991px) {
+  .stat-cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 767px) {
+  .stat-cards {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
   }
 }
 </style>

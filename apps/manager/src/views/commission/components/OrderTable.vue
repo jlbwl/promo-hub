@@ -96,13 +96,12 @@
       </template>
     </el-table-column>
     <el-table-column
-      prop="rejectReason"
-      label="驳回原因"
+      label="审核结果"
       width="120"
       show-overflow-tooltip
     >
       <template #default="{ row }">
-        <span style="color: #f56c6c;">{{ row.rejectReason || '--' }}</span>
+        <span :style="row.status === 'rejected' ? 'color: #f56c6c;' : ''">{{ auditResultText(row) }}</span>
       </template>
     </el-table-column>
     <el-table-column
@@ -177,7 +176,7 @@
 </template>
 
 <script setup lang="ts">
-import { maskPhone, formatTime, statusTagType, statusText, displayProductPrice } from '../utils'
+import { maskPhone, formatTime, statusTagType, statusText, displayProductPrice, auditResultText } from '../utils'
 import type { Order } from '@promo/shared/types'
 
 defineProps<{

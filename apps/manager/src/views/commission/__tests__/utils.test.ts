@@ -9,7 +9,7 @@ vi.mock('@promo/shared/utils/request', () => ({
 }))
 
 import { get } from '@promo/shared/utils/request'
-import { displayProductPrice, fetchAllOrders, formatTime, getManagerId, maskName, maskPhone, settleOrders, statusTagType, statusText, sumDisplayProductPrice, sumProductPrice } from '../utils'
+import { auditResultText, displayProductPrice, fetchAllOrders, formatTime, getManagerId, maskName, maskPhone, settleOrders, statusTagType, statusText, sumDisplayProductPrice, sumProductPrice } from '../utils'
 
 beforeEach(() => {
   localStorage.clear()
@@ -209,5 +209,23 @@ describe('displayProductPrice / sumDisplayProductPrice 金额口径', () => {
   it('sumProductPrice 对非法金额按 0 处理', () => {
     expect(sumProductPrice([{ id: 'x', productPrice: 'abc' as unknown as number } as Order])).toBe(0)
     expect(sumProductPrice([])).toBe(0)
+  })
+})
+
+describe('auditResultText 审核结果口径', () => {
+  it('审核通过与已发放显示合格', () => {
+    expect(auditResultText({ status: 'approved' } as Order)).toBe('合格')
+    expect(auditResultText({ status: 'settled' } as Order)).toBe('合格')
+    expect(auditResultText({ status: 'pending_payment' } as Order)).toBe('合格')
+  })
+
+  it('驳回显示驳回原因，原因为空兜底横杠', () => {
+    expect(auditResultText({ status: 'rejected', rejectReason: '资料不全' } as Order)).toBe('资料不全')
+    expect(auditResultText({ status: 'rejected', rejectReason: '' } as Order)).toBe('--')
+    expect(auditResultText({ status: 'rejected' } as Order)).toBe('--')
+  })
+
+  it('待审核保持横杠，不臆造为合格', () => {
+    expect(auditResultText({ status: 'pending' } as Order)).toBe('--')
   })
 })

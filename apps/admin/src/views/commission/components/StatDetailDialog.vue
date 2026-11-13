@@ -77,7 +77,7 @@
         <span
           v-if="currentStatus !== 'rejected'"
           class="filter-label"
-        >结算时间</span>
+        >{{ isMergedView ? '结算/审核时间' : '结算时间' }}</span>
         <el-date-picker
           v-if="currentStatus !== 'rejected'"
           v-model="filters.dateRange"
@@ -209,7 +209,7 @@
           </template>
         </el-table-column>
         <el-table-column
-          v-if="visibleColumns.reviewedAt && currentStatus === 'rejected'"
+          v-if="visibleColumns.reviewedAt && (currentStatus === 'rejected' || isMergedView)"
           prop="reviewedAt"
           label="审核时间"
           width="130"
@@ -220,29 +220,13 @@
           </template>
         </el-table-column>
         <el-table-column
-          v-if="visibleColumns.auditResult && currentStatus !== 'rejected'"
+          v-if="visibleColumns.auditResult"
           label="审核结果"
-          width="90"
-          align="center"
-        >
-          <template #default="{ row }">
-            <el-tag
-              size="small"
-              :type="row.status === 'pending' ? 'warning' : 'success'"
-            >
-              {{ auditResultOf(row) }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column
-          v-if="visibleColumns.rejectReason && currentStatus === 'rejected'"
-          prop="rejectReason"
-          label="驳回理由"
-          min-width="150"
+          min-width="120"
           show-overflow-tooltip
         >
           <template #default="{ row }">
-            <span style="color: #f56c6c;">{{ row.rejectReason || '--' }}</span>
+            <span :style="row.status === 'rejected' ? 'color: #f56c6c;' : ''">{{ auditResultText(row) }}</span>
           </template>
         </el-table-column>
       </el-table>
@@ -259,7 +243,7 @@
 import { ref, computed, reactive } from 'vue'
 import { ElMessage } from 'element-plus'
 import { get } from '@promo/shared/utils/request'
-import { maskPhone, formatTime, getManagerTeamName, displayProductPrice, sumDisplayProductPrice } from '../utils'
+import { maskPhone, formatTime, getManagerTeamName, displayProductPrice, sumDisplayProductPrice, auditResultText } from '../utils'
 import type { Manager, Order, PaginatedResponse } from '@promo/shared/types'
 
 const props = defineProps<{
@@ -271,6 +255,8 @@ const title = ref('')
 const orders = ref<Order[]>([])
 // 当前弹窗对应的订单状态（用于区分审核结果/驳回理由列）
 const currentStatus = ref('')
+// 多状态合并视图（如已发放并入已驳回）
+const isMergedView = computed(() => currentStatus.value.includes(','))
 
 // 明细筛选条件：渠道（按 managerId）、团队名称、结算日期区间
 const filters = reactive<{ managerId: string; teamName: string; dateRange: string[] | null }>({
@@ -295,9 +281,11 @@ const filteredOrders = computed(() => orders.value.filter(o => {
   if (filters.managerId && o.managerId !== filters.managerId) return false
   if (filters.teamName && o.teamName !== filters.teamName) return false
   if (filters.dateRange?.length === 2) {
-    if (!o.settledAt) return false
-    // settledAt 为 YYYY-MM-DD HH:mm:ss，取日期部分做闭区间比较
-    const day = String(o.settledAt).slice(0, 10)
+    // 合并视图下驳回单没有结算时间，回退到审核时间，避免误筛掉驳回单
+    const time = isMergedView.value ? (o.settledAt || o.reviewedAt) : o.settledAt
+    if (!time) return false
+    // 时间为 YYYY-MM-DD HH:mm:ss，取日期部分做闭区间比较
+    const day = String(time).slice(0, 10)
     if (day < filters.dateRange[0] || day > filters.dateRange[1]) return false
   }
   return true
@@ -325,7 +313,6 @@ const columnOptions = [
   { key: 'settledAt', label: '结算时间' },
   { key: 'reviewedAt', label: '审核时间' },
   { key: 'auditResult', label: '审核结果' },
-  { key: 'rejectReason', label: '驳回理由' },
 ] as const
 
 type ColumnKey = (typeof columnOptions)[number]['key']
@@ -341,43 +328,52 @@ const visibleColumns = reactive<Record<ColumnKey, boolean>>({
   settledAt: true,
   reviewedAt: true,
   auditResult: true,
-  rejectReason: true,
 })
 
 // 列设置项随弹窗类型变化：
-// 驳回明细不含推广费/结算时间/审核结果，改为审核时间 + 驳回理由
+// 驳回明细不含推广费/结算时间，改为审核时间 + 审核结果（驳回单直接显示原因）；
+// 已发放合并视图同时展示结算时间、审核时间与审核结果，便于识别驳回单
 const visibleColumnOptions = computed(() => columnOptions.filter(col => {
-  if (col.key === 'productPrice' || col.key === 'settledAt' || col.key === 'auditResult') {
+  if (col.key === 'productPrice' || col.key === 'settledAt') {
     return currentStatus.value !== 'rejected'
   }
-  if (col.key === 'reviewedAt' || col.key === 'rejectReason') return currentStatus.value === 'rejected'
+  if (col.key === 'reviewedAt') {
+    return currentStatus.value === 'rejected' || isMergedView.value
+  }
   return true
 }))
-
-// 审核结果：待审核保持原状态，通过审核（含已结算）即判定合格
-const auditResultOf = (row: Order) => (row.status === 'pending' ? '待审核' : '合格')
 
 // 根据经理 ID 获取渠道名称
 const teamNameOf = (managerId: string) => getManagerTeamName(props.managers, managerId)
 
-// 打开统计明细弹窗（status 为 'all' 时查询全部）
+// 打开统计明细弹窗（status 为 'all' 时查询全部，支持逗号分隔的多状态合并）
 const open = async (status: string, t: string) => {
   title.value = t + '明细'
   currentStatus.value = status
   resetFilters()
   visible.value = true
+  const statuses = status && status !== 'all' ? status.split(',') : []
   try {
     // H16：后端 pageSize 上限为 100，改为循环分页拉全量，避免明细截断导致合计失真
-    const params: { status?: string } = {}
-    if (status !== 'all') params.status = status
     const PAGE_SIZE = 100
-    const first = await get<PaginatedResponse<Order>>('/orders', { ...params, page: 1, pageSize: PAGE_SIZE })
-    const collected: Order[] = [...(first.data?.list || [])]
-    const total = first.data?.total ?? collected.length
-    const totalPages = first.data?.totalPages || Math.ceil(total / PAGE_SIZE)
-    for (let page = 2; page <= totalPages; page++) {
-      const res = await get<PaginatedResponse<Order>>('/orders', { ...params, page, pageSize: PAGE_SIZE })
-      collected.push(...(res.data?.list || []))
+    const fetchByStatus = async (item: string) => {
+      const params: { status?: string } = {}
+      if (item) params.status = item
+      const first = await get<PaginatedResponse<Order>>('/orders', { ...params, page: 1, pageSize: PAGE_SIZE })
+      const collected: Order[] = [...(first.data?.list || [])]
+      const total = first.data?.total ?? collected.length
+      const totalPages = first.data?.totalPages || Math.ceil(total / PAGE_SIZE)
+      for (let page = 2; page <= totalPages; page++) {
+        const res = await get<PaginatedResponse<Order>>('/orders', { ...params, page, pageSize: PAGE_SIZE })
+        collected.push(...(res.data?.list || []))
+      }
+      return collected
+    }
+    const results = await Promise.all((statuses.length > 0 ? statuses : ['']).map(fetchByStatus))
+    let collected = results.flat()
+    // 多状态合并展示时按审核时间倒序，便于按天回看审核结果
+    if (statuses.length > 1) {
+      collected = [...collected].sort((a, b) => (b.reviewedAt || '').localeCompare(a.reviewedAt || ''))
     }
     orders.value = collected
   } catch {

@@ -33,3 +33,13 @@ export const displayProductPrice = (order: Order): number =>
 /** 展示口径的推广费合计：驳回单按 0 计入 */
 export const sumDisplayProductPrice = (orders: Order[]): number =>
   orders.reduce((sum, order) => sum + displayProductPrice(order), 0)
+
+/**
+ * 审核结果展示：通过（含已发放）显示「合格」，驳回显示驳回原因，
+ * 待审核或原因缺失显示「--」，不臆造为合格（与经理端口径一致）
+ */
+export const auditResultText = (order: Order): string => {
+  if (order.status === 'rejected') return order.rejectReason || '--'
+  if (order.status === 'pending') return '--'
+  return '合格'
+}

@@ -123,13 +123,12 @@
           </template>
         </el-table-column>
         <el-table-column
-          prop="rejectReason"
-          label="驳回原因"
+          label="审核结果"
           width="100"
           show-overflow-tooltip
         >
           <template #default="{ row }">
-            <span style="color: #f56c6c;">{{ row.rejectReason || '--' }}</span>
+            <span :style="row.status === 'rejected' ? 'color: #f56c6c;' : ''">{{ auditResultText(row) }}</span>
           </template>
         </el-table-column>
         <el-table-column
@@ -156,7 +155,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { ElMessage } from 'element-plus'
-import { maskPhone, formatTime, statusTagType, statusText, getManagerId, fetchAllOrders, displayProductPrice, sumDisplayProductPrice } from '../utils'
+import { maskPhone, formatTime, statusTagType, statusText, getManagerId, fetchAllOrders, displayProductPrice, sumDisplayProductPrice, auditResultText } from '../utils'
 import type { Order } from '@promo/shared/types'
 
 const statDialogVisible = ref(false)
