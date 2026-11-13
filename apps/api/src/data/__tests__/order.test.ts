@@ -338,5 +338,20 @@ describe('data/order.ts', () => {
       expect(params).toContain('pending')
       expect(params).toContain('%张三%')
     })
+
+    it('关键词同时匹配通用产品名与具体产品名（optionLabel）', async () => {
+      mockQueryOne.mockResolvedValue({ total: 0 })
+
+      await getOrdersPaginated({ keyword: '1163', pageSize: 10 })
+
+      const sql = String(mockQueryOne.mock.calls[0][0])
+      const params = (mockQueryOne.mock.calls[0][1] || []) as unknown[]
+
+      expect(sql).toContain('productName LIKE ?')
+      expect(sql).toContain('optionLabel LIKE ?')
+      expect(sql).toContain('userName LIKE ?')
+      expect(sql).toContain('userPhone LIKE ?')
+      expect(params.filter(p => p === '%1163%')).toHaveLength(4)
+    })
   })
 })

@@ -400,8 +400,14 @@ export async function getOrdersPaginated(params: {
     values.push(params.managedBy)
   }
   if (params.keyword) {
-    whereConditions.push('(productName LIKE ? OR userName LIKE ? OR userPhone LIKE ?)')
-    values.push(`%${params.keyword}%`, `%${params.keyword}%`, `%${params.keyword}%`)
+    // 产品名称列同时展示通用名称（productName）与具体产品名（optionLabel），关键词需同时覆盖两者
+    whereConditions.push('(productName LIKE ? OR optionLabel LIKE ? OR userName LIKE ? OR userPhone LIKE ?)')
+    values.push(
+      `%${params.keyword}%`,
+      `%${params.keyword}%`,
+      `%${params.keyword}%`,
+      `%${params.keyword}%`
+    )
   }
   if (params.onlyDuplicate) {
     // 只看重单：同客户同产品在有效订单（未删除、未驳回）中出现 ≥2 笔

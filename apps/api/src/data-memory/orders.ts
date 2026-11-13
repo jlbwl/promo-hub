@@ -128,6 +128,7 @@ export async function getOrdersPaginated(params: {
     const keyword = params.keyword.toLowerCase()
     orders = orders.filter((o) =>
       (o.productName?.toLowerCase()?.includes(keyword)) ||
+      (o.optionLabel?.toLowerCase()?.includes(keyword)) ||
       (o.userName?.toLowerCase()?.includes(keyword)) ||
       (o.userPhone?.includes(keyword))
     )
