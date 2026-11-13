@@ -93,6 +93,12 @@ export type CustomerViewMode = 'table' | 'card'
 
 export const CUSTOMER_VIEW_MODE_KEY = 'admin:customer-view-mode'
 
+// 表格按 10 条一页；卡片按列数的倍数取 12，保证网格不出现半行
+export const TABLE_PAGE_SIZE = 10
+export const CARD_PAGE_SIZE = 12
+export const TABLE_PAGE_SIZES = [10, 20, 50, 100]
+export const CARD_PAGE_SIZES = [12, 24, 48]
+
 /** 读取上次选择的视图，默认表格；localStorage 不可用时回退默认值 */
 export function readCustomerViewMode(): CustomerViewMode {
   try {

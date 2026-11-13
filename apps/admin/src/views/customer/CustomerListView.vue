@@ -37,7 +37,7 @@
         :current-page="pagination.page"
         :page-size="pagination.pageSize"
         :total="pagination.total"
-        :page-sizes="[10, 20, 50, 100]"
+        :page-sizes="pageSizes"
         layout="total, sizes, prev, pager, next, jumper"
         background
         @current-change="handlePageChange"
@@ -81,6 +81,7 @@ const {
   searchStatus,
   loading,
   pagination,
+  pageSizes,
   tableData,
   viewMode,
   setViewMode,

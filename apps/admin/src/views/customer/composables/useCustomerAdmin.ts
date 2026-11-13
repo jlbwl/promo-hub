@@ -1,4 +1,4 @@
-import { reactive, ref, onMounted } from 'vue'
+import { computed, reactive, ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { del, get, post, put } from '@promo/shared/utils/request'
 import { getErrorMessage } from '@promo/shared/utils/errors'
@@ -9,6 +9,10 @@ import {
   readCustomerViewMode,
   saveCustomerViewMode,
   todayStamp,
+  CARD_PAGE_SIZE,
+  CARD_PAGE_SIZES,
+  TABLE_PAGE_SIZE,
+  TABLE_PAGE_SIZES,
   type CustomerItem,
   type CustomerViewMode,
 } from '../utils'
@@ -34,20 +38,28 @@ export function useCustomerAdmin() {
 
   // 视图切换：默认表格，用户选择写入 localStorage
   const viewMode = ref<CustomerViewMode>(readCustomerViewMode())
+
+  const pagination = reactive({
+    page: 1,
+    pageSize: viewMode.value === 'card' ? CARD_PAGE_SIZE : TABLE_PAGE_SIZE,
+    total: 0,
+  })
+
+  // 两套页大小选项共用同一个分页对象，切换视图时同步重置页码与页大小
+  const pageSizes = computed(() => (viewMode.value === 'card' ? CARD_PAGE_SIZES : TABLE_PAGE_SIZES))
+
   const setViewMode = (mode: CustomerViewMode): void => {
+    if (mode === viewMode.value) return
     viewMode.value = mode
     saveCustomerViewMode(mode)
+    pagination.pageSize = mode === 'card' ? CARD_PAGE_SIZE : TABLE_PAGE_SIZE
+    pagination.page = 1
+    loadData()
   }
 
   // 排序：仅使用次数走后端排序，空值表示使用默认排序
   const sortBy = ref<'' | 'searchCount'>('')
   const sortOrder = ref<'' | 'asc' | 'desc'>('')
-
-  const pagination = reactive({
-    page: 1,
-    pageSize: 10,
-    total: 0,
-  })
 
   const tableData = ref<CustomerItem[]>([])
 
@@ -204,6 +216,7 @@ export function useCustomerAdmin() {
     searchStatus,
     loading,
     pagination,
+    pageSizes,
     tableData,
     viewMode,
     setViewMode,
