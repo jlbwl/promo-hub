@@ -86,12 +86,22 @@
       </div>
 
       <div v-if="plan.conflicts.length" class="issue-block">
-        <div class="issue-title">重名冲突（同一群号多张图片，已跳过）</div>
+        <div class="issue-title">冲突（已跳过，请先手工确认）</div>
         <el-table :data="plan.conflicts" size="small" border max-height="180">
-          <el-table-column prop="groupName" label="群号简称" width="180" show-overflow-tooltip />
-          <el-table-column label="文件" min-width="320">
+          <el-table-column prop="groupName" label="群号" width="150" show-overflow-tooltip />
+          <el-table-column label="原因" width="170">
+            <template #default="{ row }">
+              {{ row.reason === 'duplicate-customer' ? '多个客户命中同一群号' : '同一客户多张图片' }}
+            </template>
+          </el-table-column>
+          <el-table-column label="文件" min-width="240">
             <template #default="{ row }">
               {{ row.fileNames.join('、') }}
+            </template>
+          </el-table-column>
+          <el-table-column v-if="hasCustomerNames" label="命中的客户" min-width="200">
+            <template #default="{ row }">
+              {{ (row.customerNames || []).join('、') }}
             </template>
           </el-table-column>
         </el-table>
@@ -199,6 +209,11 @@ const progress = ref({ done: 0, total: 0 })
 
 const progressPercent = computed(() =>
   progress.value.total === 0 ? 0 : Math.round((progress.value.done / progress.value.total) * 100)
+)
+
+/** 存在「多客户命中同一群号」时才展示命中客户列，避免正常场景多一列空白 */
+const hasCustomerNames = computed(() =>
+  (plan.value?.conflicts || []).some((conflict) => !!conflict.customerNames?.length)
 )
 
 const open = () => {

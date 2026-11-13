@@ -38,7 +38,7 @@
 
     <div class="mode-row">
       <span class="label">遇到已存在的群号简称：</span>
-      <el-radio-group v-model="mode" @change="preview = null">
+      <el-radio-group v-model="mode" @change="handleModeChange">
         <el-radio value="overwrite">
           覆盖更新
         </el-radio>
@@ -72,6 +72,15 @@
           {{ preview.errors }}
         </el-descriptions-item>
       </el-descriptions>
+
+      <el-alert
+        v-if="emptyHint"
+        class="empty-hint"
+        type="warning"
+        :closable="false"
+        show-icon
+        :title="emptyHint"
+      />
 
       <div v-if="preview.errorRows.length" class="issue-block">
         <div class="issue-header">
@@ -124,6 +133,7 @@ import { ElMessage, type UploadFile } from 'element-plus'
 import { post } from '@promo/shared/utils/request'
 import { getErrorMessage } from '@promo/shared/utils/errors'
 import {
+  buildImportEmptyHint,
   buildImportIssueWorkbook,
   downloadWorkbook,
   parseCustomerWorkbook,
@@ -149,6 +159,8 @@ const preview = ref<CustomerImportResult | null>(null)
 const canImport = computed(
   () => !!preview.value && preview.value.created + preview.value.updated > 0 && !importing.value
 )
+
+const emptyHint = computed(() => buildImportEmptyHint(preview.value))
 
 const open = () => {
   reset()
@@ -179,7 +191,10 @@ const handleFileChange = async (uploadFile: UploadFile) => {
     ignoredHeaders.value = result.ignoredHeaders
     if (result.rows.length === 0) {
       ElMessage.warning('文件中没有可导入的数据行')
+      return
     }
+    // 解析成功后自动预览，用户选完文件即可直接确认导入，无需再手动点一次预览
+    await handlePreview()
   } catch (error) {
     fileName.value = ''
     rows.value = []
@@ -208,6 +223,14 @@ const handlePreview = async () => {
     ElMessage.error(getErrorMessage(error, '预览失败'))
   } finally {
     previewing.value = false
+  }
+}
+
+/** 覆盖/跳过模式变化会改变可导入条数，自动重新预览，避免按钮状态与提示过期 */
+const handleModeChange = () => {
+  preview.value = null
+  if (rows.value.length > 0) {
+    void handlePreview()
   }
 }
 
@@ -272,6 +295,10 @@ defineExpose({ open })
 
 .preview-summary {
   margin-top: 16px;
+}
+
+.empty-hint {
+  margin-top: 12px;
 }
 
 .issue-block {

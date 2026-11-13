@@ -23,8 +23,13 @@ export interface QrcodeCustomer {
 }
 
 export interface QrcodeConflict {
+  /** 展示用群号：命中多个客户时为归一化群号，同客户多图时为客户群号简称 */
   groupName: string
   fileNames: string[]
+  /** duplicate-file：同一客户多张图；duplicate-customer：多个客户命中同一群号 */
+  reason: 'duplicate-file' | 'duplicate-customer'
+  /** reason 为 duplicate-customer 时命中的客户群号简称 */
+  customerNames?: string[]
 }
 
 export interface QrcodeUploadTarget {
@@ -99,6 +104,62 @@ export function isSupportedQrcodeFile(fileName: string): boolean {
   return SUPPORTED_IMAGE_EXT.test(basename(fileName))
 }
 
+/**
+ * 从群号简称或文件名中归一化出开头的群号段。
+ * 线上客户表 groupName 形如「111211100 博信网络」「10302032云帆科技」「4202014\n乐玩小站」，
+ * 文件名形如「10302032云帆科技_z15169262608」，两侧取同一段连续字母数字即可对齐。
+ * 单个字母（如「A 速米科技」）不足以定位客户，按无群号处理。
+ */
+export function extractGroupNumber(value: string): string {
+  const matched = value.replace(/^[\s\u3000]+/, '').match(/^[A-Za-z0-9]+/)
+  if (!matched) return ''
+  const prefix = matched[0].toUpperCase()
+  return /^[A-Z]$/.test(prefix) ? '' : prefix
+}
+
+/** 群号简称整体归一化：去所有空白、忽略大小写，用于兼容「888」「888 收款码」这类原名完全一致的场景 */
+const normalizeFullName = (value: string): string =>
+  value.replace(/[\s\u3000]+/g, '').toLowerCase()
+
+interface CustomerIndex {
+  byName: Map<string, QrcodeCustomer[]>
+  byNumber: Map<string, QrcodeCustomer[]>
+}
+
+const pushToIndex = (index: Map<string, QrcodeCustomer[]>, key: string, customer: QrcodeCustomer): void => {
+  if (!key) return
+  const list = index.get(key) || []
+  list.push(customer)
+  index.set(key, list)
+}
+
+function buildCustomerIndex(customers: QrcodeCustomer[]): CustomerIndex {
+  const byName = new Map<string, QrcodeCustomer[]>()
+  const byNumber = new Map<string, QrcodeCustomer[]>()
+  customers.forEach((customer) => {
+    pushToIndex(byName, normalizeFullName(customer.groupName), customer)
+    pushToIndex(byNumber, extractGroupNumber(customer.groupName), customer)
+  })
+  return { byName, byNumber }
+}
+
+type CustomerMatch =
+  | { kind: 'matched'; customer: QrcodeCustomer }
+  | { kind: 'ambiguous'; customers: QrcodeCustomer[] }
+  | { kind: 'none' }
+
+/** 先按群号简称全名精确匹配，再按开头群号段匹配；命中多个客户时视为冲突 */
+function matchCustomer(displayName: string, index: CustomerIndex): CustomerMatch {
+  const exact = index.byName.get(normalizeFullName(displayName)) || []
+  if (exact.length === 1) return { kind: 'matched', customer: exact[0] }
+  if (exact.length > 1) return { kind: 'ambiguous', customers: exact }
+
+  const byNumber = index.byNumber.get(extractGroupNumber(displayName)) || []
+  if (byNumber.length === 1) return { kind: 'matched', customer: byNumber[0] }
+  if (byNumber.length > 1) return { kind: 'ambiguous', customers: byNumber }
+  return { kind: 'none' }
+}
+
 /** 普通图片文件转换为待处理项 */
 export function pickLocalImages(files: File[]): PickedImage[] {
   return files.map((file) => ({
@@ -111,18 +172,18 @@ export function pickLocalImages(files: File[]): PickedImage[] {
 /**
  * 根据待处理文件与客户列表生成导入计划。
  * 支持格式与 5MB 限制先过滤，再做文件名群号匹配与冲突识别。
+ * 群号匹配以「开头群号段」为准：客户「10302032云帆科技」可被「10302032云帆科技_z15….jpg」命中。
  */
 export function buildQrcodePlan(files: PickedImage[], customers: QrcodeCustomer[]): QrcodePlan {
-  const customerMap = new Map<string, QrcodeCustomer>()
-  customers.forEach((customer) => {
-    const key = customer.groupName.trim()
-    if (key) customerMap.set(key, customer)
-  })
+  const index = buildCustomerIndex(customers)
 
-  const byGroup = new Map<string, PickedImage[]>()
   const unsupported: string[] = []
   const oversize: string[] = []
   const unparsed: string[] = []
+  const unmatched = new Map<string, string>()
+  /** customerId → 命中该客户的图片 */
+  const matched = new Map<string, { customer: QrcodeCustomer; files: PickedImage[] }>()
+  const ambiguous = new Map<string, { groupName: string; customers: QrcodeCustomer[]; fileNames: string[] }>()
 
   files.forEach((file) => {
     const base = basename(file.name)
@@ -134,33 +195,47 @@ export function buildQrcodePlan(files: PickedImage[], customers: QrcodeCustomer[
       oversize.push(base)
       return
     }
-    const groupName = parseGroupNameFromFileName(base)
-    if (!groupName) {
+    const displayName = parseGroupNameFromFileName(base)
+    if (!displayName) {
       unparsed.push(base)
       return
     }
-    const list = byGroup.get(groupName) || []
-    list.push(file)
-    byGroup.set(groupName, list)
+    const match = matchCustomer(displayName, index)
+    if (match.kind === 'none') {
+      unmatched.set(displayName, displayName)
+      return
+    }
+    if (match.kind === 'ambiguous') {
+      const key = extractGroupNumber(displayName) || normalizeFullName(displayName)
+      const entry = ambiguous.get(key) || {
+        groupName: key,
+        customers: match.customers,
+        fileNames: [],
+      }
+      entry.fileNames.push(base)
+      ambiguous.set(key, entry)
+      return
+    }
+    const entry = matched.get(match.customer.id) || { customer: match.customer, files: [] }
+    entry.files.push(file)
+    matched.set(match.customer.id, entry)
   })
 
   const targets: QrcodeUploadTarget[] = []
-  const unmatchedGroups: string[] = []
   const conflicts: QrcodeConflict[] = []
 
-  byGroup.forEach((groupFiles, groupName) => {
-    if (groupFiles.length > 1) {
-      conflicts.push({ groupName, fileNames: groupFiles.map((file) => basename(file.name)) })
+  matched.forEach(({ customer, files: customerFiles }) => {
+    if (customerFiles.length > 1) {
+      conflicts.push({
+        groupName: customer.groupName,
+        fileNames: customerFiles.map((file) => basename(file.name)),
+        reason: 'duplicate-file',
+      })
       return
     }
-    const customer = customerMap.get(groupName)
-    if (!customer) {
-      unmatchedGroups.push(groupName)
-      return
-    }
-    const file = groupFiles[0]
+    const file = customerFiles[0]
     targets.push({
-      groupName,
+      groupName: customer.groupName,
       customerId: customer.id,
       fileName: basename(file.name),
       size: file.size,
@@ -168,10 +243,19 @@ export function buildQrcodePlan(files: PickedImage[], customers: QrcodeCustomer[
     })
   })
 
+  ambiguous.forEach(({ groupName, customers: hitCustomers, fileNames }) => {
+    conflicts.push({
+      groupName,
+      fileNames,
+      reason: 'duplicate-customer',
+      customerNames: hitCustomers.map((customer) => customer.groupName),
+    })
+  })
+
   return {
     targets,
     matchedGroupCount: targets.length,
-    unmatchedGroups: unmatchedGroups.sort(),
+    unmatchedGroups: [...unmatched.keys()].sort(),
     conflicts,
     unsupported,
     oversize,

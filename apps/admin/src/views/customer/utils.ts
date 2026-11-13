@@ -46,6 +46,28 @@ export interface CustomerImportResult {
   skippedRows: CustomerImportIssue[]
 }
 
+/**
+ * 预览结果无可导入行时给出可执行的原因说明；有可导入行时返回空串。
+ * 避免「确认导入」灰按钮没有任何提示，用户无法判断是文件问题还是操作问题。
+ */
+export function buildImportEmptyHint(preview: CustomerImportResult | null): string {
+  if (!preview) return ''
+  if (preview.created + preview.updated > 0) return ''
+  if (preview.totalRows === 0) {
+    return '文件中没有可识别的数据行：请确认第 1 行是表头（需包含「群号简称」列），数据从第 2 行开始。'
+  }
+  if (preview.errors > 0 && preview.skipped === 0) {
+    return `未识别到有效数据行：${preview.errors} 行未通过校验，请检查「群号简称」「对接人」两列是否填写（明细见下方错误行）。`
+  }
+  if (preview.skipped > 0 && preview.errors === 0) {
+    if (preview.mode === 'skip') {
+      return `未识别到可导入的新数据：${preview.skipped} 行与已有客户同名或为空行，已按「跳过」处理；如需更新已有客户，请改为「覆盖更新」后重试。`
+    }
+    return `未识别到可导入的数据：${preview.skipped} 行为空行或文件内重复行，请检查文件内容。`
+  }
+  return `未识别到可导入的数据行：校验未通过 ${preview.errors} 行，跳过 ${preview.skipped} 行，请核对文件内容。`
+}
+
 export interface CustomerImportRowPayload {
   rowNumber: number
   groupName: string
