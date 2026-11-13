@@ -64,6 +64,17 @@ if [ ! -f "$API_DIR/.env" ] && [ -f "$SNAP/api.env" ]; then
   echo "✅ 已从快照恢复 .env"
 fi
 
+# 0.5) 上传目录位于 $DEPLOY_DIR/data（api 目录之外），回滚只处理代码，绝不删除它。
+#      这里按 .env 的 DATA_DIR 解析并确保目录存在；若仍指向 api/data，仅告警不改配置。
+RB_DATA_DIR=$(grep -E '^DATA_DIR=' "$API_DIR/.env" 2>/dev/null | head -n 1 | cut -d= -f2- || true)
+RB_DATA_DIR="${RB_DATA_DIR:-$DEPLOY_DIR/data}"
+RB_DATA_DIR="${RB_DATA_DIR%/}"
+if [ "$RB_DATA_DIR" = "$DEPLOY_DIR/api/data" ]; then
+  echo "⚠️ .env 的 DATA_DIR 仍指向发布目录内（$RB_DATA_DIR），下次部署会收敛到 $DEPLOY_DIR/data"
+fi
+mkdir -p "$RB_DATA_DIR/uploads/covers" "$RB_DATA_DIR/uploads/qrcodes"
+echo "✅ 上传目录就绪（持久）：$RB_DATA_DIR/uploads"
+
 # 1) 恢复 shared（API 通过 node_modules/@promo/shared 软链依赖它）
 if [ -d "$SNAP/shared" ]; then
   rm -rf "$DEPLOY_DIR/shared"

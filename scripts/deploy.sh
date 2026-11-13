@@ -10,8 +10,8 @@ echo "🚀 开始部署..."
 rm -f "${DEPLOY_DIR}/index.html" "${DEPLOY_DIR}/index.htm" 2>/dev/null || true
 rm -f /var/www/html/index.html /usr/share/nginx/html/index.html 2>/dev/null || true
 
-# 创建目录
-mkdir -p "${DEPLOY_DIR}/api/data/uploads"
+# 创建目录（上传目录在发布目录之外，避免部署覆盖丢图）
+mkdir -p "${DEPLOY_DIR}/data/uploads"
 cd "${DEPLOY_DIR}/api"
 
 # 创建 package.json

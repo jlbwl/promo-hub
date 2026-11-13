@@ -91,6 +91,24 @@ describe('response utils', () => {
         })
       )
     })
+
+    it('生产环境 5xx 默认脱敏为「服务器内部错误」', () => {
+      vi.stubEnv('NODE_ENV', 'production')
+      sendError(mockRes, 'ENOENT: /www/wwwroot/secret/path', 500, 500)
+      expect(mockRes.json).toHaveBeenCalledWith(
+        expect.objectContaining({ message: '服务器内部错误' })
+      )
+      vi.unstubAllEnvs()
+    })
+
+    it('exposeMessage=true 时保留调用方确认安全的固定文案', () => {
+      vi.stubEnv('NODE_ENV', 'production')
+      sendError(mockRes, '图片保存失败：服务器存储目录不可用，请稍后重试', 500, 500, { reason: 'STORAGE_FAILED' }, true)
+      expect(mockRes.json).toHaveBeenCalledWith(
+        expect.objectContaining({ message: '图片保存失败：服务器存储目录不可用，请稍后重试' })
+      )
+      vi.unstubAllEnvs()
+    })
   })
 
   describe('sendPagination', () => {

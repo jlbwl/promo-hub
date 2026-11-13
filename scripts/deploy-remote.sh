@@ -95,9 +95,45 @@ if [ -n "$SNAP" ] && [ -f "$SNAP/api.env" ]; then
   echo "✅ .env 已从快照恢复"
 fi
 if [ -n "$SNAP" ] && [ -f "$SNAP/uploads.tar.gz" ]; then
-  mkdir -p "$DEPLOY_DIR/api/data"
-  tar xzf "$SNAP/uploads.tar.gz" -C "$DEPLOY_DIR/api/data"
-  echo "✅ 上传文件已从快照恢复（$(find "$DEPLOY_DIR/api/data/uploads" -type f 2>/dev/null | wc -l) 个文件）"
+  # 上传目录已迁到 $DEPLOY_DIR/data（发布目录之外）时，scp 覆盖 api 不会再碰到它，
+  # 此时恢复快照只会产生一份过期副本，因此跳过；首次迁移那一次仍需要恢复到临时位置再迁移。
+  if [ -d "$DEPLOY_DIR/data/uploads" ]; then
+    echo "ℹ️ 上传目录已在发布目录之外（$DEPLOY_DIR/data/uploads），跳过快照恢复"
+  else
+    mkdir -p "$DEPLOY_DIR/api/data"
+    tar xzf "$SNAP/uploads.tar.gz" -C "$DEPLOY_DIR/api/data"
+    echo "✅ 上传文件已从快照恢复到临时位置（$(find "$DEPLOY_DIR/api/data/uploads" -type f 2>/dev/null | wc -l) 个文件）"
+  fi
+fi
+
+# =======================
+# 2.9 上传目录迁移到发布目录之外（一次性、幂等、不覆盖、不删除源文件）
+# 背景：DATA_DIR 曾指向 $DEPLOY_DIR/api/data，而 scp 会整体替换 api 目录，
+#       导致部署窗口内的上传文件丢失（收银码上传 500 ENOENT 即由此引发）。
+# 新位置：$DEPLOY_DIR/data/uploads（与 api / admin / shared 同级，任何发布步骤都不会删除它）。
+# =======================
+PERSIST_DATA_DIR="${DATA_DIR:-$DEPLOY_DIR/data}"
+case "$PERSIST_DATA_DIR" in
+  "$DEPLOY_DIR/api"|"$DEPLOY_DIR/api/"*)
+    echo "⚠️ 传入的 DATA_DIR 指向发布目录 api 内（$PERSIST_DATA_DIR），会随部署被覆盖，改用 $DEPLOY_DIR/data"
+    PERSIST_DATA_DIR="$DEPLOY_DIR/data" ;;
+esac
+PERSIST_UPLOAD_DIR="$PERSIST_DATA_DIR/uploads"
+LEGACY_UPLOAD_DIR="$DEPLOY_DIR/api/data/uploads"
+mkdir -p "$PERSIST_UPLOAD_DIR/covers" "$PERSIST_UPLOAD_DIR/qrcodes"
+
+if [ -d "$LEGACY_UPLOAD_DIR" ]; then
+  LEGACY_COUNT=$(find "$LEGACY_UPLOAD_DIR" -type f 2>/dev/null | wc -l | tr -d ' ')
+  # -n 不覆盖目标已存在的同名文件，-a 保留时间；源目录保持原样，作为回滚保险
+  cp -an "$LEGACY_UPLOAD_DIR/." "$PERSIST_UPLOAD_DIR/" 2>/dev/null || true
+  PERSIST_COUNT=$(find "$PERSIST_UPLOAD_DIR" -type f 2>/dev/null | wc -l | tr -d ' ')
+  echo "✅ 上传目录迁移：旧目录 $LEGACY_COUNT 个文件 / 持久目录 $PERSIST_COUNT 个文件（不覆盖、不删除源文件）"
+  if [ "$PERSIST_COUNT" -lt "$LEGACY_COUNT" ]; then
+    echo "❌ 迁移后持久目录文件数少于旧目录（$PERSIST_COUNT < $LEGACY_COUNT），中止部署，请人工核对"
+    exit 1
+  fi
+else
+  echo "ℹ️ 旧上传目录不存在，跳过迁移（持久目录：$PERSIST_UPLOAD_DIR）"
 fi
 
 # =======================
@@ -124,7 +160,8 @@ else
   # 可选值统一在这里兜底；空值写成 KEY=（单行、无多余空格），不会产生畸形行
   OPT_REDIS_PORT="${REDIS_PORT:-6379}"
   OPT_REDIS_DB="${REDIS_DB:-0}"
-  OPT_DATA_DIR="${DATA_DIR:-/www/wwwroot/promo-hub/api/data}"
+  # 上传目录必须落在发布目录之外（scp 会整体替换 api 目录）
+  OPT_DATA_DIR="${DATA_DIR:-$PERSIST_DATA_DIR}"
 
   # 用 printf 写值：值不经过 shell 二次展开，$ / 反引号 / ! / 空格 / = 都按字面写入。
   # 子 shell 内设 umask 077，文件从创建那一刻起就是 600。
@@ -206,6 +243,29 @@ for KEY in ALIYUN_OCR_ACCESS_KEY_ID ALIYUN_OCR_ACCESS_KEY_SECRET; do
 done
 
 # =======================
+# 3.2 把 .env 的 DATA_DIR 收敛到持久目录（api 目录之外）
+# .env 默认"存在即不覆盖"，但 DATA_DIR 指向 api/data 会被发布覆盖删除，
+# 这里只改这一行，改动前再备份一次，其余配置保持原样。
+# =======================
+CURRENT_DATA_DIR=$(grep -E '^DATA_DIR=' "$ENV_FILE" 2>/dev/null | head -n 1 | cut -d= -f2- || true)
+if [ "$CURRENT_DATA_DIR" = "$PERSIST_DATA_DIR" ]; then
+  echo "✅ .env 的 DATA_DIR 已是持久目录：$PERSIST_DATA_DIR"
+else
+  cp -a "$ENV_FILE" "$ENV_FILE.bak.datadir.$(date +%Y%m%d_%H%M%S)"
+  if grep -qE '^DATA_DIR=' "$ENV_FILE"; then
+    sed -i "s|^DATA_DIR=.*|DATA_DIR=$PERSIST_DATA_DIR|" "$ENV_FILE"
+  else
+    printf 'DATA_DIR=%s\n' "$PERSIST_DATA_DIR" >> "$ENV_FILE"
+  fi
+  chmod 600 "$ENV_FILE"
+  if ! grep -qxE "DATA_DIR=$PERSIST_DATA_DIR" "$ENV_FILE"; then
+    echo "❌ .env 的 DATA_DIR 更新失败，中止部署"
+    exit 1
+  fi
+  echo "✅ .env 的 DATA_DIR 已更新：${CURRENT_DATA_DIR:-<空>} -> $PERSIST_DATA_DIR"
+fi
+
+# =======================
 # 3.5 创建上传目录
 # =======================
 echo "📁 创建上传目录..."
@@ -219,9 +279,32 @@ unset DB_HOST DB_PORT DB_USER DB_PASSWORD DB_NAME \
       ALIYUN_OCR_ACCESS_KEY_ID ALIYUN_OCR_ACCESS_KEY_SECRET ALIYUN_OCR_ENDPOINT \
       REDIS_HOST REDIS_PORT REDIS_PASSWORD REDIS_DB DATA_DIR 2>/dev/null || true
 CURRENT_DATA_DIR=$(cat "$ENV_FILE" 2>/dev/null | grep -E '^DATA_DIR=' | head -n 1 | cut -d= -f2- || true)
-CURRENT_DATA_DIR="${CURRENT_DATA_DIR:-/www/wwwroot/promo-hub/api/data}"
-mkdir -p "$CURRENT_DATA_DIR/uploads/covers"
-echo "✅ 上传目录已创建: $CURRENT_DATA_DIR/uploads/covers"
+CURRENT_DATA_DIR="${CURRENT_DATA_DIR:-$PERSIST_DATA_DIR}"
+mkdir -p "$CURRENT_DATA_DIR/uploads/covers" "$CURRENT_DATA_DIR/uploads/qrcodes"
+echo "✅ 上传目录已创建: $CURRENT_DATA_DIR/uploads"
+
+# =======================
+# 3.8 同步 Nginx 的 /uploads 别名到持久目录
+# Nginx 已在线的站点配置默认受保护不覆盖，但别名仍指向 api/data/uploads 时，
+# 迁移后的图片会 404；这里仅在检测到旧路径时改动，改完先 nginx -t，失败即还原。
+# =======================
+NGINX_CONF="/etc/nginx/conf.d/promo-hub.conf"
+if [ -f "$NGINX_CONF" ]; then
+  if grep -qF "alias $LEGACY_UPLOAD_DIR/;" "$NGINX_CONF"; then
+    NGINX_BAK="$NGINX_CONF.datadir.$(date +%Y%m%d_%H%M%S)"
+    cp -a "$NGINX_CONF" "$NGINX_BAK"
+    sed -i "s|alias $LEGACY_UPLOAD_DIR/;|alias $CURRENT_DATA_DIR/uploads/;|g" "$NGINX_CONF"
+    if nginx -t >/dev/null 2>&1; then
+      echo "✅ Nginx /uploads 别名已切换到：$CURRENT_DATA_DIR/uploads（备份 $NGINX_BAK）"
+    else
+      cp -a "$NGINX_BAK" "$NGINX_CONF"
+      echo "❌ 修改 Nginx 别名后 nginx -t 失败，已还原配置并中止部署"
+      exit 1
+    fi
+  else
+    echo "ℹ️ Nginx /uploads 别名无需调整"
+  fi
+fi
 
 # =======================
 # 4. 检查 Nginx 配置（仅在不存在时创建）

@@ -228,7 +228,8 @@ npm install -g pm2
 
 # 创建部署目录
 mkdir -p /www/wwwroot/promo-hub/{admin,manager,user,api,backups,logs}
-mkdir -p /www/wwwroot/promo-hub/api/data/uploads
+# 上传目录放在发布目录之外，scp 覆盖 api 目录时不会丢图
+mkdir -p /www/wwwroot/promo-hub/data/uploads
 
 # 设置权限
 useradd -m -s /bin/bash promo
@@ -286,7 +287,7 @@ server {
     
     # 上传文件访问
     location /api/uploads/ {
-        alias /www/wwwroot/promo-hub/api/data/uploads/;
+        alias /www/wwwroot/promo-hub/data/uploads/;
         expires 7d;
         add_header Cache-Control "public, immutable";
     }

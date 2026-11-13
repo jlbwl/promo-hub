@@ -200,7 +200,7 @@ REDIS_HOST=<从 Secrets 获取，可选>
 REDIS_PORT=6379
 REDIS_PASSWORD=<从 Secrets 获取，可选>
 REDIS_DB=0
-DATA_DIR=/www/wwwroot/promo-hub/api/data
+DATA_DIR=/www/wwwroot/promo-hub/data
 ```
 
 ### GitHub Secrets 配置

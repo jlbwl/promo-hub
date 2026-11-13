@@ -1,5 +1,9 @@
 import { Request, Response, NextFunction } from 'express'
-import { sendSuccess, AppError, ErrorCode, HttpStatus, asyncHandler } from '../utils/response.js'
+import { unlink } from 'fs/promises'
+import { getErrorMessage } from '@promo/shared'
+import { sendSuccess, sendError, AppError, ErrorCode, HttpStatus, asyncHandler } from '../utils/response.js'
+import { validateImageFile } from '../utils/imageProcessor.js'
+import logger from '../utils/logger.js'
 import { logAdminOperation } from '../utils/auditLog.js'
 import { buildAuditDetail } from '../utils/auditDetail.js'
 import {
@@ -289,6 +293,41 @@ export const updateCustomerQrcode = asyncHandler(
     })
 
     sendSuccess(res, { url }, '收款码已更新')
+  }
+)
+
+/** 文件已落盘但校验不通过时清理，避免留下半成品文件 */
+const removeUploadedFile = async (filePath?: string): Promise<void> => {
+  if (!filePath) return
+  try {
+    await unlink(filePath)
+  } catch (error) {
+    logger.warn('[API] 删除收款码临时文件失败', { path: filePath, error: getErrorMessage(error) })
+  }
+}
+
+/**
+ * 收款码图片上传：保留原图（不走封面裁剪，裁剪会破坏二维码）。
+ * 校验失败返回可定位的 reason，成功返回可直接回写的 /uploads 地址。
+ */
+export const uploadCustomerQrcode = asyncHandler(
+  async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
+    const file = req.file
+    if (!file) {
+      sendError(res, '请选择收款码图片', ErrorCode.BAD_REQUEST, HttpStatus.BAD_REQUEST, { reason: 'NO_FILE' })
+      return
+    }
+
+    const validation = validateImageFile(file)
+    if (!validation.valid) {
+      await removeUploadedFile(file.path)
+      sendError(res, validation.error as string, ErrorCode.BAD_REQUEST, HttpStatus.BAD_REQUEST, {
+        reason: validation.reason,
+      })
+      return
+    }
+
+    sendSuccess(res, { url: `/uploads/qrcodes/${file.filename}` }, '上传成功')
   }
 )
 

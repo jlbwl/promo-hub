@@ -14,7 +14,10 @@ import { attachUser, requireManager, requireAdmin } from './middleware/auth.js'
 import { csrfGenerate, csrfVerify, getCsrfToken } from './middleware/csrf-v2.js'
 import routes from './routes/index.js'
 import { clearBusinessCache } from './controllers/cache.controller.js'
+import { uploadCustomerQrcode } from './controllers/customer.controller.js'
 import { errorHandler, sendError, sendUploadError } from './utils/response.js'
+import { classifyUploadError } from './utils/uploadError.js'
+import { ensureQrcodeDir } from './utils/qrcodeStorage.js'
 import { logRequest } from './utils/logger.js'
 import { initializeCache, closeCache, getCacheService } from './services/index.js'
 import { resolve } from './container.js'
@@ -186,12 +189,19 @@ const generalUpload = multer({
 })
 
 // 客户收款码上传：保留原图，不走封面裁剪压缩（裁剪会破坏二维码）
-const QRCODE_DIR = join(UPLOAD_DIR, 'qrcodes')
-if (!existsSync(QRCODE_DIR)) mkdirSync(QRCODE_DIR, { recursive: true })
+ensureQrcodeDir()
 
 const qrcodeUpload = multer({
   storage: multer.diskStorage({
-    destination: (_req, _file, cb) => cb(null, QRCODE_DIR),
+    // 部署会整体替换 api 目录，运行中进程的上传目录可能瞬时消失；
+    // 每次上传前递归重建，避免 ENOENT 直接变成 500
+    destination: (_req, _file, cb) => {
+      try {
+        cb(null, ensureQrcodeDir())
+      } catch (error) {
+        cb(error as Error, '')
+      }
+    },
     filename: (_req, file, cb) => {
       const ext = ALLOWED_IMAGE_MIME[file.mimetype] || 'bin'
       cb(null, `qr_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`)
@@ -201,38 +211,44 @@ const qrcodeUpload = multer({
   fileFilter: imageFileFilter,
 })
 
+const qrcodeSingleFile = qrcodeUpload.single('file')
+
+/**
+ * multer 与落盘阶段的异常统一在这里转成可定位的业务提示：
+ * 格式不支持 / 超过 5MB / 存储目录不可用，而不是一律「服务器内部错误」。
+ * 存储类 5xx 使用固定安全文案并显式放行脱敏，原始异常只写日志。
+ */
+function handleQrcodeUploadError(res: Response, error: unknown): void {
+  const failure = classifyUploadError(error)
+  logger.error('[API] 收款码上传失败', {
+    reason: failure.reason,
+    error: getErrorMessage(error),
+    stack: error instanceof Error ? error.stack : undefined,
+  })
+  sendError(
+    res,
+    failure.message,
+    failure.code,
+    failure.status,
+    { reason: failure.reason },
+    failure.reason === 'STORAGE_FAILED'
+  )
+}
+
 app.post(
   '/admin/customers/qrcode/upload',
   requireAdmin,
-  qrcodeUpload.single('file'),
-  async (req, res) => {
-    try {
-      if (!req.file) {
-        sendError(res, '请选择收款码图片', 400, 400, { reason: 'NO_FILE' })
+  (req, res, next) => {
+    qrcodeSingleFile(req, res, (error: unknown) => {
+      if (!error) {
+        next()
         return
       }
-
-      const validation = validateImageFile(req.file)
-      if (!validation.valid) {
-        await removeTempUpload(req.file.path)
-        sendError(res, validation.error as string, 400, 400, { reason: validation.reason })
-        return
-      }
-
-      res.json({
-        code: 0,
-        message: '上传成功',
-        data: { url: `/uploads/qrcodes/${req.file.filename}` },
-      })
-    } catch (error) {
-      logger.error('[API] 收款码上传失败', { error: getErrorMessage(error) })
-      await removeTempUpload(req.file?.path)
-      sendUploadError(res, error)
-    }
-  }
+      handleQrcodeUploadError(res, error)
+    })
+  },
+  uploadCustomerQrcode
 )
-
-
 
 app.post(
   '/upload',

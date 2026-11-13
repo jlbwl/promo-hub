@@ -129,9 +129,9 @@ server {
         try_files $uri $uri/ /user/index.html;
     }
 
-    # 上传文件静态服务（直接由 Nginx 提供，不经过 Node）
+    # 上传文件静态服务（直接由 Nginx 提供，不经过 Node；目录在发布目录之外）
     location /uploads/ {
-        alias ${PROJECT_ROOT}/api/data/uploads/;
+        alias ${PROJECT_ROOT}/data/uploads/;
         expires 30d;
         add_header Cache-Control "public, immutable";
         add_header X-Content-Type-Options nosniff always;

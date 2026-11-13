@@ -64,11 +64,15 @@ const MULTER_FAILURES: Record<string, UploadFailure> = {
   },
 }
 
+/** 文件系统写入失败的 errno 码：目录不存在 / 无权限 / 磁盘满 / 只读 */
+const STORAGE_ERROR_CODES = new Set(['ENOENT', 'EACCES', 'EPERM', 'ENOSPC', 'EROFS', 'EMFILE'])
+
 /**
  * 归类上传异常
  *
  * - 业务校验（类型/格式）保持 4xx 与原文案
  * - Multer 体积超限 → 413，字段/请求格式 → 400
+ * - 文件系统写入失败 → 500 + 可定位的存储提示（由调用方决定是否放行文案）
  * - sharp 等底层处理/存储异常 → 500，只给通用文案，原始信息只进日志
  */
 export const classifyUploadError = (error: unknown): UploadFailure => {
@@ -84,6 +88,15 @@ export const classifyUploadError = (error: unknown): UploadFailure => {
   const multerCode = (error as { code?: unknown } | null)?.code
   if (typeof multerCode === 'string' && MULTER_FAILURES[multerCode]) {
     return MULTER_FAILURES[multerCode]
+  }
+
+  if (typeof multerCode === 'string' && STORAGE_ERROR_CODES.has(multerCode)) {
+    return {
+      status: 500,
+      code: 500,
+      message: '图片保存失败：服务器存储目录不可用，请稍后重试',
+      reason: 'STORAGE_FAILED',
+    }
   }
 
   return {

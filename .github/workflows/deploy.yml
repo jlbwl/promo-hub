@@ -380,11 +380,17 @@ jobs:
             echo "✅ .env 快照完成"
 
             # 2) 上传文件：存在即必须打包成功且可读，否则中止
-            if [ -d "$DEPLOY_DIR/api/data/uploads" ]; then
-              tar czf "$SNAP/uploads.tar.gz" -C "$DEPLOY_DIR/api/data" uploads
+            # 上传目录已迁到发布目录之外（$DEPLOY_DIR/data/uploads），优先快照它；
+            # 迁移前仍兼容旧位置 api/data/uploads。
+            UPLOADS_SRC="$DEPLOY_DIR/data/uploads"
+            if [ ! -d "$UPLOADS_SRC" ]; then
+              UPLOADS_SRC="$DEPLOY_DIR/api/data/uploads"
+            fi
+            if [ -d "$UPLOADS_SRC" ]; then
+              tar czf "$SNAP/uploads.tar.gz" -C "$(dirname "$UPLOADS_SRC")" uploads
               tar -tzf "$SNAP/uploads.tar.gz" > /dev/null
               chmod 600 "$SNAP/uploads.tar.gz"
-              echo "✅ uploads 快照完成"
+              echo "✅ uploads 快照完成（来源 $UPLOADS_SRC）"
             fi
 
             # 3) API 产物（排除可重建的 node_modules 与运行时数据）

@@ -59,7 +59,10 @@ export const sendError = (
   message: string,
   code: number = ErrorCode.BAD_REQUEST,
   statusCode?: number,
-  data: unknown = null
+  data: unknown = null,
+  // 仅用于调用方已确认无敏感信息的固定文案（如存储目录不可用），
+  // 生产环境 5xx 默认脱敏，避免回显原始异常/数据库信息
+  exposeMessage = false
 ): void => {
   // 安全：数据库层错误码是字符串（ER_DUP_ENTRY / ER_NO_SUCH_TABLE 等），
   // 直接参与数值比较会得到 NaN 并恒为 false，绝不能据此推断 HTTP 状态码
@@ -67,7 +70,7 @@ export const sendError = (
   const httpStatus = statusCode ?? (isHttpStatus ? code : HttpStatus.BAD_REQUEST)
   // H7：生产环境 5xx 不回显原始异常/数据库信息，仅保留业务 4xx 的明确提示
   const finalMessage =
-    process.env.NODE_ENV === 'production' && httpStatus >= 500
+    process.env.NODE_ENV === 'production' && httpStatus >= 500 && !exposeMessage
       ? '服务器内部错误'
       : message
   const response: ApiResponse<unknown> = {

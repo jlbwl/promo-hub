@@ -44,6 +44,26 @@ describe('上传错误分类', () => {
     expect(result.message).not.toContain('Input buffer')
     expect(result.message).not.toContain('unsupported')
   })
+
+  it('存储目录不存在（ENOENT）→ STORAGE_FAILED，提示可定位且不带服务器路径', () => {
+    const error = Object.assign(
+      new Error("ENOENT: no such file or directory, open '/www/wwwroot/promo-hub/api/data/uploads/qrcodes/qr_1.png'"),
+      { code: 'ENOENT' }
+    )
+    const result = classifyUploadError(error)
+    expect(result.status).toBe(500)
+    expect(result.reason).toBe('STORAGE_FAILED')
+    expect(result.message).toContain('存储目录')
+    expect(result.message).not.toContain('/www/wwwroot')
+  })
+
+  it('无写权限 / 磁盘已满 → STORAGE_FAILED', () => {
+    for (const code of ['EACCES', 'ENOSPC', 'EROFS']) {
+      const result = classifyUploadError(Object.assign(new Error('write failed'), { code }))
+      expect(result.reason).toBe('STORAGE_FAILED')
+      expect(result.message).toContain('存储目录')
+    }
+  })
 })
 
 describe('全局错误处理中间件对上传错误的映射', () => {
