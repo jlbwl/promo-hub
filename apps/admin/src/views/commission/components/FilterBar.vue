@@ -78,6 +78,17 @@
         :value="o.key"
       />
     </el-select>
+    <el-date-picker
+      :model-value="reviewDate"
+      type="daterange"
+      value-format="YYYY-MM-DD"
+      range-separator="至"
+      start-placeholder="审核开始日期"
+      end-placeholder="审核结束日期"
+      style="width: 250px; margin-left: 12px;"
+      @update:model-value="emit('update:reviewDate', $event)"
+      @change="emit('change')"
+    />
     <el-button
       icon="Refresh"
       style="margin-left: 12px;"
@@ -89,7 +100,7 @@
 </template>
 
 <script setup lang="ts">
-// 筛选栏：关键词、订单状态、经理、团队（团队选项值格式为 teamName）
+// 筛选栏：关键词、订单状态、经理、团队（团队选项值格式为 teamName）、审核日期范围
 import type { Manager } from '@promo/shared/types'
 
 defineProps<{
@@ -97,6 +108,7 @@ defineProps<{
   status: string
   manager: string
   team: string
+  reviewDate: string[] | null
   managers: Manager[]
   teamOptions: { key: string; label: string }[]
 }>()
@@ -106,6 +118,7 @@ const emit = defineEmits<{
   'update:status': [value: string]
   'update:manager': [value: string]
   'update:team': [value: string]
+  'update:reviewDate': [value: string[] | null]
   change: []
   reset: []
 }>()
@@ -127,6 +140,12 @@ const emit = defineEmits<{
     }
 
     :deep(.el-select) {
+      width: 100%;
+      max-width: none;
+      margin-left: 0 !important;
+    }
+
+    :deep(.el-date-editor) {
       width: 100%;
       max-width: none;
       margin-left: 0 !important;

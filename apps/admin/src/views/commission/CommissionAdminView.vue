@@ -12,6 +12,7 @@
       v-model:status="filterStatus"
       v-model:manager="filterManager"
       v-model:team="filterTeam"
+      v-model:review-date="filterReviewDate"
       :managers="managers"
       :team-options="teamOptions"
       @change="fetchData"
@@ -64,6 +65,7 @@ const {
   filterManager,
   filterTeam,
   filterKeyword,
+  filterReviewDate,
   pagination,
   tableData,
   managers,

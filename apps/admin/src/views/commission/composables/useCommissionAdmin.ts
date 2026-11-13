@@ -18,6 +18,8 @@ interface OrderQueryParams {
   managerId?: string
   teamName?: string
   keyword?: string
+  reviewedStartDate?: string
+  reviewedEndDate?: string
 }
 
 /**
@@ -29,6 +31,8 @@ export function useCommissionAdmin() {
   const filterManager = ref('')
   const filterTeam = ref('')
   const filterKeyword = ref('')
+  // 审核日期范围（YYYY-MM-DD，选同一天即单日），独立于明细弹窗的结算/审核时间筛选
+  const filterReviewDate = ref<string[] | null>(null)
   const pagination = reactive({ page: 1, pageSize: 10, total: 0 })
   const tableData = ref<Order[]>([])
 
@@ -79,13 +83,18 @@ export function useCommissionAdmin() {
       // 选项值即 teamName，按团队名称精确筛选
       if (filterTeam.value) params.teamName = filterTeam.value
       if (filterKeyword.value) params.keyword = filterKeyword.value
+      // 审核日期按 reviewedAt 自然日闭区间过滤，仅日期范围完整时透传
+      if (filterReviewDate.value?.length === 2) {
+        params.reviewedStartDate = filterReviewDate.value[0]
+        params.reviewedEndDate = filterReviewDate.value[1]
+      }
       const res = await get<PaginatedResponse<Order>>('/orders', params)
       if (res.data) { tableData.value = res.data.list || []; pagination.total = res.data.total || 0 }
     } catch (e) { ElMessage.error(getErrorMessage(e, '获取失败')) }
     finally { loading.value = false }
   }
 
-  const handleReset = () => { filterStatus.value = ''; filterManager.value = ''; filterTeam.value = ''; filterKeyword.value = ''; pagination.page = 1; fetchData() }
+  const handleReset = () => { filterStatus.value = ''; filterManager.value = ''; filterTeam.value = ''; filterKeyword.value = ''; filterReviewDate.value = null; pagination.page = 1; fetchData() }
 
   // 订单变更（删除/编辑团队名称）后统一刷新列表、统计与团队选项
   const refreshAll = () => { fetchData(); fetchStats(); fetchTeamOptions() }
@@ -98,6 +107,7 @@ export function useCommissionAdmin() {
     filterManager,
     filterTeam,
     filterKeyword,
+    filterReviewDate,
     pagination,
     tableData,
     managers,
