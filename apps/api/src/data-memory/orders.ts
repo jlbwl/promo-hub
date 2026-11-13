@@ -98,6 +98,9 @@ export async function getOrdersPaginated(params: {
   teamName?: string
   keyword?: string
   onlyDuplicate?: boolean
+  /** 审核日期范围（YYYY-MM-DD，自然日闭区间） */
+  reviewedStartDate?: string
+  reviewedEndDate?: string
   page?: number
   pageSize?: number
 }): Promise<{ list: OrderRow[]; total: number }> {
@@ -132,6 +135,17 @@ export async function getOrdersPaginated(params: {
       (o.userName?.toLowerCase()?.includes(keyword)) ||
       (o.userPhone?.includes(keyword))
     )
+  }
+
+  if (params.reviewedStartDate || params.reviewedEndDate) {
+    // 与 SQL 分支一致：取 reviewedAt 的日期部分按自然日闭区间比较；无审核时间的订单不命中
+    orders = orders.filter((o) => {
+      const reviewedDate = (o.reviewedAt || '').slice(0, 10)
+      if (!reviewedDate) return false
+      if (params.reviewedStartDate && reviewedDate < params.reviewedStartDate) return false
+      if (params.reviewedEndDate && reviewedDate > params.reviewedEndDate) return false
+      return true
+    })
   }
 
   if (params.onlyDuplicate) {

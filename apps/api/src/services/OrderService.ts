@@ -46,6 +46,9 @@ export interface OrderListParams {
   keyword?: string
   managedBy?: string
   onlyDuplicate?: boolean
+  /** 审核日期范围（YYYY-MM-DD，自然日闭区间，Asia/Shanghai） */
+  reviewedStartDate?: string
+  reviewedEndDate?: string
 }
 
 export interface OrderCreateData {
@@ -189,10 +192,12 @@ export class OrderServiceImpl implements OrderService {
   ) {}
 
   async getOrders(params: OrderListParams) {
-    const { page = 1, pageSize = 20, userId, managerId, employeeId, status, userPhone, teamName, keyword, managedBy, onlyDuplicate } = params
+    const { page = 1, pageSize = 20, userId, managerId, employeeId, status, userPhone, teamName, keyword, managedBy, onlyDuplicate, reviewedStartDate, reviewedEndDate } = params
     return await getOrdersPaginated({
       page, pageSize, userId, managerId, employeeId, status, userPhone, teamName, keyword, managedBy,
       // 仅在开启筛选时传参，保持既有调用方断言对象不变
+      ...(reviewedStartDate ? { reviewedStartDate } : {}),
+      ...(reviewedEndDate ? { reviewedEndDate } : {}),
       ...(onlyDuplicate ? { onlyDuplicate: true } : {}),
     })
   }

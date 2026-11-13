@@ -172,9 +172,13 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
  */
 export const getOrders = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { status, page = '1', pageSize = '20', keyword, managedBy, onlyDuplicate } = req.query
+    const { status, page = '1', pageSize = '20', keyword, managedBy, onlyDuplicate, reviewedStartDate, reviewedEndDate } = req.query
     // 「只看重单」：服务端筛选，兼容 true/1 两种传值
     const onlyDuplicateFilter = onlyDuplicate === 'true' || onlyDuplicate === '1'
+    // 审核日期：仅接受 YYYY-MM-DD，非法值直接忽略，避免构造无意义查询
+    const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/
+    const reviewedStart = DATE_PATTERN.test(String(reviewedStartDate ?? '')) ? String(reviewedStartDate) : undefined
+    const reviewedEnd = DATE_PATTERN.test(String(reviewedEndDate ?? '')) ? String(reviewedEndDate) : undefined
 
     const pageNum = parseInt(page as string, 10)
     const pageSizeNum = parseInt(pageSize as string, 10)
@@ -238,6 +242,8 @@ export const getOrders = async (req: Request, res: Response): Promise<void> => {
         keyword: keyword as string,
         managedBy: managedBy as string,
         onlyDuplicate: onlyDuplicateFilter,
+        reviewedStartDate: reviewedStart,
+        reviewedEndDate: reviewedEnd,
         page: clampedPage,
         pageSize: clampedPageSize,
       })
@@ -254,6 +260,8 @@ export const getOrders = async (req: Request, res: Response): Promise<void> => {
         keyword: keyword as string,
         managedBy: managedBy as string,
         onlyDuplicate: onlyDuplicateFilter || undefined,
+        reviewedStartDate: reviewedStart,
+        reviewedEndDate: reviewedEnd,
         page: clampedPage,
         pageSize: clampedPageSize,
       })

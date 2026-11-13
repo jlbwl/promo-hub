@@ -11,6 +11,7 @@
     <FilterBar
       v-model:keyword="filterKeyword"
       v-model:status="filterStatus"
+      v-model:review-date-range="filterReviewDateRange"
       v-model:only-duplicate="filterOnlyDuplicate"
       @change="handleFilterChange"
       @reset="handleReset"
@@ -53,6 +54,7 @@ const {
   loading,
   filterStatus,
   filterKeyword,
+  filterReviewDateRange,
   filterOnlyDuplicate,
   pagination,
   stats,

@@ -44,6 +44,19 @@
         value="rejected"
       />
     </el-select>
+    <!-- 审核日期：自然日范围，选同一天即单日；审核通过与驳回都算当天审核 -->
+    <span class="filter-label">审核日期</span>
+    <el-date-picker
+      :model-value="reviewDateRange"
+      type="daterange"
+      value-format="YYYY-MM-DD"
+      range-separator="至"
+      start-placeholder="开始日期"
+      end-placeholder="结束日期"
+      style="width: 240px;"
+      @update:model-value="(v: string[] | null) => emit('update:reviewDateRange', v)"
+      @change="emit('change')"
+    />
     <!-- 只看重单：服务端筛选，与状态/关键词叠加 -->
     <el-checkbox
       :model-value="onlyDuplicate"
@@ -68,12 +81,14 @@
 defineProps<{
   keyword: string
   status: string
+  reviewDateRange: string[] | null
   onlyDuplicate: boolean
 }>()
 
 const emit = defineEmits<{
   'update:keyword': [value: string]
   'update:status': [value: string]
+  'update:reviewDateRange': [value: string[] | null]
   'update:onlyDuplicate': [value: boolean]
   change: []
   reset: []
@@ -81,6 +96,12 @@ const emit = defineEmits<{
 </script>
 
 <style lang="scss" scoped>
+.filter-label {
+  margin-left: 6px;
+  color: var(--el-text-color-regular);
+  font-size: 13px;
+}
+
 .duplicate-hint {
   margin-left: 6px;
   color: var(--el-text-color-secondary);

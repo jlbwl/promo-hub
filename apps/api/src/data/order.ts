@@ -365,6 +365,9 @@ export async function getOrdersPaginated(params: {
   teamName?: string
   keyword?: string
   onlyDuplicate?: boolean
+  /** 审核日期范围（YYYY-MM-DD，自然日闭区间，Asia/Shanghai） */
+  reviewedStartDate?: string
+  reviewedEndDate?: string
   page?: number
   pageSize?: number
 }): Promise<{ list: OrderRow[]; total: number }> {
@@ -408,6 +411,16 @@ export async function getOrdersPaginated(params: {
       `%${params.keyword}%`,
       `%${params.keyword}%`
     )
+  }
+  if (params.reviewedStartDate) {
+    whereConditions.push('reviewedAt >= ?')
+    values.push(`${params.reviewedStartDate} 00:00:00`)
+  }
+  if (params.reviewedEndDate) {
+    // 与操作日志一致：结束日次日 00:00:00 为开区间边界
+    // reviewedAt 为 NULL 的历史订单不参与比较，不会被任何审核日期条件命中
+    whereConditions.push('reviewedAt < DATE_ADD(?, INTERVAL 1 DAY)')
+    values.push(`${params.reviewedEndDate} 00:00:00`)
   }
   if (params.onlyDuplicate) {
     // 只看重单：同客户同产品在有效订单（未删除、未驳回）中出现 ≥2 笔

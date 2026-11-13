@@ -15,7 +15,10 @@ export function useCommissionList() {
 
   // 筛选状态
   const filterStatus = ref('')
+  // 关键词
   const filterKeyword = ref('')
+  // 审核日期范围（YYYY-MM-DD，选同一天即单日）
+  const filterReviewDateRange = ref<string[] | null>(null)
   // 只看重单（服务端筛选）
   const filterOnlyDuplicate = ref(false)
 
@@ -68,6 +71,8 @@ export function useCommissionList() {
         managerId: getManagerId() || undefined,
         status: filterStatus.value || undefined,
         keyword: filterKeyword.value || undefined,
+        reviewedStartDate: filterReviewDateRange.value?.[0],
+        reviewedEndDate: filterReviewDateRange.value?.[1],
         onlyDuplicate: filterOnlyDuplicate.value || undefined,
       })
       if (res.data) {
@@ -92,6 +97,7 @@ export function useCommissionList() {
   const handleReset = () => {
     filterStatus.value = ''
     filterKeyword.value = ''
+    filterReviewDateRange.value = null
     filterOnlyDuplicate.value = false
     pagination.page = 1
     fetchData()
@@ -207,6 +213,7 @@ export function useCommissionList() {
     loading,
     filterStatus,
     filterKeyword,
+    filterReviewDateRange,
     filterOnlyDuplicate,
     pagination,
     stats,

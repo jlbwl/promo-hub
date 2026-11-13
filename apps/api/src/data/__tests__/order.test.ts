@@ -353,5 +353,34 @@ describe('data/order.ts', () => {
       expect(sql).toContain('userPhone LIKE ?')
       expect(params.filter(p => p === '%1163%')).toHaveLength(4)
     })
+
+    it('审核日期按自然日边界过滤，单日与区间共用同一条件', async () => {
+      mockQueryOne.mockResolvedValue({ total: 0 })
+
+      await getOrdersPaginated({ reviewedStartDate: '2026-11-12', reviewedEndDate: '2026-11-12' })
+
+      const sql = String(mockQueryOne.mock.calls[0][0])
+      const params = (mockQueryOne.mock.calls[0][1] || []) as unknown[]
+
+      expect(sql).toContain('reviewedAt >= ?')
+      expect(sql).toContain('reviewedAt < DATE_ADD(?, INTERVAL 1 DAY)')
+      expect(params).toContain('2026-11-12 00:00:00')
+
+      mockQueryOne.mockClear()
+      await getOrdersPaginated({ reviewedStartDate: '2026-11-10', reviewedEndDate: '2026-11-12' })
+
+      const rangeParams = (mockQueryOne.mock.calls[0][1] || []) as unknown[]
+      expect(rangeParams).toContain('2026-11-10 00:00:00')
+      expect(rangeParams).toContain('2026-11-12 00:00:00')
+    })
+
+    it('未传审核日期时不追加审核时间条件', async () => {
+      mockQueryOne.mockResolvedValue({ total: 0 })
+
+      await getOrdersPaginated({ pageSize: 10 })
+
+      const sql = String(mockQueryOne.mock.calls[0][0])
+      expect(sql).not.toContain('reviewedAt')
+    })
   })
 })

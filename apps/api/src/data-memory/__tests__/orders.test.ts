@@ -28,6 +28,57 @@ const createOrder = (overrides: Record<string, unknown> = {}) => ({
   ...overrides,
 }) as never
 
+describe('data-memory getOrdersPaginated 审核日期筛选', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  const withReviewedAt = (id: string, reviewedAt?: string) =>
+    createOrder({ id, reviewedAt })
+
+  const ids = (list: { id?: string }[]) => list.map((o) => o.id)
+
+  it('单日筛选只命中当天审核的订单', async () => {
+    mockReadFileData.mockReturnValue([
+      withReviewedAt('same_day', '2026-11-12 09:00:00'),
+      withReviewedAt('prev_day', '2026-11-11 23:59:59'),
+      withReviewedAt('next_day', '2026-11-13 00:00:00'),
+    ])
+
+    const result = await getOrdersPaginated({ reviewedStartDate: '2026-11-12', reviewedEndDate: '2026-11-12' })
+
+    expect(result.total).toBe(1)
+    expect(ids(result.list)).toEqual(['same_day'])
+  })
+
+  it('区间筛选包含起止自然日', async () => {
+    mockReadFileData.mockReturnValue([
+      withReviewedAt('start_boundary', '2026-11-10 00:00:00'),
+      withReviewedAt('inside', '2026-11-11 12:30:00'),
+      withReviewedAt('end_boundary', '2026-11-12 23:59:59'),
+      withReviewedAt('out_of_range', '2026-11-13 00:00:00'),
+    ])
+
+    const result = await getOrdersPaginated({ reviewedStartDate: '2026-11-10', reviewedEndDate: '2026-11-12' })
+
+    expect(result.total).toBe(3)
+    expect(ids(result.list).sort()).toEqual(['end_boundary', 'inside', 'start_boundary'])
+  })
+
+  it('无审核时间的历史订单不会命中审核日期筛选', async () => {
+    mockReadFileData.mockReturnValue([
+      withReviewedAt('no_reviewed_at', undefined),
+      withReviewedAt('empty_reviewed_at', ''),
+      withReviewedAt('matched', '2026-11-12 10:00:00'),
+    ])
+
+    const result = await getOrdersPaginated({ reviewedStartDate: '2026-11-12', reviewedEndDate: '2026-11-12' })
+
+    expect(result.total).toBe(1)
+    expect(ids(result.list)).toEqual(['matched'])
+  })
+})
+
 describe('data-memory getOrdersPaginated 关键词模糊匹配', () => {
   beforeEach(() => {
     vi.clearAllMocks()
