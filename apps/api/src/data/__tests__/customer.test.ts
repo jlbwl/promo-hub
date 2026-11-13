@@ -77,6 +77,24 @@ describe('readCustomersPaged', () => {
     expect(String(mockQueryOne.mock.calls[0]?.[0])).not.toContain('WHERE')
     expect(lastSql()).not.toContain('WHERE')
   })
+
+  it('使用次数升序：SQL 按 searchCount ASC 排序', async () => {
+    await readCustomersPaged({ page: 1, pageSize: 10, sortBy: 'searchCount', sortOrder: 'asc' })
+
+    expect(lastSql()).toContain('ORDER BY searchCount ASC, updatedAt DESC, createdAt DESC')
+  })
+
+  it('使用次数降序：SQL 按 searchCount DESC 排序', async () => {
+    await readCustomersPaged({ page: 1, pageSize: 10, sortBy: 'searchCount', sortOrder: 'desc' })
+
+    expect(lastSql()).toContain('ORDER BY searchCount DESC, updatedAt DESC, createdAt DESC')
+  })
+
+  it('未传排序参数时保持默认排序，请求里的非法排序值不会进入 SQL', async () => {
+    await readCustomersPaged({ page: 1, pageSize: 10 })
+
+    expect(lastSql()).toContain('ORDER BY searchCount DESC, updatedAt DESC, createdAt DESC')
+  })
 })
 
 describe('readCustomersForExport', () => {

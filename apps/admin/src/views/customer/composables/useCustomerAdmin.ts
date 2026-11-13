@@ -6,8 +6,11 @@ import {
   buildCustomerExportWorkbook,
   buildCustomerTemplateWorkbook,
   downloadWorkbook,
+  readCustomerViewMode,
+  saveCustomerViewMode,
   todayStamp,
   type CustomerItem,
+  type CustomerViewMode,
 } from '../utils'
 
 export interface CustomerFormPayload {
@@ -29,6 +32,17 @@ export function useCustomerAdmin() {
   const searchStatus = ref('')
   const loading = ref(false)
 
+  // 视图切换：默认表格，用户选择写入 localStorage
+  const viewMode = ref<CustomerViewMode>(readCustomerViewMode())
+  const setViewMode = (mode: CustomerViewMode): void => {
+    viewMode.value = mode
+    saveCustomerViewMode(mode)
+  }
+
+  // 排序：仅使用次数走后端排序，空值表示使用默认排序
+  const sortBy = ref<'' | 'searchCount'>('')
+  const sortOrder = ref<'' | 'asc' | 'desc'>('')
+
   const pagination = reactive({
     page: 1,
     pageSize: 10,
@@ -46,13 +60,18 @@ export function useCustomerAdmin() {
   const loadData = async () => {
     loading.value = true
     try {
+      const params: Record<string, string | number | undefined> = {
+        ...buildFilters(),
+        page: pagination.page,
+        pageSize: pagination.pageSize,
+      }
+      if (sortBy.value) {
+        params.sortBy = sortBy.value
+        params.sortOrder = sortOrder.value
+      }
       const res = await get<{ list: CustomerItem[]; total: number; page: number; pageSize: number }>(
         '/admin/customers',
-        {
-          ...buildFilters(),
-          page: pagination.page,
-          pageSize: pagination.pageSize,
-        }
+        params
       )
       tableData.value = res.data?.list || []
       pagination.total = res.data?.total || 0
@@ -72,8 +91,47 @@ export function useCustomerAdmin() {
     searchKeyword.value = ''
     searchPayMethod.value = ''
     searchStatus.value = ''
+    sortBy.value = ''
+    sortOrder.value = ''
     pagination.page = 1
     loadData()
+  }
+
+  /** el-table 的 sort-change：只有使用次数走后端排序，取消排序时回到默认顺序 */
+  const handleSortChange = (payload: { prop?: string; order?: string | null }): void => {
+    if (payload.prop === 'searchCount' && (payload.order === 'ascending' || payload.order === 'descending')) {
+      sortBy.value = 'searchCount'
+      sortOrder.value = payload.order === 'ascending' ? 'asc' : 'desc'
+    } else {
+      sortBy.value = ''
+      sortOrder.value = ''
+    }
+    pagination.page = 1
+    loadData()
+  }
+
+  /**
+   * 单客户换码：先上传拿地址，再回写客户记录。
+   * 失败信息沿用后端分档文案（格式不支持 / 超 5MB / 存储不可用）。
+   */
+  const replaceQrcode = async (row: CustomerItem, file: File): Promise<void> => {
+    try {
+      const formData = new FormData()
+      formData.append('file', file, file.name)
+      const res = await post<{ url: string }>('/admin/customers/qrcode/upload', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      })
+      const url = res.data?.url
+      if (!url) {
+        ElMessage.error('收款码上传失败：未返回图片地址')
+        return
+      }
+      await put(`/admin/customers/${row.id}/qrcode`, { url })
+      ElMessage.success('收款码已更新')
+      await loadData()
+    } catch (error) {
+      ElMessage.error(getErrorMessage(error, '收款码更新失败'))
+    }
   }
 
   const saveCustomer = async (payload: CustomerFormPayload, id?: string) => {
@@ -147,9 +205,13 @@ export function useCustomerAdmin() {
     loading,
     pagination,
     tableData,
+    viewMode,
+    setViewMode,
     loadData,
     handleSearch,
     handleReset,
+    handleSortChange,
+    replaceQrcode,
     saveCustomer,
     handleDelete,
     exportCustomers,

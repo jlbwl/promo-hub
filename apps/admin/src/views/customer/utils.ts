@@ -11,6 +11,7 @@ export interface CustomerItem {
   payMethod: string
   payMethodLabel: string
   cardNo: string
+  qrCodeUrl?: string
   hasQrCode: boolean
   searchCount: number
   status: string
@@ -87,6 +88,27 @@ export const STATUS_OPTIONS = [
   { value: 'active', label: '启用' },
   { value: 'disabled', label: '停用' },
 ]
+
+export type CustomerViewMode = 'table' | 'card'
+
+export const CUSTOMER_VIEW_MODE_KEY = 'admin:customer-view-mode'
+
+/** 读取上次选择的视图，默认表格；localStorage 不可用时回退默认值 */
+export function readCustomerViewMode(): CustomerViewMode {
+  try {
+    return window.localStorage.getItem(CUSTOMER_VIEW_MODE_KEY) === 'card' ? 'card' : 'table'
+  } catch {
+    return 'table'
+  }
+}
+
+export function saveCustomerViewMode(mode: CustomerViewMode): void {
+  try {
+    window.localStorage.setItem(CUSTOMER_VIEW_MODE_KEY, mode)
+  } catch {
+    // 无痕模式等写失败场景不影响当前视图切换
+  }
+}
 
 /** 导出与模板列顺序：与源项目「客户预设」一致，末尾追加使用次数用于回导 */
 export const CUSTOMER_EXPORT_HEADERS = ['群号简称', '对接人', '收款方式', '卡号/备注', '是否有收款码', '使用次数']

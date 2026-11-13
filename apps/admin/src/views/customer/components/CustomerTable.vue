@@ -6,6 +6,7 @@
       stripe
       border
       style="width: 100%"
+      @sort-change="handleSortChange"
     >
       <el-table-column prop="groupName" label="群号简称" min-width="140" show-overflow-tooltip />
       <el-table-column prop="contactName" label="对接人" min-width="120" show-overflow-tooltip />
@@ -28,7 +29,7 @@
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="searchCount" label="使用次数" width="100" align="center" sortable />
+      <el-table-column prop="searchCount" label="使用次数" width="100" align="center" sortable="custom" />
       <el-table-column label="状态" width="90" align="center">
         <template #default="{ row }">
           <el-tag :type="row.status === 'active' ? 'success' : 'info'" size="small">
@@ -52,18 +53,6 @@
         </template>
       </el-table-column>
     </el-table>
-
-    <div class="pagination-wrapper">
-      <el-pagination
-        :current-page="pagination.page"
-        :page-size="pagination.pageSize"
-        :page-sizes="[10, 20, 50, 100]"
-        :total="pagination.total"
-        layout="total, sizes, prev, pager, next, jumper"
-        @update:current-page="emit('page-change', $event)"
-        @update:page-size="emit('size-change', $event)"
-      />
-    </div>
   </el-card>
 </template>
 
@@ -74,14 +63,12 @@ import type { CustomerItem } from '../utils'
 defineProps<{
   data: CustomerItem[]
   loading: boolean
-  pagination: { page: number; pageSize: number; total: number }
 }>()
 
 const emit = defineEmits<{
   edit: [row: CustomerItem]
   delete: [row: CustomerItem]
-  'page-change': [page: number]
-  'size-change': [pageSize: number]
+  'sort-change': [payload: { prop?: string; order?: string | null }]
 }>()
 
 const formatTime = (iso?: string): string => (iso ? formatTimeBase(iso) : '--')
@@ -91,26 +78,19 @@ const payMethodTagType = (payMethod: string): 'primary' | 'success' | 'warning' 
   if (payMethod === 'usdt') return 'warning'
   return 'primary'
 }
+
+// 服务端排序：把 el-table 的排序事件原样抛给外层，由接口按参数重新取数
+const handleSortChange = (payload: { prop?: string; order?: string | null }): void => {
+  emit('sort-change', { prop: payload.prop, order: payload.order })
+}
 </script>
 
 <style lang="scss" scoped>
 .customer-table-card {
   margin-top: 16px;
 
-  .pagination-wrapper {
-    display: flex;
-    justify-content: flex-end;
-    margin-top: 16px;
-  }
-
   :deep(.el-table) {
     min-width: 1024px;
-  }
-}
-
-@media (max-width: 768px) {
-  .pagination-wrapper {
-    justify-content: center;
   }
 }
 </style>

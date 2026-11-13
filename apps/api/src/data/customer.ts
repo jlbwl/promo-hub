@@ -28,6 +28,9 @@ export interface CustomerListParams {
   status?: string
   page?: number
   pageSize?: number
+  /** 仅支持按使用次数排序；其它列维持默认排序 */
+  sortBy?: 'searchCount'
+  sortOrder?: 'asc' | 'desc'
 }
 
 export const CUSTOMER_EXPORT_LIMIT = 10000
@@ -64,6 +67,19 @@ function buildFilters(params: CustomerListParams): { where: string; values: unkn
   }
 }
 
+/**
+ * 列表排序：默认按使用次数倒序（与原行为一致）；
+ * 仅当显式传入 sortBy=searchCount 时切换升/降序，其余情况忽略排序参数。
+ * 使用固定白名单拼接，避免把请求参数直接带进 SQL。
+ */
+function buildOrderBy(params: CustomerListParams): string {
+  const direction = params.sortOrder === 'asc' ? 'ASC' : 'DESC'
+  if (params.sortBy === 'searchCount') {
+    return `searchCount ${direction}, updatedAt DESC, createdAt DESC`
+  }
+  return 'searchCount DESC, updatedAt DESC, createdAt DESC'
+}
+
 export async function readCustomersPaged(
   params: CustomerListParams = {}
 ): Promise<{ list: CustomerRecord[]; total: number }> {
@@ -79,7 +95,7 @@ export async function readCustomersPaged(
   const offset = (pageNum - 1) * pageSizeNum
 
   const rows = (await query(
-    `SELECT * FROM customers${where} ORDER BY searchCount DESC, updatedAt DESC, createdAt DESC LIMIT ? OFFSET ?`,
+    `SELECT * FROM customers${where} ORDER BY ${buildOrderBy(params)} LIMIT ? OFFSET ?`,
     [...values, pageSizeNum, offset]
   )) as CustomerRow[]
 

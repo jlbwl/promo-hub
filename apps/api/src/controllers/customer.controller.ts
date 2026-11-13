@@ -39,10 +39,15 @@ function readFilters(req: Request): CustomerListParams {
   const keyword = toText(req.query.keyword)
   const payMethod = toText(req.query.payMethod)
   const status = toText(req.query.status)
+  // 排序白名单：目前只开放使用次数；其余列保持默认排序
+  const sortBy = toText(req.query.sortBy)
+  const sortOrder = toText(req.query.sortOrder)
   return {
     keyword: keyword || undefined,
     payMethod: payMethod ? normalizePayMethod(payMethod) || undefined : undefined,
     status: CUSTOMER_STATUSES.has(status) ? status : undefined,
+    sortBy: sortBy === 'searchCount' ? 'searchCount' : undefined,
+    sortOrder: sortOrder === 'asc' ? 'asc' : sortOrder === 'desc' ? 'desc' : undefined,
   }
 }
 
@@ -106,6 +111,7 @@ function toListItem(customer: CustomerRecord) {
     payMethod: customer.payMethod,
     payMethodLabel: payMethodLabel(customer.payMethod),
     cardNo: customer.cardNo,
+    qrCodeUrl: customer.qrCodeUrl || '',
     hasQrCode: !!customer.qrCodeUrl,
     searchCount: customer.searchCount,
     status: customer.status,

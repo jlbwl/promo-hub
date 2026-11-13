@@ -48,6 +48,14 @@
       </div>
 
       <div class="actions">
+        <el-radio-group v-model="viewMode" class="view-mode-switch">
+          <el-radio-button value="table">
+            表格
+          </el-radio-button>
+          <el-radio-button value="card">
+            卡片
+          </el-radio-button>
+        </el-radio-group>
         <el-button type="primary" icon="Plus" @click="emit('add')">
           新增客户
         </el-button>
@@ -69,11 +77,12 @@
 </template>
 
 <script setup lang="ts">
-import { PAY_METHOD_OPTIONS, STATUS_OPTIONS } from '../utils'
+import { PAY_METHOD_OPTIONS, STATUS_OPTIONS, type CustomerViewMode } from '../utils'
 
 const keyword = defineModel<string>('keyword', { default: '' })
 const payMethod = defineModel<string>('payMethod', { default: '' })
 const status = defineModel<string>('status', { default: '' })
+const viewMode = defineModel<CustomerViewMode>('viewMode', { default: 'table' })
 
 const emit = defineEmits<{
   search: []
@@ -116,6 +125,10 @@ const emit = defineEmits<{
     flex-wrap: wrap;
     gap: 8px;
     align-items: center;
+  }
+
+  .view-mode-switch {
+    margin-right: 4px;
   }
 }
 
