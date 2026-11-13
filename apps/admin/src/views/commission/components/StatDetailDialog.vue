@@ -184,7 +184,7 @@
           align="right"
         >
           <template #default="{ row }">
-            <span style="font-weight: 600;">{{ row.productPrice }}</span>
+            <span style="font-weight: 600;">{{ displayProductPrice(row) }}</span>
           </template>
         </el-table-column>
         <el-table-column
@@ -259,7 +259,7 @@
 import { ref, computed, reactive } from 'vue'
 import { ElMessage } from 'element-plus'
 import { get } from '@promo/shared/utils/request'
-import { maskPhone, formatTime, getManagerTeamName } from '../utils'
+import { maskPhone, formatTime, getManagerTeamName, displayProductPrice, sumDisplayProductPrice } from '../utils'
 import type { Manager, Order, PaginatedResponse } from '@promo/shared/types'
 
 const props = defineProps<{
@@ -303,7 +303,8 @@ const filteredOrders = computed(() => orders.value.filter(o => {
   return true
 }))
 
-const total = computed(() => filteredOrders.value.reduce((s: number, o: Order) => s + (Number(o.productPrice) || 0), 0).toFixed(2))
+// 合计口径：驳回单推广费按 0 计，避免并入已发放后金额变大
+const total = computed(() => sumDisplayProductPrice(filteredOrders.value).toFixed(2))
 
 // 清空筛选条件
 const resetFilters = () => {

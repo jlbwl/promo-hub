@@ -3,6 +3,7 @@
   <el-row
     :gutter="20"
     class="stat-cards"
+    justify="center"
   >
     <el-col
       v-for="card in cards"
@@ -20,7 +21,7 @@
         <div class="stat-content">
           <div class="stat-info">
             <span class="stat-label">{{ card.label }}</span>
-            <el-statistic :value="stats[card.statKey]" />
+            <el-statistic :value="getCardValue(card)" />
           </div>
           <el-icon
             class="stat-icon"
@@ -30,7 +31,7 @@
           </el-icon>
         </div>
         <div
-          v-if="stats[card.statKey] > 0"
+          v-if="getCardValue(card) > 0"
           class="card-badge"
           :style="card.badgeStyle"
         >
@@ -43,7 +44,7 @@
 
 <script setup lang="ts">
 import type { Component } from 'vue'
-import { Document, Clock, CircleCheck, CircleClose, Wallet, SuccessFilled } from '@element-plus/icons-vue'
+import { Document, Clock, CircleCheck, Wallet, SuccessFilled } from '@element-plus/icons-vue'
 
 // 统计数据
 interface CommissionStats {
@@ -61,6 +62,8 @@ interface StatCardItem {
   label: string
   title: string
   statKey: keyof CommissionStats
+  /** 需要合并到本卡片计数的其他状态（如已发放卡片并入已驳回笔数） */
+  extraStatKeys?: (keyof CommissionStats)[]
   icon: Component
   iconStyle: string
   badgeText: string
@@ -68,7 +71,7 @@ interface StatCardItem {
   isPayment?: boolean
 }
 
-defineProps<{
+const props = defineProps<{
   stats: CommissionStats
 }>()
 
@@ -82,9 +85,15 @@ const cards: StatCardItem[] = [
   { status: 'pending', label: '待审核', title: '待审核', statKey: 'pending', icon: Clock, iconStyle: 'color: #e6a23c; background: #fdf6ec;', badgeText: '查看', badgeStyle: 'background: linear-gradient(135deg, #e6a23c, #f5c77e);' },
   { status: 'approved', label: '已通过', title: '已通过', statKey: 'approved', icon: CircleCheck, iconStyle: 'color: #67c23a; background: #f0f9eb;', badgeText: '查看', badgeStyle: 'background: linear-gradient(135deg, #67c23a, #95d475);' },
   { status: 'pending_payment', label: '待发放', title: '待付款', statKey: 'pendingPayment', icon: Wallet, iconStyle: 'color: #409eff; background: #ecf5ff;', badgeText: '去结算', badgeStyle: '', isPayment: true },
-  { status: 'settled', label: '已发放', title: '已结算', statKey: 'settled', icon: SuccessFilled, iconStyle: 'color: #67c23a; background: #f0f9eb;', badgeText: '查看', badgeStyle: 'background: linear-gradient(135deg, #67c23a, #95d475);' },
-  { status: 'rejected', label: '已驳回', title: '已驳回', statKey: 'rejected', icon: CircleClose, iconStyle: 'color: #f56c6c; background: #fef0f0;', badgeText: '查看', badgeStyle: 'background: linear-gradient(135deg, #f56c6c, #fab6b6);' },
+  // 已发放并入已驳回笔数：驳回单不产生推广费，明细中按 0 展示
+  { status: 'settled,rejected', label: '已发放', title: '已发放', statKey: 'settled', extraStatKeys: ['rejected'], icon: SuccessFilled, iconStyle: 'color: #67c23a; background: #f0f9eb;', badgeText: '查看', badgeStyle: 'background: linear-gradient(135deg, #67c23a, #95d475);' },
 ]
+
+// 卡片数值：基础状态 + 合并状态的笔数之和
+const getCardValue = (card: StatCardItem) => {
+  const keys = [card.statKey, ...(card.extraStatKeys || [])]
+  return keys.reduce((sum, key) => sum + (Number(props.stats[key]) || 0), 0)
+}
 
 // 点击卡片
 const handleCardClick = (card: StatCardItem) => {

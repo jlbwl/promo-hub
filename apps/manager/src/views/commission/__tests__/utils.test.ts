@@ -9,7 +9,7 @@ vi.mock('@promo/shared/utils/request', () => ({
 }))
 
 import { get } from '@promo/shared/utils/request'
-import { fetchAllOrders, formatTime, getManagerId, maskName, maskPhone, settleOrders, statusTagType, statusText, sumProductPrice } from '../utils'
+import { displayProductPrice, fetchAllOrders, formatTime, getManagerId, maskName, maskPhone, settleOrders, statusTagType, statusText, sumDisplayProductPrice, sumProductPrice } from '../utils'
 
 beforeEach(() => {
   localStorage.clear()
@@ -186,6 +186,24 @@ describe('settleOrders / sumProductPrice', () => {
     expect(result.failed).toEqual([])
     expect(result.settled).toHaveLength(3)
     expect(sumProductPrice(result.settled)).toBe(180)
+  })
+})
+
+describe('displayProductPrice / sumDisplayProductPrice 金额口径', () => {
+  it('驳回单按 0 展示，其他状态保留原推广费', () => {
+    expect(displayProductPrice({ id: 'o1', status: 'settled', productPrice: 100 } as Order)).toBe(100)
+    expect(displayProductPrice({ id: 'o2', status: 'rejected', productPrice: 100 } as Order)).toBe(0)
+    expect(displayProductPrice({ id: 'o3', status: 'rejected', productPrice: '50' as unknown as number } as Order)).toBe(0)
+  })
+
+  it('已发放与已驳回合并合计不因驳回单变大', () => {
+    const mergedOrders = [
+      { id: 'o1', status: 'settled', productPrice: 100 } as Order,
+      { id: 'o2', status: 'settled', productPrice: 30 } as Order,
+      { id: 'o3', status: 'rejected', productPrice: 200 } as Order,
+    ]
+
+    expect(sumDisplayProductPrice(mergedOrders)).toBe(130)
   })
 
   it('sumProductPrice 对非法金额按 0 处理', () => {

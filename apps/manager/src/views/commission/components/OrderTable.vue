@@ -71,7 +71,7 @@
       align="right"
     >
       <template #default="{ row }">
-        <span style="font-weight: 500;">{{ row.productPrice }}</span>
+        <span style="font-weight: 500;">{{ displayProductPrice(row) }}</span>
       </template>
     </el-table-column>
     <el-table-column
@@ -177,7 +177,7 @@
 </template>
 
 <script setup lang="ts">
-import { maskPhone, formatTime, statusTagType, statusText } from '../utils'
+import { maskPhone, formatTime, statusTagType, statusText, displayProductPrice } from '../utils'
 import type { Order } from '@promo/shared/types'
 
 defineProps<{

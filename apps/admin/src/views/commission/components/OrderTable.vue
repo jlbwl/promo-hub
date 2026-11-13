@@ -102,7 +102,7 @@
       align="right"
     >
       <template #default="{ row }">
-        <span style="font-weight: 500;">{{ row.productPrice }}</span>
+        <span style="font-weight: 500;">{{ displayProductPrice(row) }}</span>
       </template>
     </el-table-column>
     <el-table-column
@@ -183,7 +183,7 @@
 
 <script setup lang="ts">
 import { Edit } from '@element-plus/icons-vue'
-import { maskPhone, formatTime, statusTagType, statusText, getManagerTeamName } from '../utils'
+import { maskPhone, formatTime, statusTagType, statusText, getManagerTeamName, displayProductPrice } from '../utils'
 import type { Manager, Order } from '@promo/shared/types'
 
 const props = defineProps<{

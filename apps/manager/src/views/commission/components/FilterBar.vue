@@ -39,10 +39,6 @@
         label="已发放"
         value="settled"
       />
-      <el-option
-        label="已驳回"
-        value="rejected"
-      />
     </el-select>
     <!-- 审核日期：自然日范围，选同一天即单日；审核通过与驳回都算当天审核 -->
     <span class="filter-label">审核日期</span>

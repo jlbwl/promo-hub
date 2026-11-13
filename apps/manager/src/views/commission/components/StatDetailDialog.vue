@@ -95,7 +95,7 @@
           align="right"
         >
           <template #default="{ row }">
-            <span style="font-weight: 600;">{{ row.productPrice }}</span>
+            <span style="font-weight: 600;">{{ displayProductPrice(row) }}</span>
           </template>
         </el-table-column>
         <el-table-column
@@ -156,7 +156,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { ElMessage } from 'element-plus'
-import { maskPhone, formatTime, statusTagType, statusText, getManagerId, fetchAllOrders } from '../utils'
+import { maskPhone, formatTime, statusTagType, statusText, getManagerId, fetchAllOrders, displayProductPrice, sumDisplayProductPrice } from '../utils'
 import type { Order } from '@promo/shared/types'
 
 const statDialogVisible = ref(false)
@@ -168,10 +168,10 @@ const statDialogTruncated = ref(false)
 const statDialogRemaining = ref(0)
 
 const statDialogTotal = computed(() => {
-  return statDialogOrders.value.reduce((sum: number, o: Order) => sum + (Number(o.productPrice) || 0), 0).toFixed(2)
+  return sumDisplayProductPrice(statDialogOrders.value).toFixed(2)
 })
 
-// 打开通用数据查看弹窗
+// 打开通用数据查看弹窗；status 支持逗号分隔的多状态（如 settled,rejected）
 const open = async (status: string, title: string) => {
   statDialogTitle.value = title + '明细'
   statDialogTruncated.value = false
@@ -179,16 +179,26 @@ const open = async (status: string, title: string) => {
   statDialogTotalCount.value = 0
   statDialogVisible.value = true
 
+  const statuses = status && status !== 'all' ? status.split(',') : []
   try {
     // 分页拉取全部订单，避免后端单页上限导致明细与合计失真
-    const result = await fetchAllOrders({
-      managerId: getManagerId() || undefined,
-      ...(status !== 'all' ? { status } : {}),
-    })
-    statDialogOrders.value = result.orders
-    statDialogTotalCount.value = result.total
-    statDialogTruncated.value = result.truncated
-    statDialogRemaining.value = result.remaining
+    const results = await Promise.all(
+      (statuses.length > 0 ? statuses : ['']).map((item) =>
+        fetchAllOrders({
+          managerId: getManagerId() || undefined,
+          ...(item ? { status: item } : {}),
+        })
+      )
+    )
+    let orders = results.flatMap((result) => result.orders)
+    // 多状态合并展示时按审核时间倒序，便于按天回看审核结果
+    if (statuses.length > 1) {
+      orders = [...orders].sort((a, b) => (b.reviewedAt || '').localeCompare(a.reviewedAt || ''))
+    }
+    statDialogOrders.value = orders
+    statDialogTotalCount.value = results.reduce((sum, result) => sum + result.total, 0)
+    statDialogTruncated.value = results.some((result) => result.truncated)
+    statDialogRemaining.value = results.reduce((sum, result) => sum + result.remaining, 0)
   } catch (error) {
     ElMessage.error('获取数据失败')
     statDialogVisible.value = false

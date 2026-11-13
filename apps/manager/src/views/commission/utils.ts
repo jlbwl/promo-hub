@@ -96,3 +96,14 @@ export async function settleOrders(
 /** 订单推广费合计（金额口径：只传入需要统计的订单） */
 export const sumProductPrice = (orders: Order[]): number =>
   orders.reduce((sum, order) => sum + (Number(order.productPrice) || 0), 0)
+
+/**
+ * 展示用推广费：驳回单按 0 展示（不改数据库原值），
+ * 主列表与已发放明细合计统一走此口径，避免驳回单计入已发放金额
+ */
+export const displayProductPrice = (order: Order): number =>
+  order.status === 'rejected' ? 0 : Number(order.productPrice) || 0
+
+/** 展示口径的推广费合计：驳回单按 0 计入 */
+export const sumDisplayProductPrice = (orders: Order[]): number =>
+  orders.reduce((sum, order) => sum + displayProductPrice(order), 0)
