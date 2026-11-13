@@ -50,6 +50,9 @@ const corsOptions: cors.CorsOptions = {
   allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token', 'X-Refresh-Token', 'Idempotency-Key'],
 }
 app.use(cors(corsOptions))
+// 客户档案批量导入是整表 JSON 提交，2000 行会超过 body-parser 默认 100kb；
+// 这里在全局解析前单独放宽该路径的上限，其余接口维持默认值
+app.use('/admin/customers/import', express.json({ limit: '5mb' }))
 app.use(express.json())
 app.use(cookieParser())
 

@@ -38,6 +38,10 @@
             <el-icon><UserFilled /></el-icon>
             <span>团队管理</span>
           </el-menu-item>
+          <el-menu-item index="/customers">
+            <el-icon><Tickets /></el-icon>
+            <span>客户管理</span>
+          </el-menu-item>
           <el-menu-item index="/commissions">
             <el-icon><Wallet /></el-icon>
             <span>佣金管理</span>
@@ -97,7 +101,7 @@
 <script setup lang="ts">
 import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Odometer, User, UserFilled, Setting, Wallet, Files, Grid } from '@element-plus/icons-vue'
+import { Odometer, User, UserFilled, Setting, Wallet, Files, Grid, Tickets } from '@element-plus/icons-vue'
 import { ElMessageBox } from 'element-plus'
 import { post, clearAuthStorage } from '@promo/shared/utils/request'
 import IcpFooter from '../components/IcpFooter.vue'

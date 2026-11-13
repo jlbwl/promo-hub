@@ -14,6 +14,14 @@ import {
   adminOfflineProduct,
 } from '../controllers/admin.controller.js'
 import { exportOperationLogs } from '../controllers/operationLogExport.controller.js'
+import {
+  getCustomers,
+  createCustomer,
+  updateCustomerById,
+  deleteCustomerById,
+  importCustomers,
+  exportCustomers,
+} from '../controllers/customer.controller.js'
 
 const router: Router = Router()
 
@@ -30,5 +38,14 @@ router.get('/admin/operation-logs/admins', requireAdmin, getOperationLogAdmins)
 // 导出必须与列表使用同一套筛选参数；requireAdmin 保证权限一致
 router.get('/admin/operation-logs/export', requireAdmin, exportOperationLogs)
 router.put('/admin/products/:id/offline', requireAdmin, adminOfflineProduct)
+
+// 客户档案：全局共享，仅管理端维护
+router.get('/admin/customers', requireAdmin, getCustomers)
+router.post('/admin/customers', requireAdmin, createCustomer)
+// 导入为整表 JSON 提交，限制在 /admin/customers/import 单独放宽（见 index.ts）
+router.post('/admin/customers/import', requireAdmin, importCustomers)
+router.get('/admin/customers/export', requireAdmin, exportCustomers)
+router.put('/admin/customers/:id', requireAdmin, updateCustomerById)
+router.delete('/admin/customers/:id', requireAdmin, deleteCustomerById)
 
 export default router
