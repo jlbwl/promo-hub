@@ -256,6 +256,42 @@ export const deleteCustomerById = asyncHandler(
   }
 )
 
+/** 允许写入的收款码地址：仅本服务收款码上传目录产出的相对路径 */
+const QRCODE_URL_PATTERN = /^\/uploads\/qrcodes\/[A-Za-z0-9_-]+\.(?:png|jpe?g|webp)$/i
+
+export const updateCustomerQrcode = asyncHandler(
+  async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
+    const id = req.params.id as string
+    const current = await readCustomerById(id)
+    if (!current) {
+      throw new AppError('客户不存在', ErrorCode.NOT_FOUND, HttpStatus.NOT_FOUND)
+    }
+
+    const url = toText((req.body as { url?: unknown } | undefined)?.url)
+    if (!url) {
+      throw new AppError('收款码地址不能为空', ErrorCode.BAD_REQUEST, HttpStatus.BAD_REQUEST)
+    }
+    if (url.length > 1000 || !QRCODE_URL_PATTERN.test(url)) {
+      throw new AppError('收款码地址不合法', ErrorCode.BAD_REQUEST, HttpStatus.BAD_REQUEST)
+    }
+
+    await updateCustomer(id, { qrCodeUrl: url })
+
+    await logAdminOperation(req, {
+      operationType: 'update',
+      targetType: 'customer',
+      targetId: id,
+      targetName: current.groupName,
+      detail: buildAuditDetail({
+        summary: '更新客户收款码',
+        meta: { 收款码: url, 原收款码: current.qrCodeUrl || '无' },
+      }),
+    })
+
+    sendSuccess(res, { url }, '收款码已更新')
+  }
+)
+
 /**
  * 批量导入：dryRun=true 只返回预览统计，不落库。
  * 增量合并，不清空既有数据；按群号简称判重。
@@ -353,6 +389,7 @@ export const exportCustomers = asyncHandler(
       res,
       {
         list: result.list.map((customer) => ({
+          id: customer.id,
           groupName: customer.groupName,
           contactName: customer.contactName,
           payMethod: customer.payMethod,

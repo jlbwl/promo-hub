@@ -185,6 +185,55 @@ const generalUpload = multer({
   fileFilter: imageFileFilter,
 })
 
+// 客户收款码上传：保留原图，不走封面裁剪压缩（裁剪会破坏二维码）
+const QRCODE_DIR = join(UPLOAD_DIR, 'qrcodes')
+if (!existsSync(QRCODE_DIR)) mkdirSync(QRCODE_DIR, { recursive: true })
+
+const qrcodeUpload = multer({
+  storage: multer.diskStorage({
+    destination: (_req, _file, cb) => cb(null, QRCODE_DIR),
+    filename: (_req, file, cb) => {
+      const ext = ALLOWED_IMAGE_MIME[file.mimetype] || 'bin'
+      cb(null, `qr_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`)
+    },
+  }),
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: imageFileFilter,
+})
+
+app.post(
+  '/admin/customers/qrcode/upload',
+  requireAdmin,
+  qrcodeUpload.single('file'),
+  async (req, res) => {
+    try {
+      if (!req.file) {
+        sendError(res, '请选择收款码图片', 400, 400, { reason: 'NO_FILE' })
+        return
+      }
+
+      const validation = validateImageFile(req.file)
+      if (!validation.valid) {
+        await removeTempUpload(req.file.path)
+        sendError(res, validation.error as string, 400, 400, { reason: validation.reason })
+        return
+      }
+
+      res.json({
+        code: 0,
+        message: '上传成功',
+        data: { url: `/uploads/qrcodes/${req.file.filename}` },
+      })
+    } catch (error) {
+      logger.error('[API] 收款码上传失败', { error: getErrorMessage(error) })
+      await removeTempUpload(req.file?.path)
+      sendUploadError(res, error)
+    }
+  }
+)
+
+
+
 app.post(
   '/upload',
   requireManager,

@@ -54,6 +54,9 @@
         <el-button icon="Upload" @click="emit('import')">
           批量导入
         </el-button>
+        <el-button icon="PictureFilled" @click="emit('qrcode')">
+          批量上传收款码
+        </el-button>
         <el-button icon="Download" @click="emit('export')">
           导出
         </el-button>
@@ -77,6 +80,7 @@ const emit = defineEmits<{
   reset: []
   add: []
   import: []
+  qrcode: []
   export: []
   template: []
 }>()

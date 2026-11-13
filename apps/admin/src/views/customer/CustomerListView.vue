@@ -8,6 +8,7 @@
       @reset="handleReset"
       @add="openAddDialog"
       @import="openImportDialog"
+      @qrcode="openQrcodeDialog"
       @export="exportCustomers"
       @template="downloadTemplate"
     />
@@ -33,6 +34,11 @@
       @success="loadData"
       @template="downloadTemplate"
     />
+
+    <CustomerQrcodeUploadDialog
+      ref="qrcodeDialogRef"
+      @success="loadData"
+    />
   </div>
 </template>
 
@@ -42,6 +48,7 @@ import CustomerToolbar from './components/CustomerToolbar.vue'
 import CustomerTable from './components/CustomerTable.vue'
 import CustomerFormDialog from './components/CustomerFormDialog.vue'
 import CustomerImportDialog from './components/CustomerImportDialog.vue'
+import CustomerQrcodeUploadDialog from './components/CustomerQrcodeUploadDialog.vue'
 import { useCustomerAdmin } from './composables/useCustomerAdmin'
 import type { CustomerItem } from './utils'
 
@@ -63,10 +70,12 @@ const {
 
 const formDialogRef = ref<{ open: (row?: CustomerItem) => void } | null>(null)
 const importDialogRef = ref<{ open: () => void } | null>(null)
+const qrcodeDialogRef = ref<{ open: () => void } | null>(null)
 
 const openAddDialog = () => formDialogRef.value?.open()
 const openEditDialog = (row: CustomerItem) => formDialogRef.value?.open(row)
 const openImportDialog = () => importDialogRef.value?.open()
+const openQrcodeDialog = () => qrcodeDialogRef.value?.open()
 
 const handlePageChange = (page: number) => {
   pagination.page = page

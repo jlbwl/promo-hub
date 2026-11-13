@@ -19,6 +19,7 @@ import {
   createCustomer,
   updateCustomerById,
   deleteCustomerById,
+  updateCustomerQrcode,
   importCustomers,
   exportCustomers,
 } from '../controllers/customer.controller.js'
@@ -45,6 +46,7 @@ router.post('/admin/customers', requireAdmin, createCustomer)
 // 导入为整表 JSON 提交，限制在 /admin/customers/import 单独放宽（见 index.ts）
 router.post('/admin/customers/import', requireAdmin, importCustomers)
 router.get('/admin/customers/export', requireAdmin, exportCustomers)
+router.put('/admin/customers/:id/qrcode', requireAdmin, updateCustomerQrcode)
 router.put('/admin/customers/:id', requireAdmin, updateCustomerById)
 router.delete('/admin/customers/:id', requireAdmin, deleteCustomerById)
 
