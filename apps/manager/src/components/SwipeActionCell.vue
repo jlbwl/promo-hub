@@ -2,7 +2,7 @@
   <!-- 左滑露出操作：受控展开，同一列表由父级保证只展开一个 -->
   <div
     class="swipe-cell"
-    :class="{ 'is-open': open }"
+    :class="{ 'is-open': open, 'is-revealing': revealing }"
   >
     <div
       ref="contentRef"
@@ -14,6 +14,7 @@
       @pointerup="handlePointerUp"
       @pointercancel="handlePointerUp"
       @click.capture="handleClickCapture"
+      @transitionend="handleTransitionEnd"
       @dragstart.prevent
     >
       <slot />
@@ -67,10 +68,32 @@ let suppressClick = false
 let suppressTimer: ReturnType<typeof setTimeout> | null = null
 let resizeObserver: ResizeObserver | null = null
 
-const contentStyle = computed(() => ({
-  transform: `translate3d(${offset.value}px, 0, 0)`,
-  transition: dragging.value ? 'none' : 'transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1)'
-}))
+// 收起动画结束后彻底移除 transform，让内容层回到非合成层
+const settled = ref(true)
+
+const contentStyle = computed(() => {
+  const shouldAnimate = !dragging.value
+  // 静止收起时不下发 transform，避免常驻合成层在滚动回弹时脱离裁切露出操作层
+  const hasTransform = dragging.value || offset.value !== 0 || !settled.value
+  return {
+    transform: hasTransform ? `translate3d(${offset.value}px, 0, 0)` : 'none',
+    transition: shouldAnimate ? 'transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1)' : 'none'
+  }
+})
+
+// 操作层是否允许绘制：拖动中、有位移或已展开时才显示，
+// 收起后延迟到收起动画结束再隐藏，避免回弹/惯性滚动时操作项闪现
+const revealing = computed(() => dragging.value || offset.value !== 0 || props.open)
+
+// 位移变化即进入合成层，直到收起动画结束后再释放
+watch(offset, (value) => {
+  if (value !== 0) settled.value = false
+})
+
+const handleTransitionEnd = (event: TransitionEvent) => {
+  if (event.propertyName !== 'transform') return
+  if (!dragging.value && offset.value === 0) settled.value = true
+}
 
 // 渲染后测量操作区宽度，状态切换（发布/下架）导致按钮数量变化时同步
 const measure = () => {
@@ -198,16 +221,21 @@ onBeforeUnmount(() => {
   position: relative;
   overflow: hidden;
   background-color: #ffffff;
+  /* 硬裁切操作层：滚动/回弹时合成层不会越过圆角裁切区露出来 */
+  contain: paint;
+  isolation: isolate;
 }
 
 .swipe-cell-content {
   position: relative;
   z-index: 1;
+  /* 内容层自身铺白，圆角卡片的四个角不会透出下方操作色块 */
+  background-color: #ffffff;
   touch-action: pan-y;
-  will-change: transform;
 }
 
 .swipe-cell-content.is-dragging {
+  will-change: transform;
   user-select: none;
 }
 
@@ -219,6 +247,14 @@ onBeforeUnmount(() => {
   z-index: 0;
   display: flex;
   align-items: stretch;
+  /* 收起后不绘制操作层，滚动/回弹/合成时不可能露出；展开时立即可见 */
+  visibility: hidden;
+  transition: visibility 0s linear 0.25s;
+}
+
+.swipe-cell.is-revealing .swipe-cell-actions {
+  visibility: visible;
+  transition: visibility 0s;
 }
 
 .swipe-cell-actions :deep(.swipe-action) {

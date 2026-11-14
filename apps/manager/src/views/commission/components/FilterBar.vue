@@ -104,10 +104,11 @@
   </div>
 
   <!-- 移动端筛选底部抽屉：条件先编辑、点「应用」再生效 -->
+  <!-- 用确定高度（而非 auto）保证底部操作区始终在抽屉内可见，内容区超高时自行滚动 -->
   <el-drawer
     v-model="filterDrawerVisible"
     direction="btt"
-    size="auto"
+    size="75%"
     :with-header="false"
     body-class="filter-sheet-body"
     class="filter-drawer"
@@ -348,7 +349,9 @@ const handleSheetReset = () => {
 .filter-sheet {
   display: flex;
   flex-direction: column;
-  height: 100%;
+  flex: 1;
+  min-height: 0;
+  height: auto;
   background-color: #ffffff;
 }
 
@@ -467,9 +470,15 @@ const handleSheetReset = () => {
   border-radius: 16px 16px 0 0;
   overflow: hidden;
 
+  /* 抽屉内的 flex 容器撑满确定高度，操作区固定在底部、内容区滚动 */
   .filter-sheet-body {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
     height: 100%;
     padding: 0;
+    overflow: hidden;
   }
 }
 </style>
