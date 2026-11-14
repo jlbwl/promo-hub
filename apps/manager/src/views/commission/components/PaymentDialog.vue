@@ -163,7 +163,10 @@
         </el-table-column>
       </el-table>
 
-      <div class="payment-actions">
+      <BottomActionBar
+        class="payment-actions"
+        fixed
+      >
         <el-button @click="paymentDialogVisible = false">
           关闭
         </el-button>
@@ -174,7 +177,7 @@
         >
           一键发放（{{ paymentOrders.length }}笔）
         </el-button>
-      </div>
+      </BottomActionBar>
     </div>
 
     <!-- 选择发放方式 -->
@@ -216,7 +219,10 @@
         </div>
       </div>
 
-      <div class="payment-actions">
+      <BottomActionBar
+        class="payment-actions"
+        fixed
+      >
         <el-button @click="paymentStep = 'list'">
           返回
         </el-button>
@@ -228,7 +234,7 @@
         >
           确认发放 {{ paymentTotal }}
         </el-button>
-      </div>
+      </BottomActionBar>
     </div>
 
     <!-- 发放成功 -->
@@ -250,9 +256,10 @@
           ¥{{ successTotal }}
         </p>
       </div>
-      <div
-        class="payment-actions"
-        style="justify-content: center;"
+      <BottomActionBar
+        class="payment-actions is-center"
+        fixed
+        align="center"
       >
         <el-button
           type="primary"
@@ -260,7 +267,7 @@
         >
           完成
         </el-button>
-      </div>
+      </BottomActionBar>
     </div>
 
     <!-- 部分失败：列出失败明细并支持重试 -->
@@ -380,7 +387,10 @@
         </el-table-column>
       </el-table>
 
-      <div class="payment-actions">
+      <BottomActionBar
+        class="payment-actions"
+        fixed
+      >
         <el-button @click="closePaymentDialog">
           关闭
         </el-button>
@@ -391,7 +401,7 @@
         >
           重试失败项（{{ failedOrders.length }} 笔）
         </el-button>
-      </div>
+      </BottomActionBar>
     </div>
   </el-dialog>
 </template>
@@ -404,6 +414,7 @@ import { SuccessFilled } from '@element-plus/icons-vue'
 import { put } from '@promo/shared/utils/request'
 import { maskPhone, formatTime, getManagerId, fetchAllOrders, settleOrders, sumProductPrice } from '../utils'
 import { useIsMobile } from '@/composables/useIsMobile'
+import BottomActionBar from '@/components/BottomActionBar.vue'
 import type { Order } from '@promo/shared/types'
 
 const { isMobile } = useIsMobile()
@@ -557,15 +568,6 @@ defineExpose({ open })
     }
   }
 
-  .payment-actions {
-    display: flex;
-    justify-content: flex-end;
-    gap: 12px;
-    margin-top: 20px;
-    padding-top: 16px;
-    border-top: 1px solid #ebeef5;
-  }
-
   // 付款方式选择
   .payment-methods {
     display: flex;
@@ -654,6 +656,23 @@ defineExpose({ open })
   }
 }
 
+/* 桌面端底部操作区：保持原有右对齐样式，移动端交由 BottomActionBar 统一处理 */
+@media (min-width: 769px) {
+  .payment-dialog-content .payment-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 1px solid #ebeef5;
+  }
+
+  /* 成功页保持居中原样式 */
+  .payment-dialog-content .payment-actions.is-center {
+    justify-content: center;
+  }
+}
+
 /* ===== 移动端：全屏流程布局 ===== */
 .payment-dialog-content.is-mobile {
   display: flex;
@@ -661,23 +680,8 @@ defineExpose({ open })
   height: 100%;
 
   > .payment-summary,
-  > .el-alert,
-  > .payment-actions {
+  > .el-alert {
     flex: none;
-  }
-
-  .payment-actions {
-    gap: 10px;
-    margin-top: 12px;
-    padding-top: 12px;
-    padding-bottom: calc(10px + env(safe-area-inset-bottom));
-    background-color: #ffffff;
-
-    .el-button {
-      flex: 1;
-      min-height: 44px;
-      margin-left: 0;
-    }
   }
 
   .payment-methods {

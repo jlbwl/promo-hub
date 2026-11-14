@@ -4,34 +4,11 @@
     v-if="isMobile"
     class="order-cards"
   >
-    <!-- 首屏骨架：弱网下先给出结构，避免空白等待 -->
-    <div
+    <!-- 首屏骨架：与其它列表页共用统一加载态 -->
+    <SkeletonList
       v-if="firstLoading"
-      class="order-skeletons"
-    >
-      <div
-        v-for="i in 3"
-        :key="`skeleton-${i}`"
-        class="order-card is-skeleton"
-      >
-        <div
-          class="skeleton-block"
-          style="width: 45%; height: 16px;"
-        />
-        <div
-          class="skeleton-block"
-          style="width: 70%; height: 12px; margin-top: 12px;"
-        />
-        <div
-          class="skeleton-block"
-          style="width: 60%; height: 12px; margin-top: 8px;"
-        />
-        <div
-          class="skeleton-block"
-          style="width: 80%; height: 12px; margin-top: 8px;"
-        />
-      </div>
-    </div>
+      variant="text"
+    />
 
     <!-- 首屏失败：整块给出可重试反馈 -->
     <div
@@ -139,36 +116,29 @@
         </div>
       </dl>
 
-      <div
+      <BottomActionBar
         v-if="row.status === 'pending'"
-        class="card-actions"
       >
-        <el-button
-          class="card-btn"
-          @click="emit('reject', row)"
-        >
+        <el-button @click="emit('reject', row)">
           驳回
         </el-button>
         <el-button
-          class="card-btn"
           type="success"
           @click="emit('approve', row)"
         >
           审核通过
         </el-button>
-      </div>
-      <div
+      </BottomActionBar>
+      <BottomActionBar
         v-else-if="row.status === 'approved'"
-        class="card-actions"
       >
         <el-button
-          class="card-btn"
           type="primary"
           @click="emit('add-to-payment', row)"
         >
           添加到待发放
         </el-button>
-      </div>
+      </BottomActionBar>
     </article>
 
     <p
@@ -379,6 +349,8 @@
 import { computed, nextTick, onUnmounted, ref, watch } from 'vue'
 import { maskPhone, formatTime, statusTagType, statusText, displayProductPrice, auditResultText } from '../utils'
 import { useIsMobile } from '@/composables/useIsMobile'
+import SkeletonList from '@/components/SkeletonList.vue'
+import BottomActionBar from '@/components/BottomActionBar.vue'
 import type { Order } from '@promo/shared/types'
 
 const props = defineProps<{
@@ -555,20 +527,6 @@ onUnmounted(() => observer?.disconnect())
   }
 }
 
-.card-actions {
-  display: flex;
-  gap: 10px;
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px solid #f0f2f5;
-
-  .card-btn {
-    flex: 1;
-    min-height: 44px;
-    margin-left: 0;
-  }
-}
-
 .card-empty {
   padding: 40px 0;
   font-size: 14px;
@@ -576,24 +534,7 @@ onUnmounted(() => observer?.disconnect())
   text-align: center;
 }
 
-// 首屏骨架与加载失败反馈（移动端）
-.order-skeletons {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.skeleton-block {
-  border-radius: 6px;
-  background: linear-gradient(90deg, #f2f3f5 25%, #e6e8eb 37%, #f2f3f5 63%);
-  background-size: 400% 100%;
-  animation: order-skeleton-loading 1.4s ease infinite;
-}
-
-.order-card.is-skeleton {
-  min-height: 132px;
-}
-
+// 首屏加载失败反馈（移动端）
 .load-feedback {
   padding: 32px 16px;
   text-align: center;
@@ -621,16 +562,6 @@ onUnmounted(() => observer?.disconnect())
       color: #f56c6c;
       text-align: left;
     }
-  }
-}
-
-@keyframes order-skeleton-loading {
-  0% {
-    background-position: 100% 50%;
-  }
-
-  100% {
-    background-position: 0 50%;
   }
 }
 

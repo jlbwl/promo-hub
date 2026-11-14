@@ -1,5 +1,15 @@
 <template>
-  <div class="product-list-page">
+  <div
+    ref="pageRef"
+    class="product-list-page"
+  >
+    <!-- 移动端下拉刷新指示器（桌面端不触发） -->
+    <PullRefreshHint
+      :offset="pullOffset"
+      :text="pullHint"
+      :dragging="pullPulling"
+      :refreshing="pullRefreshing"
+    />
     <!-- 搜索栏（桌面） -->
     <div
       v-if="!isMobile"
@@ -262,32 +272,11 @@
       v-else
       class="product-cards"
     >
-      <!-- 首屏骨架 -->
-      <template v-if="firstLoading">
-        <div
-          v-for="i in 3"
-          :key="`skeleton-${i}`"
-          class="product-card is-skeleton"
-        >
-          <div class="card-body">
-            <div class="skeleton-block skeleton-cover" />
-            <div class="card-main">
-              <div
-                class="skeleton-block"
-                style="width: 70%; height: 16px;"
-              />
-              <div
-                class="skeleton-block"
-                style="width: 45%; height: 12px; margin-top: 12px;"
-              />
-              <div
-                class="skeleton-block"
-                style="width: 55%; height: 12px; margin-top: 8px;"
-              />
-            </div>
-          </div>
-        </div>
-      </template>
+      <!-- 首屏骨架：与其它列表页共用统一加载态 -->
+      <SkeletonList
+        v-if="firstLoading"
+        variant="media"
+      />
 
       <!-- 首屏失败：整块给出可重试反馈 -->
       <div
@@ -470,10 +459,15 @@ import { Picture } from '@element-plus/icons-vue'
 import { get, put, del } from '@promo/shared/utils/request'
 import type { PaginatedResponse, ProductCategory } from '@promo/shared/types'
 import { useIsMobile } from '../../composables/useIsMobile'
+import { usePullToRefresh } from '../../composables/usePullToRefresh'
+import SkeletonList from '../../components/SkeletonList.vue'
+import PullRefreshHint from '../../components/PullRefreshHint.vue'
 
 const router = useRouter()
 const route = useRoute()
 const { isMobile } = useIsMobile()
+
+const pageRef = ref<HTMLElement | null>(null)
 
 // 加载状态
 const loading = ref(false)
@@ -671,6 +665,21 @@ const handleRetry = () => {
   pagination.page = 1
   fetchData()
 }
+
+// 下拉刷新：回到第一页重新拉取列表；失败时恢复页码避免加载更多重复
+const handleRefresh = async () => {
+  const previousPage = pagination.page
+  pagination.page = 1
+  const ok = await fetchData()
+  if (!ok) pagination.page = previousPage
+}
+
+const {
+  offset: pullOffset,
+  pulling: pullPulling,
+  refreshing: pullRefreshing,
+  hintText: pullHint,
+} = usePullToRefresh(handleRefresh, pageRef)
 
 // 搜索
 const handleSearch = () => {
@@ -972,30 +981,6 @@ watch(
         }
       }
     }
-
-    .skeleton-block {
-      border-radius: 6px;
-      background: linear-gradient(90deg, #f2f3f5 25%, #e6e8eb 37%, #f2f3f5 63%);
-      background-size: 400% 100%;
-      animation: product-skeleton-loading 1.4s ease infinite;
-    }
-
-    .skeleton-cover {
-      flex: none;
-      width: 72px;
-      height: 72px;
-      border-radius: 8px;
-    }
-  }
-}
-
-@keyframes product-skeleton-loading {
-  0% {
-    background-position: 100% 50%;
-  }
-
-  100% {
-    background-position: 0 50%;
   }
 }
 </style>

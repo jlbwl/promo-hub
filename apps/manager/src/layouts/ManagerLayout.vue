@@ -170,6 +170,7 @@ import {
 } from '@element-plus/icons-vue'
 import IcpFooter from '../components/IcpFooter.vue'
 import { useIsMobile } from '../composables/useIsMobile'
+import { useSwipeBack } from '../composables/useSwipeBack'
 
 const route = useRoute()
 const router = useRouter()
@@ -182,6 +183,9 @@ const icpNumber = import.meta.env.VITE_ICP_NUMBER || ''
 const isCollapse = ref(false)
 // 移动端抽屉菜单
 const drawerVisible = ref(false)
+
+// 移动端左缘右滑返回上一页；抽屉打开时让位给抽屉手势
+useSwipeBack(() => !drawerVisible.value)
 
 // 菜单配置：桌面侧栏、移动端抽屉与 Tabbar 共用
 const menuItems = [

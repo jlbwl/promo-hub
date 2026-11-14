@@ -211,17 +211,15 @@
         </el-table>
       </div>
 
-      <div
+      <BottomActionBar
         class="payment-actions"
-        :class="{ 'is-mobile': isMobile }"
+        fixed
+        align="end"
       >
-        <el-button
-          :class="{ 'mobile-btn': isMobile }"
-          @click="statDialogVisible = false"
-        >
+        <el-button @click="statDialogVisible = false">
           关闭
         </el-button>
-      </div>
+      </BottomActionBar>
     </div>
   </el-dialog>
 </template>
@@ -231,6 +229,7 @@ import { ref, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import { maskPhone, formatTime, statusTagType, statusText, getManagerId, fetchAllOrders, displayProductPrice, sumDisplayProductPrice, auditResultText } from '../utils'
 import { useIsMobile } from '@/composables/useIsMobile'
+import BottomActionBar from '@/components/BottomActionBar.vue'
 import type { Order } from '@promo/shared/types'
 
 const { isMobile } = useIsMobile()
@@ -308,22 +307,6 @@ defineExpose({ open })
       font-size: 16px;
     }
   }
-}
-
-.payment-actions {
-  &.is-mobile {
-    flex: none;
-    display: flex;
-    justify-content: flex-end;
-    margin-top: 0;
-    padding: 10px 0 calc(10px + env(safe-area-inset-bottom));
-    background-color: #ffffff;
-    border-top: 1px solid #f0f2f5;
-  }
-}
-
-.mobile-btn {
-  min-height: 44px;
 }
 
 /* ===== 移动端明细列表 ===== */

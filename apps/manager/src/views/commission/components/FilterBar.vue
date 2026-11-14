@@ -190,21 +190,20 @@
         </div>
       </div>
 
-      <div class="sheet-foot">
-        <el-button
-          class="sheet-btn"
-          @click="handleSheetReset"
-        >
+      <BottomActionBar
+        fixed
+        inset
+      >
+        <el-button @click="handleSheetReset">
           重置
         </el-button>
         <el-button
-          class="sheet-btn"
           type="primary"
           @click="handleSheetApply"
         >
           应用
         </el-button>
-      </div>
+      </BottomActionBar>
     </div>
   </el-drawer>
 </template>
@@ -214,6 +213,7 @@
 import { computed, ref } from 'vue'
 import { Filter, Close } from '@element-plus/icons-vue'
 import { useIsMobile } from '@/composables/useIsMobile'
+import BottomActionBar from '@/components/BottomActionBar.vue'
 
 const props = defineProps<{
   keyword: string
@@ -444,20 +444,6 @@ const handleSheetReset = () => {
     font-size: 12px;
     line-height: 1.5;
     color: #909399;
-  }
-}
-
-.sheet-foot {
-  flex: none;
-  display: flex;
-  gap: 12px;
-  padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
-  border-top: 1px solid #f0f2f5;
-
-  .sheet-btn {
-    flex: 1;
-    min-height: 44px;
-    margin-left: 0;
   }
 }
 

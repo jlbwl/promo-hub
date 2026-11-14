@@ -1,5 +1,16 @@
 <template>
-  <div class="commission-list-page">
+  <div
+    ref="pageRef"
+    class="commission-list-page"
+  >
+    <!-- 移动端下拉刷新指示器（桌面端不触发） -->
+    <PullRefreshHint
+      :offset="pullOffset"
+      :text="pullHint"
+      :dragging="pullPulling"
+      :refreshing="pullRefreshing"
+    />
+
     <!-- 统计卡片 -->
     <StatCards
       :stats="stats"
@@ -51,6 +62,8 @@ import FilterBar from './components/FilterBar.vue'
 import OrderTable from './components/OrderTable.vue'
 import PaymentDialog from './components/PaymentDialog.vue'
 import StatDetailDialog from './components/StatDetailDialog.vue'
+import PullRefreshHint from '@/components/PullRefreshHint.vue'
+import { usePullToRefresh } from '@/composables/usePullToRefresh'
 import { useCommissionList } from './composables/useCommissionList'
 
 const {
@@ -93,4 +106,20 @@ const refreshAll = () => {
   fetchStats()
   fetchData()
 }
+
+// 下拉刷新：回到第一页重新拉取统计与列表；失败时恢复页码避免加载更多重复
+const handleRefresh = async () => {
+  const previousPage = pagination.page
+  pagination.page = 1
+  const [success] = await Promise.all([fetchData(), fetchStats()])
+  if (!success) pagination.page = previousPage
+}
+
+const pageRef = ref<HTMLElement | null>(null)
+const {
+  offset: pullOffset,
+  pulling: pullPulling,
+  refreshing: pullRefreshing,
+  hintText: pullHint,
+} = usePullToRefresh(handleRefresh, pageRef)
 </script>
