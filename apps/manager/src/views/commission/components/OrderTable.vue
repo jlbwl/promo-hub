@@ -1,7 +1,8 @@
 <template>
-  <!-- ===== 移动端：卡片列表 + 触底加载，替代横向滚动的多列表格 ===== -->
+  <!-- ===== 移动端：卡片列表 + 分页，替代横向滚动的多列表格 ===== -->
   <div
     v-if="isMobile"
+    ref="listRef"
     class="order-cards"
   >
     <!-- 首屏骨架：与其它列表页共用统一加载态 -->
@@ -150,23 +151,21 @@
       {{ onlyDuplicate ? '当前筛选条件下没有重单' : '暂无数据' }}
     </p>
 
+    <!-- 移动端分页：每页固定 10 条，展示总条数与页码，与产品列表保持一致 -->
     <div
-      v-if="data.length > 0"
-      ref="loadMoreSentinel"
-      class="load-more"
+      v-if="total > 0"
+      class="pagination-container pagination-container--mobile"
     >
-      <el-button
-        v-if="hasMore"
-        class="load-more-btn"
-        :loading="loading"
-        @click="emit('load-more')"
-      >
-        加载更多
-      </el-button>
-      <span
-        v-else
-        class="load-more-end"
-      >没有更多了</span>
+      <el-pagination
+        :current-page="page"
+        :page-size="pageSize"
+        :total="total"
+        :pager-count="5"
+        size="small"
+        background
+        layout="total, prev, pager, next"
+        @current-change="handleMobilePageChange"
+      />
     </div>
   </div>
 
@@ -348,7 +347,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { maskPhone, formatTime, statusTagType, statusText, displayProductPrice, auditResultText } from '../utils'
 import { useIsMobile } from '@/composables/useIsMobile'
 import SkeletonList from '@/components/SkeletonList.vue'
@@ -371,7 +370,6 @@ const emit = defineEmits<{
   'update:page': [value: number]
   'update:pageSize': [value: number]
   'page-change': []
-  'load-more': []
   retry: []
   approve: [row: Order]
   reject: [row: Order]
@@ -418,70 +416,26 @@ const handleDocumentPointerDown = (event: PointerEvent) => {
   }
 }
 
-// 加载更多哨兵：进入视口即自动加载下一页，按钮同时保留用于手动触发
-const loadMoreSentinel = ref<HTMLElement | null>(null)
-// 防止同一时刻重复触发
-const pendingLoad = ref(false)
-// 自动加载拿不到新数据时停用（弱网/失败），按钮仍可手动重试，避免无限请求
-const autoLoadStopped = ref(false)
-let lengthBeforeLoad = 0
-let observer: IntersectionObserver | null = null
+// 移动端翻页：更新页码后重新拉取，并回到列表顶部
+const listRef = ref<HTMLElement | null>(null)
 
-// 移动端累加加载：已加载条数小于总数时仍有下一页
-const hasMore = computed(() => props.data.length < props.total)
-
-const maybeLoadMore = () => {
-  const sentinel = loadMoreSentinel.value
-  if (!sentinel || !isMobile.value || props.loading || pendingLoad.value || autoLoadStopped.value) return
-  if (!hasMore.value) return
-  const rect = sentinel.getBoundingClientRect()
-  const viewportHeight = window.innerHeight || document.documentElement.clientHeight
-  if (rect.top <= viewportHeight + 120) {
-    pendingLoad.value = true
-    emit('load-more')
-  }
+const handleMobilePageChange = (nextPage: number) => {
+  emit('update:page', nextPage)
+  emit('page-change')
+  scrollListToTop()
 }
 
-watch(loadMoreSentinel, (element) => {
-  observer?.disconnect()
-  observer = null
-  if (!element) return
-  if (typeof IntersectionObserver === 'undefined') return
-  observer = new IntersectionObserver(
-    (entries) => {
-      if (entries.some((entry) => entry.isIntersecting)) maybeLoadMore()
-    },
-    { rootMargin: '120px 0px' }
-  )
-  observer.observe(element)
-})
-
-// 一次加载结束后重置标记；若内容仍不足一屏则继续补齐
-watch(
-  () => props.loading,
-  (loading) => {
-    if (loading) {
-      lengthBeforeLoad = props.data.length
-      return
-    }
-    if (pendingLoad.value && props.data.length <= lengthBeforeLoad) {
-      autoLoadStopped.value = true
-    }
-    pendingLoad.value = false
-    nextTick(maybeLoadMore)
+// 移动端滚动容器是布局里的 .mobile-main，回到顶部避免翻页后停在半截
+const scrollListToTop = () => {
+  const scroller = listRef.value?.closest('.mobile-main')
+  if (scroller) {
+    scroller.scrollTo({ top: 0 })
+    return
   }
-)
-
-// 列表被重置（筛选/刷新）后恢复自动加载
-watch(
-  () => props.data.length,
-  (length, previous) => {
-    if (previous !== undefined && length < previous) autoLoadStopped.value = false
-  }
-)
+  window.scrollTo({ top: 0 })
+}
 
 onUnmounted(() => {
-  observer?.disconnect()
   window.removeEventListener('scroll', closeSwipeActions, true)
   window.removeEventListener('pointerdown', handleDocumentPointerDown, true)
 })
@@ -641,20 +595,33 @@ onMounted(() => {
   }
 }
 
-.load-more {
-  display: flex;
-  align-items: center;
+// 移动端分页：居中、单行不换行，320px 下也不溢出
+.pagination-container--mobile {
   justify-content: center;
-  padding: 8px 0 4px;
+  margin-top: 12px;
+  padding-bottom: 4px;
+  overflow: hidden;
 
-  .load-more-btn {
-    min-width: 160px;
-    min-height: 44px;
+  :deep(.el-pagination) {
+    flex-wrap: nowrap;
+    white-space: nowrap;
+    column-gap: 2px;
   }
 
-  .load-more-end {
+  :deep(.el-pagination__total) {
+    margin-right: 2px;
     font-size: 12px;
-    color: #c0c4cc;
+  }
+
+  // 收窄翻页按钮与页码间距，保证 320px 下「总条数 + 5 个页码位」单行放下
+  :deep(.btn-prev),
+  :deep(.btn-next) {
+    margin-left: 0;
+    margin-right: 0;
+  }
+
+  :deep(.el-pager li) {
+    margin: 0 2px;
   }
 }
 </style>

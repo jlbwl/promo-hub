@@ -38,7 +38,6 @@
       :only-duplicate="filterOnlyDuplicate"
       :load-error="loadError"
       @page-change="fetchData"
-      @load-more="loadMore"
       @retry="fetchData"
       @approve="handleApprove"
       @reject="handleReject"
@@ -78,7 +77,6 @@ const {
   loadError,
   fetchStats,
   fetchData,
-  loadMore,
   handleFilterChange,
   handleReset,
   handleApprove,
@@ -107,12 +105,9 @@ const refreshAll = () => {
   fetchData()
 }
 
-// 下拉刷新：回到第一页重新拉取统计与列表；失败时恢复页码避免加载更多重复
+// 下拉刷新：保持当前页，仅重新拉取统计与列表（与产品列表行为一致）
 const handleRefresh = async () => {
-  const previousPage = pagination.page
-  pagination.page = 1
-  const [success] = await Promise.all([fetchData(), fetchStats()])
-  if (!success) pagination.page = previousPage
+  await Promise.all([fetchData(), fetchStats()])
 }
 
 const pageRef = ref<HTMLElement | null>(null)
