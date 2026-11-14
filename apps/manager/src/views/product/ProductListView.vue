@@ -325,93 +325,103 @@
           </el-button>
         </div>
 
-        <div
+        <SwipeActionCell
           v-for="row in tableData"
           :key="row.id"
-          class="product-card"
+          class="product-swipe-cell"
+          :data-product-id="row.id"
+          :open="openProductId === row.id"
+          @update:open="value => handleSwipeOpen(row, value)"
         >
-          <div class="card-body">
-            <el-image
-              class="card-cover"
-              :src="row.cover"
-              :preview-src-list="row.cover ? [row.cover] : []"
-              fit="cover"
-              preview-teleported
-            >
-              <template #error>
-                <div class="image-placeholder">
-                  <el-icon><Picture /></el-icon>
+          <div class="product-card">
+            <div class="card-body">
+              <el-image
+                class="card-cover"
+                :src="row.cover"
+                :preview-src-list="row.cover ? [row.cover] : []"
+                fit="cover"
+                preview-teleported
+              >
+                <template #error>
+                  <div class="image-placeholder">
+                    <el-icon><Picture /></el-icon>
+                  </div>
+                </template>
+              </el-image>
+              <div class="card-main">
+                <div class="card-title">
+                  {{ row.title }}
                 </div>
-              </template>
-            </el-image>
-            <div class="card-main">
-              <div class="card-title">
-                {{ row.title }}
-              </div>
-              <div class="card-meta">
-                <el-tag
-                  type="primary"
-                  size="small"
-                  effect="plain"
-                >
-                  {{ getCategoryLabel(row) }}
-                </el-tag>
-                <el-tag
-                  :type="statusTagType(row.status)"
-                  size="small"
-                >
-                  {{ statusText(row.status) }}
-                </el-tag>
-                <el-button
-                  v-if="row.status === 'admin_offline' && row.offlineReason"
-                  type="info"
-                  link
-                  size="small"
-                  @click="showOfflineReason(row)"
-                >
-                  下架理由
-                </el-button>
-              </div>
-              <div class="card-figures">
-                <span class="card-price">¥{{ Number(row.price || 0).toFixed(2) }}</span>
-                <span class="card-time">{{ row.createdAt }}</span>
+                <div class="card-meta">
+                  <el-tag
+                    type="primary"
+                    size="small"
+                    effect="plain"
+                  >
+                    {{ getCategoryLabel(row) }}
+                  </el-tag>
+                  <el-tag
+                    :type="statusTagType(row.status)"
+                    size="small"
+                  >
+                    {{ statusText(row.status) }}
+                  </el-tag>
+                  <el-button
+                    v-if="row.status === 'admin_offline' && row.offlineReason"
+                    type="info"
+                    link
+                    size="small"
+                    @click="showOfflineReason(row)"
+                  >
+                    下架理由
+                  </el-button>
+                </div>
+                <div class="card-figures">
+                  <span class="card-price">¥{{ Number(row.price || 0).toFixed(2) }}</span>
+                  <span class="card-time">{{ row.createdAt }}</span>
+                </div>
               </div>
             </div>
           </div>
-          <!-- 卡片操作：按钮均满足 44px 触控高度 -->
-          <div class="card-actions">
-            <el-button
-              type="primary"
-              plain
-              @click="handleEdit(row)"
+
+          <!-- 左滑露出的操作项：44px 以上触控高度 -->
+          <template #actions="{ open }">
+            <button
+              type="button"
+              class="swipe-action is-edit"
+              :tabindex="open ? 0 : -1"
+              @click="handleSwipeAction(row, 'edit')"
             >
               编辑
-            </el-button>
-            <el-button
+            </button>
+            <button
               v-if="row.status === 'draft' || row.status === 'offline'"
-              type="success"
-              plain
-              @click="handleToggleStatus(row, 'published')"
+              type="button"
+              class="swipe-action is-publish"
+              :tabindex="open ? 0 : -1"
+              @click="handleSwipeAction(row, 'toggle')"
             >
               发布
-            </el-button>
-            <el-button
-              v-if="row.status === 'published'"
-              type="warning"
-              plain
-              @click="handleToggleStatus(row, 'offline')"
+            </button>
+            <button
+              v-else-if="row.status === 'published'"
+              type="button"
+              class="swipe-action is-offline"
+              :tabindex="open ? 0 : -1"
+              @click="handleSwipeAction(row, 'toggle')"
             >
               下架
-            </el-button>
-            <el-button
-              type="danger"
-              plain
-              @click="handleDelete(row)"
+            </button>
+            <button
+              type="button"
+              class="swipe-action is-danger"
+              :tabindex="open ? 0 : -1"
+              @click="handleSwipeAction(row, 'delete')"
             >
               删除
-            </el-button>
-          </div>
-        </div>
+            </button>
+          </template>
+        </SwipeActionCell>
 
         <div class="load-more">
           <el-button
@@ -452,7 +462,7 @@
 <script setup lang="ts">
 import { logger } from '@promo/shared/utils/logger'
 import { getErrorMessage } from '@promo/shared/utils/errors'
-import { ref, reactive, computed, onMounted, watch } from 'vue'
+import { ref, reactive, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Picture } from '@element-plus/icons-vue'
@@ -462,6 +472,7 @@ import { useIsMobile } from '../../composables/useIsMobile'
 import { usePullToRefresh } from '../../composables/usePullToRefresh'
 import SkeletonList from '../../components/SkeletonList.vue'
 import PullRefreshHint from '../../components/PullRefreshHint.vue'
+import SwipeActionCell from '../../components/SwipeActionCell.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -757,10 +768,57 @@ const handleDelete = async (row: Product) => {
   }
 }
 
+// 移动端卡片左滑展开：同一时刻只允许一张卡片展开
+const openProductId = ref<string | null>(null)
+
+const handleSwipeOpen = (row: Product, open: boolean) => {
+  if (open) {
+    openProductId.value = row.id
+  } else if (openProductId.value === row.id) {
+    openProductId.value = null
+  }
+}
+
+// 左滑操作项：复用原有的编辑/上下架/删除逻辑（含二次确认）
+const handleSwipeAction = (row: Product, action: 'edit' | 'toggle' | 'delete') => {
+  openProductId.value = null
+  if (action === 'edit') {
+    handleEdit(row)
+    return
+  }
+  if (action === 'delete') {
+    handleDelete(row)
+    return
+  }
+  handleToggleStatus(row, row.status === 'published' ? 'offline' : 'published')
+}
+
+const closeSwipeActions = () => {
+  openProductId.value = null
+}
+
+// 点击展开卡片以外的区域时收起
+const handleDocumentPointerDown = (event: PointerEvent) => {
+  if (!openProductId.value) return
+  const target = event.target as HTMLElement | null
+  const cell = target?.closest('[data-product-id]') as HTMLElement | null
+  if (!cell || cell.dataset.productId !== openProductId.value) {
+    openProductId.value = null
+  }
+}
+
 onMounted(() => {
   logger.debug('[ProductListView] onMounted 触发')
   fetchCategories()
   fetchData()
+  // 滚动（含列表容器）时收起，避免展开态与下拉刷新/滚动打架
+  window.addEventListener('scroll', closeSwipeActions, true)
+  window.addEventListener('pointerdown', handleDocumentPointerDown, true)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('scroll', closeSwipeActions, true)
+  window.removeEventListener('pointerdown', handleDocumentPointerDown, true)
 })
 
 // 监听路由变化，确保每次进入页面都重新获取数据
@@ -853,11 +911,17 @@ watch(
       gap: 10px;
     }
 
+    // 左滑操作容器：圆角与阴影放在外层，避免滑动时被内容裁剪
+    .product-swipe-cell {
+      background: #ffffff;
+      border-radius: 12px;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+    }
+
     .product-card {
       padding: 12px;
       background: #ffffff;
       border-radius: 12px;
-      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
     }
 
     .card-body {
@@ -921,18 +985,6 @@ watch(
         color: #909399;
         text-overflow: ellipsis;
         white-space: nowrap;
-      }
-    }
-
-    .card-actions {
-      display: flex;
-      gap: 8px;
-      margin-top: 10px;
-
-      .el-button {
-        flex: 1;
-        min-width: 0;
-        margin-left: 0;
       }
     }
 
