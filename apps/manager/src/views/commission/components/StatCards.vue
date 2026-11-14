@@ -175,79 +175,54 @@ const handleCardClick = (card: StatCardItem) => {
   }
 }
 
-// 手机：两列紧凑，待发放卡片跨两列作为强调操作入口
-@media (max-width: 767px) {
+// 手机：3 列 2 行，「已发放」跨 2 列填满第二行
+@media (max-width: 768px) {
   .stat-cards {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 10px;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
     margin-bottom: 12px;
   }
 
   .stat-card {
     :deep(.el-card__body) {
-      padding: 12px;
+      padding: 10px;
     }
 
     .stat-content {
       .stat-info {
         min-width: 0;
+        width: 100%;
 
         .stat-label {
           margin-bottom: 4px;
           font-size: 12px;
+          line-height: 1.2;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
         }
       }
 
       :deep(.el-statistic__content) {
         font-size: 20px;
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
       }
 
+      // 3 列宽度下图标与数字争空间，隐藏图标保证 5 位数不溢出、不换行
       .stat-icon {
-        flex: none;
-        width: 36px;
-        height: 36px;
-        border-radius: 10px;
-        font-size: 19px;
+        display: none;
       }
     }
 
-    // 普通卡片在手机上去掉角标，避免与数字挤在一起
-    &:not(.is-payment) .card-badge {
+    // 手机端去掉角标，待发放整卡可点（卡高 > 44px）
+    .card-badge {
       display: none;
     }
 
-    // 待发放：整行强调卡，右侧「去结算」满足 44px 触控
-    &.is-payment {
+    // 第二行剩一格：「已发放」跨 2 列填满
+    &:last-child {
       grid-column: span 2;
-      display: flex;
-      align-items: center;
-
-      :deep(.el-card__body) {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 12px;
-        width: 100%;
-      }
-
-      .stat-content {
-        flex: 1;
-        min-width: 0;
-      }
-
-      .card-badge {
-        position: static;
-        flex: none;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        min-height: 44px;
-        padding: 0 18px;
-        border-radius: 10px;
-        font-size: 14px;
-        font-weight: 600;
-        background: linear-gradient(135deg, #409eff, #66b1ff);
-      }
     }
   }
 }

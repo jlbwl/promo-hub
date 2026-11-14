@@ -15,6 +15,7 @@ import {
   readProduct,
   incrementProductStock,
   deleteProduct,
+  getProductsPaginated,
 } from '../product.js'
 
 // 通过 INFORMATION_SCHEMA 查询的参数控制 columnExists 结果：
@@ -265,6 +266,36 @@ describe('data/product.ts', () => {
 
       expect(lastSql()).toBe('DELETE FROM products WHERE id = ?')
       expect(lastParams()).toEqual(['p_1'])
+    })
+  })
+
+  describe('getProductsPaginated 排序', () => {
+    it('经理端按已发布优先 + 最后编辑时间倒序', async () => {
+      mockQueryOne.mockResolvedValue({ total: 0 } as never)
+      mockQuery.mockResolvedValue([])
+
+      await getProductsPaginated({ managerId: 'm1', page: 1, pageSize: 10 })
+
+      const sql = lastSql()
+      expect(sql).toContain("WHEN 'published' THEN 0")
+      expect(sql).toContain("WHEN 'draft' THEN 1")
+      expect(sql).toContain("WHEN 'offline' THEN 2")
+      expect(sql).toContain("WHEN 'admin_offline' THEN 3")
+      expect(sql).toContain('updatedAt DESC')
+      // 计数查询与列表查询共用同一 WHERE，总数不受排序影响
+      const countSql = String(mockQueryOne.mock.calls[0]?.[0])
+      expect(countSql).toContain('SELECT COUNT(1) as total FROM products WHERE managerId = ?')
+    })
+
+    it('非经理端（用户端）保持发布时间倒序不变', async () => {
+      mockQueryOne.mockResolvedValue({ total: 0 } as never)
+      mockQuery.mockResolvedValue([])
+
+      await getProductsPaginated({ status: 'published', page: 1, pageSize: 10 })
+
+      const sql = lastSql()
+      expect(sql).toContain('ORDER BY COALESCE(publishedAt, createdAt) DESC')
+      expect(sql).not.toContain('CASE status')
     })
   })
 })

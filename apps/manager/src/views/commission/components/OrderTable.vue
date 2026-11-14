@@ -42,104 +42,106 @@
       </el-button>
     </div>
 
-    <article
+    <SwipeActionCell
       v-for="row in data"
       :key="row.id"
-      class="order-card"
+      class="order-swipe-cell"
+      :data-order-id="row.id"
+      :open="openOrderId === row.id"
+      :disabled="row.status !== 'pending'"
+      @update:open="value => handleSwipeOpen(row, value)"
     >
-      <div class="card-head">
-        <span class="card-title">{{ row.productName }}</span>
-        <el-tag
-          :type="statusTagType(row.status)"
-          size="small"
-        >
-          {{ statusText(row.status) }}
-        </el-tag>
-      </div>
+      <!-- 卡片信息层级对齐用户端佣金记录：左侧标题/辅助信息，右侧金额/状态 -->
+      <article class="order-card">
+        <div class="card-main">
+          <div class="card-left">
+            <h4 class="card-title">
+              <span class="card-title-text">{{ row.productName }}</span>
+              <el-tag
+                v-if="row.optionLabel"
+                size="small"
+                type="info"
+                effect="plain"
+              >
+                {{ row.optionLabel }}
+              </el-tag>
+              <el-tag
+                v-if="row.fundAccount"
+                size="small"
+                type="primary"
+                effect="plain"
+              >
+                {{ row.fundAccount }}
+              </el-tag>
+              <el-tag
+                v-if="row.duplicate"
+                size="small"
+                type="warning"
+              >
+                重单
+              </el-tag>
+            </h4>
+            <div
+              v-if="row.userName || row.userPhone"
+              class="card-user"
+            >
+              <span v-if="row.userName">姓名：{{ row.userName }}</span>
+              <span v-if="row.userPhone">手机：{{ maskPhone(row.userPhone) }}</span>
+            </div>
+            <span class="card-time">{{ formatTime(row.createdAt) }}</span>
+            <span
+              v-if="row.status === 'rejected'"
+              class="card-reject"
+            >驳回原因：{{ auditResultText(row) }}</span>
+            <span
+              v-else-if="row.settledAt"
+              class="card-settled"
+            >发放：{{ formatTime(row.settledAt) }}</span>
+          </div>
+          <div class="card-right">
+            <span class="card-price">{{ displayProductPrice(row) }}</span>
+            <el-tag
+              :type="statusTagType(row.status)"
+              size="small"
+              round
+            >
+              {{ statusText(row.status) }}
+            </el-tag>
+          </div>
+        </div>
 
-      <div
-        v-if="row.optionLabel || row.fundAccount || row.duplicate"
-        class="card-tags"
-      >
-        <el-tag
-          v-if="row.optionLabel"
-          size="small"
-          type="info"
+        <BottomActionBar
+          v-if="row.status === 'approved'"
         >
-          {{ row.optionLabel }}
-        </el-tag>
-        <el-tag
-          v-if="row.fundAccount"
-          size="small"
-          type="primary"
-          plain
-        >
-          {{ row.fundAccount }}
-        </el-tag>
-        <el-tag
-          v-if="row.duplicate"
-          size="small"
-          type="warning"
-        >
-          重单
-        </el-tag>
-      </div>
+          <el-button
+            type="primary"
+            @click="emit('add-to-payment', row)"
+          >
+            添加到待发放
+          </el-button>
+        </BottomActionBar>
+      </article>
 
-      <dl class="card-rows">
-        <div class="card-row">
-          <dt>用户</dt>
-          <dd>{{ row.userName || '--' }}</dd>
-        </div>
-        <div class="card-row">
-          <dt>手机号</dt>
-          <dd>{{ maskPhone(row.userPhone) }}</dd>
-        </div>
-        <div class="card-row">
-          <dt>推广费</dt>
-          <dd class="card-price">
-            {{ displayProductPrice(row) }}
-          </dd>
-        </div>
-        <div class="card-row">
-          <dt>做单时间</dt>
-          <dd>{{ formatTime(row.createdAt) }}</dd>
-        </div>
-        <div class="card-row">
-          <dt>审核结果</dt>
-          <dd :class="{ 'is-danger': row.status === 'rejected' }">
-            {{ auditResultText(row) }}
-          </dd>
-        </div>
-        <div class="card-row">
-          <dt>发放日期</dt>
-          <dd>{{ row.settledAt ? formatTime(row.settledAt) : '--' }}</dd>
-        </div>
-      </dl>
-
-      <BottomActionBar
-        v-if="row.status === 'pending'"
-      >
-        <el-button @click="emit('reject', row)">
-          驳回
-        </el-button>
-        <el-button
-          type="success"
-          @click="emit('approve', row)"
+      <!-- 待审核订单的左滑审核入口（44px 以上触控高度） -->
+      <template #actions="{ open }">
+        <button
+          type="button"
+          class="swipe-action is-success"
+          :tabindex="open ? 0 : -1"
+          @click="handleAuditAction(row, 'approve')"
         >
           审核通过
-        </el-button>
-      </BottomActionBar>
-      <BottomActionBar
-        v-else-if="row.status === 'approved'"
-      >
-        <el-button
-          type="primary"
-          @click="emit('add-to-payment', row)"
+        </button>
+        <button
+          type="button"
+          class="swipe-action is-danger"
+          :tabindex="open ? 0 : -1"
+          @click="handleAuditAction(row, 'reject')"
         >
-          添加到待发放
-        </el-button>
-      </BottomActionBar>
-    </article>
+          驳回
+        </button>
+      </template>
+    </SwipeActionCell>
 
     <p
       v-if="!loading && !loadError && data.length === 0"
@@ -346,11 +348,12 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onUnmounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { maskPhone, formatTime, statusTagType, statusText, displayProductPrice, auditResultText } from '../utils'
 import { useIsMobile } from '@/composables/useIsMobile'
 import SkeletonList from '@/components/SkeletonList.vue'
 import BottomActionBar from '@/components/BottomActionBar.vue'
+import SwipeActionCell from '@/components/SwipeActionCell.vue'
 import type { Order } from '@promo/shared/types'
 
 const props = defineProps<{
@@ -379,6 +382,41 @@ const { isMobile } = useIsMobile()
 
 // 首屏加载中（移动端展示骨架卡片）
 const firstLoading = computed(() => props.loading && props.data.length === 0)
+
+// 左滑审核：同一时刻只允许一张卡片展开
+const openOrderId = ref<string | null>(null)
+
+const handleSwipeOpen = (row: Order, open: boolean) => {
+  if (open) {
+    openOrderId.value = row.id
+  } else if (openOrderId.value === row.id) {
+    openOrderId.value = null
+  }
+}
+
+// 审核入口复用父级原有逻辑（通过需确认、驳回需填写原因）
+const handleAuditAction = (row: Order, action: 'approve' | 'reject') => {
+  openOrderId.value = null
+  if (action === 'approve') {
+    emit('approve', row)
+    return
+  }
+  emit('reject', row)
+}
+
+const closeSwipeActions = () => {
+  openOrderId.value = null
+}
+
+// 点击展开卡片以外的区域时收起
+const handleDocumentPointerDown = (event: PointerEvent) => {
+  if (!openOrderId.value) return
+  const target = event.target as HTMLElement | null
+  const cell = target?.closest('[data-order-id]') as HTMLElement | null
+  if (!cell || cell.dataset.orderId !== openOrderId.value) {
+    openOrderId.value = null
+  }
+}
 
 // 加载更多哨兵：进入视口即自动加载下一页，按钮同时保留用于手动触发
 const loadMoreSentinel = ref<HTMLElement | null>(null)
@@ -442,7 +480,17 @@ watch(
   }
 )
 
-onUnmounted(() => observer?.disconnect())
+onUnmounted(() => {
+  observer?.disconnect()
+  window.removeEventListener('scroll', closeSwipeActions, true)
+  window.removeEventListener('pointerdown', handleDocumentPointerDown, true)
+})
+
+onMounted(() => {
+  // 滚动（含列表容器）或点击外部时收起左滑操作
+  window.addEventListener('scroll', closeSwipeActions, true)
+  window.addEventListener('pointerdown', handleDocumentPointerDown, true)
+})
 </script>
 
 <style lang="scss" scoped>
@@ -456,8 +504,13 @@ onUnmounted(() => observer?.disconnect())
 .order-cards {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
   min-height: 120px;
+}
+
+// 左滑容器与卡片共用圆角，滑出时操作区按圆角裁剪
+.order-swipe-cell {
+  border-radius: 12px;
 }
 
 .order-card {
@@ -466,64 +519,87 @@ onUnmounted(() => observer?.disconnect())
   border: 1px solid #ebeef5;
   border-radius: 12px;
 
-  .card-head {
+  .card-main {
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
-    gap: 8px;
+    gap: 12px;
+  }
+
+  .card-left {
+    flex: 1;
+    min-width: 0;
   }
 
   .card-title {
-    flex: 1;
-    min-width: 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    margin: 0 0 6px;
     font-size: 15px;
     font-weight: 600;
     line-height: 1.4;
     color: #303133;
+  }
+
+  .card-title-text {
+    min-width: 0;
+    max-width: 100%;
     word-break: break-all;
   }
 
-  .card-tags {
+  .card-user {
     display: flex;
     flex-wrap: wrap;
-    gap: 6px;
-    margin-top: 8px;
+    gap: 4px 8px;
+    margin-bottom: 4px;
+    font-size: 12px;
+    line-height: 1.4;
+    color: #909399;
   }
-}
 
-.card-rows {
-  margin-top: 10px;
+  .card-time {
+    display: block;
+    font-size: 12px;
+    line-height: 1.4;
+    color: #a8abb2;
+  }
 
-  .card-row {
+  .card-reject {
+    display: block;
+    margin-top: 4px;
+    font-size: 12px;
+    line-height: 1.4;
+    color: #f56c6c;
+    word-break: break-all;
+  }
+
+  .card-settled {
+    display: block;
+    margin-top: 4px;
+    font-size: 12px;
+    line-height: 1.4;
+    color: #909399;
+  }
+
+  .card-right {
+    flex: none;
     display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: 12px;
-    padding: 3px 0;
-    font-size: 13px;
-
-    dt {
-      flex: none;
-      color: #909399;
-    }
-
-    dd {
-      flex: 1;
-      min-width: 0;
-      color: #303133;
-      text-align: right;
-      word-break: break-all;
-
-      &.is-danger {
-        color: #f56c6c;
-      }
-    }
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 6px;
+    max-width: 45%;
   }
 
   .card-price {
-    font-size: 15px;
+    font-size: 16px;
     font-weight: 600;
-    color: #409eff;
+    line-height: 1.2;
+    color: #303133;
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+    word-break: break-all;
   }
 }
 

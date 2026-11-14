@@ -246,7 +246,8 @@ onBeforeUnmount(() => {
     background-color: #409eff;
   }
 
-  &.is-publish {
+  &.is-publish,
+  &.is-success {
     background-color: #67c23a;
   }
 

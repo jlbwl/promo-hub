@@ -423,19 +423,18 @@
           </template>
         </SwipeActionCell>
 
-        <div class="load-more">
-          <el-button
-            v-if="hasMore"
-            class="load-more-btn"
-            :loading="loading"
-            @click="loadMore"
-          >
-            加载更多
-          </el-button>
-          <span
-            v-else
-            class="load-more-end"
-          >没有更多了</span>
+        <!-- 移动端分页：每页固定 10 条，展示总条数与页码 -->
+        <div class="pagination-container pagination-container--mobile">
+          <el-pagination
+            v-model:current-page="pagination.page"
+            :page-size="pagination.pageSize"
+            :total="pagination.total"
+            :pager-count="5"
+            size="small"
+            background
+            layout="total, prev, pager, next"
+            @current-change="handleMobilePageChange"
+          />
         </div>
       </template>
     </div>
@@ -557,8 +556,6 @@ const tableData = ref<Product[]>([])
 
 // 首屏加载中（用于移动端骨架屏）
 const firstLoading = computed(() => loading.value && tableData.value.length === 0)
-// 是否还有下一页（移动端加载更多）
-const hasMore = computed(() => tableData.value.length < pagination.total)
 
 // 获取状态标签类型
 const statusTagType = (status: ProductStatus) => {
@@ -618,11 +615,10 @@ const fetchCategories = async () => {
   }
 }
 
-// 获取产品列表数据；append 为 true 时追加到现有列表（移动端加载更多）
-const fetchData = async (append = false): Promise<boolean> => {
-  if (append && loading.value) return false
+// 获取产品列表数据（移动端与桌面端均按当前页码整页加载）
+const fetchData = async (): Promise<boolean> => {
   loading.value = true
-  if (!append) loadError.value = ''
+  loadError.value = ''
   try {
     const currentManagerId = getManagerId()
     logger.debug('[fetchData] 正在获取产品列表，managerId:', currentManagerId)
@@ -644,9 +640,15 @@ const fetchData = async (append = false): Promise<boolean> => {
       cover: p.coverImage || p.cover || '',
       commission: p.commission || 0,
     }))
-    tableData.value = append ? [...tableData.value, ...mapped] : mapped
+    tableData.value = mapped
     pagination.total = total
     loadError.value = ''
+    // 删除末页最后一条后页码可能越界，回退到最后一个有效页
+    const lastPage = Math.max(1, Math.ceil(total / pagination.pageSize))
+    if (pagination.page > lastPage) {
+      pagination.page = lastPage
+      return fetchData()
+    }
     return true
   } catch (error) {
     logger.error('获取产品列表失败:', error)
@@ -659,30 +661,31 @@ const fetchData = async (append = false): Promise<boolean> => {
   }
 }
 
-// 移动端：加载下一页并追加，失败则回退页码
-const loadMore = async () => {
-  if (loading.value || !hasMore.value) return
-  pagination.page += 1
-  const ok = await fetchData(true)
-  if (!ok) pagination.page -= 1
+// 移动端翻页：加载目标页并回到列表顶部
+const handleMobilePageChange = (page: number) => {
+  pagination.page = page
+  fetchData()
+  scrollListToTop()
 }
 
-// 失败重试：已有数据时继续加载下一页，否则从第一页重新拉取
-const handleRetry = () => {
-  if (tableData.value.length && hasMore.value) {
-    loadMore()
+// 移动端滚动容器是布局里的 .mobile-main，回到顶部避免翻页后停在半截
+const scrollListToTop = () => {
+  const scroller = pageRef.value?.closest('.mobile-main')
+  if (scroller) {
+    scroller.scrollTo({ top: 0 })
     return
   }
-  pagination.page = 1
+  window.scrollTo({ top: 0 })
+}
+
+// 失败重试：重新拉取当前页
+const handleRetry = () => {
   fetchData()
 }
 
-// 下拉刷新：回到第一页重新拉取列表；失败时恢复页码避免加载更多重复
+// 下拉刷新：保持在当前页重新拉取
 const handleRefresh = async () => {
-  const previousPage = pagination.page
-  pagination.page = 1
-  const ok = await fetchData()
-  if (!ok) pagination.page = previousPage
+  await fetchData()
 }
 
 const {
@@ -856,6 +859,36 @@ watch(
     margin-top: 16px;
   }
 
+  // 移动端分页：居中、单行不换行，320px 下也不溢出
+  .pagination-container--mobile {
+    justify-content: center;
+    margin-top: 12px;
+    padding-bottom: 4px;
+    overflow: hidden;
+
+    :deep(.el-pagination) {
+      flex-wrap: nowrap;
+      white-space: nowrap;
+      column-gap: 2px;
+    }
+
+    :deep(.el-pagination__total) {
+      margin-right: 2px;
+      font-size: 12px;
+    }
+
+    // 收窄翻页按钮与页码间距，保证 320px 下「总条数 + 5 个页码位」单行放下
+    :deep(.btn-prev),
+    :deep(.btn-next) {
+      margin-left: 0;
+      margin-right: 0;
+    }
+
+    :deep(.el-pager li) {
+      margin: 0 2px;
+    }
+  }
+
   .title-with-category {
     display: flex;
     flex-direction: column;
@@ -985,22 +1018,6 @@ watch(
         color: #909399;
         text-overflow: ellipsis;
         white-space: nowrap;
-      }
-    }
-
-    .load-more {
-      display: flex;
-      justify-content: center;
-      padding: 4px 0 8px;
-
-      .load-more-btn {
-        width: 100%;
-      }
-
-      .load-more-end {
-        padding: 8px 0;
-        font-size: 12px;
-        color: #909399;
       }
     }
 

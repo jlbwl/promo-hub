@@ -279,7 +279,17 @@ export async function getProductsPaginated(params: {
     const pageSize = parsePageSize(params.pageSize)
     const offset = (page - 1) * pageSize
 
-    const sql = `SELECT * FROM products ${whereClause} ORDER BY COALESCE(publishedAt, createdAt) DESC LIMIT ? OFFSET ?`
+    // 经理端产品管理：已发布优先，同一状态内按最后编辑时间倒序；
+    // 其余状态按「草稿 → 已下架 → 被管理员下架」归置，未知状态排在最后
+    const managerOrderBy = `CASE status
+      WHEN 'published' THEN 0
+      WHEN 'draft' THEN 1
+      WHEN 'offline' THEN 2
+      WHEN 'admin_offline' THEN 3
+      ELSE 4 END ASC, updatedAt DESC, id DESC`
+    const orderBy = hasManagerId ? managerOrderBy : 'COALESCE(publishedAt, createdAt) DESC'
+
+    const sql = `SELECT * FROM products ${whereClause} ORDER BY ${orderBy} LIMIT ? OFFSET ?`
     const allValues = [...values, pageSize, offset]
 
     const products = (await query(sql, allValues)) as ProductRow[]
@@ -344,6 +354,18 @@ export async function getProductsPaginated(params: {
         const count = salesMap.get(o.productId) || 0
         salesMap.set(o.productId, count + 1)
       })
+
+      // 降级到文件存储时保持与 SQL 一致的经理端排序
+      if (params.managerId) {
+        const statusRank: Record<string, number> = { published: 0, draft: 1, offline: 2, admin_offline: 3 }
+        products.sort((a, b) => {
+          const byStatus = (statusRank[a.status] ?? 4) - (statusRank[b.status] ?? 4)
+          if (byStatus !== 0) return byStatus
+          const byUpdatedAt = String(b.updatedAt || '').localeCompare(String(a.updatedAt || ''))
+          if (byUpdatedAt !== 0) return byUpdatedAt
+          return String(b.id || '').localeCompare(String(a.id || ''))
+        })
+      }
 
       const total = products.length
       const page = parsePage(params.page)
