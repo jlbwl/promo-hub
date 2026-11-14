@@ -6,7 +6,7 @@
       :key="card.status"
       shadow="hover"
       class="stat-card clickable"
-      :class="{ 'has-items': card.isPayment && stats.pendingPayment > 0 }"
+      :class="{ 'has-items': card.isPayment && stats.pendingPayment > 0, 'is-payment': card.isPayment }"
       @click="handleCardClick(card)"
     >
       <div class="stat-content">
@@ -139,11 +139,6 @@ const handleCardClick = (card: StatCardItem) => {
     transition: all 0.3s;
     border: 2px solid transparent;
 
-    &:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 4px 16px rgba(64, 158, 255, 0.3);
-    }
-
     &.has-items {
       border-color: #409eff;
     }
@@ -161,17 +156,99 @@ const handleCardClick = (card: StatCardItem) => {
   }
 }
 
-// 窄屏换行：平板两列、手机单列，避免文字被挤压
+// 触屏设备无 hover，用按压缩放反馈替代抬升
+@media (hover: hover) {
+  .stat-card.clickable:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px rgba(64, 158, 255, 0.3);
+  }
+}
+
+.stat-card.clickable:active {
+  background-color: #f5f9ff;
+}
+
+// 窄屏换行：平板两列
 @media (max-width: 991px) {
   .stat-cards {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
+// 手机：两列紧凑，待发放卡片跨两列作为强调操作入口
 @media (max-width: 767px) {
   .stat-cards {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 12px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+
+  .stat-card {
+    :deep(.el-card__body) {
+      padding: 12px;
+    }
+
+    .stat-content {
+      .stat-info {
+        min-width: 0;
+
+        .stat-label {
+          margin-bottom: 4px;
+          font-size: 12px;
+        }
+      }
+
+      :deep(.el-statistic__content) {
+        font-size: 20px;
+      }
+
+      .stat-icon {
+        flex: none;
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+        font-size: 19px;
+      }
+    }
+
+    // 普通卡片在手机上去掉角标，避免与数字挤在一起
+    &:not(.is-payment) .card-badge {
+      display: none;
+    }
+
+    // 待发放：整行强调卡，右侧「去结算」满足 44px 触控
+    &.is-payment {
+      grid-column: span 2;
+      display: flex;
+      align-items: center;
+
+      :deep(.el-card__body) {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        width: 100%;
+      }
+
+      .stat-content {
+        flex: 1;
+        min-width: 0;
+      }
+
+      .card-badge {
+        position: static;
+        flex: none;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 44px;
+        padding: 0 18px;
+        border-radius: 10px;
+        font-size: 14px;
+        font-weight: 600;
+        background: linear-gradient(135deg, #409eff, #66b1ff);
+      }
+    }
   }
 }
 </style>

@@ -18,7 +18,8 @@
         ref="formRef"
         :model="form"
         :rules="formRules"
-        label-width="120px"
+        :label-width="isMobile ? 'auto' : '120px'"
+        :label-position="isMobile ? 'top' : 'right'"
         style="max-width: 700px;"
       >
         <!-- 产品标题 -->
@@ -69,7 +70,7 @@
 
         <!-- 价格与库存 -->
         <el-row :gutter="20">
-          <el-col :span="12">
+          <el-col :span="isMobile ? 24 : 12">
             <el-form-item
               label="推广费"
               prop="price"
@@ -84,7 +85,7 @@
               />
             </el-form-item>
           </el-col>
-          <el-col :span="12">
+          <el-col :span="isMobile ? 24 : 12">
             <el-form-item
               label="库存"
               prop="stock"
@@ -135,7 +136,7 @@
         </el-form-item>
 
         <!-- 操作按钮 -->
-        <el-form-item>
+        <el-form-item class="form-actions">
           <el-button
             type="primary"
             :loading="saving"
@@ -159,6 +160,9 @@ import RichTextEditor from '@/components/RichTextEditor.vue'
 import OptionGroupEditor from './components/OptionGroupEditor.vue'
 import AutoCoverPreview from './components/AutoCoverPreview.vue'
 import { useProductEdit } from './composables/useProductEdit'
+import { useIsMobile } from '../../composables/useIsMobile'
+
+const { isMobile } = useIsMobile()
 
 // 富文本编辑器引用
 const richTextRef = ref<InstanceType<typeof RichTextEditor>>()
@@ -189,6 +193,39 @@ const {
     color: #909399;
     line-height: 1.4;
     margin-top: 4px;
+  }
+}
+
+// 手机：表单项标签置顶，卡片内边距收紧
+@media (max-width: 767px) {
+  .product-edit-page {
+    :deep(.el-card__header) {
+      padding: 12px;
+    }
+
+    :deep(.el-card__body) {
+      padding: 12px;
+    }
+
+    :deep(.el-form-item) {
+      margin-bottom: 18px;
+    }
+
+    :deep(.el-form-item__label) {
+      padding-bottom: 6px;
+      line-height: 20px;
+    }
+
+    // 保存/取消按钮铺满宽度，便于单手操作
+    :deep(.form-actions .el-form-item__content) {
+      display: flex;
+      gap: 10px;
+
+      .el-button {
+        flex: 1;
+        margin-left: 0;
+      }
+    }
   }
 }
 </style>

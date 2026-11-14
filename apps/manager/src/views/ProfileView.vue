@@ -66,24 +66,25 @@
             ref="passwordFormRef"
             :model="passwordForm"
             :rules="passwordRules"
-            label-width="100px"
+            :label-width="isMobile ? 'auto' : '100px'"
+            :label-position="isMobile ? 'top' : 'right'"
             style="max-width: 400px;"
           >
             <el-form-item
               label="验证码"
               prop="code"
             >
-              <div style="display: flex; gap: 12px;">
+              <div class="code-row">
                 <el-input
                   v-model="passwordForm.code"
+                  class="code-input"
                   placeholder="请输入验证码"
                   maxlength="6"
-                  style="flex: 1;"
                 />
                 <el-button
                   type="primary"
+                  class="sms-btn"
                   :disabled="smsCooldown > 0"
-                  style="min-width: 120px;"
                   @click="handleSendSms"
                 >
                   {{ smsCooldown > 0 ? `${smsCooldown}s` : '获取验证码' }}
@@ -112,7 +113,7 @@
                 show-password
               />
             </el-form-item>
-            <el-form-item>
+            <el-form-item class="password-actions">
               <el-button
                 type="primary"
                 :loading="passwordSaving"
@@ -139,6 +140,9 @@ import { ElMessage, type FormInstance, type FormItemRule, type FormRules } from 
 import { get, post, clearAuthStorage } from '@promo/shared/utils/request'
 import { formatDate } from '@promo/shared/utils/helpers'
 import type { Manager } from '@promo/shared/types'
+import { useIsMobile } from '../composables/useIsMobile'
+
+const { isMobile } = useIsMobile()
 
 // 密码表单引用
 const passwordFormRef = ref<FormInstance>()
@@ -347,6 +351,83 @@ onMounted(() => {
       :deep(.el-descriptions__label) {
         width: 100px;
       }
+    }
+  }
+}
+
+// 验证码行：输入框自适应，按钮保持可点宽度
+.code-row {
+  display: flex;
+  gap: 12px;
+  width: 100%;
+
+  .code-input {
+    flex: 1;
+  }
+
+  .sms-btn {
+    flex: none;
+    min-width: 120px;
+    margin-left: 0;
+  }
+}
+
+// 手机：表单项标签置顶、卡片内边距收紧、验证码按钮换行铺满
+@media (max-width: 767px) {
+  .profile-page {
+    :deep(.el-card__header) {
+      padding: 12px;
+    }
+
+    :deep(.el-card__body) {
+      padding: 12px;
+    }
+
+    :deep(.el-form-item) {
+      margin-bottom: 18px;
+    }
+
+    :deep(.el-form-item__label) {
+      padding-bottom: 6px;
+      line-height: 20px;
+    }
+
+    .profile-info {
+      .avatar-section {
+        margin-bottom: 16px;
+      }
+
+      .info-descriptions {
+        :deep(.el-descriptions__label) {
+          width: 84px;
+        }
+
+        :deep(.el-descriptions__content) {
+          word-break: break-word;
+        }
+      }
+    }
+
+    .password-actions {
+      :deep(.el-form-item__content) {
+        display: flex;
+        gap: 10px;
+
+        .el-button {
+          flex: 1;
+          margin-left: 0;
+        }
+      }
+    }
+  }
+
+  .code-row {
+    flex-direction: column;
+    gap: 10px;
+
+    .sms-btn {
+      width: 100%;
+      min-width: 0;
     }
   }
 }

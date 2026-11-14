@@ -47,7 +47,7 @@
             v-for="(opt, idx) in options"
             :key="idx"
           >
-            <td>
+            <td data-label="选项">
               <el-input
                 :model-value="opt.label"
                 placeholder="请输入"
@@ -55,7 +55,7 @@
                 @update:model-value="emit('update-field', idx, 'label', $event)"
               />
             </td>
-            <td>
+            <td data-label="限制做单量">
               <el-input
                 :model-value="opt.limit"
                 placeholder="请输入"
@@ -63,7 +63,7 @@
                 @update:model-value="emit('update-field', idx, 'limit', $event)"
               />
             </td>
-            <td>
+            <td data-label="提交后跳转">
               <div class="redirect-input-wrap">
                 <el-input
                   :model-value="opt.redirectUrl"
@@ -243,6 +243,63 @@ const openBatchAdd = () => {
     gap: 4px;
 
     .el-input {
+      flex: 1;
+    }
+  }
+}
+
+// 手机：表格转为竖向卡片，避免四列横向溢出
+@media (max-width: 767px) {
+  .option-group-config {
+    .option-group-header {
+      flex-wrap: wrap;
+      gap: 8px;
+
+      > div {
+        display: flex;
+        gap: 8px;
+      }
+    }
+
+    .option-table-wrapper {
+      border: none;
+      border-radius: 0;
+      overflow: visible;
+    }
+
+    .option-table,
+    .option-table tbody,
+    .option-table tr,
+    .option-table td {
+      display: block;
+      width: 100%;
+    }
+
+    .option-table thead {
+      display: none;
+    }
+
+    .option-table tr {
+      margin-bottom: 10px;
+      padding: 10px 12px;
+      border: 1px solid #ebeef5;
+      border-radius: 8px;
+    }
+
+    .option-table td {
+      padding: 4px 0;
+      border-bottom: none;
+
+      &[data-label]::before {
+        content: attr(data-label);
+        display: block;
+        margin-bottom: 4px;
+        font-size: 12px;
+        color: #909399;
+      }
+    }
+
+    .option-actions .el-button {
       flex: 1;
     }
   }

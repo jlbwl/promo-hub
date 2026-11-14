@@ -6,7 +6,7 @@
       class="stat-cards"
     >
       <el-col
-        :xs="24"
+        :xs="12"
         :sm="12"
         :md="6"
       >
@@ -29,7 +29,7 @@
         </el-card>
       </el-col>
       <el-col
-        :xs="24"
+        :xs="12"
         :sm="12"
         :md="6"
       >
@@ -52,7 +52,7 @@
         </el-card>
       </el-col>
       <el-col
-        :xs="24"
+        :xs="12"
         :sm="12"
         :md="6"
       >
@@ -75,7 +75,7 @@
         </el-card>
       </el-col>
       <el-col
-        :xs="24"
+        :xs="12"
         :sm="12"
         :md="6"
       >
@@ -230,6 +230,56 @@ onMounted(() => {
       display: flex;
       gap: 12px;
       flex-wrap: wrap;
+    }
+  }
+}
+
+// 手机：四张统计卡片两列紧凑展示，避免首屏只有卡片
+@media (max-width: 767px) {
+  .dashboard-page {
+    .stat-cards {
+      margin-bottom: 8px;
+    }
+
+    .stat-card {
+      margin-bottom: 10px;
+
+      :deep(.el-card__body) {
+        padding: 12px;
+      }
+
+      .stat-content {
+        .stat-info {
+          min-width: 0;
+
+          .stat-label {
+            margin-bottom: 4px;
+            font-size: 12px;
+          }
+        }
+
+        :deep(.el-statistic__content) {
+          font-size: 20px;
+        }
+
+        .stat-icon {
+          flex: none;
+          width: 40px;
+          height: 40px;
+          border-radius: 10px;
+          font-size: 20px;
+        }
+      }
+    }
+
+    .quick-actions .action-buttons {
+      gap: 10px;
+
+      .el-button {
+        flex: 1 1 calc(50% - 5px);
+        min-width: 0;
+        margin-left: 0;
+      }
     }
   }
 }

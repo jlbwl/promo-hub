@@ -2,9 +2,69 @@
   <!-- ===== 移动端：卡片列表 + 触底加载，替代横向滚动的多列表格 ===== -->
   <div
     v-if="isMobile"
-    v-loading="loading"
     class="order-cards"
   >
+    <!-- 首屏骨架：弱网下先给出结构，避免空白等待 -->
+    <div
+      v-if="firstLoading"
+      class="order-skeletons"
+    >
+      <div
+        v-for="i in 3"
+        :key="`skeleton-${i}`"
+        class="order-card is-skeleton"
+      >
+        <div
+          class="skeleton-block"
+          style="width: 45%; height: 16px;"
+        />
+        <div
+          class="skeleton-block"
+          style="width: 70%; height: 12px; margin-top: 12px;"
+        />
+        <div
+          class="skeleton-block"
+          style="width: 60%; height: 12px; margin-top: 8px;"
+        />
+        <div
+          class="skeleton-block"
+          style="width: 80%; height: 12px; margin-top: 8px;"
+        />
+      </div>
+    </div>
+
+    <!-- 首屏失败：整块给出可重试反馈 -->
+    <div
+      v-if="loadError && !data.length && !loading"
+      class="load-feedback"
+    >
+      <p class="load-feedback-text">
+        {{ loadError }}
+      </p>
+      <el-button
+        type="primary"
+        @click="emit('retry')"
+      >
+        重新加载
+      </el-button>
+    </div>
+
+    <!-- 已有数据时的失败提示，保留列表并允许重试 -->
+    <div
+      v-if="loadError && data.length > 0"
+      class="load-feedback is-inline"
+    >
+      <span class="load-feedback-text">{{ loadError }}</span>
+      <el-button
+        type="primary"
+        plain
+        size="small"
+        @click="emit('retry')"
+      >
+        重试
+      </el-button>
+    </div>
+
     <article
       v-for="row in data"
       :key="row.id"
@@ -112,7 +172,7 @@
     </article>
 
     <p
-      v-if="!loading && data.length === 0"
+      v-if="!loading && !loadError && data.length === 0"
       class="card-empty"
     >
       {{ onlyDuplicate ? '当前筛选条件下没有重单' : '暂无数据' }}
@@ -328,6 +388,8 @@ const props = defineProps<{
   page: number
   pageSize: number
   onlyDuplicate: boolean
+  /** 列表加载失败提示（移动端展示），空字符串表示无错误 */
+  loadError?: string
 }>()
 
 const emit = defineEmits<{
@@ -335,12 +397,16 @@ const emit = defineEmits<{
   'update:pageSize': [value: number]
   'page-change': []
   'load-more': []
+  retry: []
   approve: [row: Order]
   reject: [row: Order]
   'add-to-payment': [row: Order]
 }>()
 
 const { isMobile } = useIsMobile()
+
+// 首屏加载中（移动端展示骨架卡片）
+const firstLoading = computed(() => props.loading && props.data.length === 0)
 
 // 加载更多哨兵：进入视口即自动加载下一页，按钮同时保留用于手动触发
 const loadMoreSentinel = ref<HTMLElement | null>(null)
@@ -508,6 +574,64 @@ onUnmounted(() => observer?.disconnect())
   font-size: 14px;
   color: #909399;
   text-align: center;
+}
+
+// 首屏骨架与加载失败反馈（移动端）
+.order-skeletons {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.skeleton-block {
+  border-radius: 6px;
+  background: linear-gradient(90deg, #f2f3f5 25%, #e6e8eb 37%, #f2f3f5 63%);
+  background-size: 400% 100%;
+  animation: order-skeleton-loading 1.4s ease infinite;
+}
+
+.order-card.is-skeleton {
+  min-height: 132px;
+}
+
+.load-feedback {
+  padding: 32px 16px;
+  text-align: center;
+  background: #ffffff;
+  border-radius: 12px;
+
+  .load-feedback-text {
+    margin-bottom: 12px;
+    font-size: 14px;
+    line-height: 20px;
+    color: #909399;
+  }
+
+  &.is-inline {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 12px;
+    background: #fef0f0;
+
+    .load-feedback-text {
+      margin-bottom: 0;
+      font-size: 13px;
+      color: #f56c6c;
+      text-align: left;
+    }
+  }
+}
+
+@keyframes order-skeleton-loading {
+  0% {
+    background-position: 100% 50%;
+  }
+
+  100% {
+    background-position: 0 50%;
+  }
 }
 
 .load-more {

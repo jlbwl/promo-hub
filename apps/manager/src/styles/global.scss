@@ -145,4 +145,21 @@ a {
     width: auto;
     max-width: calc(100vw - 32px);
   }
+
+  /* 日期面板：宽度收敛到视口，日格加大到适合触控 */
+  .el-picker-panel {
+    max-width: calc(100vw - 16px);
+    box-sizing: border-box;
+  }
+
+  .el-date-table td .el-date-table-cell {
+    height: 40px;
+    padding: 4px 0;
+  }
+
+  .el-date-table td .el-date-table-cell__text {
+    width: 32px;
+    height: 32px;
+    line-height: 32px;
+  }
 }

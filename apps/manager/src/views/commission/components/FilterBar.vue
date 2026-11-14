@@ -460,6 +460,18 @@ const handleSheetReset = () => {
     margin-left: 0;
   }
 }
+
+// 手机：审核日期起止改为上下两行，避免两个日期框互相挤压
+@media (max-width: 767px) {
+  .date-fields {
+    flex-direction: column;
+    align-items: stretch;
+
+    .date-sep {
+      display: none;
+    }
+  }
+}
 </style>
 
 <style lang="scss">

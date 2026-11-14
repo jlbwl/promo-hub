@@ -41,6 +41,8 @@ export function useCommissionList() {
 
   // 表格数据
   const tableData = ref<Order[]>([])
+  // 列表加载失败提示（移动端在列表区域展示并提供重试）
+  const loadError = ref('')
 
   // 获取统计数据
   const fetchStats = async () => {
@@ -80,10 +82,12 @@ export function useCommissionList() {
         const nextList = list || []
         tableData.value = append ? [...tableData.value, ...nextList] : nextList
         pagination.total = total || 0
+        loadError.value = ''
       }
       return true
     } catch (error) {
-      ElMessage.error(getErrorMessage(error, '获取订单列表失败'))
+      loadError.value = getErrorMessage(error, '获取订单列表失败，请检查网络后重试')
+      ElMessage.error(loadError.value)
       return false
     } finally {
       loading.value = false
@@ -229,6 +233,7 @@ export function useCommissionList() {
     pagination,
     stats,
     tableData,
+    loadError,
     fetchStats,
     fetchData,
     loadMore,

@@ -1,7 +1,10 @@
 <template>
   <div class="product-list-page">
-    <!-- 搜索栏 -->
-    <div class="search-bar">
+    <!-- 搜索栏（桌面） -->
+    <div
+      v-if="!isMobile"
+      class="search-bar"
+    >
       <el-input
         v-model="searchKeyword"
         placeholder="请输入产品标题搜索"
@@ -58,8 +61,70 @@
       </el-button>
     </div>
 
-    <!-- 数据表格 -->
+    <!-- 搜索栏（移动端）：纵向堆叠，筛选与新建按钮铺满宽度 -->
+    <div
+      v-else
+      class="search-bar search-bar--mobile"
+    >
+      <el-input
+        v-model="searchKeyword"
+        placeholder="请输入产品标题搜索"
+        prefix-icon="Search"
+        clearable
+        @clear="handleSearch"
+        @keyup.enter="handleSearch"
+      />
+      <div class="mobile-filter-row">
+        <el-select
+          v-model="searchStatus"
+          placeholder="产品状态"
+          clearable
+          @change="handleSearch"
+        >
+          <el-option
+            label="全部"
+            value=""
+          />
+          <el-option
+            label="草稿"
+            value="draft"
+          />
+          <el-option
+            label="已发布"
+            value="published"
+          />
+          <el-option
+            label="已下架"
+            value="offline"
+          />
+        </el-select>
+        <el-button
+          type="primary"
+          icon="Search"
+          @click="handleSearch"
+        >
+          搜索
+        </el-button>
+        <el-button
+          icon="Refresh"
+          @click="handleReset"
+        >
+          重置
+        </el-button>
+      </div>
+      <el-button
+        type="primary"
+        icon="Plus"
+        class="mobile-create-btn"
+        @click="$router.push('/products/create')"
+      >
+        新建产品
+      </el-button>
+    </div>
+
+    <!-- 数据表格（桌面） -->
     <el-table
+      v-if="!isMobile"
       v-loading="loading"
       :data="tableData"
       border
@@ -192,8 +257,195 @@
       </el-table-column>
     </el-table>
 
-    <!-- 分页 -->
-    <div class="pagination-container">
+    <!-- 移动端：卡片列表 + 加载更多 -->
+    <div
+      v-else
+      class="product-cards"
+    >
+      <!-- 首屏骨架 -->
+      <template v-if="firstLoading">
+        <div
+          v-for="i in 3"
+          :key="`skeleton-${i}`"
+          class="product-card is-skeleton"
+        >
+          <div class="card-body">
+            <div class="skeleton-block skeleton-cover" />
+            <div class="card-main">
+              <div
+                class="skeleton-block"
+                style="width: 70%; height: 16px;"
+              />
+              <div
+                class="skeleton-block"
+                style="width: 45%; height: 12px; margin-top: 12px;"
+              />
+              <div
+                class="skeleton-block"
+                style="width: 55%; height: 12px; margin-top: 8px;"
+              />
+            </div>
+          </div>
+        </div>
+      </template>
+
+      <!-- 首屏失败：整块给出可重试反馈 -->
+      <div
+        v-else-if="loadError && !tableData.length"
+        class="load-feedback"
+      >
+        <p class="load-feedback-text">
+          {{ loadError }}
+        </p>
+        <el-button
+          type="primary"
+          @click="handleRetry"
+        >
+          重新加载
+        </el-button>
+      </div>
+
+      <!-- 空态 -->
+      <el-empty
+        v-else-if="!tableData.length"
+        description="暂无产品"
+        :image-size="96"
+      >
+        <el-button
+          type="primary"
+          @click="$router.push('/products/create')"
+        >
+          新建产品
+        </el-button>
+      </el-empty>
+
+      <template v-else>
+        <!-- 已有数据时的失败提示，保留列表并允许重试 -->
+        <div
+          v-if="loadError"
+          class="load-feedback is-inline"
+        >
+          <span class="load-feedback-text">{{ loadError }}</span>
+          <el-button
+            type="primary"
+            plain
+            size="small"
+            @click="handleRetry"
+          >
+            重试
+          </el-button>
+        </div>
+
+        <div
+          v-for="row in tableData"
+          :key="row.id"
+          class="product-card"
+        >
+          <div class="card-body">
+            <el-image
+              class="card-cover"
+              :src="row.cover"
+              :preview-src-list="row.cover ? [row.cover] : []"
+              fit="cover"
+              preview-teleported
+            >
+              <template #error>
+                <div class="image-placeholder">
+                  <el-icon><Picture /></el-icon>
+                </div>
+              </template>
+            </el-image>
+            <div class="card-main">
+              <div class="card-title">
+                {{ row.title }}
+              </div>
+              <div class="card-meta">
+                <el-tag
+                  type="primary"
+                  size="small"
+                  effect="plain"
+                >
+                  {{ getCategoryLabel(row) }}
+                </el-tag>
+                <el-tag
+                  :type="statusTagType(row.status)"
+                  size="small"
+                >
+                  {{ statusText(row.status) }}
+                </el-tag>
+                <el-button
+                  v-if="row.status === 'admin_offline' && row.offlineReason"
+                  type="info"
+                  link
+                  size="small"
+                  @click="showOfflineReason(row)"
+                >
+                  下架理由
+                </el-button>
+              </div>
+              <div class="card-figures">
+                <span class="card-price">¥{{ Number(row.price || 0).toFixed(2) }}</span>
+                <span class="card-time">{{ row.createdAt }}</span>
+              </div>
+            </div>
+          </div>
+          <!-- 卡片操作：按钮均满足 44px 触控高度 -->
+          <div class="card-actions">
+            <el-button
+              type="primary"
+              plain
+              @click="handleEdit(row)"
+            >
+              编辑
+            </el-button>
+            <el-button
+              v-if="row.status === 'draft' || row.status === 'offline'"
+              type="success"
+              plain
+              @click="handleToggleStatus(row, 'published')"
+            >
+              发布
+            </el-button>
+            <el-button
+              v-if="row.status === 'published'"
+              type="warning"
+              plain
+              @click="handleToggleStatus(row, 'offline')"
+            >
+              下架
+            </el-button>
+            <el-button
+              type="danger"
+              plain
+              @click="handleDelete(row)"
+            >
+              删除
+            </el-button>
+          </div>
+        </div>
+
+        <div class="load-more">
+          <el-button
+            v-if="hasMore"
+            class="load-more-btn"
+            :loading="loading"
+            @click="loadMore"
+          >
+            加载更多
+          </el-button>
+          <span
+            v-else
+            class="load-more-end"
+          >没有更多了</span>
+        </div>
+      </template>
+    </div>
+
+    <!-- 分页（桌面） -->
+    <div
+      v-if="!isMobile"
+      class="pagination-container"
+    >
       <el-pagination
         v-model:current-page="pagination.page"
         v-model:page-size="pagination.pageSize"
@@ -201,8 +453,8 @@
         :total="pagination.total"
         layout="total, sizes, prev, pager, next, jumper"
         background
-        @size-change="fetchData"
-        @current-change="fetchData"
+        @size-change="() => fetchData()"
+        @current-change="() => fetchData()"
       />
     </div>
   </div>
@@ -211,19 +463,23 @@
 <script setup lang="ts">
 import { logger } from '@promo/shared/utils/logger'
 import { getErrorMessage } from '@promo/shared/utils/errors'
-import { ref, reactive, onMounted, watch } from 'vue'
+import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Picture } from '@element-plus/icons-vue'
 import { get, put, del } from '@promo/shared/utils/request'
 import type { PaginatedResponse, ProductCategory } from '@promo/shared/types'
+import { useIsMobile } from '../../composables/useIsMobile'
 
 const router = useRouter()
 const route = useRoute()
+const { isMobile } = useIsMobile()
 
 // 加载状态
 const loading = ref(false)
 const categoriesLoading = ref(false)
+// 列表加载失败信息（移动端展示可重试提示）
+const loadError = ref('')
 
 // 搜索条件
 const searchKeyword = ref('')
@@ -294,6 +550,11 @@ const getCategoryLabel = (product: Product): string => {
 // 表格数据
 const tableData = ref<Product[]>([])
 
+// 首屏加载中（用于移动端骨架屏）
+const firstLoading = computed(() => loading.value && tableData.value.length === 0)
+// 是否还有下一页（移动端加载更多）
+const hasMore = computed(() => tableData.value.length < pagination.total)
+
 // 获取状态标签类型
 const statusTagType = (status: ProductStatus) => {
   const map: Record<ProductStatus, string> = {
@@ -352,9 +613,11 @@ const fetchCategories = async () => {
   }
 }
 
-// 获取产品列表数据
-const fetchData = async () => {
+// 获取产品列表数据；append 为 true 时追加到现有列表（移动端加载更多）
+const fetchData = async (append = false): Promise<boolean> => {
+  if (append && loading.value) return false
   loading.value = true
+  if (!append) loadError.value = ''
   try {
     const currentManagerId = getManagerId()
     logger.debug('[fetchData] 正在获取产品列表，managerId:', currentManagerId)
@@ -371,18 +634,42 @@ const fetchData = async () => {
     logger.debug('[fetchData] 获取到产品列表:', { listCount: list.length, total })
     
     // 映射字段：coverImage -> cover
-    tableData.value = list.map((p: ProductApiItem) => ({
+    const mapped = list.map((p: ProductApiItem) => ({
       ...p,
       cover: p.coverImage || p.cover || '',
       commission: p.commission || 0,
     }))
+    tableData.value = append ? [...tableData.value, ...mapped] : mapped
     pagination.total = total
+    loadError.value = ''
+    return true
   } catch (error) {
     logger.error('获取产品列表失败:', error)
-    ElMessage.error(getErrorMessage(error, '获取产品列表失败'))
+    loadError.value = getErrorMessage(error, '获取产品列表失败，请检查网络后重试')
+    // 桌面端保持原有错误提示；移动端在列表区域给出可重试反馈
+    if (!isMobile.value) ElMessage.error(loadError.value)
+    return false
   } finally {
     loading.value = false
   }
+}
+
+// 移动端：加载下一页并追加，失败则回退页码
+const loadMore = async () => {
+  if (loading.value || !hasMore.value) return
+  pagination.page += 1
+  const ok = await fetchData(true)
+  if (!ok) pagination.page -= 1
+}
+
+// 失败重试：已有数据时继续加载下一页，否则从第一页重新拉取
+const handleRetry = () => {
+  if (tableData.value.length && hasMore.value) {
+    loadMore()
+    return
+  }
+  pagination.page = 1
+  fetchData()
 }
 
 // 搜索
@@ -517,6 +804,198 @@ watch(
       padding: 2px 8px;
       border-radius: 2px;
     }
+  }
+}
+
+// ===== 移动端：纵向搜索栏、卡片列表、加载更多与失败重试 =====
+@media (max-width: 767px) {
+  .product-list-page {
+    .search-bar--mobile {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 10px;
+      margin-bottom: 12px;
+
+      .mobile-filter-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+
+        .el-select {
+          flex: 1;
+          min-width: 0;
+        }
+
+        .el-button {
+          flex: none;
+          margin-left: 0;
+        }
+      }
+
+      .mobile-create-btn {
+        width: 100%;
+        margin-left: 0;
+      }
+    }
+
+    .product-cards {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .product-card {
+      padding: 12px;
+      background: #ffffff;
+      border-radius: 12px;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+    }
+
+    .card-body {
+      display: flex;
+      gap: 12px;
+    }
+
+    .card-cover {
+      flex: none;
+      width: 72px;
+      height: 72px;
+      border-radius: 8px;
+      overflow: hidden;
+      background: #f5f7fa;
+
+      :deep(.image-placeholder) {
+        width: 72px;
+        height: 72px;
+      }
+    }
+
+    .card-main {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .card-title {
+      display: -webkit-box;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2;
+      overflow: hidden;
+      font-size: 15px;
+      line-height: 20px;
+      color: #303133;
+    }
+
+    .card-meta {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 6px;
+      margin-top: 6px;
+    }
+
+    .card-figures {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 8px;
+      margin-top: 6px;
+
+      .card-price {
+        color: #f56c6c;
+        font-size: 15px;
+        font-weight: 600;
+      }
+
+      .card-time {
+        overflow: hidden;
+        font-size: 12px;
+        color: #909399;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+    }
+
+    .card-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 10px;
+
+      .el-button {
+        flex: 1;
+        min-width: 0;
+        margin-left: 0;
+      }
+    }
+
+    .load-more {
+      display: flex;
+      justify-content: center;
+      padding: 4px 0 8px;
+
+      .load-more-btn {
+        width: 100%;
+      }
+
+      .load-more-end {
+        padding: 8px 0;
+        font-size: 12px;
+        color: #909399;
+      }
+    }
+
+    .load-feedback {
+      padding: 32px 16px;
+      text-align: center;
+      background: #ffffff;
+      border-radius: 12px;
+
+      .load-feedback-text {
+        margin-bottom: 12px;
+        font-size: 14px;
+        line-height: 20px;
+        color: #909399;
+      }
+
+      &.is-inline {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 10px 12px;
+        background: #fef0f0;
+
+        .load-feedback-text {
+          margin-bottom: 0;
+          font-size: 13px;
+          color: #f56c6c;
+          text-align: left;
+        }
+      }
+    }
+
+    .skeleton-block {
+      border-radius: 6px;
+      background: linear-gradient(90deg, #f2f3f5 25%, #e6e8eb 37%, #f2f3f5 63%);
+      background-size: 400% 100%;
+      animation: product-skeleton-loading 1.4s ease infinite;
+    }
+
+    .skeleton-cover {
+      flex: none;
+      width: 72px;
+      height: 72px;
+      border-radius: 8px;
+    }
+  }
+}
+
+@keyframes product-skeleton-loading {
+  0% {
+    background-position: 100% 50%;
+  }
+
+  100% {
+    background-position: 0 50%;
   }
 }
 </style>

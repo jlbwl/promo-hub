@@ -25,8 +25,10 @@
       :data="tableData"
       :total="pagination.total"
       :only-duplicate="filterOnlyDuplicate"
+      :load-error="loadError"
       @page-change="fetchData"
       @load-more="loadMore"
+      @retry="fetchData"
       @approve="handleApprove"
       @reject="handleReject"
       @add-to-payment="handleAddToPayment"
@@ -60,6 +62,7 @@ const {
   pagination,
   stats,
   tableData,
+  loadError,
   fetchStats,
   fetchData,
   loadMore,
