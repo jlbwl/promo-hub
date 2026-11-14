@@ -1,6 +1,91 @@
 <template>
-  <el-container class="manager-layout">
-    <!-- 左侧导航栏 -->
+  <!-- 移动端骨架：顶部栏 + 内容区 + 底部 Tabbar + 抽屉菜单 -->
+  <div
+    v-if="isMobile"
+    class="manager-mobile"
+  >
+    <header class="mobile-header">
+      <button
+        type="button"
+        class="mobile-icon-btn"
+        aria-label="打开菜单"
+        @click="drawerVisible = true"
+      >
+        <el-icon :size="22">
+          <Expand />
+        </el-icon>
+      </button>
+      <span class="mobile-page-title">{{ currentTitle }}</span>
+      <span class="mobile-manager-name">{{ managerName }}</span>
+    </header>
+
+    <main class="mobile-main">
+      <router-view />
+      <IcpFooter :icp-number="icpNumber" />
+    </main>
+
+    <nav class="mobile-tabbar">
+      <router-link
+        v-for="item in menuItems"
+        :key="item.path"
+        :to="item.path"
+        class="mobile-tab"
+        :class="{ 'is-active': isActiveMenu(item.path) }"
+      >
+        <el-icon :size="20">
+          <component :is="item.icon" />
+        </el-icon>
+        <span class="mobile-tab-label">{{ item.label }}</span>
+      </router-link>
+    </nav>
+
+    <!-- 抽屉导航：顶栏菜单按钮与底部导航之外的入口 -->
+    <el-drawer
+      v-model="drawerVisible"
+      direction="ltr"
+      size="72%"
+      :with-header="false"
+      body-class="mobile-drawer-body"
+      class="mobile-drawer"
+    >
+      <div class="drawer-brand">
+        <h2>渠道经理后台</h2>
+      </div>
+      <el-menu
+        :default-active="activeMenu"
+        router
+        class="drawer-menu"
+        @select="drawerVisible = false"
+      >
+        <el-menu-item
+          v-for="item in menuItems"
+          :key="item.path"
+          :index="item.path"
+        >
+          <el-icon><component :is="item.icon" /></el-icon>
+          <template #title>
+            {{ item.label }}
+          </template>
+        </el-menu-item>
+      </el-menu>
+      <div class="drawer-footer">
+        <span class="drawer-manager">{{ managerName }}</span>
+        <el-button
+          type="danger"
+          plain
+          @click="handleLogout"
+        >
+          退出登录
+        </el-button>
+      </div>
+    </el-drawer>
+  </div>
+
+  <!-- 桌面端骨架：保持原有左侧栏 + 顶栏 + 主内容区 -->
+  <el-container
+    v-else
+    class="manager-layout"
+  >
     <el-aside
       :width="isCollapse ? '64px' : '220px'"
       class="layout-aside"
@@ -22,36 +107,20 @@
         text-color="#bfcbd9"
         active-text-color="#409eff"
       >
-        <el-menu-item index="/dashboard">
-          <el-icon><Odometer /></el-icon>
+        <el-menu-item
+          v-for="item in menuItems"
+          :key="item.path"
+          :index="item.path"
+        >
+          <el-icon><component :is="item.icon" /></el-icon>
           <template #title>
-            仪表盘
-          </template>
-        </el-menu-item>
-        <el-menu-item index="/products">
-          <el-icon><Goods /></el-icon>
-          <template #title>
-            产品管理
-          </template>
-        </el-menu-item>
-        <el-menu-item index="/commissions">
-          <el-icon><Money /></el-icon>
-          <template #title>
-            佣金管理
-          </template>
-        </el-menu-item>
-        <el-menu-item index="/profile">
-          <el-icon><User /></el-icon>
-          <template #title>
-            个人中心
+            {{ item.label }}
           </template>
         </el-menu-item>
       </el-menu>
     </el-aside>
 
-    <!-- 右侧内容区 -->
     <el-container class="layout-main-container">
-      <!-- 顶部栏 -->
       <el-header class="layout-header">
         <div class="header-left">
           <el-icon
@@ -76,12 +145,10 @@
         </div>
       </el-header>
 
-      <!-- 主内容区 -->
       <el-main class="layout-main">
         <router-view />
       </el-main>
 
-      <!-- ICP 备案信息 -->
       <IcpFooter :icp-number="icpNumber" />
     </el-container>
   </el-container>
@@ -102,15 +169,27 @@ import {
   SwitchButton
 } from '@element-plus/icons-vue'
 import IcpFooter from '../components/IcpFooter.vue'
+import { useIsMobile } from '../composables/useIsMobile'
 
 const route = useRoute()
 const router = useRouter()
+const { isMobile } = useIsMobile()
 
 // 从环境变量读取 ICP 备案号
 const icpNumber = import.meta.env.VITE_ICP_NUMBER || ''
 
-// 侧边栏折叠状态
+// 侧边栏折叠状态（仅桌面端）
 const isCollapse = ref(false)
+// 移动端抽屉菜单
+const drawerVisible = ref(false)
+
+// 菜单配置：桌面侧栏、移动端抽屉与 Tabbar 共用
+const menuItems = [
+  { path: '/dashboard', label: '仪表盘', icon: Odometer },
+  { path: '/products', label: '产品管理', icon: Goods },
+  { path: '/commissions', label: '佣金管理', icon: Money },
+  { path: '/profile', label: '个人中心', icon: User },
+]
 
 // 经理姓名（从登录信息获取）
 const managerName = ref('')
@@ -127,6 +206,9 @@ onMounted(() => {
 
 // 当前激活菜单
 const activeMenu = computed(() => route.path)
+
+// 移动端高亮：子路由（如 /products/create）归属父级菜单
+const isActiveMenu = (path: string) => route.path === path || route.path.startsWith(`${path}/`)
 
 // 当前页面标题
 const currentTitle = computed(() => {
@@ -244,5 +326,160 @@ const handleLogout = async () => {
   background-color: #f5f7fa;
   overflow-y: auto;
   padding: 20px;
+}
+
+/* ===== 移动端骨架（≤768px，由 isMobile 分支控制渲染） ===== */
+.manager-mobile {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+  background-color: #f5f7fa;
+}
+
+.mobile-header {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 52px;
+  padding: env(safe-area-inset-top) 12px 0 4px;
+  background-color: #ffffff;
+  border-bottom: 1px solid #e4e7ed;
+  position: relative;
+  z-index: 10;
+}
+
+.mobile-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: #606266;
+  -webkit-tap-highlight-color: transparent;
+
+  &:active {
+    background-color: #f0f2f5;
+  }
+}
+
+.mobile-page-title {
+  flex: 1;
+  min-width: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #303133;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mobile-manager-name {
+  flex: none;
+  max-width: 96px;
+  font-size: 12px;
+  color: #909399;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mobile-main {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 12px 12px 16px;
+}
+
+.mobile-tabbar {
+  flex: none;
+  display: flex;
+  background-color: #ffffff;
+  border-top: 1px solid #e4e7ed;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.mobile-tab {
+  flex: 1;
+  min-height: 56px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  color: #909399;
+  text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
+
+  &:hover,
+  &:focus {
+    color: #909399;
+    text-decoration: none;
+  }
+
+  &.is-active {
+    color: #409eff;
+  }
+}
+
+.mobile-tab-label {
+  font-size: 11px;
+  line-height: 1.2;
+}
+
+.drawer-brand {
+  display: flex;
+  align-items: center;
+  height: 60px;
+  padding: 0 16px;
+  background-color: #263445;
+
+  h2 {
+    color: #ffffff;
+    font-size: 16px;
+    font-weight: 600;
+  }
+}
+
+.drawer-menu {
+  flex: 1;
+  border-right: none;
+  overflow-y: auto;
+}
+
+.drawer-footer {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+  border-top: 1px solid #e4e7ed;
+
+  .drawer-manager {
+    font-size: 13px;
+    color: #606266;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+</style>
+
+<style lang="scss">
+/* 抽屉内部为 teleport 渲染，改用全局样式保证生效 */
+.mobile-drawer {
+  .mobile-drawer-body {
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+  }
 }
 </style>

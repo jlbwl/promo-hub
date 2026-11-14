@@ -1,16 +1,19 @@
 <template>
-  <!-- ====== 待发放发放模态框 ====== -->
+  <!-- ====== 待发放发放模态框：移动端全屏 ====== -->
   <el-dialog
     v-model="paymentDialogVisible"
     title="待发放发放"
-    width="850px"
+    :width="isMobile ? '100%' : '850px'"
+    :fullscreen="isMobile"
+    class="payment-dialog"
+    body-class="payment-dialog-body"
     destroy-on-close
   >
     <!-- 待付款列表 -->
     <div
       v-if="paymentStep === 'list'"
       class="payment-dialog-content"
-      style="overflow: hidden;"
+      :class="{ 'is-mobile': isMobile }"
     >
       <el-alert
         v-if="truncated"
@@ -31,7 +34,56 @@
         </span>
       </div>
 
+      <!-- 移动端：卡片化待发放列表 -->
+      <div
+        v-if="isMobile"
+        class="mobile-order-list"
+      >
+        <div
+          v-for="(row, index) in paymentOrders"
+          :key="row.id"
+          class="mobile-order-card"
+        >
+          <div class="moc-head">
+            <span class="moc-index">{{ index + 1 }}</span>
+            <span class="moc-name">{{ row.productName }}</span>
+            <span class="moc-price">{{ row.productPrice }}</span>
+          </div>
+          <div
+            v-if="row.optionLabel || row.fundAccount"
+            class="moc-tags"
+          >
+            <el-tag
+              v-if="row.optionLabel"
+              size="small"
+              type="info"
+            >
+              {{ row.optionLabel }}
+            </el-tag>
+            <el-tag
+              v-if="row.fundAccount"
+              size="small"
+              type="primary"
+              plain
+            >
+              {{ row.fundAccount }}
+            </el-tag>
+          </div>
+          <div class="moc-meta">
+            <span>{{ row.userName || '--' }} · {{ maskPhone(row.userPhone) }}</span>
+            <span>{{ formatTime(row.createdAt) }}</span>
+          </div>
+        </div>
+        <p
+          v-if="paymentOrders.length === 0"
+          class="mobile-order-empty"
+        >
+          暂无待发放订单
+        </p>
+      </div>
+
       <el-table
+        v-else
         :data="paymentOrders"
         border
         size="small"
@@ -129,6 +181,7 @@
     <div
       v-else-if="paymentStep === 'method'"
       class="payment-dialog-content"
+      :class="{ 'is-mobile': isMobile }"
     >
       <div class="payment-summary">
         <span>共 <strong>{{ paymentOrders.length }}</strong> 笔</span>
@@ -182,6 +235,7 @@
     <div
       v-else-if="paymentStep === 'success'"
       class="payment-dialog-content"
+      :class="{ 'is-mobile': isMobile }"
     >
       <div class="success-result">
         <el-icon
@@ -213,6 +267,7 @@
     <div
       v-else-if="paymentStep === 'failed'"
       class="payment-dialog-content"
+      :class="{ 'is-mobile': isMobile }"
     >
       <el-alert
         type="error"
@@ -229,7 +284,41 @@
         </span>
       </div>
 
+      <!-- 移动端：卡片化失败明细 -->
+      <div
+        v-if="isMobile"
+        class="mobile-order-list"
+      >
+        <div
+          v-for="(row, index) in failedOrders"
+          :key="row.id"
+          class="mobile-order-card"
+        >
+          <div class="moc-head">
+            <span class="moc-index">{{ index + 1 }}</span>
+            <span class="moc-name">{{ row.productName }}</span>
+            <span class="moc-price">{{ row.productPrice }}</span>
+          </div>
+          <div
+            v-if="row.optionLabel"
+            class="moc-tags"
+          >
+            <el-tag
+              size="small"
+              type="info"
+            >
+              {{ row.optionLabel }}
+            </el-tag>
+          </div>
+          <div class="moc-meta">
+            <span>{{ row.userName || '--' }} · {{ maskPhone(row.userPhone) }}</span>
+            <span>{{ formatTime(row.createdAt) }}</span>
+          </div>
+        </div>
+      </div>
+
       <el-table
+        v-else
         :data="failedOrders"
         border
         size="small"
@@ -314,7 +403,10 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { SuccessFilled } from '@element-plus/icons-vue'
 import { put } from '@promo/shared/utils/request'
 import { maskPhone, formatTime, getManagerId, fetchAllOrders, settleOrders, sumProductPrice } from '../utils'
+import { useIsMobile } from '@/composables/useIsMobile'
 import type { Order } from '@promo/shared/types'
+
+const { isMobile } = useIsMobile()
 
 const emit = defineEmits<{
   success: []
@@ -446,6 +538,8 @@ defineExpose({ open })
 <style lang="scss" scoped>
 // 待付款弹窗内容
 .payment-dialog-content {
+  overflow: hidden;
+
   .payment-summary {
     display: flex;
     justify-content: space-between;
@@ -558,5 +652,139 @@ defineExpose({ open })
       margin-top: 12px;
     }
   }
+}
+
+/* ===== 移动端：全屏流程布局 ===== */
+.payment-dialog-content.is-mobile {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+
+  > .payment-summary,
+  > .el-alert,
+  > .payment-actions {
+    flex: none;
+  }
+
+  .payment-actions {
+    gap: 10px;
+    margin-top: 12px;
+    padding-top: 12px;
+    padding-bottom: calc(10px + env(safe-area-inset-bottom));
+    background-color: #ffffff;
+
+    .el-button {
+      flex: 1;
+      min-height: 44px;
+      margin-left: 0;
+    }
+  }
+
+  .payment-methods {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+  }
+
+  .success-result {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
+.mobile-order-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.mobile-order-card {
+  padding: 12px 14px;
+  background-color: #ffffff;
+  border: 1px solid #ebeef5;
+  border-radius: 12px;
+
+  .moc-head {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+  }
+
+  .moc-index {
+    flex: none;
+    min-width: 16px;
+    font-size: 12px;
+    color: #c0c4cc;
+  }
+
+  .moc-name {
+    flex: 1;
+    min-width: 0;
+    font-size: 15px;
+    font-weight: 600;
+    line-height: 1.4;
+    color: #303133;
+    word-break: break-all;
+  }
+
+  .moc-price {
+    flex: none;
+    font-size: 15px;
+    font-weight: 600;
+    color: #409eff;
+  }
+
+  .moc-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 8px;
+    padding-left: 24px;
+  }
+
+  .moc-meta {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 6px;
+    padding-left: 24px;
+    font-size: 12px;
+    color: #909399;
+  }
+}
+
+.mobile-order-empty {
+  padding: 40px 0;
+  font-size: 14px;
+  color: #909399;
+  text-align: center;
+}
+</style>
+
+<style lang="scss">
+/* 全屏弹窗由 teleport 渲染，容器结构用全局样式控制 */
+.payment-dialog.is-fullscreen {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  overflow: hidden;
+  border-radius: 0;
+}
+
+.payment-dialog.is-fullscreen .payment-dialog-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 12px 14px 0;
 }
 </style>

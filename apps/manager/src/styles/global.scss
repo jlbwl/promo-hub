@@ -95,3 +95,54 @@ a {
   align-items: center;
   gap: 8px;
 }
+
+/* ===== 移动端（≤768px）：统一触控热区与基础交互 ===== */
+@media (max-width: 768px) {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  button,
+  .el-button {
+    touch-action: manipulation;
+  }
+
+  /* 可点元素最小 44px 触控高度 */
+  .el-button {
+    min-height: 44px;
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .el-button.is-text,
+  .el-button.is-link {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+
+  .el-input__wrapper,
+  .el-select__wrapper,
+  .el-textarea__inner {
+    min-height: 44px;
+  }
+
+  .el-checkbox,
+  .el-radio {
+    min-height: 44px;
+  }
+
+  .el-dialog__headerbtn {
+    width: 44px;
+    height: 44px;
+  }
+
+  /* 桌面宽度的确认弹窗在窄屏收敛，避免溢出 */
+  .el-message-box {
+    width: auto;
+    max-width: calc(100vw - 32px);
+  }
+}

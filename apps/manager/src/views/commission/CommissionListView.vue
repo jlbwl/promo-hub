@@ -26,6 +26,7 @@
       :total="pagination.total"
       :only-duplicate="filterOnlyDuplicate"
       @page-change="fetchData"
+      @load-more="loadMore"
       @approve="handleApprove"
       @reject="handleReject"
       @add-to-payment="handleAddToPayment"
@@ -61,6 +62,7 @@ const {
   tableData,
   fetchStats,
   fetchData,
+  loadMore,
   handleFilterChange,
   handleReset,
   handleApprove,

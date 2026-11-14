@@ -6,7 +6,18 @@
     <link rel="icon" type="image/png" sizes="32x32" href="%BASE_URL%favicon-32.png" />
     <link rel="icon" type="image/png" sizes="16x16" href="%BASE_URL%favicon-16.png" />
     <link rel="apple-touch-icon" href="%BASE_URL%favicon-512.png" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- viewport-fit=cover：启用 env(safe-area-inset-*)，刘海屏/底部横条不再遮挡内容 -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+    />
+    <!-- 移动端浏览器与微信 X5 适配 -->
+    <meta name="format-detection" content="telephone=no,email=no,address=no" />
+    <meta name="theme-color" content="#ffffff" />
+    <meta name="color-scheme" content="light" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="渠道经理" />
     <title>管理系统 - 渠道经理</title>
   </head>
   <body>

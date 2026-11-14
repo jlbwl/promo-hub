@@ -61,8 +61,8 @@ export function useCommissionList() {
     }
   }
 
-  // 获取订单列表
-  const fetchData = async () => {
+  // 获取订单列表；append 为 true 时用于移动端「加载更多」累加数据
+  const fetchData = async (append = false): Promise<boolean> => {
     loading.value = true
     try {
       const res = await get<PaginatedResponse<Order>>('/orders', {
@@ -77,14 +77,25 @@ export function useCommissionList() {
       })
       if (res.data) {
         const { list, total } = res.data
-        tableData.value = list || []
+        const nextList = list || []
+        tableData.value = append ? [...tableData.value, ...nextList] : nextList
         pagination.total = total || 0
       }
+      return true
     } catch (error) {
       ElMessage.error(getErrorMessage(error, '获取订单列表失败'))
+      return false
     } finally {
       loading.value = false
     }
+  }
+
+  // 移动端加载更多：成功才保留页码，失败回退避免漏页
+  const loadMore = async () => {
+    if (loading.value || tableData.value.length >= pagination.total) return
+    pagination.page += 1
+    const success = await fetchData(true)
+    if (!success) pagination.page -= 1
   }
 
   // 筛选条件变化后从第一页重新请求（避免停留在旧页码导致空页）
@@ -220,6 +231,7 @@ export function useCommissionList() {
     tableData,
     fetchStats,
     fetchData,
+    loadMore,
     handleFilterChange,
     handleReset,
     handleApprove,

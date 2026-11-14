@@ -1,150 +1,224 @@
 <template>
-  <!-- ====== 通用数据查看模态框 ====== -->
+  <!-- ====== 通用数据查看模态框：移动端全屏 + 卡片列表 ====== -->
   <el-dialog
     v-model="statDialogVisible"
     :title="statDialogTitle"
-    width="950px"
+    :width="isMobile ? '100%' : '950px'"
+    :fullscreen="isMobile"
+    class="stat-detail-dialog"
+    body-class="stat-detail-body"
     destroy-on-close
   >
-    <div
-      class="stat-dialog-content"
-      style="overflow: hidden;"
-    >
-      <el-alert
-        v-if="statDialogTruncated"
-        type="warning"
-        :closable="false"
-        show-icon
-        style="margin-bottom: 12px;"
-      >
-        <template #title>
-          数据共 {{ statDialogTotalCount }} 条，已达到单次加载上限，当前仅展示 {{ statDialogOrders.length }} 条，另有 {{ statDialogRemaining }} 条未加载，合计不完整
-        </template>
-      </el-alert>
+    <div class="stat-dialog-content">
+      <div class="stat-dialog-scroll">
+        <el-alert
+          v-if="statDialogTruncated"
+          type="warning"
+          :closable="false"
+          show-icon
+          style="margin-bottom: 12px;"
+        >
+          <template #title>
+            数据共 {{ statDialogTotalCount }} 条，已达到单次加载上限，当前仅展示 {{ statDialogOrders.length }} 条，另有 {{ statDialogRemaining }} 条未加载，合计不完整
+          </template>
+        </el-alert>
 
-      <div class="payment-summary">
-        <span>共 <strong>{{ statDialogOrders.length }}</strong> 条记录</span>
-        <span class="payment-total">
-          合计推广费：<strong>{{ statDialogTotal }}</strong>
-        </span>
+        <div
+          class="payment-summary"
+          :class="{ 'is-mobile': isMobile }"
+        >
+          <span>共 <strong>{{ statDialogOrders.length }}</strong> 条记录</span>
+          <span class="payment-total">
+            合计推广费：<strong>{{ statDialogTotal }}</strong>
+          </span>
+        </div>
+
+        <!-- 移动端：单列明细，避免弹窗内再横向滚动 -->
+        <div
+          v-if="isMobile"
+          class="stat-list"
+        >
+          <div
+            v-for="(row, index) in statDialogOrders"
+            :key="row.id"
+            class="stat-item"
+          >
+            <div class="stat-item-head">
+              <span class="stat-item-index">{{ index + 1 }}</span>
+              <span class="stat-item-name">{{ row.productName }}</span>
+              <el-tag
+                :type="statusTagType(row.status)"
+                size="small"
+              >
+                {{ statusText(row.status) }}
+              </el-tag>
+            </div>
+            <div
+              v-if="row.optionLabel || row.fundAccount"
+              class="stat-item-tags"
+            >
+              <el-tag
+                v-if="row.optionLabel"
+                size="small"
+                type="info"
+              >
+                {{ row.optionLabel }}
+              </el-tag>
+              <el-tag
+                v-if="row.fundAccount"
+                size="small"
+                type="primary"
+                plain
+              >
+                {{ row.fundAccount }}
+              </el-tag>
+            </div>
+            <div class="stat-item-row">
+              <span>{{ row.userName || '--' }} · {{ maskPhone(row.userPhone) }}</span>
+              <span class="stat-item-price">{{ displayProductPrice(row) }}</span>
+            </div>
+            <div class="stat-item-row is-muted">
+              <span>做单 {{ formatTime(row.createdAt) }}</span>
+              <span>结算 {{ row.settledAt ? formatTime(row.settledAt) : '--' }}</span>
+            </div>
+            <div class="stat-item-row is-muted">
+              <span>审核结果</span>
+              <span :class="{ 'is-danger': row.status === 'rejected' }">{{ auditResultText(row) }}</span>
+            </div>
+          </div>
+          <p
+            v-if="statDialogOrders.length === 0"
+            class="stat-empty"
+          >
+            暂无数据
+          </p>
+        </div>
+
+        <!-- 桌面端：保持原表格 -->
+        <el-table
+          v-else
+          :data="statDialogOrders"
+          border
+          size="small"
+          max-height="450"
+          style="width: 100%;"
+        >
+          <el-table-column
+            type="index"
+            label="#"
+            width="40"
+          />
+          <el-table-column
+            prop="productName"
+            label="产品名称"
+            min-width="140"
+            show-overflow-tooltip
+          >
+            <template #default="{ row }">
+              <span>{{ row.productName }}</span>
+              <el-tag
+                v-if="row.optionLabel"
+                size="small"
+                type="info"
+                style="margin-left: 4px;"
+              >
+                {{ row.optionLabel }}
+              </el-tag>
+              <el-tag
+                v-if="row.fundAccount"
+                size="small"
+                type="primary"
+                plain
+                style="margin-left: 4px;"
+              >
+                {{ row.fundAccount }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column
+            prop="userName"
+            label="姓名"
+            width="80"
+            show-overflow-tooltip
+          >
+            <template #default="{ row }">
+              <span>{{ row.userName }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column
+            prop="userPhone"
+            label="手机号"
+            width="100"
+            show-overflow-tooltip
+          >
+            <template #default="{ row }">
+              <span>{{ maskPhone(row.userPhone) }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column
+            prop="productPrice"
+            label="推广费"
+            width="70"
+            align="right"
+          >
+            <template #default="{ row }">
+              <span style="font-weight: 600;">{{ displayProductPrice(row) }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column
+            prop="status"
+            label="状态"
+            width="70"
+            align="center"
+          >
+            <template #default="{ row }">
+              <el-tag
+                :type="statusTagType(row.status)"
+                size="small"
+              >
+                {{ statusText(row.status) }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="做单时间"
+            width="130"
+            align="center"
+          >
+            <template #default="{ row }">
+              {{ formatTime(row.createdAt) }}
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="审核结果"
+            width="100"
+            show-overflow-tooltip
+          >
+            <template #default="{ row }">
+              <span :style="row.status === 'rejected' ? 'color: #f56c6c;' : ''">{{ auditResultText(row) }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column
+            prop="settledAt"
+            label="结算日期"
+            width="130"
+            align="center"
+          >
+            <template #default="{ row }">
+              <span>{{ row.settledAt ? formatTime(row.settledAt) : '--' }}</span>
+            </template>
+          </el-table-column>
+        </el-table>
       </div>
 
-      <el-table
-        :data="statDialogOrders"
-        border
-        size="small"
-        max-height="450"
-        style="width: 100%;"
+      <div
+        class="payment-actions"
+        :class="{ 'is-mobile': isMobile }"
       >
-        <el-table-column
-          type="index"
-          label="#"
-          width="40"
-        />
-        <el-table-column
-          prop="productName"
-          label="产品名称"
-          min-width="140"
-          show-overflow-tooltip
+        <el-button
+          :class="{ 'mobile-btn': isMobile }"
+          @click="statDialogVisible = false"
         >
-          <template #default="{ row }">
-            <span>{{ row.productName }}</span>
-            <el-tag
-              v-if="row.optionLabel"
-              size="small"
-              type="info"
-              style="margin-left: 4px;"
-            >
-              {{ row.optionLabel }}
-            </el-tag>
-            <el-tag
-              v-if="row.fundAccount"
-              size="small"
-              type="primary"
-              plain
-              style="margin-left: 4px;"
-            >
-              {{ row.fundAccount }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column
-          prop="userName"
-          label="姓名"
-          width="80"
-          show-overflow-tooltip
-        >
-          <template #default="{ row }">
-            <span>{{ row.userName }}</span>
-          </template>
-        </el-table-column>
-        <el-table-column
-          prop="userPhone"
-          label="手机号"
-          width="100"
-          show-overflow-tooltip
-        >
-          <template #default="{ row }">
-            <span>{{ maskPhone(row.userPhone) }}</span>
-          </template>
-        </el-table-column>
-        <el-table-column
-          prop="productPrice"
-          label="推广费"
-          width="70"
-          align="right"
-        >
-          <template #default="{ row }">
-            <span style="font-weight: 600;">{{ displayProductPrice(row) }}</span>
-          </template>
-        </el-table-column>
-        <el-table-column
-          prop="status"
-          label="状态"
-          width="70"
-          align="center"
-        >
-          <template #default="{ row }">
-            <el-tag
-              :type="statusTagType(row.status)"
-              size="small"
-            >
-              {{ statusText(row.status) }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column
-          label="做单时间"
-          width="130"
-          align="center"
-        >
-          <template #default="{ row }">
-            {{ formatTime(row.createdAt) }}
-          </template>
-        </el-table-column>
-        <el-table-column
-          label="审核结果"
-          width="100"
-          show-overflow-tooltip
-        >
-          <template #default="{ row }">
-            <span :style="row.status === 'rejected' ? 'color: #f56c6c;' : ''">{{ auditResultText(row) }}</span>
-          </template>
-        </el-table-column>
-        <el-table-column
-          prop="settledAt"
-          label="结算日期"
-          width="130"
-          align="center"
-        >
-          <template #default="{ row }">
-            <span>{{ row.settledAt ? formatTime(row.settledAt) : '--' }}</span>
-          </template>
-        </el-table-column>
-      </el-table>
-
-      <div class="payment-actions">
-        <el-button @click="statDialogVisible = false">
           关闭
         </el-button>
       </div>
@@ -156,7 +230,10 @@
 import { ref, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import { maskPhone, formatTime, statusTagType, statusText, getManagerId, fetchAllOrders, displayProductPrice, sumDisplayProductPrice, auditResultText } from '../utils'
+import { useIsMobile } from '@/composables/useIsMobile'
 import type { Order } from '@promo/shared/types'
+
+const { isMobile } = useIsMobile()
 
 const statDialogVisible = ref(false)
 const statDialogTitle = ref('')
@@ -206,3 +283,159 @@ const open = async (status: string, title: string) => {
 
 defineExpose({ open })
 </script>
+
+<style lang="scss" scoped>
+.stat-dialog-content {
+  overflow: hidden;
+}
+
+.payment-summary {
+  &.is-mobile {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 12px 14px;
+    margin-bottom: 12px;
+    font-size: 14px;
+    color: #606266;
+    background-color: #f5f7fa;
+    border-radius: 10px;
+
+    .payment-total {
+      color: #409eff;
+      font-size: 16px;
+    }
+  }
+}
+
+.payment-actions {
+  &.is-mobile {
+    flex: none;
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 0;
+    padding: 10px 0 calc(10px + env(safe-area-inset-bottom));
+    background-color: #ffffff;
+    border-top: 1px solid #f0f2f5;
+  }
+}
+
+.mobile-btn {
+  min-height: 44px;
+}
+
+/* ===== 移动端明细列表 ===== */
+.stat-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.stat-item {
+  padding: 12px 14px;
+  background-color: #ffffff;
+  border: 1px solid #ebeef5;
+  border-radius: 12px;
+}
+
+.stat-item-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+
+  .stat-item-index {
+    flex: none;
+    min-width: 18px;
+    font-size: 12px;
+    line-height: 20px;
+    color: #c0c4cc;
+  }
+
+  .stat-item-name {
+    flex: 1;
+    min-width: 0;
+    font-size: 15px;
+    font-weight: 600;
+    line-height: 1.4;
+    color: #303133;
+    word-break: break-all;
+  }
+}
+
+.stat-item-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 8px 0 0 26px;
+}
+
+.stat-item-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 6px;
+  padding-left: 26px;
+  font-size: 13px;
+  color: #303133;
+
+  &.is-muted {
+    font-size: 12px;
+    color: #909399;
+  }
+
+  .is-danger {
+    color: #f56c6c;
+  }
+}
+
+.stat-item-price {
+  flex: none;
+  font-size: 15px;
+  font-weight: 600;
+  color: #409eff;
+}
+
+.stat-empty {
+  padding: 40px 0;
+  font-size: 14px;
+  color: #909399;
+  text-align: center;
+}
+</style>
+
+<style lang="scss">
+/* 全屏弹窗由 teleport 渲染，容器结构用全局样式控制 */
+.stat-detail-dialog.is-fullscreen {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  overflow: hidden;
+  border-radius: 0;
+}
+
+.stat-detail-dialog.is-fullscreen .stat-detail-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 12px 14px 0;
+}
+
+.stat-detail-dialog.is-fullscreen .stat-dialog-content {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.stat-detail-dialog.is-fullscreen .stat-dialog-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+</style>
